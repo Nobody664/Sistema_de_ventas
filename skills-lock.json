@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "skills": {
+    "agent-tools": {
+      "source": "toolshell/skills",
+      "sourceType": "github",
+      "computedHash": "220054a640e514d0bb5be4af7eb9b54f2205b2f6de6a85bd1561f0b0b06d6013"
+    },
+    "auth0-nextjs": {
+      "source": "auth0/agent-skills",
+      "sourceType": "github",
+      "computedHash": "4a0f854b2530f4b0038302915f51ddb44586ba73f015ec2dd6e4c8630b1460a4"
+    },
+    "debugging": {
+      "source": "supercent-io/skills-template",
+      "sourceType": "github",
+      "computedHash": "8fe16be685f8d27839ed2c0607f612e066d24ad04e1cd65e52b3deeba5426837"
+    },
+    "frontend-design": {
+      "source": "am-will/codex-skills",
+      "sourceType": "github",
+      "computedHash": "0792809c51bd57c9621ce64d7d4b7a99cb6ebc2f154bb303140d22b8eca34685"
+    },
+    "mui": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "computedHash": "42c7b1620ab65d1cb1d3bcbf931320757113f921bc6bf9f8883d0c402b9445a3"
+    },
+    "nestjs-best-practices": {
+      "source": "kadajett/agent-nestjs-skills",
+      "sourceType": "github",
+      "computedHash": "1b6f82e889d19d305e38e35594de08eca0242321f353cafa4cf5e61dd3aa1a73"
+    },
+    "nestjs-expert": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "db72897ee0ae63aebce4a4e23cc5f81f919137907052127f0169bc379d6194b1"
+    },
+    "next-best-practices": {
+      "source": "vercel-labs/next-skills",
+      "sourceType": "github",
+      "computedHash": "515ba75178bd44875812d9a560bdf14651f86709f89cf1d4f209638e879807f3"
+    },
+    "react-native-navigation": {
+      "source": "pluginagentmarketplace/custom-plugin-react-native",
+      "sourceType": "github",
+      "computedHash": "c140203ec4cd5efd2c41579f1ff2532e297dc24befd0e48375a1eb44cda3fa5e"
+    },
+    "theme-factory": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "93e78aa44f8fa00bb2c0608f400de1e1dcd6494611dd8ea27c867654240c7bcd"
+    },
+    "ui-ux-pro-max": {
+      "source": "kimny1143/claude-code-template",
+      "sourceType": "github",
+      "computedHash": "e122b7731727f01dfa62f24151fa8265f65aa5573524dab4a4f343e12783c5a3"
+    }
+  }
+}

@@ -1,0 +1,346 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  PAST_DUE
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MERCADOPAGO
+  PAYPAL
+  CASH
+  CARD
+  TRANSFER
+}
+
+enum GlobalRole {
+  SUPER_ADMIN
+  SUPPORT_ADMIN
+  USER
+}
+
+enum CompanyRole {
+  COMPANY_ADMIN
+  MANAGER
+  CASHIER
+  STAFF
+}
+
+enum ProductStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum InventoryMovementType {
+  INBOUND
+  OUTBOUND
+  ADJUSTMENT
+  RETURN
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
+  REFUNDED
+}
+
+model User {
+  id             String              @id @default(cuid())
+  email          String              @unique
+  passwordHash   String
+  fullName       String
+  globalRole     GlobalRole          @default(USER)
+  isActive       Boolean             @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  memberships    CompanyMembership[]
+  employees      Employee[]
+  auditLogs      AuditLog[]
+}
+
+model Company {
+  id                String              @id @default(cuid())
+  name              String
+  slug              String              @unique
+  legalName         String?
+  taxId             String?
+  email             String?
+  phone             String?
+  timezone          String              @default("America/Lima")
+  currency          String              @default("PEN")
+  status            CompanyStatus       @default(TRIAL)
+  trialEndsAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  memberships       CompanyMembership[]
+  employees         Employee[]
+  customers         Customer[]
+  categories        Category[]
+  products          Product[]
+  inventoryMoves    InventoryMovement[]
+  sales             Sale[]
+  subscription      Subscription?
+  auditLogs         AuditLog[]
+
+  @@index([status])
+}
+
+model CompanyMembership {
+  id         String      @id @default(cuid())
+  companyId  String
+  userId     String
+  role       CompanyRole
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+}
+
+model Plan {
+  id                String           @id @default(cuid())
+  code              String           @unique
+  name              String
+  description       String?
+  priceMonthly      Decimal          @db.Decimal(10, 2)
+  priceYearly       Decimal          @db.Decimal(10, 2)
+  billingCycle      BillingCycle     @default(MONTHLY)
+  maxUsers          Int?
+  maxProducts       Int?
+  features          Json
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  subscriptions     Subscription[]
+}
+
+model Subscription {
+  id                     String              @id @default(cuid())
+  companyId              String              @unique
+  planId                 String
+  status                 SubscriptionStatus  @default(TRIALING)
+  provider               PaymentProvider?
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  billingCycle           BillingCycle        @default(MONTHLY)
+  startDate              DateTime
+  endDate                DateTime?
+  canceledAt             DateTime?
+  autoRenew              Boolean             @default(true)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  company                Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan                   Plan                @relation(fields: [planId], references: [id])
+  payments               Payment[]
+
+  @@index([planId, status])
+}
+
+model Payment {
+  id               String           @id @default(cuid())
+  subscriptionId   String
+  provider         PaymentProvider
+  transactionId    String?
+  amount           Decimal          @db.Decimal(10, 2)
+  currency         String           @default("USD")
+  status           PaymentStatus
+  providerPayload  Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  subscription     Subscription     @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, status])
+  @@index([provider, transactionId])
+}
+
+model Category {
+  id          String      @id @default(cuid())
+  companyId   String
+  name        String
+  slug        String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@unique([companyId, slug])
+  @@index([companyId, name])
+}
+
+model Product {
+  id              String          @id @default(cuid())
+  companyId       String
+  categoryId      String?
+  sku             String
+  barcode         String?
+  name            String
+  description     String?
+  imageUrl        String?
+  costPrice       Decimal         @db.Decimal(10, 2)
+  salePrice       Decimal         @db.Decimal(10, 2)
+  stockQuantity   Int             @default(0)
+  minStock        Int             @default(5)
+  status          ProductStatus   @default(ACTIVE)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category        Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  inventoryMoves  InventoryMovement[]
+  saleItems       SaleItem[]
+
+  @@unique([companyId, sku])
+  @@index([companyId, status])
+  @@index([companyId, name])
+  @@index([companyId, stockQuantity])
+}
+
+model InventoryMovement {
+  id            String                 @id @default(cuid())
+  companyId     String
+  productId     String
+  type          InventoryMovementType
+  quantity      Int
+  unitCost      Decimal?               @db.Decimal(10, 2)
+  reason        String?
+  referenceId   String?
+  createdAt     DateTime               @default(now())
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product       Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([productId, createdAt])
+}
+
+model Customer {
+  id            String      @id @default(cuid())
+  companyId     String
+  firstName     String
+  lastName      String?
+  email         String?
+  phone         String?
+  documentType  String?
+  documentValue String?
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sales         Sale[]
+
+  @@index([companyId, createdAt])
+  @@index([companyId, email])
+}
+
+model Employee {
+  id            String      @id @default(cuid())
+  companyId     String
+  userId        String?
+  firstName     String
+  lastName      String?
+  email         String?
+  phone         String?
+  role          CompanyRole
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sales         Sale[]
+
+  @@index([companyId, role])
+  @@index([companyId, isActive])
+}
+
+model Sale {
+  id               String           @id @default(cuid())
+  companyId        String
+  customerId       String?
+  employeeId       String?
+  saleNumber       String
+  status           SaleStatus       @default(COMPLETED)
+  subtotal         Decimal          @db.Decimal(10, 2)
+  taxAmount        Decimal          @db.Decimal(10, 2)
+  discountAmount   Decimal          @db.Decimal(10, 2)
+  totalAmount      Decimal          @db.Decimal(10, 2)
+  paymentMethod    PaymentProvider
+  paidAt           DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer         Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  employee         Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  items            SaleItem[]
+
+  @@unique([companyId, saleNumber])
+  @@index([companyId, createdAt])
+  @@index([companyId, status])
+  @@index([companyId, employeeId])
+}
+
+model SaleItem {
+  id             String     @id @default(cuid())
+  saleId         String
+  productId      String
+  quantity       Int
+  unitPrice      Decimal    @db.Decimal(10, 2)
+  discountAmount Decimal    @db.Decimal(10, 2)
+  totalAmount    Decimal    @db.Decimal(10, 2)
+  sale           Sale       @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product        Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  companyId   String?
+  userId      String?
+  action      String
+  entity      String
+  entityId    String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+}

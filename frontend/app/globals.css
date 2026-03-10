@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 34 47% 96%;
+  --foreground: 218 29% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 218 29% 13%;
+  --primary: 15 84% 55%;
+  --primary-foreground: 34 47% 96%;
+  --secondary: 209 41% 92%;
+  --secondary-foreground: 218 29% 13%;
+  --accent: 193 77% 43%;
+  --accent-foreground: 210 40% 98%;
+  --muted: 30 30% 92%;
+  --muted-foreground: 217 15% 36%;
+  --border: 24 22% 84%;
+  --input: 24 22% 84%;
+  --ring: 15 84% 55%;
+}
+
+* {
+  @apply border-border;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-foreground;
+  background-image:
+    radial-gradient(circle at top left, rgba(239, 120, 71, 0.14), transparent 28%),
+    radial-gradient(circle at top right, rgba(20, 151, 179, 0.16), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 239, 231, 0.94));
+  min-height: 100vh;
+}
+
+.grain {
+  position: relative;
+}
+
+.grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(17, 24, 39, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 24, 39, 0.02) 1px, transparent 1px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent);
+}
+
+.section-title {
+  @apply font-display text-4xl font-semibold tracking-tight md:text-6xl;
+}
+
+.eyebrow {
+  @apply inline-flex rounded-full border border-foreground/10 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-foreground/60;
+}
+

@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ventas-saas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ventas_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: ventas-saas-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: ventas-saas-backend
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - ./backend/.env.example
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ventas-saas-frontend
+    depends_on:
+      - backend
+    env_file:
+      - ./frontend/.env.example
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+
