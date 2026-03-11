@@ -23,6 +23,8 @@ import { EmployeesModule } from '@/modules/employees/employees.module';
 import { ReportsModule } from '@/modules/reports/reports.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { AuditModule } from '@/modules/audit/audit.module';
+import { NotificationsModule } from '@/modules/notifications/notifications.module';
+import { EmailModule } from '@/modules/email/email.module';
 
 @Module({
   imports: [
@@ -66,6 +68,8 @@ import { AuditModule } from '@/modules/audit/audit.module';
     ReportsModule,
     DashboardModule,
     AuditModule,
+    NotificationsModule,
+    EmailModule,
   ],
   providers: [
     {

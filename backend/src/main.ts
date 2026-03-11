@@ -1,8 +1,8 @@
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -19,10 +19,6 @@ async function bootstrap() {
     credentials: true,
   });
   app.setGlobalPrefix(configService.getOrThrow<string>('API_PREFIX'));
-  app.enableVersioning({
-    type: VersioningType.URI,
-    defaultVersion: '1',
-  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
 
 export class CreateEmployeeDto {
   @IsOptional()
@@ -22,6 +22,10 @@ export class CreateEmployeeDto {
 
   @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'STAFF'])
   role!: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateEmployeeDto {
@@ -44,5 +48,9 @@ export class UpdateEmployeeDto {
   @IsOptional()
   @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'STAFF'])
   role?: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 

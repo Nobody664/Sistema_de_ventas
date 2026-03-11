@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { UsersService } from '@/modules/users/users.service';
+import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
+import { EmailService } from '@/modules/email/email.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 
 @Injectable()
@@ -13,6 +15,8 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
+    private readonly emailService: EmailService,
   ) {}
 
   async register(input: RegisterDto) {
@@ -29,6 +33,7 @@ export class AuthService {
           .replace(/[^a-z0-9\s-]/g, '')
           .trim()
           .replace(/\s+/g, '-')}-${Date.now().toString().slice(-6)}`,
+        status: 'TRIAL',
       },
     });
 
@@ -39,6 +44,68 @@ export class AuthService {
       passwordHash,
       companyId: company.id,
     });
+
+    let requiresApproval = false;
+
+    if (input.planCode) {
+      const plan = await this.prisma.plan.findUnique({
+        where: { code: input.planCode },
+      });
+
+      if (plan) {
+        requiresApproval = true;
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 1);
+
+        const subscription = await this.prisma.subscription.create({
+          data: {
+            companyId: company.id,
+            planId: plan.id,
+            status: 'TRIALING',
+            billingCycle: plan.billingCycle,
+            startDate,
+            endDate,
+            autoRenew: true,
+          },
+        });
+
+        const provider = input.paymentMethod?.toUpperCase() || 'CASH';
+        await this.prisma.payment.create({
+          data: {
+            subscriptionId: subscription.id,
+            provider: provider as never,
+            amount: plan.priceMonthly,
+            currency: 'PEN',
+            status: input.paymentMethod ? 'SUCCEEDED' : 'PENDING',
+            transactionId: input.paymentMethod ? `demo-${Date.now()}` : null,
+          },
+        });
+
+        await this.notificationsService.create({
+          userId: user.id,
+          companyId: company.id,
+          type: NotificationType.SUBSCRIPTION_PENDING,
+          channel: NotificationChannel.IN_APP,
+          title: 'Suscripción pendiente de aprobación',
+          message: `Tu empresa "${company.name}" está esperando ser aprobada. Te notificaremos cuando esté lista.`,
+        });
+
+        await this.emailService.sendSubscriptionPending(input.email, company.name);
+      }
+    }
+
+    if (requiresApproval) {
+      return {
+        requiresApproval: true,
+        message: 'Tu cuenta está pendiente de aprobación. Un administrador revisará tu solicitud.',
+        company: {
+          id: company.id,
+          name: company.name,
+          status: company.status,
+        },
+      };
+    }
 
     return this.createSession({
       sub: user.id,
@@ -62,8 +129,18 @@ export class AuthService {
 
     const membership = await this.prisma.companyMembership.findFirst({
       where: { userId: user.id, isActive: true },
+      include: { company: true },
       orderBy: { createdAt: 'asc' },
     });
+
+    if (membership?.company) {
+      if (membership.company.status === 'TRIAL') {
+        throw new UnauthorizedException('Tu cuenta está pendiente de aprobación. Un administrador revisará tu solicitud.');
+      }
+      if (membership.company.status === 'SUSPENDED') {
+        throw new UnauthorizedException('Tu cuenta ha sido suspendida. Contacta al administrador.');
+      }
+    }
 
     return this.createSession({
       sub: user.id,

@@ -1,4 +1,35 @@
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+
+export class CreateCompanyDto {
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  slug?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+}
+
+export class CreateCompanyWithPlanDto extends CreateCompanyDto {
+  @IsUUID()
+  planId!: string;
+}
 
 export class UpdateCompanyDto {
   @IsOptional()
