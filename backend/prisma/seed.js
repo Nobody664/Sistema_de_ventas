@@ -1,7 +1,14 @@
+require('dotenv').config();
 const argon2 = require('argon2');
 const { PrismaClient } = require('@prisma/client');
+const { PrismaPg } = require('@prisma/adapter-pg');
+const { Pool } = require('pg');
 
-const prisma = new PrismaClient();
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function upsertUser({ email, fullName, password, globalRole = 'USER' }) {
   const passwordHash = await argon2.hash(password);
@@ -116,7 +123,7 @@ async function main() {
     },
   });
 
-  const [ownerAcme, managerAcme, cashierAcme, ownerNova] = await Promise.all([
+  const [ownerAcme, managerAcme, cashierAcme, staffAcme, ownerNova] = await Promise.all([
     upsertUser({
       email: 'admin@acme.local',
       fullName: 'Admin Acme',
@@ -130,6 +137,11 @@ async function main() {
     upsertUser({
       email: 'cajero@acme.local',
       fullName: 'Cajero Acme',
+      password,
+    }),
+    upsertUser({
+      email: 'staff@acme.local',
+      fullName: 'Staff Acme',
       password,
     }),
     upsertUser({
@@ -180,6 +192,20 @@ async function main() {
         companyId: acmeCompany.id,
         userId: cashierAcme.id,
         role: 'CASHIER',
+      },
+    }),
+    prisma.companyMembership.upsert({
+      where: {
+        companyId_userId: {
+          companyId: acmeCompany.id,
+          userId: staffAcme.id,
+        },
+      },
+      update: { role: 'STAFF', isActive: true },
+      create: {
+        companyId: acmeCompany.id,
+        userId: staffAcme.id,
+        role: 'STAFF',
       },
     }),
     prisma.companyMembership.upsert({
@@ -311,6 +337,7 @@ async function main() {
         companyId: acmeCompany.id,
         name: 'Cafetería',
         slug: 'cafeteria',
+        description: 'Productos de cafetería',
       },
     }),
     prisma.category.upsert({
@@ -320,6 +347,27 @@ async function main() {
         companyId: acmeCompany.id,
         name: 'Accesorios',
         slug: 'accesorios',
+        description: 'Accesorios tecnológicos',
+      },
+    }),
+    prisma.category.upsert({
+      where: { companyId_slug: { companyId: acmeCompany.id, slug: 'bebidas' } },
+      update: {},
+      create: {
+        companyId: acmeCompany.id,
+        name: 'Bebidas',
+        slug: 'bebidas',
+        description: 'Bebidas frías y calientes',
+      },
+    }),
+    prisma.category.upsert({
+      where: { companyId_slug: { companyId: acmeCompany.id, slug: 'comida' } },
+      update: {},
+      create: {
+        companyId: acmeCompany.id,
+        name: 'Comida',
+        slug: 'comida',
+        description: 'Snacks y comida rápida',
       },
     }),
   ]);
@@ -357,6 +405,70 @@ async function main() {
         minStock: 10,
       },
     }),
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: acmeCompany.id, sku: 'ACM-TEK-003' } },
+      update: { stockQuantity: 45, salePrice: '159.00' },
+      create: {
+        companyId: acmeCompany.id,
+        categoryId: categories[1].id,
+        sku: 'ACM-TEK-003',
+        barcode: '100000000003',
+        name: 'Teclado mecánico RGB',
+        description: 'Teclado para gaming.',
+        costPrice: '89.00',
+        salePrice: '159.00',
+        stockQuantity: 45,
+        minStock: 8,
+      },
+    }),
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: acmeCompany.id, sku: 'ACM-AUD-004' } },
+      update: { stockQuantity: 30, salePrice: '249.00' },
+      create: {
+        companyId: acmeCompany.id,
+        categoryId: categories[1].id,
+        sku: 'ACM-AUD-004',
+        barcode: '100000000004',
+        name: 'Auriculares Bluetooth',
+        description: 'Auriculares con cancelación de ruido.',
+        costPrice: '149.00',
+        salePrice: '249.00',
+        stockQuantity: 30,
+        minStock: 5,
+      },
+    }),
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: acmeCompany.id, sku: 'ACM-BEB-005' } },
+      update: { stockQuantity: 200, salePrice: '12.00' },
+      create: {
+        companyId: acmeCompany.id,
+        categoryId: categories[2].id,
+        sku: 'ACM-BEB-005',
+        barcode: '100000000005',
+        name: 'Jugo de naranja',
+        description: 'Jugo natural.',
+        costPrice: '6.00',
+        salePrice: '12.00',
+        stockQuantity: 200,
+        minStock: 20,
+      },
+    }),
+    prisma.product.upsert({
+      where: { companyId_sku: { companyId: acmeCompany.id, sku: 'ACM-COM-006' } },
+      update: { stockQuantity: 80, salePrice: '18.00' },
+      create: {
+        companyId: acmeCompany.id,
+        categoryId: categories[3].id,
+        sku: 'ACM-COM-006',
+        barcode: '100000000006',
+        name: 'Sandwich mixto',
+        description: 'Sandwich de jamon y queso.',
+        costPrice: '8.00',
+        salePrice: '18.00',
+        stockQuantity: 80,
+        minStock: 15,
+      },
+    }),
   ]);
 
   const [customerOne, customerTwo] = await Promise.all([
@@ -380,7 +492,7 @@ async function main() {
     }),
   ]);
 
-  const [employeeAdmin, employeeManager, employeeCashier] = await Promise.all([
+  const [employeeAdmin, employeeManager, employeeCashier, employeeStaff] = await Promise.all([
     prisma.employee.create({
       data: {
         companyId: acmeCompany.id,
@@ -409,6 +521,16 @@ async function main() {
         lastName: 'Acme',
         email: 'cajero@acme.local',
         role: 'CASHIER',
+      },
+    }),
+    prisma.employee.create({
+      data: {
+        companyId: acmeCompany.id,
+        userId: staffAcme.id,
+        firstName: 'Staff',
+        lastName: 'Acme',
+        email: 'staff@acme.local',
+        role: 'STAFF',
       },
     }),
   ]);

@@ -49,7 +49,15 @@ export class DashboardService {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [salesToday, lowStockProducts, recentSales, company] = await Promise.all([
+    const [
+      salesToday,
+      lowStockProducts,
+      recentSales,
+      company,
+      totalProducts,
+      totalCustomers,
+      totalEmployees,
+    ] = await Promise.all([
       this.prisma.sale.findMany({
         where: {
           companyId,
@@ -77,6 +85,9 @@ export class DashboardService {
         where: { id: companyId },
         select: { id: true, name: true, status: true, currency: true },
       }),
+      this.prisma.product.count({ where: { companyId } }),
+      this.prisma.customer.count({ where: { companyId } }),
+      this.prisma.employee.count({ where: { companyId } }),
     ]);
 
     const todaySales = salesToday as Array<{ totalAmount: unknown }>;
@@ -107,6 +118,9 @@ export class DashboardService {
     return {
       company,
       companyId,
+      totalProducts,
+      totalCustomers,
+      totalEmployees,
       salesToday: salesToday.length,
       revenueToday,
       lowStockProducts,
