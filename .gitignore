@@ -11,3 +11,7 @@ backend/prisma/dev.db-journal
 frontend/.next/
 *.log
 
+.agents/
+.claude
+.cortex
+skills/

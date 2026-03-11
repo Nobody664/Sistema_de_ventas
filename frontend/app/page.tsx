@@ -156,8 +156,8 @@ export default function HomePage() {
               <p className="text-sm uppercase tracking-[0.18em] opacity-60">{plan.name}</p>
               <p className="mt-5 font-display text-5xl">{plan.price}</p>
               <p className="mt-4 text-sm leading-7 opacity-75">{plan.detail}</p>
-              <Button className="mt-8" variant={index === 1 ? 'secondary' : 'default'}>
-                Elegir plan
+              <Button asChild className="mt-8" variant={index === 1 ? 'secondary' : 'default'}>
+                <Link href="/pricing">Elegir plan</Link>
               </Button>
             </Card>
           ))}

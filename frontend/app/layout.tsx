@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Bricolage_Grotesque, IBM_Plex_Sans } from 'next/font/google';
 import { Providers } from './providers';
+import { ToastContainer } from '@/components/common/toast';
 import './globals.css';
 
 const displayFont = Bricolage_Grotesque({
@@ -23,7 +24,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="es">
       <body className={`${displayFont.variable} ${bodyFont.variable} font-body antialiased`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <ToastContainer />
+        </Providers>
       </body>
     </html>
   );

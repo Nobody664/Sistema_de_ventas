@@ -11,10 +11,13 @@ const buttonVariants = cva(
         default: 'bg-primary px-5 py-3 text-primary-foreground hover:opacity-90',
         secondary: 'bg-background px-5 py-3 text-foreground hover:bg-secondary',
         ghost: 'bg-transparent px-5 py-3 text-foreground hover:bg-foreground/5',
+        outline: 'border border-input bg-background px-5 py-3 hover:bg-accent hover:text-accent-foreground',
+        destructive: 'bg-red-600 px-5 py-3 text-white hover:bg-red-700',
       },
       size: {
         default: 'h-11',
         lg: 'h-12 px-6 text-sm',
+        sm: 'h-9 px-3 text-xs',
       },
     },
     defaultVariants: {

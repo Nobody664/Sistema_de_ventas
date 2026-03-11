@@ -1,14 +1,19 @@
 import Link from 'next/link';
-import { BarChart3, Building2, CreditCard, LayoutDashboard, Package, ShoppingCart, Users } from 'lucide-react';
+import { BarChart3, Bell, Building2, CreditCard, LayoutDashboard, Package, ShoppingCart, Users, Activity, UserCog, FolderTree, UserPlus } from 'lucide-react';
 
 const items = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Empresas', href: '#', icon: Building2, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
-  { label: 'Suscripciones', href: '#', icon: CreditCard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN'] },
-  { label: 'Productos', href: '#', icon: Package, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Ventas', href: '#', icon: ShoppingCart, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Clientes', href: '#', icon: Users, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Reportes', href: '#', icon: BarChart3, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Empresas', href: '/companies', icon: Building2, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
+  { label: 'Suscriptores', href: '/subscribers', icon: UserPlus, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
+  { label: 'Suscripciones', href: '/subscriptions', icon: CreditCard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN'] },
+  { label: 'Productos', href: '/products', icon: Package, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
+  { label: 'Categorías', href: '/categories', icon: FolderTree, roles: ['COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Ventas', href: '/sales', icon: ShoppingCart, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
+  { label: 'Clientes', href: '/customers', icon: Users, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
+  { label: 'Empleados', href: '/employees', icon: UserCog, roles: ['COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Reportes', href: '/reports', icon: BarChart3, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Audit Log', href: '/audit', icon: Activity, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
+  { label: 'Notificaciones', href: '/notifications', icon: Bell, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
 ];
 
 type AppSidebarProps = {
@@ -23,9 +28,6 @@ export function AppSidebar({ roles }: AppSidebarProps) {
       <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
         <p className="text-xs uppercase tracking-[0.22em] text-white/55">Ventas SaaS</p>
         <p className="mt-3 font-display text-3xl">Control stack</p>
-        <p className="mt-3 text-sm leading-7 text-white/65">
-          Navegación base para super admin, admin de empresa y operación POS.
-        </p>
       </div>
       <nav className="mt-8 space-y-2">
         {visibleItems.map((item) => {

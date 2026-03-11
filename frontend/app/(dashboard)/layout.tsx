@@ -19,6 +19,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
             companyId={session.user.companyId ?? null}
             fullName={session.user.name ?? session.user.email ?? 'Usuario'}
             roles={session.user.roles}
+            email={session.user.email ?? ''}
           />
           <main className="p-5 md:p-8">{children}</main>
         </div>

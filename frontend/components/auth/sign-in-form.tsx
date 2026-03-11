@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -23,8 +24,8 @@ export function SignInForm() {
   const form = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      email: 'owner@demo.com',
-      password: 'password123',
+      email: 'admin@acme.local',
+      password: 'Admin123!',
     },
   });
 
@@ -92,6 +93,13 @@ export function SignInForm() {
           {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
           Continuar
         </Button>
+
+        <p className="text-center text-sm text-foreground/60">
+          ¿No tienes una cuenta?{' '}
+          <Link href="/sign-up" className="font-medium text-primary hover:underline">
+            Regístrate
+          </Link>
+        </p>
       </form>
     </Card>
   );
