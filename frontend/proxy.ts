@@ -1,30 +1,56 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 
-export { auth as middleware };
-
 export const config = {
-  matcher: ['/dashboard/:path*', '/api/v1/:path*', '/sign-in', '/sign-up'],
+  matcher: [
+    '/',
+    '/dashboard/:path*',
+    '/products/:path*',
+    '/categories/:path*',
+    '/sales/:path*',
+    '/customers/:path*',
+    '/employees/:path*',
+    '/reports/:path*',
+    '/companies/:path*',
+    '/subscribers/:path*',
+    '/upgrade-requests/:path*',
+    '/subscriptions/:path*',
+    '/audit/:path*',
+    '/notifications/:path*',
+    '/settings/:path*',
+    '/invoices/:path*',
+    '/profile/:path*',
+    '/api/:path*',
+  ],
 };
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  const isOnDashboard = pathname.startsWith('/dashboard');
-  const isOnApi = pathname.startsWith('/api/v1');
-  const isOnAuthRoute = pathname.startsWith('/sign-in') || pathname.startsWith('/api/auth');
+  const publicPaths = ['/', '/sign-in', '/sign-up', '/register', '/api/auth', '/pricing', '/contact'];
+  const isPublicPath = publicPaths.some(path => pathname === path || pathname.startsWith(path + '/'));
+  
+  const isApiRoute = pathname.startsWith('/api');
+  const isNextAuthApi = pathname.startsWith('/api/auth');
+  const isPublicApi = pathname === '/api/auth/register' || isNextAuthApi || pathname === '/api/auth/login' || pathname === '/api/auth/callback' || pathname === '/api/auth/session';
 
-  if (!isLoggedIn && isOnDashboard) {
+  if (isPublicPath && !isApiRoute) {
+    if (isLoggedIn && (pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/register')) {
+      return Response.redirect(new URL('/dashboard', req.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (isApiRoute && isPublicApi) {
+    return NextResponse.next();
+  }
+
+  if (!isLoggedIn && !isPublicPath) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     return Response.redirect(new URL('/sign-in', req.url));
-  }
-
-  if (!isLoggedIn && isOnApi) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (isLoggedIn && isOnAuthRoute) {
-    return Response.redirect(new URL('/dashboard', req.url));
   }
 
   return NextResponse.next();

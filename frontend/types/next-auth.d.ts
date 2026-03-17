@@ -11,6 +11,8 @@ declare module 'next-auth' {
       name?: string | null;
       roles: string[];
       companyId?: string | null;
+      planCode?: string | null;
+      subscriptionStatus?: string | null;
     };
   }
 
@@ -19,6 +21,8 @@ declare module 'next-auth' {
     companyId?: string | null;
     accessToken?: string;
     refreshToken?: string;
+    planCode?: string | null;
+    subscriptionStatus?: string | null;
   }
 }
 
@@ -28,6 +32,8 @@ declare module 'next-auth/jwt' {
     companyId?: string | null;
     accessToken?: string;
     refreshToken?: string;
+    planCode?: string | null;
+    subscriptionStatus?: string | null;
   }
 }
 

@@ -4,6 +4,7 @@ export type Product = {
   sku: string;
   barcode: string | null;
   description: string | null;
+  imageUrl: string | null;
   costPrice: string;
   salePrice: string;
   stockQuantity: number;
@@ -33,6 +34,7 @@ export type Customer = {
   documentValue: string | null;
   notes: string | null;
   totalPurchases: number;
+  sales?: Array<{ totalAmount: string | number }>;
   createdAt: string;
 };
 
@@ -42,6 +44,7 @@ export type Employee = {
   lastName: string | null;
   email: string | null;
   phone: string | null;
+  dni: string | null;
   role: string;
   isActive: boolean;
   createdAt: string;
@@ -71,17 +74,37 @@ export type Plan = {
   priceMonthly: string;
   priceYearly: string;
   billingCycle: string;
+  maxUsers: number | null;
+  maxProducts: number | null;
+  features: string[] | Record<string, unknown>;
   isActive: boolean;
-  features?: string[];
+};
+
+export type Notification = {
+  id: string;
+  userId: string;
+  companyId: string | null;
+  type: string;
+  channel: string;
+  title: string;
+  message: string;
+  data: Record<string, unknown> | null;
+  isRead: boolean;
+  sentAt: string | null;
+  createdAt: string;
 };
 
 export type Company = {
   id: string;
   name: string;
   slug: string;
+  legalName: string | null;
+  taxId: string | null;
+  address: string | null;
   email: string | null;
   phone: string | null;
   status: string;
+  trialEndsAt: string | null;
   currency: string;
   timezone: string;
   createdAt: string;
@@ -115,6 +138,27 @@ export type SubscriberWithCompany = {
     status: string;
     createdAt: string;
   };
+  payments?: Array<{
+    id: string;
+    amount: string;
+    status: string;
+    createdAt: string;
+  }>;
+};
+
+export type Subscription = {
+  id: string;
+  companyId: string;
+  planId: string;
+  status: string;
+  billingCycle: string;
+  startDate: string;
+  endDate: string | null;
+  autoRenew: boolean;
+  canceledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  plan?: Plan;
   payments?: Array<{
     id: string;
     amount: string;

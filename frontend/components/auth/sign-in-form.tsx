@@ -4,28 +4,29 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 
 const signInSchema = z.object({
-  email: z.string().email('Correo inválido'),
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  email: z.string().email('Correo electrónico inválido'),
+  password: z.string().min(1, 'La contraseña es requerida'),
 });
 
 type SignInValues = z.infer<typeof signInSchema>;
 
 export function SignInForm() {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      email: 'admin@acme.local',
-      password: 'Admin123!',
+      email: '',
+      password: '',
     },
   });
 
@@ -42,66 +43,76 @@ export function SignInForm() {
     setIsSubmitting(false);
 
     if (result?.error) {
-      setError('No se pudo iniciar sesión con las credenciales enviadas.');
+      setError('Credenciales incorrectas. Por favor intenta de nuevo.');
       return;
     }
 
-    window.location.href = result?.url ?? '/dashboard';
+    router.push(result?.url ?? '/dashboard');
   });
 
   return (
-    <Card className="w-full max-w-md rounded-[34px] bg-white/85 p-8">
-      <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Acceso privado</p>
-      <h1 className="mt-4 font-display text-4xl">Inicia sesión en tu operación.</h1>
-      <p className="mt-3 text-sm leading-7 text-foreground/62">
-        Esta pantalla usa React Hook Form, Zod y NextAuth para conectar con el backend NestJS.
-      </p>
-
-      <form className="mt-8 space-y-5" onSubmit={onSubmit}>
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            className="h-12 w-full rounded-2xl border border-foreground/10 bg-background px-4 outline-none transition focus:border-primary"
-            {...form.register('email')}
-          />
-          {form.formState.errors.email ? (
-            <p className="text-xs text-primary">{form.formState.errors.email.message}</p>
-          ) : null}
+    <form className="space-y-5" onSubmit={onSubmit}>
+      {error && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
+          {error}
         </div>
+      )}
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="password">
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-white" htmlFor="email">
+          Correo electrónico
+        </label>
+        <input
+          id="email"
+          type="email"
+          className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:border-violet-500/50 focus:bg-white/10 focus:shadow-lg focus:shadow-violet-500/10"
+          placeholder="tu@email.com"
+          {...form.register('email')}
+        />
+        {form.formState.errors.email ? (
+          <p className="text-xs text-red-400">{form.formState.errors.email.message}</p>
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-white" htmlFor="password">
             Contraseña
           </label>
-          <input
-            id="password"
-            type="password"
-            className="h-12 w-full rounded-2xl border border-foreground/10 bg-background px-4 outline-none transition focus:border-primary"
-            {...form.register('password')}
-          />
-          {form.formState.errors.password ? (
-            <p className="text-xs text-primary">{form.formState.errors.password.message}</p>
-          ) : null}
-        </div>
-
-        {error ? <p className="text-sm text-primary">{error}</p> : null}
-
-        <Button className="w-full" size="lg" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
-          Continuar
-        </Button>
-
-        <p className="text-center text-sm text-foreground/60">
-          ¿No tienes una cuenta?{' '}
-          <Link href="/sign-up" className="font-medium text-primary hover:underline">
-            Regístrate
+          <Link href="/forgot-password" className="text-xs text-white/50 hover:text-violet-400 transition-colors">
+            ¿Olvidaste tu contraseña?
           </Link>
-        </p>
-      </form>
-    </Card>
+        </div>
+        <input
+          id="password"
+          type="password"
+          className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:border-violet-500/50 focus:bg-white/10 focus:shadow-lg focus:shadow-violet-500/10"
+          placeholder="••••••••"
+          {...form.register('password')}
+        />
+        {form.formState.errors.password ? (
+          <p className="text-xs text-red-400">{form.formState.errors.password.message}</p>
+        ) : null}
+      </div>
+
+      <Button 
+        className="w-full rounded-xl bg-white text-black hover:bg-white/90 hover:shadow-xl hover:shadow-white/20 hover:-translate-y-0.5 h-12 transition-all duration-300" 
+        type="submit" 
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <Loader2 className="size-5 animate-spin" />
+        ) : (
+          'Iniciar sesión'
+        )}
+      </Button>
+
+      <p className="text-center text-sm text-white/50">
+        ¿No tienes una cuenta?{' '}
+        <Link href="/sign-up" className="font-medium text-white hover:text-violet-400 transition-colors">
+          Crear cuenta
+        </Link>
+      </p>
+    </form>
   );
 }
-

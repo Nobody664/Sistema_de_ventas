@@ -2,11 +2,25 @@ import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api').replace(/\/$/, '');
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+});
+
+const sessionSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+  user: z.object({
+    id: z.string(),
+    email: z.string(),
+    fullName: z.string(),
+    roles: z.array(z.string()),
+    companyId: z.string().nullable().optional(),
+    planCode: z.string().nullable().optional(),
+    subscriptionStatus: z.string().nullable().optional(),
+  }),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -40,17 +54,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
 
-          const session = (await response.json()) as {
-            accessToken: string;
-            refreshToken: string;
-            user: {
-              id: string;
-              email: string;
-              fullName: string;
-              roles: string[];
-              companyId?: string | null;
-            };
-          };
+          const data = await response.json();
+          const session = sessionSchema.parse(data);
 
           return {
             id: session.user.id,
@@ -58,6 +63,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: session.user.fullName,
             roles: session.user.roles,
             companyId: session.user.companyId ?? null,
+            planCode: session.user.planCode ?? null,
+            subscriptionStatus: session.user.subscriptionStatus ?? null,
             accessToken: session.accessToken,
             refreshToken: session.refreshToken,
           };
@@ -72,6 +79,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.roles = (user as { roles?: string[] }).roles ?? [];
         token.companyId = (user as { companyId?: string | null }).companyId ?? null;
+        token.planCode = (user as { planCode?: string | null }).planCode ?? null;
+        token.subscriptionStatus = (user as { subscriptionStatus?: string | null }).subscriptionStatus ?? null;
         token.accessToken = (user as { accessToken?: string }).accessToken;
         token.refreshToken = (user as { refreshToken?: string }).refreshToken;
       }
@@ -82,6 +91,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.id = token.sub ?? '';
       session.user.roles = (token.roles as string[]) ?? [];
       session.user.companyId = (token.companyId as string | null | undefined) ?? null;
+      session.user.planCode = (token.planCode as string | null | undefined) ?? null;
+      session.user.subscriptionStatus = (token.subscriptionStatus as string | null | undefined) ?? null;
       session.accessToken = token.accessToken as string | undefined;
       session.refreshToken = token.refreshToken as string | undefined;
       return session;

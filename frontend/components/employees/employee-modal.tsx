@@ -19,6 +19,13 @@ import {
 } from '@/components/ui/dialog';
 import { apiFetch } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
+import { 
+  validatePhone, 
+  validateEmail, 
+  validateTextOnly,
+  formatPhone,
+  PERU_VALIDATIONS 
+} from '@/lib/validations';
 import type { Employee } from '@/types/api';
 
 interface EmployeeModalProps {
@@ -33,16 +40,58 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
   const addToast = useUiStore((state) => state.addToast);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isEdit = !!employee;
+
+  const validateForm = (formData: FormData): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    const firstName = formData.get('firstName') as string;
+    const lastName = formData.get('lastName') as string;
+    const email = formData.get('email') as string;
+    const phone = formData.get('phone') as string;
+
+    if (!firstName || firstName.trim().length < 2) {
+      newErrors.firstName = 'El nombre debe tener al menos 2 caracteres';
+    } else if (!validateTextOnly(firstName)) {
+      newErrors.firstName = 'Solo se permiten letras';
+    }
+
+    if (lastName && !validateTextOnly(lastName)) {
+      newErrors.lastName = 'Solo se permiten letras';
+    }
+
+    if (email && !validateEmail(email)) {
+      newErrors.email = PERU_VALIDATIONS.email.error;
+    }
+
+    if (phone && !validatePhone(phone)) {
+      newErrors.phone = PERU_VALIDATIONS.phone.error;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const formatted = formatPhone(input.value);
+    input.value = formatted;
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setErrors({});
 
     const formData = new FormData(e.currentTarget);
+
+    if (!validateForm(formData)) {
+      setLoading(false);
+      return;
+    }
+
     const data: Record<string, unknown> = {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName') || null,
@@ -70,7 +119,7 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
       addToast(isEdit ? 'Empleado actualizado correctamente' : 'Empleado creado correctamente', 'success');
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      setErrors({ general: err instanceof Error ? err.message : 'Error desconocido' });
       addToast(err instanceof Error ? err.message : 'Error al guardar empleado', 'error');
     } finally {
       setLoading(false);
@@ -89,25 +138,56 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+            {errors.general && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{errors.general}</div>}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Nombres *</Label>
-                <Input id="firstName" name="firstName" required defaultValue={employee?.firstName} placeholder="Juan" />
+                <Input 
+                  id="firstName" 
+                  name="firstName" 
+                  required 
+                  defaultValue={employee?.firstName} 
+                  placeholder="Juan"
+                  maxLength={100}
+                />
+                {errors.firstName && <p className="text-xs text-red-500">{errors.firstName}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Apellidos</Label>
-                <Input id="lastName" name="lastName" defaultValue={employee?.lastName || ''} placeholder="Perez" />
+                <Input 
+                  id="lastName" 
+                  name="lastName" 
+                  defaultValue={employee?.lastName || ''} 
+                  placeholder="Perez"
+                  maxLength={100}
+                />
+                {errors.lastName && <p className="text-xs text-red-500">{errors.lastName}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" defaultValue={employee?.email || ''} placeholder="juan@empresa.com" />
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  defaultValue={employee?.email || ''} 
+                  placeholder="juan@empresa.com"
+                  maxLength={255}
+                />
+                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefono</Label>
-                <Input id="phone" name="phone" defaultValue={employee?.phone || ''} placeholder="+51 900 000 000" />
+                <Input 
+                  id="phone" 
+                  name="phone" 
+                  defaultValue={employee?.phone || ''} 
+                  placeholder="+51 900 000 000"
+                  maxLength={15}
+                  onChange={handlePhoneChange}
+                />
+                {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
               </div>
             </div>
             <div className="space-y-2">

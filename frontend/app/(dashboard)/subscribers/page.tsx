@@ -1,7 +1,7 @@
 import { auth } from '@/auth';
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
-import { Users, Search, CheckCircle, XCircle, Clock, CreditCard, Crown } from 'lucide-react';
+import { Users, Search, CheckCircle, XCircle, Clock, CreditCard, Crown, DollarSign } from 'lucide-react';
 import { SubscriberActions } from '@/components/subscribers/subscriber-actions';
 import type { SubscriberWithCompany } from '@/types/api';
 
@@ -23,17 +23,23 @@ export default async function SubscribersPage() {
     );
   }
 
-  const subscribers = await serverApiFetch<SubscriberWithCompany[]>('/subscriptions/subscribers', accessToken);
+  const allSubscribers = await serverApiFetch<SubscriberWithCompany[]>('/subscriptions/subscribers', accessToken);
+  
+  const subscribers = allSubscribers?.filter(sub => 
+    sub.status === 'ACTIVE' || sub.status === 'TRIALING'
+  ) ?? [];
+
+  const totalMonthlyRevenue = subscribers
+    .filter(sub => sub.status === 'ACTIVE' && sub.billingCycle === 'MONTHLY')
+    .reduce((acc, sub) => acc + Number(sub.plan?.priceMonthly || 0), 0);
 
   const statusConfig: Record<string, { color: string; bg: string; icon: typeof Clock; label: string }> = {
     TRIALING: { color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', icon: Clock, label: 'En prueba' },
     ACTIVE: { color: 'text-green-700', bg: 'bg-green-50 border-green-200', icon: CheckCircle, label: 'Activa' },
-    PAST_DUE: { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: Clock, label: 'Vencida' },
-    CANCELED: { color: 'text-red-700', bg: 'bg-red-50 border-red-200', icon: XCircle, label: 'Cancelada' },
-    EXPIRED: { color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200', icon: Clock, label: 'Expirada' },
   };
 
   const planColors: Record<string, string> = {
+    FREE: 'bg-gray-100 text-gray-800',
     START: 'bg-amber-100 text-amber-800',
     GROWTH: 'bg-violet-100 text-violet-800',
     SCALE: 'bg-indigo-100 text-indigo-800',
@@ -44,8 +50,33 @@ export default async function SubscribersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-4xl">Suscriptores</h1>
-          <p className="mt-1 text-foreground/50">Gestiona las suscripciones y approves nuevos usuarios</p>
+          <p className="mt-1 text-foreground/50">Usuarios con suscripción activa o en período de prueba</p>
         </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="rounded-[30px] bg-white/80 p-6">
+          <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Total suscriptores</p>
+          <p className="mt-4 font-display text-3xl">{subscribers.length}</p>
+        </Card>
+        <Card className="rounded-[30px] bg-white/80 p-6">
+          <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Suscripciones activas</p>
+          <p className="mt-4 font-display text-3xl text-green-600">
+            {subscribers.filter(s => s.status === 'ACTIVE').length}
+          </p>
+        </Card>
+        <Card className="rounded-[30px] bg-white/80 p-6">
+          <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">En período de prueba</p>
+          <p className="mt-4 font-display text-3xl text-blue-600">
+            {subscribers.filter(s => s.status === 'TRIALING').length}
+          </p>
+        </Card>
+        <Card className="rounded-[30px] bg-white/80 p-6">
+          <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Ingresos mensuales</p>
+          <p className="mt-4 font-display text-3xl text-emerald-600">
+            S/ {totalMonthlyRevenue.toFixed(0)}
+          </p>
+        </Card>
       </div>
 
       <div className="flex gap-4">

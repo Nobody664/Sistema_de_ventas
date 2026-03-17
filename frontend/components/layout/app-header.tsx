@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Settings, User } from 'lucide-react';
+import { LogOut, Settings, User, CreditCard, Users, UserCog, Package, ShoppingCart } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
 import {
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { NotificationBell } from './notification-bell';
 
 type AppHeaderProps = {
   fullName: string;
@@ -32,6 +33,8 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
     signOut({ callbackUrl: '/sign-in' });
   };
 
+  const isCompanyAdmin = roles.includes('COMPANY_ADMIN') || roles.includes('MANAGER');
+
   return (
     <header className="sticky top-0 z-20 border-b border-foreground/10 bg-background/85 px-5 py-4 backdrop-blur md:px-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -40,6 +43,7 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
           <h1 className="font-display text-2xl">Multi-tenant operations</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <NotificationBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-3 rounded-full border border-foreground/10 bg-white px-3 py-1.5 pr-4 text-sm transition hover:border-foreground/20 hover:bg-gray-50">
@@ -51,7 +55,7 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
                 <span className="text-foreground/68">{fullName}</span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-2xl border-foreground/10 p-2">
+            <DropdownMenuContent align="end" className="w-64 rounded-2xl border-foreground/10 p-2">
               <DropdownMenuLabel className="pb-2">
                 <div className="flex flex-col">
                   <span className="font-medium">{fullName}</span>
@@ -59,14 +63,37 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="my-1" />
+              
               <Link href="/profile" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
                 <User className="mr-2 h-4 w-4" />
                 <span>Perfil</span>
               </Link>
+              
+              {roles.includes('COMPANY_ADMIN') && (
+                <Link href="/subscription" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  <span>Mi Plan</span>
+                </Link>
+              )}
+              
+              {isCompanyAdmin && (
+                <>
+                  <Link href="/customers" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
+                    <Users className="mr-2 h-4 w-4" />
+                    <span>Clientes</span>
+                  </Link>
+                  <Link href="/employees" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
+                    <UserCog className="mr-2 h-4 w-4" />
+                    <span>Empleados</span>
+                  </Link>
+                </>
+              )}
+              
               <Link href="/settings" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Configuración</span>
               </Link>
+              
               <DropdownMenuSeparator className="my-1" />
               <DropdownMenuItem
                 className="rounded-xl px-3 py-2 cursor-pointer text-red-600 focus:text-red-600"

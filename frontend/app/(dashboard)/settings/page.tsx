@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { Card } from '@/components/ui/card';
-import { Settings, Globe, Palette, Bell, Database, Key, Monitor, Moon, Sun, LucideIcon } from 'lucide-react';
+import { Settings, Globe, Palette, Bell, Database, Key, Monitor, Moon, Sun, CreditCard, LucideIcon, Building2 } from 'lucide-react';
+import Link from 'next/link';
 
 type SelectOption = { value: string; label: string; icon?: LucideIcon };
 
@@ -13,12 +14,29 @@ type SettingsSection = {
   title: string;
   icon: LucideIcon;
   items: SettingsItem[];
+  link?: string;
+  isPayment?: boolean;
 };
 
 export default async function SettingsPage() {
   const session = await auth();
+  const roles = session?.user?.roles ?? [];
+  const isSuperAdmin = roles.includes('SUPER_ADMIN');
 
   const settingsSections: SettingsSection[] = [
+    {
+      title: 'Empresa',
+      icon: Building2,
+      items: [
+        {
+          label: 'Datos de la empresa',
+          description: 'RUC, dirección, razón social y contacto',
+          type: 'button' as const,
+          action: 'company',
+        },
+      ],
+      link: '/settings/company',
+    },
     {
       title: 'Apariencia',
       icon: Palette,
@@ -129,17 +147,45 @@ export default async function SettingsPage() {
         {
           label: 'API Keys',
           description: 'Gestiona las claves de acceso a la API',
-          type: 'button',
+          type: 'button' as const,
           action: 'keys',
         },
         {
           label: 'Webhooks',
           description: 'Configura endpoints para eventos',
-          type: 'button',
+          type: 'button' as const,
           action: 'webhooks',
         },
       ],
     },
+    ...(isSuperAdmin ? [{
+      title: 'Pagos',
+      icon: CreditCard,
+      items: [
+        {
+          label: 'Métodos de pago',
+          description: 'Configura Yape, Stripe, MercadoPago y más',
+          type: 'button' as const,
+          action: 'payment',
+        },
+      ],
+      link: '/payment-settings',
+      isPayment: true,
+    }] : [
+      {
+        title: 'Suscripción',
+        icon: CreditCard,
+        items: [
+          {
+            label: 'Mi plan',
+            description: 'Verifica tu plan actual y mejora tu suscripción',
+            type: 'button' as const,
+            action: 'subscription',
+          },
+        ],
+        link: '/subscription',
+      },
+    ]),
   ];
 
   return (
@@ -204,7 +250,21 @@ export default async function SettingsPage() {
                       </select>
                     )}
 
-                    {item.type === 'button' && (
+                    {item.type === 'button' && section.isPayment ? (
+                      <Link 
+                        href={section.link || ''}
+                        className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5"
+                      >
+                        Configurar
+                      </Link>
+                    ) : item.type === 'button' && section.link ? (
+                      <Link 
+                        href={section.link}
+                        className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5"
+                      >
+                        Ver
+                      </Link>
+                    ) : item.type === 'button' && (
                       <button className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5">
                         {item.action === 'export' && 'Exportar'}
                         {item.action === 'backup' && 'Configurar'}
