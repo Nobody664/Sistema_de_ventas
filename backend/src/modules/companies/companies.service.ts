@@ -44,6 +44,9 @@ export class CompaniesService {
       data: {
         name: input.name,
         slug,
+        legalName: input.legalName,
+        taxId: input.taxId,
+        address: input.address,
         email: input.email,
         phone: input.phone,
         timezone: input.timezone ?? 'America/Lima',
@@ -60,6 +63,9 @@ export class CompaniesService {
       data: {
         name: input.name,
         slug,
+        legalName: input.legalName,
+        taxId: input.taxId,
+        address: input.address,
         email: input.email,
         phone: input.phone,
         timezone: input.timezone ?? 'America/Lima',

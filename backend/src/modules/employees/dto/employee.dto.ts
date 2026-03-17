@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateEmployeeDto {
   @IsOptional()
@@ -19,6 +19,11 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(8, { message: 'El DNI debe tener 8 dígitos' })
+  dni?: string;
 
   @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'STAFF'])
   role!: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
@@ -44,6 +49,11 @@ export class UpdateEmployeeDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(8, { message: 'El DNI debe tener 8 dígitos' })
+  dni?: string;
 
   @IsOptional()
   @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'STAFF'])

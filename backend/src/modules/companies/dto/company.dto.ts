@@ -10,6 +10,21 @@ export class CreateCompanyDto {
   slug?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  legalName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  taxId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  address?: string;
+
+  @IsOptional()
   @IsEmail()
   email?: string;
 
@@ -36,6 +51,21 @@ export class UpdateCompanyDto {
   @IsString()
   @MaxLength(120)
   name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  legalName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  taxId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  address?: string;
 
   @IsOptional()
   @IsEmail()

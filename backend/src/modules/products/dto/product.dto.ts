@@ -1,4 +1,4 @@
-import { IsInt, IsNumberString, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsNumberString, IsOptional, IsString, Min, IsIn } from 'class-validator';
 
 export class CreateCategoryDto {
   @IsString()
@@ -17,6 +17,21 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsString()
   description?: string;
+}
+
+export class UploadProductImageDto {
+  @IsString()
+  imageBase64!: string;
+}
+
+export class ExportProductsQueryDto {
+  @IsOptional()
+  @IsIn(['csv', 'excel', 'pdf'])
+  format?: 'csv' | 'excel' | 'pdf' = 'csv';
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 }
 
 export class CreateProductDto {

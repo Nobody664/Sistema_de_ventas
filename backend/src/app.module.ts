@@ -2,6 +2,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { PassportModule } from '@nestjs/passport';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { createKeyv } from '@keyv/redis';
@@ -25,9 +26,12 @@ import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { AuditModule } from '@/modules/audit/audit.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { EmailModule } from '@/modules/email/email.module';
+import { InvoicesModule } from '@/modules/invoices/invoices.module';
+import { DniModule } from '@/modules/dni/dni.module';
 
 @Module({
   imports: [
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
@@ -70,19 +74,13 @@ import { EmailModule } from '@/modules/email/email.module';
     AuditModule,
     NotificationsModule,
     EmailModule,
+    InvoicesModule,
+    DniModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
     },
   ],
 })

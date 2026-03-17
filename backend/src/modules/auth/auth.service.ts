@@ -1,119 +1,86 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { UsersService } from '@/modules/users/users.service';
-import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
-import { EmailService } from '@/modules/email/email.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly notificationsService: NotificationsService,
-    private readonly emailService: EmailService,
   ) {}
 
   async register(input: RegisterDto) {
-    const existingUser = await this.usersService.findByEmail(input.email);
-    if (existingUser) {
-      throw new ConflictException('Email already exists.');
-    }
+    try {
+      const existingUser = await this.usersService.findByEmail(input.email);
+      if (existingUser) {
+        throw new ConflictException('El correo electrónico ya está registrado.');
+      }
 
-    const company = await this.prisma.company.create({
-      data: {
-        name: input.companyName,
-        slug: `${input.companyName
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '')
-          .trim()
-          .replace(/\s+/g, '-')}-${Date.now().toString().slice(-6)}`,
-        status: 'TRIAL',
-      },
-    });
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
-    const passwordHash = await argon2.hash(input.password);
-    const user = await this.usersService.createOwner({
-      email: input.email,
-      fullName: input.fullName,
-      passwordHash,
-      companyId: company.id,
-    });
-
-    let requiresApproval = false;
-
-    if (input.planCode) {
-      const plan = await this.prisma.plan.findUnique({
-        where: { code: input.planCode },
+      const company = await this.prisma.company.create({
+        data: {
+          name: input.companyName,
+          slug: `${input.companyName
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '-')}-${Date.now().toString().slice(-6)}`,
+          phone: input.phone || null,
+          status: 'TRIAL',
+          trialEndsAt,
+        },
       });
 
-      if (plan) {
-        requiresApproval = true;
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 1);
-
-        const subscription = await this.prisma.subscription.create({
-          data: {
-            companyId: company.id,
-            planId: plan.id,
-            status: 'TRIALING',
-            billingCycle: plan.billingCycle,
-            startDate,
-            endDate,
-            autoRenew: true,
-          },
-        });
-
-        const provider = input.paymentMethod?.toUpperCase() || 'CASH';
-        await this.prisma.payment.create({
-          data: {
-            subscriptionId: subscription.id,
-            provider: provider as never,
-            amount: plan.priceMonthly,
-            currency: 'PEN',
-            status: input.paymentMethod ? 'SUCCEEDED' : 'PENDING',
-            transactionId: input.paymentMethod ? `demo-${Date.now()}` : null,
-          },
-        });
-
-        await this.notificationsService.create({
-          userId: user.id,
-          companyId: company.id,
-          type: NotificationType.SUBSCRIPTION_PENDING,
-          channel: NotificationChannel.IN_APP,
-          title: 'Suscripción pendiente de aprobación',
-          message: `Tu empresa "${company.name}" está esperando ser aprobada. Te notificaremos cuando esté lista.`,
-        });
-
-        await this.emailService.sendSubscriptionPending(input.email, company.name);
+      const planCode = input.planCode || 'FREE';
+      const plan = await this.prisma.plan.findUnique({
+        where: { code: planCode },
+      });
+      if (!plan) {
+        throw new BadRequestException(`Plan con código ${planCode} no encontrado.`);
       }
-    }
 
-    if (requiresApproval) {
-      return {
-        requiresApproval: true,
-        message: 'Tu cuenta está pendiente de aprobación. Un administrador revisará tu solicitud.',
-        company: {
-          id: company.id,
-          name: company.name,
-          status: company.status,
+      const subscription = await this.prisma.subscription.create({
+        data: {
+          companyId: company.id,
+          planId: plan.id,
+          status: planCode === 'FREE' ? 'TRIALING' : 'TRIALING',
+          billingCycle: plan.billingCycle,
+          startDate: new Date(),
+          endDate: trialEndsAt,
         },
-      };
-    }
+      });
 
-    return this.createSession({
-      sub: user.id,
-      email: user.email,
-      companyId: company.id,
-      roles: ['COMPANY_ADMIN'],
-      fullName: user.fullName,
-    });
+      const passwordHash = await argon2.hash(input.password);
+      const user = await this.usersService.createOwner({
+        email: input.email,
+        fullName: input.fullName,
+        passwordHash,
+        companyId: company.id,
+      });
+
+      return this.createSession({
+        sub: user.id,
+        email: user.email,
+        companyId: company.id,
+        roles: ['COMPANY_ADMIN'],
+        fullName: user.fullName,
+        planCode,
+        subscriptionStatus: subscription.status,
+      });
+    } catch (error) {
+      this.logger.error('Error during registration', error);
+      throw error;
+    }
   }
 
   async login(input: LoginDto) {
@@ -134,11 +101,23 @@ export class AuthService {
     });
 
     if (membership?.company) {
-      if (membership.company.status === 'TRIAL') {
-        throw new UnauthorizedException('Tu cuenta está pendiente de aprobación. Un administrador revisará tu solicitud.');
-      }
       if (membership.company.status === 'SUSPENDED') {
         throw new UnauthorizedException('Tu cuenta ha sido suspendida. Contacta al administrador.');
+      }
+    }
+
+    let subscriptionStatus: string | undefined;
+    let planCode: string | undefined;
+
+    if (membership?.companyId) {
+      const subscription = await this.prisma.subscription.findFirst({
+        where: { companyId: membership.companyId },
+        include: { plan: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (subscription) {
+        subscriptionStatus = subscription.status;
+        planCode = subscription.plan.code;
       }
     }
 
@@ -148,6 +127,8 @@ export class AuthService {
       companyId: membership?.companyId ?? null,
       roles: membership ? [membership.role] : [user.globalRole],
       fullName: user.fullName,
+      planCode,
+      subscriptionStatus,
     });
   }
 
@@ -193,9 +174,20 @@ export class AuthService {
     fullName: string;
     companyId?: string | null;
     roles: string[];
+    planCode?: string | null;
+    subscriptionStatus?: string;
   }) {
     const accessTtl = this.configService.getOrThrow<string>('JWT_ACCESS_TTL') as never;
     const refreshTtl = this.configService.getOrThrow<string>('JWT_REFRESH_TTL') as never;
+
+    let companyStatus: string | undefined;
+    if (input.companyId) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: input.companyId },
+        select: { status: true },
+      });
+      companyStatus = company?.status;
+    }
 
     const accessToken = await this.jwtService.signAsync(
       {
@@ -203,6 +195,7 @@ export class AuthService {
         email: input.email,
         companyId: input.companyId,
         roles: input.roles,
+        companyStatus,
       },
       {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
@@ -216,6 +209,7 @@ export class AuthService {
         email: input.email,
         companyId: input.companyId,
         roles: input.roles,
+        companyStatus,
       },
       {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
@@ -232,6 +226,8 @@ export class AuthService {
         fullName: input.fullName,
         companyId: input.companyId,
         roles: input.roles,
+        planCode: input.planCode,
+        subscriptionStatus: input.subscriptionStatus,
       },
       expiresIn: this.configService.getOrThrow<string>('JWT_ACCESS_TTL'),
     };

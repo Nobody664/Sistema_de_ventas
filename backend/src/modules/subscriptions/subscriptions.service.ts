@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
 import { EmailService } from '@/modules/email/email.service';
+import { CompanyStatus } from '@prisma/client';
 
 @Injectable()
 export class SubscriptionsService {
@@ -178,6 +179,7 @@ export class SubscriptionsService {
       throw new NotFoundException('Plan not found.');
     }
 
+    const isFreePlan = newPlanCode === 'FREE' || parseFloat(newPlan.priceMonthly.toString()) === 0;
     const price = billingCycle === 'MONTHLY' ? newPlan.priceMonthly : newPlan.priceYearly;
 
     const startDate = new Date();
@@ -192,20 +194,22 @@ export class SubscriptionsService {
           billingCycle,
           startDate,
           endDate,
-          status: 'ACTIVE',
+          status: isFreePlan ? 'ACTIVE' : 'ACTIVE',
         },
       });
 
-      await tx.payment.create({
-        data: {
-          subscriptionId: currentSubscription.id,
-          provider: 'CARD',
-          amount: price,
-          currency: 'PEN',
-          status: 'PENDING',
-          transactionId: `upgrade-${Date.now()}`,
-        },
-      });
+      if (!isFreePlan) {
+        await tx.payment.create({
+          data: {
+            subscriptionId: currentSubscription.id,
+            provider: 'CARD',
+            amount: price,
+            currency: 'PEN',
+            status: 'PENDING',
+            transactionId: `upgrade-${Date.now()}`,
+          },
+        });
+      }
 
       return updated;
     });
@@ -244,5 +248,163 @@ export class SubscriptionsService {
       by: ['status'],
       _count: { status: true },
     });
+  }
+
+  async processExpiredTrials() {
+    const now = new Date();
+    
+    const expiredTrials = await this.prisma.subscription.findMany({
+      where: {
+        status: 'TRIALING',
+        endDate: { lt: now },
+      },
+      include: {
+        company: {
+          include: {
+            memberships: {
+              where: { role: 'COMPANY_ADMIN' },
+              include: { user: true },
+            },
+          },
+        },
+        plan: true,
+      },
+    });
+
+    for (const subscription of expiredTrials) {
+      const adminUser = subscription.company.memberships[0]?.user;
+      
+      await this.prisma.$transaction(async (tx) => {
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: { status: 'EXPIRED' },
+        });
+
+        await tx.company.update({
+          where: { id: subscription.companyId },
+          data: { status: 'INACTIVE' as CompanyStatus },
+        });
+      });
+
+      if (adminUser) {
+        await this.notificationsService.create({
+          userId: adminUser.id,
+          companyId: subscription.companyId,
+          type: NotificationType.TRIAL_EXPIRED,
+          channel: NotificationChannel.IN_APP,
+          title: 'Período de prueba expirado',
+          message: `Tu período de prueba del plan ${subscription.plan.name} ha expirado. Mejora tu plan para continuar usando el sistema.`,
+        });
+
+        await this.emailService.sendTrialExpired(
+          adminUser.email,
+          subscription.company.name,
+          subscription.plan.name,
+        );
+      }
+    }
+
+    return { processed: expiredTrials.length };
+  }
+
+  async notifyExpiringTrials(daysBefore: number = 3) {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + daysBefore);
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const futureStart = new Date(futureDate);
+    futureStart.setHours(0, 0, 0, 0);
+    const futureEnd = new Date(futureDate);
+    futureEnd.setHours(23, 59, 59, 999);
+
+    const expiringTrials = await this.prisma.subscription.findMany({
+      where: {
+        status: 'TRIALING',
+        endDate: {
+          gte: futureStart,
+          lte: futureEnd,
+        },
+      },
+      include: {
+        company: {
+          include: {
+            memberships: {
+              where: { role: 'COMPANY_ADMIN' },
+              include: { user: true },
+            },
+          },
+        },
+        plan: true,
+      },
+    });
+
+    for (const subscription of expiringTrials) {
+      const adminUser = subscription.company.memberships[0]?.user;
+      const daysLeft = Math.ceil((new Date(subscription.endDate!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (adminUser) {
+        await this.notificationsService.create({
+          userId: adminUser.id,
+          companyId: subscription.companyId,
+          type: NotificationType.TRIAL_EXPIRING_SOON,
+          channel: NotificationChannel.IN_APP,
+          title: 'Tu período de prueba está por terminar',
+          message: `Tu período de prueba del plan ${subscription.plan.name} termina en ${daysLeft} día(s). Mejora tu plan para continuar sin interrupciones.`,
+        });
+
+        await this.emailService.sendTrialExpiringSoon(
+          adminUser.email,
+          subscription.company.name,
+          subscription.plan.name,
+          daysLeft,
+        );
+      }
+    }
+
+    return { notified: expiringTrials.length };
+  }
+
+  async checkPlanLimits(companyId: string, resource: 'users' | 'products') {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { companyId, status: 'ACTIVE' },
+      include: { plan: true },
+    });
+
+    if (!subscription) {
+      return { allowed: true, current: 0, limit: null };
+    }
+
+    const plan = subscription.plan;
+
+    if (resource === 'users') {
+      const currentCount = await this.prisma.companyMembership.count({
+        where: { companyId, isActive: true },
+      });
+
+      const limit = plan.maxUsers;
+      return {
+        allowed: limit === null || currentCount < limit,
+        current: currentCount,
+        limit,
+        planName: plan.name,
+      };
+    }
+
+    if (resource === 'products') {
+      const currentCount = await this.prisma.product.count({
+        where: { companyId },
+      });
+
+      const limit = plan.maxProducts;
+      return {
+        allowed: limit === null || currentCount < limit,
+        current: currentCount,
+        limit,
+        planName: plan.name,
+      };
+    }
+
+    return { allowed: true, current: 0, limit: null };
   }
 }

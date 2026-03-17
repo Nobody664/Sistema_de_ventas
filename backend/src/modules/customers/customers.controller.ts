@@ -1,13 +1,38 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { TenantGuard } from '@/common/guards/tenant.guard';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { CustomersService } from './customers.service';
 
-@UseGuards(TenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard)
 @Controller('customers')
 export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
+
+  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Get('limits')
+  getLimits(@Req() request: { tenantId: string }) {
+    return this.customersService.getLimitsInfo(request.tenantId);
+  }
+
+  @Roles('COMPANY_ADMIN')
+  @Post('calculate-totals')
+  calculateTotals(@Req() request: { tenantId: string }) {
+    return this.customersService.calculateTotalPurchases(request.tenantId);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Get(':id')
+  findById(@Req() request: { tenantId: string }, @Param('id') id: string) {
+    return this.customersService.findById(request.tenantId, id);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Get(':id/purchases')
+  getPurchases(@Req() request: { tenantId: string }, @Param('id') id: string) {
+    return this.customersService.getPurchases(request.tenantId, id);
+  }
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Get()
