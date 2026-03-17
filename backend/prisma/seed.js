@@ -33,7 +33,22 @@ async function upsertUser({ email, fullName, password, globalRole = 'USER' }) {
 async function main() {
   const password = 'Admin123!';
 
-  const [starterPlan, growthPlan, scalePlan] = await Promise.all([
+  const [freePlan, starterPlan, growthPlan, scalePlan] = await Promise.all([
+    prisma.plan.upsert({
+      where: { code: 'FREE' },
+      update: {},
+      create: {
+        code: 'FREE',
+        name: 'Free',
+        description: 'Plan gratuito con funciones básicas.',
+        priceMonthly: '0.00',
+        priceYearly: '0.00',
+        billingCycle: 'MONTHLY',
+        maxUsers: 1,
+        maxProducts: 50,
+        features: ['1 usuario', '50 productos', '1 sucursal', 'POS básico'],
+      },
+    }),
     prisma.plan.upsert({
       where: { code: 'START' },
       update: {},
@@ -81,6 +96,42 @@ async function main() {
     }),
   ]);
 
+  await Promise.all([
+    prisma.paymentSettings.upsert({
+      where: { provider: 'YAPE' },
+      update: {},
+      create: {
+        provider: 'YAPE',
+        isEnabled: true,
+        accountNumber: '999888777',
+        accountName: 'Ventas SaaS',
+        instructions: 'Realiza el pago y sube tu comprobante en el checkout.',
+      },
+    }),
+    prisma.paymentSettings.upsert({
+      where: { provider: 'PLIN' },
+      update: {},
+      create: {
+        provider: 'PLIN',
+        isEnabled: true,
+        accountNumber: '999888777',
+        accountName: 'Ventas SaaS',
+        instructions: 'Realiza el pago y sube tu comprobante en el checkout.',
+      },
+    }),
+    prisma.paymentSettings.upsert({
+      where: { provider: 'TRANSFER' },
+      update: {},
+      create: {
+        provider: 'TRANSFER',
+        isEnabled: true,
+        accountNumber: '001-23456789',
+        accountName: 'Banco Demo',
+        instructions: 'Transferencia bancaria. Subir comprobante luego del pago.',
+      },
+    }),
+  ]);
+
   const superAdmin = await upsertUser({
     email: 'superadmin@ventas-saas.local',
     fullName: 'Super Admin SaaS',
@@ -123,7 +174,22 @@ async function main() {
     },
   });
 
-  const [ownerAcme, managerAcme, cashierAcme, staffAcme, ownerNova] = await Promise.all([
+  const clubCompany = await prisma.company.upsert({
+    where: { slug: 'club-demo' },
+    update: { status: 'TRIAL' },
+    create: {
+      name: 'Club Demo',
+      slug: 'club-demo',
+      legalName: 'Club Demo SAC',
+      email: 'club@example.com',
+      phone: '+51 900 555 555',
+      currency: 'PEN',
+      status: 'TRIAL',
+      trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  const [ownerAcme, managerAcme, cashierAcme, staffAcme, ownerNova, clubUser] = await Promise.all([
     upsertUser({
       email: 'admin@acme.local',
       fullName: 'Admin Acme',
@@ -148,6 +214,11 @@ async function main() {
       email: 'admin@nova.local',
       fullName: 'Admin Nova',
       password,
+    }),
+    upsertUser({
+      email: 'club@example.com',
+      fullName: 'Club Demo',
+      password: 'club@example.com',
     }),
   ]);
 
@@ -222,13 +293,27 @@ async function main() {
         role: 'COMPANY_ADMIN',
       },
     }),
+    prisma.companyMembership.upsert({
+      where: {
+        companyId_userId: {
+          companyId: clubCompany.id,
+          userId: clubUser.id,
+        },
+      },
+      update: { role: 'COMPANY_ADMIN', isActive: true },
+      create: {
+        companyId: clubCompany.id,
+        userId: clubUser.id,
+        role: 'COMPANY_ADMIN',
+      },
+    }),
   ]);
 
   await prisma.payment.deleteMany({
     where: {
       subscription: {
         companyId: {
-          in: [acmeCompany.id, novaCompany.id],
+          in: [acmeCompany.id, novaCompany.id, clubCompany.id],
         },
       },
     },
@@ -237,7 +322,7 @@ async function main() {
   await prisma.auditLog.deleteMany({
     where: {
       companyId: {
-        in: [acmeCompany.id, novaCompany.id],
+        in: [acmeCompany.id, novaCompany.id, clubCompany.id],
       },
     },
   });
@@ -245,7 +330,7 @@ async function main() {
   await prisma.inventoryMovement.deleteMany({
     where: {
       companyId: {
-        in: [acmeCompany.id, novaCompany.id],
+        in: [acmeCompany.id, novaCompany.id, clubCompany.id],
       },
     },
   });
@@ -253,7 +338,7 @@ async function main() {
   await prisma.sale.deleteMany({
     where: {
       companyId: {
-        in: [acmeCompany.id, novaCompany.id],
+        in: [acmeCompany.id, novaCompany.id, clubCompany.id],
       },
     },
   });
@@ -261,7 +346,7 @@ async function main() {
   await prisma.employee.deleteMany({
     where: {
       companyId: {
-        in: [acmeCompany.id, novaCompany.id],
+        in: [acmeCompany.id, novaCompany.id, clubCompany.id],
       },
     },
   });
@@ -269,7 +354,7 @@ async function main() {
   await prisma.customer.deleteMany({
     where: {
       companyId: {
-        in: [acmeCompany.id, novaCompany.id],
+        in: [acmeCompany.id, novaCompany.id, clubCompany.id],
       },
     },
   });
@@ -277,7 +362,7 @@ async function main() {
   await prisma.product.deleteMany({
     where: {
       companyId: {
-        in: [acmeCompany.id, novaCompany.id],
+        in: [acmeCompany.id, novaCompany.id, clubCompany.id],
       },
     },
   });
@@ -285,7 +370,7 @@ async function main() {
   await prisma.category.deleteMany({
     where: {
       companyId: {
-        in: [acmeCompany.id, novaCompany.id],
+        in: [acmeCompany.id, novaCompany.id, clubCompany.id],
       },
     },
   });
@@ -325,6 +410,24 @@ async function main() {
         provider: 'MERCADOPAGO',
         billingCycle: 'MONTHLY',
         startDate: new Date(),
+      },
+    }),
+    prisma.subscription.upsert({
+      where: { companyId: clubCompany.id },
+      update: {
+        planId: freePlan.id,
+        status: 'TRIALING',
+        billingCycle: 'MONTHLY',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      create: {
+        companyId: clubCompany.id,
+        planId: freePlan.id,
+        status: 'TRIALING',
+        billingCycle: 'MONTHLY',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     }),
   ]);
@@ -673,6 +776,7 @@ async function main() {
   console.log('manager@acme.local / Admin123!');
   console.log('cajero@acme.local / Admin123!');
   console.log('admin@nova.local / Admin123!');
+  console.log('club@example.com / club@example.com');
 }
 
 main()

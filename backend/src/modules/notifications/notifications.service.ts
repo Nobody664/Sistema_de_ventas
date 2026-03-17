@@ -1,14 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 export enum NotificationType {
-  SUBSCRIPTION_PENDING = 'SUBSCRIPTION_PENDING',
-  SUBSCRIPTION_APPROVED = 'SUBSCRIPTION_APPROVED',
-  SUBSCRIPTION_REJECTED = 'SUBSCRIPTION_REJECTED',
+  // SUPER_ADMIN
+  NEW_COMPANY_REGISTRATION = 'NEW_COMPANY_REGISTRATION',
+  CHECKOUT_REQUEST_PENDING = 'CHECKOUT_REQUEST_PENDING',
+  PLAN_UPGRADE_REQUEST = 'PLAN_UPGRADE_REQUEST',
+  PAYMENT_PROOF_PENDING = 'PAYMENT_PROOF_PENDING',
+  
+  // SHARED
   PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
   PAYMENT_FAILED = 'PAYMENT_FAILED',
   ACCOUNT_ACTIVATED = 'ACCOUNT_ACTIVATED',
+  
+  // COMPANY_ADMIN
+  ACCOUNT_APPROVED = 'ACCOUNT_APPROVED',
+  SUBSCRIPTION_PENDING = 'SUBSCRIPTION_PENDING',
+  SUBSCRIPTION_APPROVED = 'SUBSCRIPTION_APPROVED',
+  SUBSCRIPTION_REJECTED = 'SUBSCRIPTION_REJECTED',
+  TRIAL_EXPIRING_SOON = 'TRIAL_EXPIRING_SOON',
+  TRIAL_EXPIRED = 'TRIAL_EXPIRED',
   PLAN_UPGRADED = 'PLAN_UPGRADED',
+  
+  // MANAGER / CASHIER
+  NEW_SALE = 'NEW_SALE',
+  LOW_STOCK = 'LOW_STOCK',
+  NEW_CUSTOMER = 'NEW_CUSTOMER',
+  SALE_COMPLETED = 'SALE_COMPLETED',
+  SALE_RETURNED = 'SALE_RETURNED',
+  
+  // GENERAL
   GENERAL = 'GENERAL',
 }
 
@@ -21,8 +43,8 @@ export enum NotificationChannel {
 export interface CreateNotificationInput {
   userId: string;
   companyId?: string;
-  type: NotificationType;
-  channel?: NotificationChannel;
+  type: string;
+  channel?: string;
   title: string;
   message: string;
   data?: Record<string, unknown>;
@@ -37,11 +59,11 @@ export class NotificationsService {
       data: {
         userId: input.userId,
         companyId: input.companyId,
-        type: input.type,
-        channel: input.channel || NotificationChannel.IN_APP,
+        type: input.type as any,
+        channel: (input.channel || NotificationChannel.IN_APP) as any,
         title: input.title,
         message: input.message,
-        data: input.data || {},
+        data: (input.data || {}) as Prisma.JsonObject,
         sentAt: input.channel === NotificationChannel.EMAIL ? new Date() : null,
       },
     });

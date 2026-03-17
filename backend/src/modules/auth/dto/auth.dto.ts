@@ -18,6 +18,10 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
   planCode?: string;
 
   @IsOptional()

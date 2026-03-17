@@ -38,6 +38,12 @@ export class AuthController {
     return this.authService.forgotPassword(body.email);
   }
 
+  @Public()
+  @Post('test-public')
+  testPublic() {
+    return { message: 'Test public works!' };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@CurrentUser() user: unknown) {

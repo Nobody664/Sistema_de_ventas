@@ -1,6 +1,7 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { TenantGuard } from '@/common/guards/tenant.guard';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { AuditService } from './audit.service';
 
 @Controller('audit')
@@ -13,7 +14,7 @@ export class AuditController {
     return this.auditService.findRecent();
   }
 
-  @UseGuards(TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard)
   @Get('tenant')
   tenantAudit(@Req() request: { tenantId: string }) {
     return this.auditService.findRecent(request.tenantId);

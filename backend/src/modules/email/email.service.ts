@@ -16,6 +16,7 @@ export enum EmailTemplate {
   SUBSCRIPTION_REJECTED = 'subscription-rejected',
   ACCOUNT_ACTIVATED = 'account-activated',
   PAYMENT_RECEIVED = 'payment-received',
+  PAYMENT_PROOF_RECEIVED = 'payment-proof-received',
   WELCOME = 'welcome',
 }
 
@@ -76,6 +77,17 @@ Equipo Ventas SaaS
 Hemos recibido tu pago correctamente.
 
 Tu suscripción está al día y puedes seguir usando todas las funcionalidades de Ventas SaaS.
+
+Saludos,
+Equipo Ventas SaaS
+    `.trim(),
+  },
+  [EmailTemplate.PAYMENT_PROOF_RECEIVED]: {
+    subject: 'Comprobante recibido',
+    text: `
+Hemos recibido tu comprobante de pago para la empresa "{{companyName}}" (plan "{{planName}}").
+
+Nuestro equipo lo revisarÃ¡ y te notificaremos cuando tu cuenta estÃ© lista para ingresar.
 
 Saludos,
 Equipo Ventas SaaS
@@ -185,6 +197,41 @@ export class EmailService {
       subject: '',
       template: EmailTemplate.ACCOUNT_ACTIVATED,
       data: { companyName },
+    });
+  }
+
+  async sendPaymentProofReceived(userEmail: string, companyName: string, planName: string): Promise<void> {
+    await this.sendEmailDirect({
+      to: userEmail,
+      subject: '',
+      template: EmailTemplate.PAYMENT_PROOF_RECEIVED,
+      data: { companyName, planName },
+    });
+  }
+
+  async sendTrialExpiringSoon(userEmail: string, companyName: string, planName: string, daysLeft: number): Promise<void> {
+    await this.sendEmailDirect({
+      to: userEmail,
+      subject: `Tu período de prueba termina en ${daysLeft} día(s)`,
+      template: EmailTemplate.WELCOME,
+      data: { 
+        companyName, 
+        planName,
+        message: `Tu período de prueba del plan "${planName}" termina en ${daysLeft} día(s). Mejora tu plan para continuar sin interrupciones.`
+      },
+    });
+  }
+
+  async sendTrialExpired(userEmail: string, companyName: string, planName: string): Promise<void> {
+    await this.sendEmailDirect({
+      to: userEmail,
+      subject: 'Tu período de prueba ha expirado',
+      template: EmailTemplate.WELCOME,
+      data: { 
+        companyName, 
+        planName,
+        message: `Tu período de prueba del plan "${planName}" ha expirado. Mejora tu plan para continuar usando el sistema.`
+      },
     });
   }
 }

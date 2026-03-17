@@ -1,4 +1,4 @@
-import { ArrayMinSize, IsArray, IsIn, IsInt, IsNumberString, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDateString, IsIn, IsInt, IsNumberString, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class CreateSaleItemDto {
@@ -38,5 +38,27 @@ export class CreateSaleDto {
   @ValidateNested({ each: true })
   @Type(() => CreateSaleItemDto)
   items!: CreateSaleItemDto[];
+}
+
+export class ExportSalesQueryDto {
+  @IsOptional()
+  @IsIn(['csv', 'excel', 'pdf'])
+  format?: 'csv' | 'excel' | 'pdf' = 'csv';
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @IsOptional()
+  @IsIn(['COMPLETED', 'VOIDED', 'REFUNDED'])
+  status?: 'COMPLETED' | 'VOIDED' | 'REFUNDED';
+
+  @IsOptional()
+  @IsString()
+  customerId?: string;
 }
 

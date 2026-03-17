@@ -1,13 +1,26 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { TenantGuard } from '@/common/guards/tenant.guard';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 import { EmployeesService } from './employees.service';
 
-@UseGuards(TenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard)
 @Controller('employees')
 export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}
+
+  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Get('limits')
+  getLimits(@Req() request: { tenantId: string }) {
+    return this.employeesService.getLimitsInfo(request.tenantId);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Get(':id')
+  findById(@Req() request: { tenantId: string }, @Param('id') id: string) {
+    return this.employeesService.findById(request.tenantId, id);
+  }
 
   @Roles('COMPANY_ADMIN', 'MANAGER')
   @Get()
