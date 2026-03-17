@@ -28,7 +28,9 @@ export default async function CompaniesPage() {
   const statusConfig: Record<string, { color: string; bg: string; icon: typeof CheckCircle; label: string }> = {
     ACTIVE: { color: 'text-green-700', bg: 'bg-green-50 border-green-200', icon: CheckCircle, label: 'Activa' },
     SUSPENDED: { color: 'text-red-700', bg: 'bg-red-50 border-red-200', icon: AlertCircle, label: 'Suspendida' },
+    INACTIVE: { color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200', icon: AlertCircle, label: 'Inactiva' },
     PENDING: { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: Pause, label: 'Pendiente' },
+    TRIAL: { color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', icon: Pause, label: 'Prueba' },
   };
 
   return (
@@ -94,6 +96,12 @@ export default async function CompaniesPage() {
                     <Calendar className="size-4" />
                     <span>Creada {new Date(company.createdAt).toLocaleDateString('es-PE')}</span>
                   </div>
+                  {company.trialEndsAt && (
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <Calendar className="size-4" />
+                      <span>Trial: {new Date(company.trialEndsAt).toLocaleDateString('es-PE')}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-5 flex items-center justify-between border-t border-foreground/10 pt-4">

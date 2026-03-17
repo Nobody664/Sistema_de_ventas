@@ -1,95 +1,150 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Check, Copy, QrCode, Smartphone, Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Check, Loader2, Smartphone, Building2, Upload, Home, ArrowLeft, CreditCard, Lock } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 const plans = {
+  FREE: { name: 'Free', price: 0, priceYearly: 0 },
   START: { name: 'Start', price: 19, priceYearly: 190 },
   GROWTH: { name: 'Growth', price: 59, priceYearly: 590 },
   SCALE: { name: 'Scale', price: 149, priceYearly: 1490 },
 };
 
-interface RegisterFormData {
-  fullName: string;
-  companyName: string;
-  email: string;
-  password: string;
+interface PaymentSettings {
+  provider: string;
+  isEnabled: boolean;
+  qrImageBase64?: string;
+  accountNumber?: string;
+  accountName?: string;
+  instructions?: string;
 }
+
+const paymentMethods = [
+  { id: 'YAPE', name: 'Yape', icon: Smartphone, color: 'bg-green-500' },
+  { id: 'PLIN', name: 'Plin', icon: Smartphone, color: 'bg-blue-500' },
+  { id: 'TRANSFER', name: 'Transferencia', icon: Building2, color: 'bg-gray-500' },
+];
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const planCode = searchParams.get('plan') || 'GROWTH';
-  const provider = searchParams.get('provider') || 'yape';
+  const { data: session, status } = useSession();
   
-  const plan = plans[planCode as keyof typeof plans] || plans.GROWTH;
-  const [copied, setCopied] = useState(false);
+  const planCode = searchParams.get('plan') || 'START';
+  const isUpgrade = searchParams.get('upgrade') === 'true';
+  const plan = plans[planCode as keyof typeof plans] || plans.START;
+  
+  const [step, setStep] = useState<'summary' | 'payment' | 'success'>('summary');
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'form' | 'payment' | 'success'>('form');
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<RegisterFormData>({
-    fullName: '',
-    companyName: '',
-    email: '',
-    password: '',
-  });
+  
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings[]>([]);
+  const [selectedPayment, setSelectedPayment] = useState<string>('');
+  const [enabledPayments, setEnabledPayments] = useState<string[]>([]);
+  
+  const [proofImage, setProofImage] = useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const yapeNumber = '999888777';
+  const isAuthenticated = !!session?.user?.companyId;
+  const accessToken = session?.accessToken;
 
-  const handleCopyNumber = () => {
-    navigator.clipboard.writeText(yapeNumber);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/sign-in?callbackUrl=/checkout?plan=' + planCode + '&upgrade=true');
+    }
+  }, [status, router, planCode]);
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    fetchPaymentSettings();
+  }, []);
 
+  const fetchPaymentSettings = async () => {
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          planCode,
-          paymentMethod: provider,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al registrar');
-      }
-
-      if (data.requiresApproval) {
-        setStep('success');
-      } else if (data.accessToken) {
-        setStep('payment');
+      const data = await apiFetch<PaymentSettings[]>('/payments/settings/all');
+      setPaymentSettings(data || []);
+      const enabled = (data || [])
+        .filter((p: PaymentSettings) => p.isEnabled)
+        .map((p: PaymentSettings) => p.provider);
+      setEnabledPayments(enabled);
+      if (enabled.length > 0) {
+        setSelectedPayment(enabled[0]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrar');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching payment settings:', err);
     }
   };
 
-  const handleSimulatePayment = async () => {
-    setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setStep('success');
-    setLoading(false);
-    
-    setTimeout(() => {
-      router.push('/sign-in?approved=true');
-    }, 3000);
+  const getPaymentSettings = (provider: string) => {
+    return paymentSettings.find(p => p.provider === provider);
   };
+
+  const handleContinueToPayment = async () => {
+    if (!selectedPayment) {
+      setError('Selecciona un método de pago');
+      return;
+    }
+    setError(null);
+    setStep('payment');
+  };
+
+  const handleImageUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProofImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmitPayment = async () => {
+    if (!proofImage) {
+      setError('Sube el comprobante de pago');
+      return;
+    }
+
+    setUploadingProof(true);
+    setError(null);
+
+    try {
+      const response = await apiFetch<{ requestId: string; status: string }>('/payments/checkout/requests', {
+        method: 'POST',
+        token: accessToken,
+        body: JSON.stringify({
+          planCode,
+          paymentMethod: selectedPayment,
+          companyId: session?.user?.companyId,
+        }),
+      });
+
+      await apiFetch(`/payments/checkout/requests/${response.requestId}/proof`, {
+        method: 'POST',
+        token: accessToken,
+        body: JSON.stringify({
+          imageBase64: proofImage,
+        }),
+      });
+
+      setStep('success');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al procesar el pago');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
+  if (status === 'loading') {
+    return (
+      <main className="container flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-foreground/40" />
+      </main>
+    );
+  }
 
   if (step === 'success') {
     return (
@@ -98,19 +153,29 @@ function CheckoutContent() {
           <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-green-100">
             <Check className="size-10 text-green-600" />
           </div>
-          <h1 className="font-display text-3xl">¡Registro completado!</h1>
+          <h1 className="font-display text-3xl">¡Pago recibido!</h1>
           <p className="mt-3 text-foreground/70">
-            Tu empresa <strong>{formData.companyName}</strong> ha sido registrada con el plan <strong>{plan.name}</strong>.
+            Tu solicitud para el plan <strong>{plan.name}</strong> ha sido recibida correctamente.
           </p>
+          <div className="mt-8 rounded-2xl bg-blue-50 p-4 text-left">
+            <p className="text-sm text-blue-800">
+              <strong>Próximos pasos:</strong>
+            </p>
+            <ul className="mt-2 list-inside list-decimal text-sm text-blue-700">
+              <li>Recibirás un correo de confirmación</li>
+              <li>Tu cuenta será activada en <strong>7 días hábiles</strong></li>
+              <li>Te notificaremos cuando tu cuenta esté lista</li>
+            </ul>
+          </div>
           <div className="mt-8 rounded-2xl bg-amber-50 p-4 text-left">
             <p className="text-sm text-amber-800">
-              <strong>Pendiente de aprobación:</strong> Tu cuenta está esperando ser revisada por un administrador. 
-              Te notificaremos cuando tu cuenta sea activada.
+              <strong>Período de prueba:</strong> Una vez activada, tendrás 7 días gratis para probar el sistema.
             </p>
           </div>
           <div className="mt-6">
-            <Button asChild>
-              <Link href="/sign-in">Ir a página de ingreso</Link>
+            <Button onClick={() => router.push('/')} className="gap-2">
+              <Home className="h-4 w-4" />
+              Volver al inicio
             </Button>
           </div>
         </div>
@@ -119,134 +184,144 @@ function CheckoutContent() {
   }
 
   if (step === 'payment') {
+    const currentPaymentSettings = selectedPayment ? getPaymentSettings(selectedPayment) : null;
+    
     return (
       <main className="container py-14">
-        <div className="mx-auto max-w-4xl">
-          <h1 className="font-display text-4xl md:text-5xl">Completar pago</h1>
+        <div className="mx-auto max-w-lg">
+          <button 
+            onClick={() => setStep('summary')}
+            className="mb-4 flex items-center text-sm text-foreground/60 hover:text-foreground"
+          >
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Volver
+          </button>
+          
+          <h1 className="font-display text-3xl">Completa tu pago</h1>
           <p className="mt-2 text-foreground/60">
-            Has seleccionado el plan <strong>{plan.name}</strong> - S/ {plan.price}/mes
+            Plan <strong>{plan.name}</strong> - S/ {plan.price}/mes
           </p>
-
-          <div className="mt-8 grid gap-8 lg:grid-cols-2">
-            <Card className="rounded-[34px] bg-white/85 p-8">
-              <h2 className="font-display text-2xl">Resumen del plan</h2>
-              <div className="mt-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-foreground/10 pb-4">
-                  <div>
-                    <p className="font-medium text-lg">{plan.name}</p>
-                    <p className="text-sm text-foreground/50">Facturación mensual</p>
+          
+          <div className="mt-8 space-y-6">
+            {currentPaymentSettings && (
+              <Card className="rounded-2xl bg-white p-6">
+                <h3 className="font-display text-lg mb-4 flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Datos de pago - {selectedPayment}
+                </h3>
+                
+                {currentPaymentSettings.qrImageBase64 && (
+                  <div className="mb-4">
+                    <p className="text-sm text-foreground/60 mb-2">Escanea el código QR:</p>
+                    <div className="flex justify-center">
+                      <img 
+                        src={currentPaymentSettings.qrImageBase64} 
+                        alt="QR Code" 
+                        className="w-48 h-48 object-contain border rounded-xl"
+                      />
+                    </div>
                   </div>
-                  <p className="font-display text-2xl">S/ {plan.price}</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-foreground/60">Total</span>
-                  <p className="font-display text-3xl">S/ {plan.price}</p>
-                </div>
-              </div>
+                )}
 
-              <div className="mt-6 rounded-2xl bg-green-50 p-4">
-                <p className="text-sm text-green-800">
-                  <strong>30 días gratis</strong> en tu primer mes. Cancela cuando quieras.
-                </p>
-              </div>
-            </Card>
+                {currentPaymentSettings.accountNumber && (
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Número:</strong> {currentPaymentSettings.accountNumber}</p>
+                    {currentPaymentSettings.accountName && (
+                      <p><strong>Titular:</strong> {currentPaymentSettings.accountName}</p>
+                    )}
+                  </div>
+                )}
 
-            <Card className="rounded-[34px] bg-white/85 p-8">
-              <h2 className="font-display text-2xl">Método de pago</h2>
+                {currentPaymentSettings.instructions && (
+                  <div className="mt-4 p-3 bg-foreground/5 rounded-lg">
+                    <p className="text-sm">{currentPaymentSettings.instructions}</p>
+                  </div>
+                )}
+
+                <div className="mt-4 p-3 bg-violet-50 rounded-lg">
+                  <p className="text-sm text-violet-700">
+                    <strong>Monto a pagar:</strong> S/ {plan.price}
+                  </p>
+                </div>
+              </Card>
+            )}
+
+            <Card className="rounded-2xl bg-white p-6">
+              <h3 className="font-display text-lg mb-4 flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Subir comprobante de pago
+              </h3>
               
-              {provider === 'yape' ? (
-                <div className="mt-6">
-                  <div className="rounded-2xl bg-gradient-to-br from-purple-600 to-purple-800 p-6 text-white">
-                    <div className="flex items-center gap-2">
-                      <Smartphone className="size-6" />
-                      <span className="font-medium">Yape - BCP</span>
-                    </div>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="proof-image">Captura de pantalla o foto del comprobante</Label>
+                  <div className="mt-2">
+                    <input
+                      id="proof-image"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={fileInputRef}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file);
+                      }}
+                    />
                     
-                    <div className="mt-6 flex justify-center">
-                      <div className="rounded-2xl bg-white p-4">
-                        <QrCode className="size-32 text-purple-800" />
+                    {proofImage ? (
+                      <div className="space-y-3">
+                        <img 
+                          src={proofImage} 
+                          alt="Comprobante" 
+                          className="w-full max-h-64 object-contain border rounded-xl"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setProofImage(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                        >
+                          Cambiar imagen
+                        </Button>
                       </div>
-                    </div>
-                    
-                    <p className="mt-4 text-center text-sm text-purple-200">
-                      Escanea el código QR con tu app Yape
-                    </p>
-                  </div>
-
-                  <div className="mt-6 text-center">
-                    <p className="text-sm text-foreground/60">O transfers a:</p>
-                    <div className="mt-3 flex items-center justify-center gap-3">
-                      <span className="font-display text-3xl tracking-widest">{yapeNumber}</span>
-                      <button
-                        onClick={handleCopyNumber}
-                        className="rounded-lg bg-foreground/10 p-2 transition hover:bg-foreground/20"
+                    ) : (
+                      <label 
+                        htmlFor="proof-image"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-foreground/20 rounded-xl cursor-pointer hover:bg-foreground/5 transition"
                       >
-                        {copied ? <Check className="size-5 text-green-600" /> : <Copy className="size-5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 rounded-2xl border border-foreground/10 p-4">
-                    <p className="text-sm text-foreground/60">
-                      <strong>Instrucciones:</strong>
-                    </p>
-                    <ol className="mt-2 list-inside list-decimal text-sm text-foreground/60">
-                      <li>Abre Yape en tu celular</li>
-                      <li>Escanea el código QR o transfiere S/ {plan.price}</li>
-                      <li>Envía el comprobante a soporte</li>
-                      <li>Activaremos tu plan automáticamente</li>
-                    </ol>
-                  </div>
-
-                  <button
-                    onClick={handleSimulatePayment}
-                    disabled={loading}
-                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-purple-600 px-6 py-4 text-sm font-medium text-white transition hover:bg-purple-700 disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      'Confirmar pago (Demo)'
+                        <Upload className="w-8 h-8 text-foreground/40" />
+                        <span className="mt-2 text-sm text-foreground/60">Haz clic para subir</span>
+                      </label>
                     )}
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-6">
-                  <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-6 text-white">
-                    <div className="flex items-center gap-2">
-                      <svg className="size-6" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-6h-2v6zm0-8h2V7h-2v2z"/>
-                      </svg>
-                      <span className="font-medium">MercadoPago</span>
-                    </div>
-                    <p className="mt-4 text-sm text-blue-200">
-                      Serás redirigido a MercadoPago para completar el pago de forma segura.
-                    </p>
                   </div>
-
-                  <button
-                    onClick={handleSimulatePayment}
-                    disabled={loading}
-                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Redirigiendo...
-                      </>
-                    ) : (
-                      'Continuar con MercadoPago'
-                    )}
-                  </button>
                 </div>
-              )}
 
-              <p className="mt-6 text-center text-xs text-foreground/40">
-                Pago 100% seguro. Tus datos están encriptados.
-              </p>
+                {error && (
+                  <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
+
+                <Button 
+                  className="w-full" 
+                  onClick={handleSubmitPayment}
+                  disabled={uploadingProof || !proofImage}
+                >
+                  {uploadingProof ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="mr-2 h-4 w-4" />
+                      Actualizar cuenta
+                    </>
+                  )}
+                </Button>
+              </div>
             </Card>
           </div>
         </div>
@@ -257,60 +332,74 @@ function CheckoutContent() {
   return (
     <main className="container py-14">
       <div className="mx-auto max-w-md">
-        <h1 className="font-display text-4xl md:text-5xl">Crear cuenta</h1>
+        <h1 className="font-display text-4xl md:text-5xl">
+          {isUpgrade ? 'Mejorar plan' : 'Crear cuenta'}
+        </h1>
         <p className="mt-2 text-foreground/60">
-          Seleccionaste el plan <strong>{plan.name}</strong> - S/ {plan.price}/mes
+          {isUpgrade 
+            ? `Upgrade al plan ${plan.name} - S/ ${plan.price}/mes`
+            : `Seleccionaste el plan ${plan.name} - S/ ${plan.price}/mes`
+          }
         </p>
 
         <Card className="mt-8 rounded-[34px] bg-white/85 p-8">
-          <form onSubmit={handleRegister} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium">Nombre completo</label>
-              <input
-                type="text"
-                required
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                className="w-full rounded-xl border border-foreground/20 px-4 py-3 outline-none focus:border-violet-500"
-                placeholder="Juan Pérez"
-              />
+          {isAuthenticated && (
+            <div className="mb-6 rounded-xl bg-green-50 p-4">
+              <div className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-800">Cuenta verificada</p>
+                  <p className="text-sm text-green-600">Plan actual: {session?.user?.planCode || 'Trial'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div className="rounded-xl bg-violet-50 p-4">
+              <p className="text-sm text-violet-800">
+                <strong>Resumen del plan:</strong>
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-violet-700">
+                <li>• Plan: {plan.name}</li>
+                <li>• Precio: S/ {plan.price}/mes</li>
+                <li>• Facturación: Mensual</li>
+              </ul>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">Nombre de tu empresa</label>
-              <input
-                type="text"
-                required
-                value={formData.companyName}
-                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                className="w-full rounded-xl border border-foreground/20 px-4 py-3 outline-none focus:border-violet-500"
-                placeholder="Mi Tienda"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">Correo electrónico</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full rounded-xl border border-foreground/20 px-4 py-3 outline-none focus:border-violet-500"
-                placeholder="juan@ejemplo.com"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium">Contraseña</label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full rounded-xl border border-foreground/20 px-4 py-3 outline-none focus:border-violet-500"
-                placeholder="••••••••"
-              />
+              <Label className="mb-3 block">Método de pago</Label>
+              <div className="grid grid-cols-3 gap-3">
+                {paymentMethods.map((method) => {
+                  const Icon = method.icon;
+                  const isEnabled = enabledPayments.includes(method.id);
+                  const isSelected = selectedPayment === method.id;
+                  
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      disabled={!isEnabled}
+                      onClick={() => setSelectedPayment(method.id)}
+                      className={`
+                        flex flex-col items-center justify-center rounded-xl border-2 p-4 transition
+                        ${isSelected 
+                          ? 'border-violet-500 bg-violet-50' 
+                          : isEnabled 
+                            ? 'border-foreground/10 hover:border-foreground/30' 
+                            : 'border-foreground/5 bg-gray-50 opacity-50 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      <div className={`rounded-full p-2 ${method.color}`}>
+                        <Icon className="h-5 w-5 text-white" />
+                      </div>
+                      <span className="mt-2 text-sm font-medium">{method.name}</span>
+                      {!isEnabled && <span className="text-xs text-red-500 mt-1">No disponible</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {error && (
@@ -319,35 +408,29 @@ function CheckoutContent() {
               </div>
             )}
 
-            <div className="rounded-xl bg-violet-50 p-4">
-              <p className="text-sm text-violet-800">
-                <strong>Resumen:</strong>
-              </p>
-              <ul className="mt-2 space-y-1 text-sm text-violet-700">
-                <li>• Plan: {plan.name}</li>
-                <li>• Precio: S/ {plan.price}/mes</li>
-                <li>• Método de pago: {provider === 'yape' ? 'Yape' : 'MercadoPago'}</li>
-              </ul>
-            </div>
-
             <Button
-              type="submit"
-              disabled={loading}
+              type="button"
+              onClick={handleContinueToPayment}
+              disabled={loading || !selectedPayment}
               className="w-full rounded-xl py-4"
             >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creando cuenta...
+                  Procesando...
                 </>
               ) : (
-                'Continuar al pago'
+                <>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Continuar con el pago
+                </>
               )}
             </Button>
-          </form>
+          </div>
 
           <p className="mt-4 text-center text-xs text-foreground/50">
-            Al registrarte, aceptas nuestros términos y condiciones.
+            <Lock className="mr-1 inline h-3 w-3" />
+            Tus datos están seguros
           </p>
         </Card>
       </div>

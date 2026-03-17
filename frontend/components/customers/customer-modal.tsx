@@ -19,6 +19,16 @@ import {
 } from '@/components/ui/dialog';
 import { apiFetch } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
+import { 
+  validatePhone, 
+  validateEmail, 
+  validateDNI, 
+  validateRUC,
+  validateTextOnly,
+  formatPhone,
+  formatDNI,
+  PERU_VALIDATIONS 
+} from '@/lib/validations';
 import type { Customer } from '@/types/api';
 
 interface CustomerModalProps {
@@ -33,16 +43,74 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
   const addToast = useUiStore((state) => state.addToast);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isEdit = !!customer;
+
+  const validateForm = (formData: FormData): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    const firstName = formData.get('firstName') as string;
+    const lastName = formData.get('lastName') as string;
+    const email = formData.get('email') as string;
+    const phone = formData.get('phone') as string;
+    const documentType = formData.get('documentType') as string;
+    const documentValue = formData.get('documentValue') as string;
+
+    if (!firstName || firstName.trim().length < 2) {
+      newErrors.firstName = 'El nombre debe tener al menos 2 caracteres';
+    } else if (!validateTextOnly(firstName)) {
+      newErrors.firstName = 'Solo se permiten letras';
+    }
+
+    if (lastName && !validateTextOnly(lastName)) {
+      newErrors.lastName = 'Solo se permiten letras';
+    }
+
+    if (email && !validateEmail(email)) {
+      newErrors.email = PERU_VALIDATIONS.email.error;
+    }
+
+    if (phone && !validatePhone(phone)) {
+      newErrors.phone = PERU_VALIDATIONS.phone.error;
+    }
+
+    if (documentType === 'DNI' && documentValue && !validateDNI(documentValue)) {
+      newErrors.documentValue = PERU_VALIDATIONS.dni.error;
+    } else if (documentType === 'RUC' && documentValue && !validateRUC(documentValue)) {
+      newErrors.documentValue = PERU_VALIDATIONS.ruc.error;
+    } else if (documentType === 'CE' && documentValue && documentValue.length < 8) {
+      newErrors.documentValue = 'El carnet de extranjeria debe tener al menos 8 caracteres';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const formatted = formatPhone(input.value);
+    input.value = formatted;
+  };
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const formatted = formatDNI(input.value);
+    input.value = formatted;
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setErrors({});
 
     const formData = new FormData(e.currentTarget);
+
+    if (!validateForm(formData)) {
+      setLoading(false);
+      return;
+    }
+
     const data = {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName') || null,
@@ -68,7 +136,7 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
       addToast(isEdit ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      setErrors({ general: err instanceof Error ? err.message : 'Error desconocido' });
       addToast(err instanceof Error ? err.message : 'Error al guardar cliente', 'error');
     } finally {
       setLoading(false);
@@ -87,25 +155,56 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+            {errors.general && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{errors.general}</div>}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Nombres *</Label>
-                <Input id="firstName" name="firstName" required defaultValue={customer?.firstName} placeholder="Juan" />
+                <Input 
+                  id="firstName" 
+                  name="firstName" 
+                  required 
+                  defaultValue={customer?.firstName} 
+                  placeholder="Juan"
+                  maxLength={100}
+                />
+                {errors.firstName && <p className="text-xs text-red-500">{errors.firstName}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Apellidos</Label>
-                <Input id="lastName" name="lastName" defaultValue={customer?.lastName || ''} placeholder="Perez" />
+                <Input 
+                  id="lastName" 
+                  name="lastName" 
+                  defaultValue={customer?.lastName || ''} 
+                  placeholder="Perez"
+                  maxLength={100}
+                />
+                {errors.lastName && <p className="text-xs text-red-500">{errors.lastName}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" defaultValue={customer?.email || ''} placeholder="juan@ejemplo.com" />
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  defaultValue={customer?.email || ''} 
+                  placeholder="juan@ejemplo.com"
+                  maxLength={255}
+                />
+                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefono</Label>
-                <Input id="phone" name="phone" defaultValue={customer?.phone || ''} placeholder="+51 900 000 000" />
+                <Input 
+                  id="phone" 
+                  name="phone" 
+                  defaultValue={customer?.phone || ''} 
+                  placeholder="+51 900 000 000"
+                  maxLength={15}
+                  onChange={handlePhoneChange}
+                />
+                {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -125,12 +224,26 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="documentValue">Numero documento</Label>
-                <Input id="documentValue" name="documentValue" defaultValue={customer?.documentValue || ''} placeholder="12345678" />
+                <Input 
+                  id="documentValue" 
+                  name="documentValue" 
+                  defaultValue={customer?.documentValue || ''} 
+                  placeholder="12345678"
+                  maxLength={11}
+                  onChange={handleDocumentChange}
+                />
+                {errors.documentValue && <p className="text-xs text-red-500">{errors.documentValue}</p>}
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>
-              <Input id="notes" name="notes" defaultValue={customer?.notes || ''} placeholder="Notas adicionales..." />
+              <Input 
+                id="notes" 
+                name="notes" 
+                defaultValue={customer?.notes || ''} 
+                placeholder="Notas adicionales..."
+                maxLength={500}
+              />
             </div>
           </div>
           <DialogFooter>

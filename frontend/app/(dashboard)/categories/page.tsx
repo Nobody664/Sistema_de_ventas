@@ -5,6 +5,8 @@ import { FolderTree } from 'lucide-react';
 import { CategoryActions, NewCategoryButton } from '@/components/categories/category-actions';
 import type { Category } from '@/types/api';
 
+export const dynamic = 'force-dynamic';
+
 export default async function CategoriesPage() {
   const session = await auth();
   const accessToken = session?.accessToken;

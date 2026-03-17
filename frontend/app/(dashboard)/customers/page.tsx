@@ -4,6 +4,7 @@ import { serverApiFetch } from '@/lib/server-api';
 import { Users, UserPlus, Mail, Phone } from 'lucide-react';
 import { CustomerActions, NewCustomerButton } from '@/components/customers/customer-actions';
 import type { Customer } from '@/types/api';
+import Link from 'next/link';
 
 export default async function CustomersPage() {
   const session = await auth();
@@ -15,7 +16,7 @@ export default async function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[34px] bg-gradient-to-br from-cyan-500 to-blue-600 p-8 text-white">
+      <Card className="rounded-[34px] bg-gradient-to-br from-cyan-500 to-blue-600 p-8 text-white animate-fade-in-up">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">CRM basico</p>
@@ -24,12 +25,14 @@ export default async function CustomersPage() {
               Administra tu base de clientes, registra nuevos clientes y observa su historial de compras.
             </p>
           </div>
-          <NewCustomerButton />
+          <div className="hidden sm:block animate-fade-in-up delay-150">
+            <NewCustomerButton />
+          </div>
         </div>
       </Card>
 
       <div className="grid gap-5 md:grid-cols-2">
-        <Card className="rounded-[30px] bg-white/80 p-6">
+        <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-100">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-cyan-500/20 p-2">
               <Users className="size-5 text-cyan-600" />
@@ -41,7 +44,7 @@ export default async function CustomersPage() {
           </div>
         </Card>
 
-        <Card className="rounded-[30px] bg-white/80 p-6">
+        <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-150">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-green-500/20 p-2">
               <UserPlus className="size-5 text-green-600" />
@@ -56,20 +59,29 @@ export default async function CustomersPage() {
         </Card>
       </div>
 
-      <Card className="rounded-[34px] bg-white/85 p-6">
-        <div className="mb-6">
-          <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Directorio</p>
-          <h2 className="mt-2 font-display text-2xl">Clientes registrados</h2>
+      <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-200">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Directorio</p>
+            <h2 className="mt-2 font-display text-2xl">Clientes registrados</h2>
+          </div>
+          <div className="sm:hidden">
+            <NewCustomerButton />
+          </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 max-h-[600px] overflow-auto">
           {(customers?.length ?? 0) > 0 ? (
-            customers?.map((customer) => (
+            customers?.map((customer, index) => (
               <div
                 key={customer.id}
-                className="flex items-center justify-between rounded-2xl border border-foreground/10 p-4 transition hover:border-cyan-500/30"
+                className="flex items-center justify-between rounded-2xl border border-foreground/10 p-4 transition hover:border-cyan-500/30 card-hover animate-fade-in-up"
+                style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}
               >
-                <div className="flex items-center gap-4">
+                <Link
+                  href={`/customers/${customer.id}`}
+                  className="flex items-center gap-4 flex-1"
+                >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-100 text-cyan-700 font-medium">
                     {customer.firstName[0]}
                     {(customer.lastName || '')[0]}
@@ -93,17 +105,22 @@ export default async function CustomersPage() {
                       )}
                     </div>
                   </div>
-                </div>
+                </Link>
                 <div className="text-right">
                   <CustomerActions customer={customer} />
-                  <p className="mt-2 font-display text-lg">S/ {customer.totalPurchases?.toFixed(2) ?? '0.00'}</p>
+                  <p className="mt-2 font-display text-lg">
+                    S/ {(
+                      Number(customer.totalPurchases || 0) +
+                      (customer.sales?.reduce((acc, s) => acc + Number(s.totalAmount), 0) || 0)
+                    ).toFixed(2)}
+                  </p>
                   <p className="text-xs text-foreground/50">compras</p>
                 </div>
               </div>
             ))
           ) : (
             <div className="col-span-2 py-8 text-center text-foreground/50">
-              No hay clientes registrados. Corre el seed para ver datos de ejemplo.
+              No hay clientes registrados. Registra el primero y comienza a operar!!.
             </div>
           )}
         </div>
