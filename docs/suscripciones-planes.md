@@ -142,14 +142,15 @@ GET /api/subscriptions/stats
 
 ## Pendientes para Producción
 
-1. **Webhooks de pago real**
-   - Stripe: `stripe-webhook-handler.ts`
-   - MercadoPago: `mercadopago-webhook-handler.ts`
+1. **Webhooks de pago real** (en implementación)
+   - Stripe: Webhook handler
+   - MercadoPago: Webhook handler (demo implementado)
 
-2. **Notificaciones por email**
+2. **Notificaciones por email** ✅ (IMPLEMENTADO)
    - Bienvenida al registrar
    - Notificación de aprobación
-   - Recordatorio de renovación
+   - Notificación de rechazo
+   - Recordatorio de renovación (pendiente)
 
 3. **Prorrateo**
    - Calcular precio restante del mes actual al hacer upgrade
@@ -159,18 +160,93 @@ GET /api/subscriptions/stats
    - ARR (Annual Recurring Revenue)
    - Churn rate
 
-## Archivos Modificados
+5. **UI de Notificaciones en tiempo real**
+   - WebSocket o Server-Sent Events para notificaciones push
 
-### Backend
-- `src/modules/auth/auth.service.ts` - Registro con plan
-- `src/modules/auth/dto/auth.dto.ts` - DTOs actualizados
-- `src/modules/subscriptions/subscriptions.service.ts` - CRUD completo
-- `src/modules/subscriptions/subscriptions.controller.ts` - Endpoints
+## Archivos Creados/Modificados
 
-### Frontend
-- `app/checkout/page.tsx` - Flujo registro + pago
-- `app/(dashboard)/subscribers/page.tsx` - Admin suscriptores
-- `components/subscribers/subscriber-actions.tsx` - Acciones admin
-- `components/subscriptions/upgrade-plan-modal.tsx` - Cambio de plan
-- `components/layout/app-sidebar.tsx` - Nueva ruta
-- `types/api.ts` - Tipos新增
+### Backend - Nuevos Archivos
+- `prisma/schema.prisma` - Modelo Notification agregado
+- `src/modules/notifications/notifications.service.ts` - Servicio de notificaciones
+- `src/modules/notifications/notifications.controller.ts` - Controlador REST
+- `src/modules/notifications/notifications.module.ts` - Módulo NestJS
+- `src/modules/email/email.service.ts` - Servicio de email con templates
+- `src/modules/email/email.processor.ts` - Processor BullMQ
+- `src/modules/email/email.module.ts` - Módulo de email
+- `frontend/app/api/auth/register/route.ts` - Endpoint registro
+
+### Backend - Modificados
+- `src/app.module.ts` - Agregados módulos Notifications y Email
+- `src/modules/auth/auth.service.ts` - Registro con plan + notificaciones
+- `src/modules/auth/auth.controller.ts` - Registro público
+- `src/modules/auth/dto/auth.dto.ts` - DTOs con planCode
+- `src/modules/subscriptions/subscriptions.service.ts` - Aprobar/rechazar + notificaciones
+- `src/modules/subscriptions/subscriptions.controller.ts` - Endpoints admin
+- `src/modules/payments/payments.service.ts` - Webhooks con notificaciones
+
+### Frontend - Nuevos Archivos
+- `app/api/auth/register/route.ts` - API route para registro
+- `app/(dashboard)/subscribers/page.tsx` - Página suscriptores
+- `components/subscribers/subscriber-actions.tsx` - Acciones de approve/reject
+- `components/subscriptions/upgrade-plan-modal.tsx` - Modal upgrade
+- `components/notifications/notifications-client.tsx` - Componente notificaciones
+
+### Frontend - Modificados
+- `app/checkout/page.tsx` - Flujo completo registro + pago
+- `app/(dashboard)/notifications/page.tsx` - Página notificaciones
+- `app/(dashboard)/layout.tsx` - Sidebar
+- `components/layout/app-sidebar.tsx` - Ruta suscriptores
+- `types/api.ts` - Tipos Notification, SubscriberWithCompany
+
+---
+
+# Sistema de Notificaciones
+
+## Modelo de Datos
+
+```prisma
+enum NotificationType {
+  SUBSCRIPTION_PENDING
+  SUBSCRIPTION_APPROVED
+  SUBSCRIPTION_REJECTED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  ACCOUNT_ACTIVATED
+  PLAN_UPGRADED
+  GENERAL
+}
+
+model Notification {
+  id          String              @id @default(cuid())
+  userId      String
+  companyId   String?
+  type        NotificationType
+  channel     NotificationChannel @default(IN_APP)
+  title       String
+  message     String
+  data        Json?
+  isRead      Boolean             @default(false)
+  sentAt      DateTime?
+}
+```
+
+## Endpoints
+
+```http
+GET /api/notifications
+GET /api/notifications/unread-count
+PATCH /api/notifications/:id/read
+PATCH /api/notifications/read-all
+```
+
+## Servicios
+
+- **NotificationsService**: CRUD de notificaciones
+- **EmailService**: Templates de email (demo logs)
+
+## Flujo
+
+1. **Registro**: Notificación + Email de "pendiente de aprobación"
+2. **Aprobación**: Notificación + Email de "aprobado"
+3. **Rechazo**: Notificación + Email de "rechazado"
+4. **Pago webhook**: Notificación + Email de "pago recibido"

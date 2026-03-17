@@ -11,6 +11,11 @@
       "sourceType": "github",
       "computedHash": "4a0f854b2530f4b0038302915f51ddb44586ba73f015ec2dd6e4c8630b1460a4"
     },
+    "canvas-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "a2fe47d24b3fd8e52faef731fff099c557e698083cd644b2e5695cc4dd8c7715"
+    },
     "debugging": {
       "source": "supercent-io/skills-template",
       "sourceType": "github",
@@ -40,6 +45,21 @@
       "source": "vercel-labs/next-skills",
       "sourceType": "github",
       "computedHash": "515ba75178bd44875812d9a560bdf14651f86709f89cf1d4f209638e879807f3"
+    },
+    "nextauth-authentication": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "computedHash": "d169826735a2241ac893ecc97985e8c1dd15944fd38e4ecf1ae57e85c01df2d6"
+    },
+    "nextjs-app-router": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "sourceType": "github",
+      "computedHash": "ed6c963f5726953a0ad2b5dd7adf57b3c149a0b6919cd037e41b6c095004040c"
+    },
+    "nextjs-architecture": {
+      "source": "89jobrien/steve",
+      "sourceType": "github",
+      "computedHash": "9ba578f238d6b76a7554bf7d4257e17c31e228847c293077e59025fd34ffb084"
     },
     "prisma-cli": {
       "source": "prisma/skills",
@@ -75,6 +95,16 @@
       "source": "kimny1143/claude-code-template",
       "sourceType": "github",
       "computedHash": "e122b7731727f01dfa62f24151fa8265f65aa5573524dab4a4f343e12783c5a3"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    },
+    "web-design-reviewer": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "10c6fad8b4f01dbeae969009d81d6c306c8a96d56077cad9bfe2a73a38f5dcbe"
     }
   }
 }
