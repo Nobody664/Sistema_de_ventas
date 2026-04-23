@@ -1,6 +1,7 @@
 services:
   - type: web
     name: backend
+    rootDir: backend
     region: oregon
     buildCommand: npm install && npm run build
     startCommand: npm run start
