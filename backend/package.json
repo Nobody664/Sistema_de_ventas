@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=18.0.0 <22.0.0"
+    "node": ">=20.19.0 <22.0.0"
   },
   "scripts": {
     "dev": "nest start --watch",
     "start": "node dist/main",
-    "build": "npx nest build",
+    "build": "nest build",
     "lint": "tsc --noEmit",
     "format": "prettier --check \"src/**/*.ts\"",
     "db:push": "npx prisma db push",
