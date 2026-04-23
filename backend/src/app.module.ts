@@ -28,6 +28,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
 import { EmailModule } from '@/modules/email/email.module';
 import { InvoicesModule } from '@/modules/invoices/invoices.module';
 import { DniModule } from '@/modules/dni/dni.module';
+import { HealthModule } from '@/modules/health/health.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { DniModule } from '@/modules/dni/dni.module';
     EmailModule,
     InvoicesModule,
     DniModule,
+    HealthModule,
   ],
   providers: [
     {
