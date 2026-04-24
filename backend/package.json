@@ -6,10 +6,10 @@
     "node": ">=20.19.0 <22.0.0"
   },
   "scripts": {
-    "dev": "nest start --watch",
+    "dev": "npx nest start --watch",
     "start": "node dist/main.js",
-    "build": "node_modules/.bin/nest build",
-    "lint": "tsc --noEmit",
+    "build": "npx --yes @nestjs/cli build",
+    "lint": "npx tsc --noEmit",
     "format": "prettier --check \"src/**/*.ts\"",
     "db:push": "npx prisma db push",
     "db:seed": "node prisma/seed.js",
