@@ -3,7 +3,7 @@ services:
     name: backend
     rootDir: backend
     region: oregon
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: bash render-build.sh
     startCommand: npm run start:prod
     envVars:
       - key: NODE_ENV
