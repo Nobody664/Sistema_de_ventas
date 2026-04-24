@@ -9,7 +9,7 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
-    "build": "npm run build",
+    "build": "nest build",
     "build:prod": "nest build",
     "lint": "tsc --noEmit",
     "format": "prettier --check \"src/**/*.ts\"",
