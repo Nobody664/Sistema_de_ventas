@@ -19,15 +19,9 @@ npm install --prefer-offline
 echo "[2/4] npx prisma generate..."
 npx prisma generate
 
-# [3/4] Compilar TypeScript usando node_modules/.bin/nest
-echo "[3/4] ./node_modules/.bin/nest build..."
-if [ -f "node_modules/.bin/nest" ]; then
-    ./node_modules/.bin/nest build
-else
-    echo "ERROR: nest no encontrado en node_modules/.bin/"
-    ls -la node_modules/.bin/ | head -20
-    exit 1
-fi
+# [3/4] Compilar TypeScript usando node
+echo "[3/4] node ./node_modules/@nestjs/cli/bin/nest-about.js build..."
+node ./node_modules/@nestjs/cli/bin/nest-about.js build || node ./node_modules/@nestjs/cli/bin/nest.js build
 
 # [4/4] Verificar que se creó dist/
 if [ -f "dist/main.js" ]; then

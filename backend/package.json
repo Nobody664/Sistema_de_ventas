@@ -6,12 +6,11 @@
     "node": ">=20.19.0 <22.0.0"
   },
   "scripts": {
-    "dev": "nest start --watch",
+    "dev": "node ./node_modules/@nestjs/cli/bin/nest-about.js start --watch",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
-    "build": "./node_modules/.bin/nest build",
-    "build:prod": "nest build",
-    "lint": "tsc --noEmit",
+    "build": "node ./node_modules/@nestjs/cli/bin/nest-about.js build",
+    "lint": "npx tsc --noEmit",
     "format": "prettier --check \"src/**/*.ts\"",
     "db:push": "npx prisma db push",
     "db:seed": "node prisma/seed.js",
@@ -54,7 +53,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.16",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@types/cookie-parser": "^1.4.10",
