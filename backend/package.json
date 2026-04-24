@@ -7,8 +7,8 @@
   },
   "scripts": {
     "dev": "nest start --watch",
-    "start": "node dist/main",
-    "build": "npx nest build",
+    "start": "node dist/main.js",
+    "build": "node_modules/.bin/nest build",
     "lint": "tsc --noEmit",
     "format": "prettier --check \"src/**/*.ts\"",
     "db:push": "npx prisma db push",
@@ -21,6 +21,7 @@
     "@keyv/redis": "^4.3.0",
     "@nestjs/bullmq": "^11.0.0",
     "@nestjs/cache-manager": "^3.0.0",
+    "@nestjs/cli": "^11.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
@@ -51,7 +52,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@types/cookie-parser": "^1.4.8",
