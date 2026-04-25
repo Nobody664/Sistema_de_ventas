@@ -13,15 +13,15 @@ echo "=========================================="
 
 # [1/4] Instalar dependencias
 echo "[1/4] npm install..."
-npm install --prefer-offline
+npm install
 
 # [2/4] Generar Prisma Client  
 echo "[2/4] npx prisma generate..."
 npx prisma generate
 
-# [3/4] Compilar TypeScript usando node
-echo "[3/4] node ./node_modules/@nestjs/cli/bin/nest-about.js build..."
-node ./node_modules/@nestjs/cli/bin/nest-about.js build || node ./node_modules/@nestjs/cli/bin/nest.js build
+# [3/4] Compilar TypeScript
+echo "[3/4] npm run build..."
+npm run build
 
 # [4/4] Verificar que se creó dist/
 if [ -f "dist/main.js" ]; then
