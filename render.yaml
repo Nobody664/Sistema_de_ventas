@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: backend
+    name: sistema-de-ventas-backend
     rootDir: backend
     region: oregon
     buildCommand: bash render-build.sh
@@ -13,21 +13,19 @@ services:
       - key: PORT
         value: "4000"
       - key: DATABASE_URL
-        value: postgres://postgres:[TUPASSWORD]@db.cnqqenulxvkvbvuyhidp.supabase.co:5432/postgres
+        value: postgresql://postgres.hdnvtecbwvvqhsrmudgi:nYZLwQY6JO3PcQ1U@aws-1-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=disable
       - key: JWT_ACCESS_SECRET
-        generateValue: 32
+        value: access_secret_ventas_2026
       - key: JWT_REFRESH_SECRET
-        generateValue: 32
-      - key: NEXTAUTH_SECRET
-        generateValue: 32
-      - key: NEXTAUTH_URL
-        value: https://tu-frontend.onrender.com
+        value: refresh_secret_ventas_2026
       - key: SMTP_ENABLED
         value: "false"
-      - key: REDIS_URL
-        value: redis://default:uVfb123@redis.render.cloud:6379
     healthCheck:
       path: /api/health/ready
       interval: 30
       timeout: 10
       unhealthyThreshold: 3
+      readyCheck:
+        path: /api/health
+        interval: 5
+        timeout: 5
