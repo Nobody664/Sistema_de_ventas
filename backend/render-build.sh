@@ -12,20 +12,10 @@ echo "Iniciando build para Render..."
 echo "Node version: $(node --version)"
 echo "=========================================="
 
-# [1/4] Instalar dependencias INCLUYENDO devDependencies
-echo "[1/4] npm install --include=dev..."
+# [1/4] Instalar dependencias con Prisma 6
+echo "[1/4] npm install forzando Prisma 6..."
+npm install prisma@6 @prisma/client@6 @prisma/adapter-pg@6 pg --save
 npm install --include=dev
-
-# Verificar que se instalaron los types
-echo ""
-echo "Verificando @types instalado..."
-if [ -d "node_modules/@types/express" ]; then
-    echo "OK: @types/express instalado"
-else
-    echo "ERROR: @types/express NO encontrado"
-    echo "Forzando instalacion de @types/express..."
-    npm install --save-dev @types/express@^4.17.21 @types/cookie-parser@^1.4.8 @types/passport-jwt@^4.0.1
-fi
 
 # [2/4] Generar Prisma Client  
 echo ""
