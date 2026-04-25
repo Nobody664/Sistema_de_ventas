@@ -1,0 +1,18 @@
+services:
+  - name: sistema-de-ventas-frontend
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://sistema-de-ventas-c6xb.onrender.com/api
+      - key: NEXTAUTH_URL
+        value: https://sistema-de-ventas-frontend.onrender.com
+      - key: NEXTAUTH_SECRET
+        value: access_secret_ventas_2026
+        sync: false
+      - key: AUTH_SECRET
+        value: access_secret_ventas_2026
+        sync: false
