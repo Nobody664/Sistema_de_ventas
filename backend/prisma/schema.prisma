@@ -5,3 +5,470 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  PAST_DUE
+  INACTIVE
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MERCADOPAGO
+  PAYPAL
+  CASH
+  CARD
+  TRANSFER
+  YAPE
+  PLIN
+}
+
+enum GlobalRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum MembershipRole {
+  COMPANY_ADMIN
+  MANAGER
+  CASHIER
+  VIEWER
+}
+
+enum SaleStatus {
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  PENDING
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum InventoryMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+enum NotificationType {
+  SALE
+  PAYMENT
+  INVENTORY
+  SUBSCRIPTION
+  SYSTEM
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+  SMS
+  WHATSAPP
+}
+
+enum PlanUpgradeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  fullName      String    @map("full_name")
+  globalRole    GlobalRole @default(USER)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  memberships  Membership[]
+  employee     Employee?
+
+  @@map("users")
+}
+
+model Company {
+  id            String        @id @default(cuid())
+  name          String
+  slug          String        @unique
+  legalName     String?       @map("legal_name")
+  taxId         String?       @map("tax_id")
+  address       String?
+  email         String?
+  phone        String?
+  timezone     String        @default("America/Lima")
+  currency     String        @default("PEN")
+  status        CompanyStatus @default(TRIAL)
+  trialEndsAt  DateTime?     @map("trial_ends_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  subscriptions Subscription[]
+  memberships  Membership[]
+  customers    Customer[]
+  products     Product[]
+  categories   Category[]
+  sales        Sale[]
+  employees    Employee[]
+  invoices     InvoiceTemplate[]
+  notifications Notification[]
+  auditLogs    AuditLog[]
+  paymentSettings PaymentSetting[]
+  inventoryMovements InventoryMovement[]
+  planUpgradeRequests PlanUpgradeRequest[]
+
+  @@map("companies")
+}
+
+model Plan {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  name         String
+  description  String?
+  priceMonthly Decimal   @map("price_monthly") @db.Decimal(10, 2)
+  priceYearly  Decimal   @map("price_yearly") @db.Decimal(10, 2)
+  billingCycle BillingCycle @default(MONTHLY)
+  maxUsers     Int       @default(1)
+  maxProducts  Int       @default(100)
+  features     Json?
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  subscriptions Subscription[]
+  planUpgradeRequests PlanUpgradeRequest[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id            String            @id @default(cuid())
+  companyId     String            @map("company_id")
+  planId        String            @map("plan_id")
+  status       SubscriptionStatus @default(TRIALING)
+  billingCycle BillingCycle     @default(MONTHLY)
+  startDate    DateTime          @map("start_date")
+  endDate      DateTime          @map("end_date")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan         Plan            @relation(fields: [planId], references: [id])
+  payments     Payment[]
+
+  @@unique([companyId])
+  @@map("subscriptions")
+}
+
+model Membership {
+  id          String         @id @default(cuid())
+  userId      String         @map("user_id")
+  companyId  String         @map("company_id")
+  role       MembershipRole @default(CASHIER)
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  // Relations
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@map("memberships")
+}
+
+model Customer {
+  id          String    @id @default(cuid())
+  companyId   String    @map("company_id")
+  firstName   String    @map("first_name")
+  lastName    String?   @map("last_name")
+  email       String?
+  phone       String?
+  documentType String?   @map("document_type")
+  documentNumber String? @map("document_number")
+  address     String?
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sales       Sale[]
+
+  @@map("customers")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  companyId   String    @map("company_id")
+  name        String
+  slug        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@unique([companyId, slug])
+  @@map("categories")
+}
+
+model Product {
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
+  categoryId     String?   @map("category_id")
+  name           String
+  sku            String?  @unique
+  description    String?
+  price          Decimal   @db.Decimal(10, 2)
+  costPrice      Decimal?  @map("cost_price") @db.Decimal(10, 2)
+  stockQuantity Int      @default(0) @map("stock_quantity")
+  minStockLevel  Int      @default(10) @map("min_stock_level")
+  isActive      Boolean   @default(true) @map("is_active")
+  imageUrl      String?   @map("image_url")
+  barcode       String?   @unique
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  saleItems    SaleItem[]
+  inventoryMovements InventoryMovement[]
+
+  @@map("products")
+}
+
+model Sale {
+  id            String      @id @default(cuid())
+  companyId     String      @map("company_id")
+  customerId    String?     @map("customer_id")
+  employeeId    String?     @map("employee_id")
+  saleNumber    String      @unique @map("sale_number")
+  status        SaleStatus  @default(COMPLETED)
+  subtotal      Decimal      @db.Decimal(12, 2)
+  taxAmount     Decimal      @map("tax_amount") @db.Decimal(12, 2)
+  discountAmount Decimal?   @map("discount_amount") @db.Decimal(12, 2)
+  totalAmount   Decimal      @map("total_amount") @db.Decimal(12, 2)
+  paymentMethod PaymentProvider @default(CASH)
+  paidAmount   Decimal      @map("paid_amount") @db.Decimal(12, 2)
+  changeAmount  Decimal      @map("change_amount") @db.Decimal(12, 2)
+  notes        String?
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer    Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  employee    Employee?  @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  items       SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String    @id @default(cuid())
+  saleId      String    @map("sale_id")
+  productId   String    @map("product_id")
+  quantity   Int
+  unitPrice   Decimal   @map("unit_price") @db.Decimal(10, 2)
+  totalPrice  Decimal   @map("total_price") @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  sale        Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("sale_items")
+}
+
+model Employee {
+  id          String    @id @default(cuid())
+  companyId   String    @map("company_id")
+  userId      String?   @unique @map("user_id")
+  firstName   String    @map("first_name")
+  lastName    String?   @map("last_name")
+  email       String?
+  phone       String?
+  position    String?
+  salary     Decimal?  @db.Decimal(10, 2)
+  hireDate    DateTime? @map("hire_date")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sales      Sale[]
+
+  @@map("employees")
+}
+
+model InventoryMovement {
+  id          String               @id @default(cuid())
+  companyId  String               @map("company_id")
+  productId  String               @map("product_id")
+  type       InventoryMovementType
+  quantity   Int
+  reference  String?
+  notes      String?
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  // Relations
+  company    Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product    Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_movements")
+}
+
+model Payment {
+  id             String         @id @default(cuid())
+  subscriptionId String         @map("subscription_id")
+  amount         Decimal        @db.Decimal(10, 2)
+  status         PaymentStatus  @default(PENDING)
+  provider       PaymentProvider @default(CASH)
+  providerPaymentId String?     @map("provider_payment_id")
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  subscription  Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model PlanUpgradeRequest {
+  id          String          @id @default(cuid())
+  companyId   String          @map("company_id")
+  planId     String          @map("plan_id")
+  status     PlanUpgradeStatus @default(PENDING)
+  notes      String?
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan        Plan         @relation(fields: [planId], references: [id])
+
+  @@map("plan_upgrade_requests")
+}
+
+model InvoiceTemplate {
+  id          String    @id @default(cuid())
+  companyId   String?   @map("company_id")
+  name       String
+  content    String    @db.Text
+  isGlobal   Boolean   @default(false) @map("is_global")
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  company    Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_templates")
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  companyId  String             @map("company_id")
+  type       NotificationType
+  channel   NotificationChannel @default(IN_APP)
+  title     String
+  message   String
+  isRead    Boolean            @default(false) @map("is_read")
+  sentAt    DateTime           @map("sent_at")
+  readAt    DateTime?          @map("read_at")
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  // Relations
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model PaymentSetting {
+  id          String          @id @default(cuid())
+  companyId   String          @map("company_id")
+  provider    PaymentProvider
+  config      Json
+  isActive    Boolean         @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, provider])
+  @@map("payment_settings")
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  companyId   String      @map("company_id")
+  userId      String?     @map("user_id")
+  action     AuditAction
+  entityType String      @map("entity_type")
+  entityId   String      @map("entity_id")
+  changes    Json?
+  ipAddress  String?     @map("ip_address")
+  userAgent  String?      @map("user_agent")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
