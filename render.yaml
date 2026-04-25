@@ -3,7 +3,7 @@ services:
     name: sistema-de-ventas-backend
     rootDir: backend
     region: oregon
-    buildCommand: bash render-build.sh
+    buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start:prod
     envVars:
       - key: NODE_ENV
@@ -25,7 +25,3 @@ services:
       interval: 30
       timeout: 10
       unhealthyThreshold: 3
-      readyCheck:
-        path: /api/health
-        interval: 5
-        timeout: 5
