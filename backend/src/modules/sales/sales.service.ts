@@ -190,7 +190,7 @@ export class SalesService {
         companyId,
         id: { in: input.items.map((item) => item.productId) },
       },
-    })) as Array<{ id: string; stockQuantity: number; name: string; salePrice: unknown }>;
+    })) as Array<{ id: string; stockQuantity: number; name: string; price: unknown }>;
 
     const productMap = new Map<string, (typeof products)[number]>(products.map((product) => [product.id, product]));
 
@@ -205,23 +205,24 @@ export class SalesService {
         throw new BadRequestException(`Insufficient stock for ${product.name}.`);
       }
 
-      const unitPrice = Number(product.salePrice);
-      const discountAmount = Number(item.discountAmount ?? '0');
-      const totalAmount = unitPrice * item.quantity - discountAmount;
-      subtotal += totalAmount;
+      const unitPrice = Number(product.price);
+      const totalPrice = unitPrice * item.quantity;
+
+      subtotal += totalPrice;
 
       return {
         productId: item.productId,
         quantity: item.quantity,
-        unitPrice: unitPrice.toFixed(2),
-        discountAmount: discountAmount.toFixed(2),
-        totalAmount: totalAmount.toFixed(2),
+        unitPrice: unitPrice,
+        totalPrice: totalPrice,
       };
     });
 
-    const taxAmount = Number(input.taxAmount ?? '0');
-    const discountAmount = Number(input.discountAmount ?? '0');
+    const taxAmount = Number(input.taxAmount ?? 0);
+    const discountAmount = Number(input.discountAmount ?? 0);
     const totalAmount = subtotal + taxAmount - discountAmount;
+    const paidAmount = totalAmount;
+    const changeAmount = 0;
     const saleNumber = `SALE-${Date.now()}`;
 
     return this.prisma.$transaction(async (tx: Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$extends'>) => {
@@ -231,12 +232,13 @@ export class SalesService {
           customerId: input.customerId,
           employeeId: input.employeeId,
           saleNumber,
-          subtotal: subtotal.toFixed(2),
-          taxAmount: taxAmount.toFixed(2),
-          discountAmount: discountAmount.toFixed(2),
-          totalAmount: totalAmount.toFixed(2),
+          subtotal,
+          taxAmount,
+          discountAmount,
+          totalAmount,
           paymentMethod: input.paymentMethod,
-          paidAt: new Date(),
+          paidAmount,
+          changeAmount,
           items: {
             create: itemsData,
           },
@@ -259,29 +261,13 @@ export class SalesService {
             data: {
               companyId,
               productId: item.productId,
-              type: 'OUTBOUND',
+              type: 'OUT',
               quantity: item.quantity * -1,
-              reason: `Sale ${sale.saleNumber}`,
-              referenceId: sale.id,
+              notes: `Sale ${sale.saleNumber}`,
             },
           });
         }),
       );
-
-      if (input.customerId) {
-        const customer = await tx.customer.findUnique({
-          where: { id: input.customerId },
-          select: { totalPurchases: true },
-        });
-        if (customer) {
-          await tx.customer.update({
-            where: { id: input.customerId },
-            data: {
-              totalPurchases: (Number(customer.totalPurchases) + totalAmount).toFixed(2),
-            },
-          });
-        }
-      }
 
       return sale;
     });

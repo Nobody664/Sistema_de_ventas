@@ -10,8 +10,9 @@ export class CompaniesService {
     return this.prisma.company.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        subscription: {
+        subscriptions: {
           include: { plan: true },
+          take: 1,
         },
         _count: {
           select: { memberships: true, customers: true },
@@ -24,8 +25,9 @@ export class CompaniesService {
     const company = await this.prisma.company.findUnique({
       where: { id },
       include: {
-        subscription: {
+        subscriptions: {
           include: { plan: true },
+          take: 1,
         },
       },
     });
@@ -71,7 +73,7 @@ export class CompaniesService {
         timezone: input.timezone ?? 'America/Lima',
         currency: input.currency ?? 'PEN',
         status: 'TRIAL',
-        subscription: {
+        subscriptions: {
           create: {
             planId: input.planId,
             status: 'TRIALING',
@@ -82,8 +84,9 @@ export class CompaniesService {
         },
       },
       include: {
-        subscription: {
+        subscriptions: {
           include: { plan: true },
+          take: 1,
         },
       },
     });
@@ -94,28 +97,38 @@ export class CompaniesService {
   async approve(id: string) {
     const company = await this.prisma.company.findUnique({
       where: { id },
-      include: { subscription: true },
+      include: { subscriptions: true },
     });
 
     if (!company) {
       throw new NotFoundException('Company not found.');
     }
 
-    return this.prisma.company.update({
-      where: { id },
-      data: {
-        status: 'ACTIVE',
-        subscription: {
-          update: {
-            status: 'ACTIVE',
+    const activeSubscription = company.subscriptions[0];
+    if (activeSubscription) {
+      return this.prisma.company.update({
+        where: { id },
+        data: {
+          status: 'ACTIVE',
+          subscriptions: {
+            update: {
+              where: { id: activeSubscription.id },
+              data: { status: 'ACTIVE' },
+            },
           },
         },
-      },
-      include: {
-        subscription: {
-          include: { plan: true },
+        include: {
+          subscriptions: {
+            include: { plan: true },
+            take: 1,
+          },
         },
-      },
+      });
+    }
+
+    return this.prisma.company.update({
+      where: { id },
+      data: { status: 'ACTIVE' },
     });
   }
 
@@ -138,8 +151,9 @@ export class CompaniesService {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       include: {
-        subscription: {
+        subscriptions: {
           include: { plan: true },
+          take: 1,
         },
       },
     });
