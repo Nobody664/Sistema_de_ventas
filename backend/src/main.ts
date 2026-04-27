@@ -18,21 +18,26 @@ async function bootstrap() {
   app.use(json({ limit: '2mb' }));
   app.use(urlencoded({ extended: true, limit: '2mb' }));
   app.use(cookieParser());
+
   app.enableCors({
     origin: true,
     credentials: true,
   });
-  app.setGlobalPrefix(configService.getOrThrow<string>('API_PREFIX'));
-  // Temporarily disable validation for testing
-  // app.useGlobalPipes(
-  //   new ValidationPipe({
-  //     whitelist: true,
-  //     transform: true,
-  //     forbidNonWhitelisted: true,
-  //   }),
-  // );
 
-  await app.listen(configService.getOrThrow<number>('PORT'));
+  const apiPrefix = configService.get<string>('API_PREFIX') || 'api';
+  app.setGlobalPrefix(apiPrefix);
+
+  const port = parseInt(process.env.PORT || '3000', 10);
+
+  console.log('🚀 Starting server...');
+  console.log('📦 API Prefix:', apiPrefix);
+  console.log('🌐 Port:', port);
+
+  await app.listen(port);
+  console.log('✅ Server running on port:', port);
 }
 
-void bootstrap();
+bootstrap().catch((err) => {
+  console.error('❌ Error starting server:', err);
+  process.exit(1);
+});
