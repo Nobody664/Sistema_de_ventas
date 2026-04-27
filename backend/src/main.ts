@@ -27,7 +27,7 @@ async function bootstrap() {
   const apiPrefix = configService.get<string>('API_PREFIX') || 'api';
   app.setGlobalPrefix(apiPrefix);
 
-  const port = parseInt(process.env.PORT || '3000', 10);
+  const port = parseInt(process.env.PORT || '10000', 10);
 
   console.log('🚀 Starting server...');
   console.log('📦 API Prefix:', apiPrefix);
