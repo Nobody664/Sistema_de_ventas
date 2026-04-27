@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import Keyv from 'keyv';
 import { createKeyv } from '@keyv/redis';
 import { PrismaModule } from '@/database/prisma/prisma.module';
 import { validateEnv } from '@/config/env';
@@ -40,17 +41,47 @@ import { HealthModule } from '@/modules/health/health.module';
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        stores: [createKeyv(configService.getOrThrow<string>('REDIS_URL'))],
-      }),
+      useFactory: (configService: ConfigService) => {
+        const redisUrl = configService.get<string>('REDIS_URL');
+
+        if (redisUrl) {
+          try {
+            const store = createKeyv(redisUrl);
+            return { stores: [store] };
+          } catch {
+            console.log('[Cache] Redis no disponible. Usando cache en memoria.');
+            return { stores: [new Keyv()] };
+          }
+        }
+
+        console.log('[Cache] REDIS_URL no configurado. Usando cache en memoria.');
+        return { stores: [new Keyv()] };
+      },
     }),
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          url: configService.getOrThrow<string>('REDIS_URL'),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const redisUrl = configService.get<string>('REDIS_URL');
+
+        if (!redisUrl) {
+          console.log('[Bull] REDIS_URL no configurado. BullModule deshabilitado (sin colas).');
+          return {
+            connection: { url: 'redis://invalid:0' },
+            defaultJobOptions: { removeOnFail: true },
+          };
+        }
+
+        return {
+          connection: {
+            url: redisUrl,
+            maxRetriesPerRequest: false,
+            retryStrategy: (times: number) => {
+              if (times > 3) return null;
+              return Math.min(times * 200, 2000);
+            },
+          },
+        };
+      },
     }),
     ThrottlerModule.forRoot([
       {
@@ -87,4 +118,3 @@ import { HealthModule } from '@/modules/health/health.module';
   ],
 })
 export class AppModule {}
-
