@@ -1,6 +1,7 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -91,6 +92,15 @@ enum PlanUpgradeStatus {
   REJECTED
 }
 
+enum CheckoutRequestStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -106,6 +116,12 @@ enum InventoryMovementType {
   ADJUSTMENT
 }
 
+enum ProofStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ==========================================
 // MODELS
 // ==========================================
@@ -116,11 +132,14 @@ model User {
   passwordHash String     @map("password_hash")
   fullName     String     @map("full_name")
   globalRole   GlobalRole @default(USER)
+  isActive     Boolean    @default(true) @map("is_active")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
   memberships Membership[]
   employee    Employee?
+  notifications Notification[]
+  auditLogs   AuditLog[]
 
   @@map("users")
 }
@@ -154,6 +173,7 @@ model Company {
   paymentSettings     PaymentSetting[]
   inventoryMovements  InventoryMovement[]
   planUpgradeRequests PlanUpgradeRequest[]
+  checkoutRequests   CheckoutRequest[]
 
   @@map("companies")
 }
@@ -175,6 +195,7 @@ model Plan {
 
   subscriptions       Subscription[]
   planUpgradeRequests PlanUpgradeRequest[]
+  checkoutRequests   CheckoutRequest[]
 
   @@map("plans")
 }
@@ -184,15 +205,19 @@ model Subscription {
   companyId    String             @map("company_id")
   planId       String             @map("plan_id")
   status       SubscriptionStatus @default(TRIALING)
+  provider     PaymentProvider    @default(CASH)
   billingCycle BillingCycle       @default(MONTHLY)
   startDate    DateTime           @map("start_date")
   endDate      DateTime           @map("end_date")
+  autoRenew    Boolean            @default(true) @map("auto_renew")
+  providerSubscriptionId String?  @map("provider_subscription_id")
   createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
 
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  plan     Plan      @relation(fields: [planId], references: [id])
-  payments Payment[]
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan           Plan           @relation(fields: [planId], references: [id])
+  payments      Payment[]
+  paymentProofs PaymentProof[]
 
   @@unique([companyId])
   @@map("subscriptions")
@@ -203,6 +228,7 @@ model Membership {
   userId    String         @map("user_id")
   companyId String         @map("company_id")
   role      MembershipRole @default(CASHIER)
+  isActive  Boolean        @default(true) @map("is_active")
   createdAt DateTime       @default(now()) @map("created_at")
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -220,7 +246,7 @@ model Customer {
   email          String?
   phone          String?
   documentType   String?  @map("document_type")
-  documentNumber String?  @map("document_number")
+  documentValue  String?  @map("document_value")
   address        String?
   notes          String?
   createdAt      DateTime @default(now()) @map("created_at")
@@ -255,10 +281,10 @@ model Product {
   name          String
   sku           String?  @unique
   description   String?
-  price         Decimal  @db.Decimal(10, 2)
+  salePrice     Decimal  @map("sale_price") @db.Decimal(10, 2)
   costPrice     Decimal? @map("cost_price") @db.Decimal(10, 2)
   stockQuantity Int      @default(0) @map("stock_quantity")
-  minStockLevel Int      @default(10) @map("min_stock_level")
+  minStock     Int      @default(5) @map("min_stock")
   isActive      Boolean  @default(true) @map("is_active")
   imageUrl      String?  @map("image_url")
   barcode       String?  @unique
@@ -291,9 +317,9 @@ model Sale {
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
-  company  Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  employee Employee?  @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   items    SaleItem[]
 
   @@map("sales")
@@ -304,34 +330,34 @@ model SaleItem {
   saleId     String   @map("sale_id")
   productId  String   @map("product_id")
   quantity   Int
-  unitPrice  Decimal  @map("unit_price") @db.Decimal(10, 2)
-  totalPrice Decimal  @map("total_price") @db.Decimal(10, 2)
+  unitPrice  Decimal  @db.Decimal(12, 2)
+  totalPrice Decimal  @db.Decimal(12, 2)
   createdAt  DateTime @default(now()) @map("created_at")
 
   sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@unique([saleId, productId])
   @@map("sale_items")
 }
 
 model Employee {
-  id        String    @id @default(cuid())
-  companyId String    @map("company_id")
-  userId    String?   @unique @map("user_id")
-  firstName String    @map("first_name")
-  lastName  String?   @map("last_name")
-  email     String?
-  phone     String?
-  position  String?
-  salary    Decimal?  @db.Decimal(10, 2)
-  hireDate  DateTime? @map("hire_date")
-  isActive  Boolean   @default(true) @map("is_active")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  userId    String?  @unique @map("user_id")
+  firstName String   @map("first_name")
+  lastName  String?  @map("last_name")
+  email    String?
+  phone    String?
+  dni      String?  @unique
+  role     MembershipRole @default(CASHIER)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  sales   Sale[]
+  company Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user   User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sales  Sale[]
 
   @@map("employees")
 }
@@ -343,6 +369,7 @@ model InventoryMovement {
   type      InventoryMovementType
   quantity  Int
   reference String?
+  reason    String?
   notes     String?
   createdAt DateTime              @default(now()) @map("created_at")
 
@@ -359,7 +386,10 @@ model Payment {
   status            PaymentStatus   @default(PENDING)
   provider          PaymentProvider @default(CASH)
   providerPaymentId String?         @map("provider_payment_id")
+  currency          String           @default("PEN")
+  providerPayload  Json?
   paidAt            DateTime?       @map("paid_at")
+  transactionId     String?         @map("transaction_id")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -369,13 +399,23 @@ model Payment {
 }
 
 model PlanUpgradeRequest {
-  id        String            @id @default(cuid())
-  companyId String            @map("company_id")
-  planId    String            @map("plan_id")
-  status    PlanUpgradeStatus @default(PENDING)
-  notes     String?
-  createdAt DateTime          @default(now()) @map("created_at")
-  updatedAt DateTime          @updatedAt @map("updated_at")
+  id            String            @id @default(cuid())
+  companyId     String            @map("company_id")
+  currentPlanId String?           @map("current_plan_id")
+  planId        String            @map("plan_id")
+  provider      PaymentProvider?  @default(CASH)
+  amount        String?
+  currency      String?           @default("PEN")
+  status        PlanUpgradeStatus @default(PENDING)
+  notes         String?
+  proofImageBase64 String?         @map("proof_image_base64")
+  paymentDate    DateTime?         @map("payment_date")
+  submittedAt   DateTime?         @map("submitted_at")
+  reviewedBy    String?           @map("reviewed_by")
+  reviewedAt    DateTime?         @map("reviewed_at")
+  reviewNotes   String?           @map("review_notes")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   plan    Plan    @relation(fields: [planId], references: [id])
@@ -389,9 +429,37 @@ model InvoiceTemplate {
   name      String
   content   String   @db.Text
   isGlobal  Boolean  @default(false) @map("is_global")
+  isDefault Boolean  @default(false) @map("is_default")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Campos adicionales para configuracion de invoice
+  type            String?   @default("BOLETA")
+  description     String?
+  headerText      String?   @map("header_text")
+  logoUrl         String?   @map("logo_url")
+  companyRuc      String?   @map("company_ruc")
+  companyAddress  String?   @map("company_address")
+  companyPhone    String?   @map("company_phone")
+  showLogo        Boolean   @default(true) @map("show_logo")
+  showCompany     Boolean   @default(true) @map("show_company")
+  showCustomer    Boolean   @default(true) @map("show_customer")
+  showEmployee    Boolean   @default(false) @map("show_employee")
+  showItems       Boolean   @default(true) @map("show_items")
+  showSubtotal    Boolean   @default(true) @map("show_subtotal")
+  showTax         Boolean   @default(true) @map("show_tax")
+  showDiscount    Boolean   @default(true) @map("show_discount")
+  showSaleNumber  Boolean   @default(true) @map("show_sale_number")
+  showSaleDate    Boolean   @default(true) @map("show_sale_date")
+  showSaleTime    Boolean   @default(false) @map("show_sale_time")
+  showPaymentMethod Boolean @default(true) @map("show_payment_method")
+  footerText      String?   @map("footer_text")
+  taxPercentage   Float     @default(18) @map("tax_percentage")
+  customFields    Json?     @map("custom_fields")
+  fontFamily      String    @default("Arial") @map("font_family")
+  fontSize        Int       @default(12) @map("font_size")
+  paperSize       String    @default("A4") @map("paper_size")
 
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -400,29 +468,54 @@ model InvoiceTemplate {
 
 model Notification {
   id        String              @id @default(cuid())
-  companyId String              @map("company_id")
-  type      NotificationType
-  channel   NotificationChannel @default(IN_APP)
+  userId    String              @map("user_id")
+  companyId String?             @map("company_id")
+  type      NotificationType  @default(SYSTEM)
+  channel  NotificationChannel @default(IN_APP)
   title     String
   message   String
-  isRead    Boolean             @default(false) @map("is_read")
-  sentAt    DateTime            @map("sent_at")
-  readAt    DateTime?           @map("read_at")
-  createdAt DateTime            @default(now()) @map("created_at")
+  data      Json?
+  isRead    Boolean            @default(false) @map("is_read")
+  sentAt    DateTime?          @map("sent_at")
+  createdAt DateTime          @default(now()) @map("created_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }
 
+model AuditLog {
+  id         String      @id @default(cuid())
+  companyId  String      @map("company_id")
+  userId    String?     @map("user_id")
+  action    AuditAction
+  entity    String
+  entityId  String      @map("entity_id")
+  changes   Json?
+  ipAddress String?    @map("ip_address")
+  userAgent String?    @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
 model PaymentSetting {
-  id        String          @id @default(cuid())
-  companyId String          @map("company_id")
-  provider  PaymentProvider
-  config    Json
-  isActive  Boolean         @default(true) @map("is_active")
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
+  id              String          @id @default(cuid())
+  companyId       String          @map("company_id")
+  provider        PaymentProvider
+  config         Json
+  qrImageBase64  String?         @map("qr_image_base64")
+  accountNumber  String?         @map("account_number")
+  accountName    String?         @map("account_name")
+  instructions   String?
+  isEnabled     Boolean         @default(true) @map("is_enabled")
+  isActive      Boolean         @default(true) @map("is_active")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -430,19 +523,50 @@ model PaymentSetting {
   @@map("payment_settings")
 }
 
-model AuditLog {
-  id         String      @id @default(cuid())
-  companyId  String      @map("company_id")
-  userId     String?     @map("user_id")
-  action     AuditAction
-  entityType String      @map("entity_type")
-  entityId   String      @map("entity_id")
-  changes    Json?
-  ipAddress  String?     @map("ip_address")
-  userAgent  String?     @map("user_agent")
-  createdAt  DateTime    @default(now()) @map("created_at")
+model CheckoutRequest {
+  id          String              @id @default(cuid())
+  companyId   String?            @map("company_id")
+  planId     String              @map("plan_id")
+  fullName   String              @map("full_name")
+  companyName String?            @map("company_name")
+  email      String
+  passwordHash String            @map("password_hash")
+  provider   PaymentProvider
+  amount     String
+  currency   String            @default("PEN")
+  status     CheckoutRequestStatus @default(DRAFT)
+  proofImageBase64 String?       @map("proof_image_base64")
+  reviewNotes String?           @map("review_notes")
+  paymentDate  DateTime?        @map("payment_date")
+  submittedAt  DateTime?        @map("submitted_at")
+  userId       String?          @map("user_id")
+  subscriptionId String?        @map("subscription_id")
+  notes      String?
+  reviewedAt DateTime?          @map("reviewed_at")
+  reviewedBy String?            @map("reviewed_by")
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan    Plan     @relation(fields: [planId], references: [id])
 
-  @@map("audit_logs")
+  @@map("checkout_requests")
+}
+
+model PaymentProof {
+  id              String      @id @default(cuid())
+  subscriptionId  String      @map("subscription_id")
+  imageBase64     String      @map("image_base64")
+  amount          String
+  paymentDate     DateTime    @map("payment_date")
+  status          ProofStatus @default(PENDING)
+  reviewedBy      String?     @map("reviewed_by")
+  reviewedAt      DateTime?   @map("reviewed_at")
+  notes           String?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("payment_proofs")
 }

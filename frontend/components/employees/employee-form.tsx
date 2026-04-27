@@ -256,7 +256,7 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
                     >
                       <option value="MANAGER">Gerente</option>
                       <option value="CASHIER">Cajero</option>
-                      <option value="SUPPORT">Soporte</option>
+                      <option value="VIEWER">Visor</option>
                     </select>
                   </div>
                   <div className="space-y-2">

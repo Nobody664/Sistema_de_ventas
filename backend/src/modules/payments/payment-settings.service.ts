@@ -13,44 +13,56 @@ import {
 export class PaymentSettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAllSettings(): Promise<PaymentSettingsResponseDto[]> {
-    return this.prisma.paymentSettings.findMany({
+  async getAllSettings(companyId: string): Promise<PaymentSettingsResponseDto[]> {
+    return this.prisma.paymentSetting.findMany({
+      where: { companyId },
       orderBy: { provider: 'asc' },
     }) as Promise<PaymentSettingsResponseDto[]>;
   }
 
   async getSettingsByProvider(
+    companyId: string,
     provider: PaymentProvider,
   ): Promise<PaymentSettingsResponseDto | null> {
-    return this.prisma.paymentSettings.findUnique({
-      where: { provider },
+    return this.prisma.paymentSetting.findFirst({
+      where: { companyId, provider },
     }) as Promise<PaymentSettingsResponseDto | null>;
   }
 
   async updateSettings(
+    companyId: string,
     provider: PaymentProvider,
     data: UpdatePaymentSettingsDto,
   ): Promise<PaymentSettingsResponseDto> {
-    return this.prisma.paymentSettings.upsert({
-      where: { provider },
-      update: data as never,
-      create: {
+    const existing = await this.prisma.paymentSetting.findFirst({
+      where: { companyId, provider },
+    });
+
+    if (existing) {
+      return this.prisma.paymentSetting.update({
+        where: { id: existing.id },
+        data: data as never,
+      }) as Promise<PaymentSettingsResponseDto>;
+    }
+
+    return this.prisma.paymentSetting.create({
+      data: {
+        companyId,
         provider,
         ...data,
       } as never,
     }) as Promise<PaymentSettingsResponseDto>;
   }
 
-  async getEnabledProvider(provider: PaymentProvider): Promise<PaymentSettingsResponseDto | null> {
-    const settings = await this.prisma.paymentSettings.findUnique({
-      where: { provider },
+  async getEnabledProvider(
+    companyId: string,
+    provider: PaymentProvider,
+  ): Promise<PaymentSettingsResponseDto | null> {
+    const settings = await this.prisma.paymentSetting.findFirst({
+      where: { companyId, provider, isEnabled: true },
     });
 
-    if (!settings || !settings.isEnabled) {
-      return null;
-    }
-
-    return settings as PaymentSettingsResponseDto;
+    return settings as PaymentSettingsResponseDto | null;
   }
 
   async uploadPaymentProof(

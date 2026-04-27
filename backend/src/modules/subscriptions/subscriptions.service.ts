@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
 import { EmailService } from '@/modules/email/email.service';
-import { CompanyStatus } from '@prisma/client';
+import { CompanyStatus, SubscriptionStatus } from '@prisma/client';
 
 @Injectable()
 export class SubscriptionsService {
@@ -99,7 +99,6 @@ export class SubscriptionsService {
           channel: 'IN_APP' as NotificationChannel,
           title: 'Suscripción aprobada',
           message: 'Tu suscripción ha sido aprobada.',
-          sentAt: new Date(),
         });
       }
 
@@ -120,7 +119,7 @@ export class SubscriptionsService {
     return this.prisma.$transaction(async (tx) => {
       return tx.subscription.update({
         where: { id: subscriptionId },
-        data: { status: 'REJECTED' },
+        data: { status: 'CANCELED' },
       });
     });
   }
@@ -176,7 +175,6 @@ export class SubscriptionsService {
           channel: 'IN_APP' as NotificationChannel,
           title: 'Período de prueba expirado',
           message: `Tu período de prueba del plan ${subscription.plan.name} ha expirado.`,
-          sentAt: new Date(),
         });
       }
     }
@@ -225,5 +223,31 @@ export class SubscriptionsService {
     }
 
     return { allowed: true, current: 0, limit: null };
+  }
+
+  async upgradePlan(companyId: string, planCode: string, billingCycle?: 'MONTHLY' | 'YEARLY') {
+    throw new NotFoundException('Use plan-upgrade-requests module for upgrades');
+  }
+
+  async cancelSubscription(companyId: string) {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { companyId },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    return this.prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { 
+        status: SubscriptionStatus.CANCELED,
+        autoRenew: false,
+      },
+    });
+  }
+
+  async checkPlanLimits(companyId: string, resource: 'users' | 'products') {
+    return this.checkLimit(companyId, resource);
   }
 }

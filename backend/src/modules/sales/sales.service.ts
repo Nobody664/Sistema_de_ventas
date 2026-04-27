@@ -4,6 +4,8 @@ import { PrismaService } from '@/database/prisma/prisma.service';
 import { CreateSaleDto, ExportSalesQueryDto } from './dto/sale.dto';
 import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
 
+type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
+
 @Injectable()
 export class SalesService {
   constructor(
@@ -190,7 +192,7 @@ export class SalesService {
         companyId,
         id: { in: input.items.map((item) => item.productId) },
       },
-    })) as Array<{ id: string; stockQuantity: number; name: string; price: unknown }>;
+    })) as Array<{ id: string; stockQuantity: number; name: string; salePrice: unknown }>;
 
     const productMap = new Map<string, (typeof products)[number]>(products.map((product) => [product.id, product]));
 
@@ -205,7 +207,7 @@ export class SalesService {
         throw new BadRequestException(`Insufficient stock for ${product.name}.`);
       }
 
-      const unitPrice = Number(product.price);
+      const unitPrice = Number(product.salePrice);
       const totalPrice = unitPrice * item.quantity;
 
       subtotal += totalPrice;
@@ -225,7 +227,7 @@ export class SalesService {
     const changeAmount = 0;
     const saleNumber = `SALE-${Date.now()}`;
 
-    return this.prisma.$transaction(async (tx: Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$extends'>) => {
+    return this.prisma.$transaction(async (tx) => {
       const sale = await tx.sale.create({
         data: {
           companyId,

@@ -141,13 +141,13 @@ export class ProductsService {
         description: input.description,
         imageUrl: input.imageUrl,
         costPrice: input.costPrice,
-        price: input.price,
+        salePrice: input.salePrice,
         stockQuantity: input.stockQuantity ?? 0,
-        minStockLevel: input.minStockLevel ?? 5,
+        minStock: input.minStock ?? 5,
       },
     });
 
-    if (product.stockQuantity <= product.minStockLevel) {
+    if (product.stockQuantity <= product.minStock) {
       await this.sendLowStockNotification(companyId, product);
     }
 
@@ -167,8 +167,8 @@ export class ProductsService {
 
     if (
       input.stockQuantity !== undefined &&
-      product.stockQuantity <= product.minStockLevel &&
-      existing.stockQuantity > existing.minStockLevel
+      product.stockQuantity <= product.minStock &&
+      existing.stockQuantity > existing.minStock
     ) {
       await this.sendLowStockNotification(companyId, product);
     }
@@ -176,7 +176,7 @@ export class ProductsService {
     return product;
   }
 
-  private async sendLowStockNotification(companyId: string, product: { id: string; name: string; stockQuantity: number; minStockLevel: number }) {
+  private async sendLowStockNotification(companyId: string, product: { id: string; name: string; stockQuantity: number; minStock: number }) {
     const admins = await this.prisma.employee.findMany({
       where: { companyId, role: 'COMPANY_ADMIN', isActive: true },
       select: { userId: true },
@@ -189,7 +189,7 @@ export class ProductsService {
           companyId,
           type: NotificationType.LOW_STOCK,
           title: 'Stock bajo',
-          message: `El producto "${product.name}" tiene solo ${product.stockQuantity} unidades (min: ${product.minStockLevel})`,
+          message: `El producto "${product.name}" tiene solo ${product.stockQuantity} unidades (min: ${product.minStock})`,
           data: { productId: product.id, stockQuantity: product.stockQuantity },
         });
       }
@@ -263,13 +263,13 @@ export class ProductsService {
     const products = await this.prisma.product.findMany({
       where: {
         companyId,
-        status: 'ACTIVE',
+        isActive: true,
       },
       include: { category: true },
       orderBy: { stockQuantity: 'asc' },
     });
 
-    return products.filter((p) => p.stockQuantity <= p.minStockLevel);
+    return products.filter((p) => p.stockQuantity <= p.minStock);
   }
 
   async uploadProductImage(companyId: string, productId: string, imageBase64: string) {
@@ -305,7 +305,7 @@ export class ProductsService {
     }
   }
 
-  private generateCsvExport(products: Array<{ name: string; sku: string; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; price: unknown; stockQuantity: number; minStockLevel: number }>) {
+  private generateCsvExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: number; minStock: number }>) {
     const headers = ['Nombre', 'SKU', 'Codigo de Barras', 'Categoria', 'Precio Costo', 'Precio Venta', 'Stock', 'Stock Minimo'];
     const rows = products.map((p) => [
       p.name,
@@ -313,9 +313,9 @@ export class ProductsService {
       p.barcode || '',
       p.category?.name || '',
       String(p.costPrice),
-      String(p.price),
+      String(p.salePrice),
       String(p.stockQuantity),
-      String(p.minStockLevel),
+      String(p.minStock),
     ]);
 
     const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
@@ -328,16 +328,16 @@ export class ProductsService {
     };
   }
 
-  private generateExcelExport(products: Array<{ name: string; sku: string; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; price: unknown; stockQuantity: number; minStockLevel: number }>) {
+  private generateExcelExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: number; minStock: number }>) {
     const data = products.map((p) => ({
       Nombre: p.name,
       SKU: p.sku,
       'Codigo de Barras': p.barcode || '',
       Categoria: p.category?.name || '',
       'Precio Costo': Number(p.costPrice),
-      'Precio Venta': Number(p.price),
+      'Precio Venta': Number(p.salePrice),
       Stock: p.stockQuantity,
-      'Stock Minimo': p.minStockLevel,
+      'Stock Minimo': p.minStock,
     }));
 
     const jsonStr = JSON.stringify(data);
@@ -350,7 +350,7 @@ export class ProductsService {
     };
   }
 
-  private generatePdfExport(products: Array<{ name: string; sku: string; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; price: unknown; stockQuantity: number; minStockLevel: number }>) {
+  private generatePdfExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: number; minStock: number }>) {
     const html = `
       <html>
         <head>
@@ -381,7 +381,7 @@ export class ProductsService {
                   <td>${p.name}</td>
                   <td>${p.sku}</td>
                   <td>${p.category?.name || ''}</td>
-                  <td>S/ ${Number(p.price).toFixed(2)}</td>
+                  <td>S/ ${Number(p.salePrice).toFixed(2)}</td>
                   <td>${p.stockQuantity}</td>
                 </tr>
               `).join('')}

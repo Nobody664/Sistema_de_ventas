@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
@@ -20,8 +21,7 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Public } from '@/common/decorators/public.decorator';
-import { GlobalRole } from '@prisma/client';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { GlobalRole, MembershipRole } from '@prisma/client';
 
 @Controller('payments/settings')
 export class PaymentSettingsController {
@@ -29,8 +29,10 @@ export class PaymentSettingsController {
 
   @Public()
   @Get()
-  async getAllSettingsRoot(): Promise<PaymentSettingsResponseDto[]> {
-    return this.paymentSettingsService.getAllSettings();
+  async getAllSettingsRoot(
+    @Query('companyId') companyId?: string,
+  ): Promise<PaymentSettingsResponseDto[]> {
+    return this.paymentSettingsService.getAllSettings(companyId || '');
   }
 
   @Public()
@@ -41,17 +43,20 @@ export class PaymentSettingsController {
 
   @Public()
   @Get('all')
-  async getAllSettings(): Promise<PaymentSettingsResponseDto[]> {
-    return this.paymentSettingsService.getAllSettings();
+  async getAllSettings(
+    @Query('companyId') companyId?: string,
+  ): Promise<PaymentSettingsResponseDto[]> {
+    return this.paymentSettingsService.getAllSettings(companyId || '');
   }
 
   @Public()
   @Get('provider/:provider')
   async getSettingsByProvider(
     @Param('provider') provider: string,
+    @Query('companyId') companyId?: string,
   ): Promise<PaymentSettingsResponseDto | null> {
     const paymentProvider = provider.toUpperCase() as PaymentProvider;
-    return this.paymentSettingsService.getSettingsByProvider(paymentProvider);
+    return this.paymentSettingsService.getSettingsByProvider(companyId || '', paymentProvider);
   }
 
   @Public()
@@ -82,10 +87,11 @@ export class PaymentSettingsController {
   @Patch('provider/:provider')
   async updateSettings(
     @Param('provider') provider: string,
+    @Query('companyId') companyId: string,
     @Body() data: UpdatePaymentSettingsDto,
   ): Promise<PaymentSettingsResponseDto> {
     const paymentProvider = provider.toUpperCase() as PaymentProvider;
-    return this.paymentSettingsService.updateSettings(paymentProvider, data);
+    return this.paymentSettingsService.updateSettings(companyId, paymentProvider, data);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -100,10 +106,10 @@ export class PaymentSettingsController {
   @Patch('proof/:proofId/review')
   async reviewProof(
     @Param('proofId') proofId: string,
-    @CurrentUser() user: { id: string },
+    @Query('userId') userId: string,
     @Body() data: ReviewPaymentProofDto,
   ): Promise<PaymentProofResponseDto> {
-    return this.paymentSettingsService.reviewProof(proofId, user.id, data);
+    return this.paymentSettingsService.reviewProof(proofId, userId, data);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -44,8 +44,8 @@ export class CheckoutRequestsService {
         include: { plan: true },
       });
       if (existingPendingRequest) {
-        const settings = await this.prisma.paymentSettings.findUnique({
-          where: { provider: existingPendingRequest.provider },
+        const settings = await this.prisma.paymentSetting.findFirst({
+          where: { companyId: input.companyId, provider: existingPendingRequest.provider },
         });
         return {
           requestId: existingPendingRequest.id,
@@ -56,7 +56,7 @@ export class CheckoutRequestsService {
             priceMonthly: existingPendingRequest.plan.priceMonthly.toString(),
           },
           paymentMethod: existingPendingRequest.provider,
-          paymentSettings: settings ? {
+          paymentSetting: settings ? {
             provider: settings.provider,
             qrImageBase64: settings.qrImageBase64,
             accountNumber: settings.accountNumber,
@@ -73,7 +73,7 @@ export class CheckoutRequestsService {
         throw new NotFoundException('Plan no encontrado');
       }
 
-      const settings = await this.prisma.paymentSettings.findUnique({
+      const settings = await this.prisma.paymentSetting.findFirst({
         where: { provider: input.paymentMethod },
       });
       if (!settings?.isEnabled) {
@@ -105,7 +105,7 @@ export class CheckoutRequestsService {
           priceMonthly: request.plan.priceMonthly.toString(),
         },
         paymentMethod: request.provider,
-        paymentSettings: {
+        paymentSetting: {
           provider: settings.provider,
           qrImageBase64: settings.qrImageBase64,
           accountNumber: settings.accountNumber,
@@ -132,7 +132,7 @@ export class CheckoutRequestsService {
       include: { plan: true },
     });
     if (existingOpenRequest) {
-      const settings = await this.prisma.paymentSettings.findUnique({
+      const settings = await this.prisma.paymentSetting.findFirst({
         where: { provider: existingOpenRequest.provider },
       });
       if (!settings?.isEnabled) {
@@ -148,7 +148,7 @@ export class CheckoutRequestsService {
           priceMonthly: existingOpenRequest.plan.priceMonthly.toString(),
         },
         paymentMethod: existingOpenRequest.provider,
-        paymentSettings: {
+        paymentSetting: {
           provider: settings.provider,
           qrImageBase64: settings.qrImageBase64,
           accountNumber: settings.accountNumber,
@@ -165,9 +165,9 @@ export class CheckoutRequestsService {
       throw new NotFoundException('Plan no encontrado');
     }
 
-    const settings = await this.prisma.paymentSettings.findUnique({
-      where: { provider: input.paymentMethod },
-    });
+const settings = await this.prisma.paymentSetting.findFirst({
+        where: { provider: input.paymentMethod },
+      });
     if (!settings?.isEnabled) {
       throw new ConflictException('Método de pago no disponible');
     }
@@ -201,7 +201,7 @@ export class CheckoutRequestsService {
         priceMonthly: request.plan.priceMonthly.toString(),
       },
       paymentMethod: request.provider,
-      paymentSettings: {
+      paymentSetting: {
         provider: settings.provider,
         qrImageBase64: settings.qrImageBase64,
         accountNumber: settings.accountNumber,
@@ -242,7 +242,7 @@ export class CheckoutRequestsService {
 
     await this.emailService.sendPaymentProofReceived(
       request.email,
-      request.companyName,
+      request.companyName || '',
       request.plan.name,
     );
 
@@ -283,7 +283,7 @@ export class CheckoutRequestsService {
         },
       });
 
-      await this.emailService.sendSubscriptionRejected(request.email, request.companyName);
+      await this.emailService.sendSubscriptionRejected(request.email, request.companyName || '');
 
       return {
         requestId: rejected.id,
@@ -340,7 +340,7 @@ export class CheckoutRequestsService {
         data: {
           subscriptionId: subscription.id,
           provider: request.provider,
-          transactionId: `upgrade-${request.id}`,
+          providerPaymentId: `upgrade-${request.id}`,
           amount: request.plan.priceMonthly,
           currency: request.currency,
           status: 'SUCCEEDED',

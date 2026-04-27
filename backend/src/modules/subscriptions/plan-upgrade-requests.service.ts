@@ -26,14 +26,14 @@ export class PlanUpgradeRequestsService {
 
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
-      include: { subscription: { include: { plan: true } } },
+      include: { subscriptions: { include: { plan: true }, take: 1 } },
     });
 
     if (!company) {
       throw new NotFoundException('Empresa no encontrada');
     }
 
-    const currentSubscription = company.subscription;
+    const currentSubscription = company.subscriptions?.[0];
     if (!currentSubscription) {
       throw new BadRequestException('La empresa no tiene una suscripción activa');
     }
@@ -50,11 +50,11 @@ export class PlanUpgradeRequestsService {
       throw new ConflictException('Ya tienes ese plan activo');
     }
 
-    const settings = await this.prisma.paymentSettings.findUnique({
-      where: { provider: input.paymentMethod },
+    const settings = await this.prisma.paymentSetting.findFirst({
+      where: { companyId, provider: input.paymentMethod, isEnabled: true },
     });
 
-    if (!settings?.isEnabled) {
+    if (!settings) {
       throw new ConflictException('Método de pago no disponible');
     }
 
@@ -66,6 +66,7 @@ export class PlanUpgradeRequestsService {
         companyId,
         status: PlanUpgradeStatus.PENDING,
       },
+      include: { plan: true },
     });
 
     if (existingPendingRequest) {
@@ -77,10 +78,10 @@ export class PlanUpgradeRequestsService {
           name: currentSubscription.plan.name,
         },
         newPlan: {
-          code: newPlan.code,
-          name: newPlan.name,
-          priceMonthly: newPlan.priceMonthly.toString(),
-          priceYearly: newPlan.priceYearly.toString(),
+          code: existingPendingRequest.plan.code,
+          name: existingPendingRequest.plan.name,
+          priceMonthly: existingPendingRequest.plan.priceMonthly.toString(),
+          priceYearly: existingPendingRequest.plan.priceYearly.toString(),
         },
         paymentMethod: existingPendingRequest.provider,
         paymentSettings: {
@@ -97,30 +98,27 @@ export class PlanUpgradeRequestsService {
       data: {
         companyId,
         currentPlanId: currentSubscription.planId,
-        newPlanId: newPlan.id,
+        planId: newPlan.id,
         provider: input.paymentMethod,
         amount: price.toString(),
         currency: 'PEN',
         status: PlanUpgradeStatus.PENDING,
       },
-      include: {
-        currentPlan: true,
-        newPlan: true,
-      },
+      include: { plan: true },
     });
 
     return {
       requestId: request.id,
       status: request.status,
       currentPlan: {
-        code: request.currentPlan.code,
-        name: request.currentPlan.name,
+        code: currentSubscription.plan.code,
+        name: currentSubscription.plan.name,
       },
       newPlan: {
-        code: request.newPlan.code,
-        name: request.newPlan.name,
-        priceMonthly: request.newPlan.priceMonthly.toString(),
-        priceYearly: request.newPlan.priceYearly.toString(),
+        code: request.plan.code,
+        name: request.plan.name,
+        priceMonthly: request.plan.priceMonthly.toString(),
+        priceYearly: request.plan.priceYearly.toString(),
       },
       paymentMethod: request.provider,
       paymentSettings: {
@@ -140,7 +138,7 @@ export class PlanUpgradeRequestsService {
 
     const request = await this.prisma.planUpgradeRequest.findUnique({
       where: { id: requestId },
-      include: { newPlan: true, company: true },
+      include: { plan: true, company: true },
     });
 
     if (!request) {
@@ -174,7 +172,7 @@ export class PlanUpgradeRequestsService {
         type: NotificationType.PLAN_UPGRADED,
         channel: NotificationChannel.IN_APP,
         title: 'Nueva solicitud de upgrade de plan',
-        message: `${request.company.name} solicitó cambio al plan ${request.newPlan.name}. Requiere revisión.`,
+        message: `${request.company.name} solicitó cambio al plan ${request.plan.name}. Requiere revisión.`,
       });
     }
 
@@ -196,8 +194,7 @@ export class PlanUpgradeRequestsService {
             email: true,
           },
         },
-        currentPlan: true,
-        newPlan: true,
+        plan: true,
       },
     });
   }
@@ -206,10 +203,7 @@ export class PlanUpgradeRequestsService {
     return this.prisma.planUpgradeRequest.findMany({
       where: { companyId },
       orderBy: { createdAt: 'desc' },
-      include: {
-        currentPlan: true,
-        newPlan: true,
-      },
+      include: { plan: true },
     });
   }
 
@@ -220,10 +214,7 @@ export class PlanUpgradeRequestsService {
         status: 'PENDING',
       },
       orderBy: { createdAt: 'desc' },
-      include: {
-        currentPlan: true,
-        newPlan: true,
-      },
+      include: { plan: true },
     });
     return request;
   }
@@ -240,8 +231,7 @@ export class PlanUpgradeRequestsService {
             },
           },
         },
-        currentPlan: true,
-        newPlan: true,
+        plan: true,
       },
     });
 
@@ -285,29 +275,33 @@ export class PlanUpgradeRequestsService {
         throw new NotFoundException('Suscripción no encontrada');
       }
 
+      const plan = await tx.plan.findUnique({
+        where: { id: request.planId },
+      });
+
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + (request.newPlan.billingCycle === 'YEARLY' ? 12 : 1));
+      endDate.setMonth(endDate.getMonth() + (plan?.billingCycle === 'YEARLY' ? 12 : 1));
 
       const subscription = await tx.subscription.update({
         where: { id: currentSubscription.id },
         data: {
-          planId: request.newPlanId,
-          billingCycle: request.newPlan.billingCycle,
+          planId: request.planId,
+          billingCycle: plan?.billingCycle || 'MONTHLY',
           startDate,
           endDate,
           status: SubscriptionStatus.ACTIVE,
-          provider: request.provider,
+          provider: request.provider || PaymentProvider.CASH,
         },
       });
 
       await tx.payment.create({
         data: {
           subscriptionId: subscription.id,
-          provider: request.provider,
+          provider: request.provider || PaymentProvider.CASH,
           transactionId: `upgrade-${request.id}`,
-          amount: request.newPlan.priceMonthly,
-          currency: request.currency,
+          amount: request.amount || '0',
+          currency: request.currency || 'PEN',
           status: 'SUCCEEDED',
           providerPayload: {
             planUpgradeRequestId: request.id,
@@ -335,7 +329,7 @@ export class PlanUpgradeRequestsService {
         type: NotificationType.SUBSCRIPTION_APPROVED,
         channel: NotificationChannel.IN_APP,
         title: 'Plan actualizado',
-        message: `Tu cambio al plan ${request.newPlan.name} ha sido aprobado.`,
+        message: `Tu cambio al plan ${request.plan.name} ha sido aprobado.`,
       });
 
       await this.emailService.sendSubscriptionApproved(adminUser.email, request.company.name);

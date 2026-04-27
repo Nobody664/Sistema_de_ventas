@@ -6,7 +6,7 @@ export const createEmployeeSchema = z.object({
   email: z.string().email('Correo electrónico inválido').min(1, 'El correo es requerido'),
   phone: z.string().min(9, 'El teléfono debe tener al menos 9 dígitos').max(15, 'Máximo 15 caracteres').optional().or(z.literal('')),
   dni: z.string().regex(/^\d{8}$/, 'El DNI debe tener exactamente 8 dígitos'),
-  role: z.enum(['MANAGER', 'CASHIER', 'SUPPORT']).default('CASHIER'),
+  role: z.enum(['MANAGER', 'CASHIER', 'VIEWER']).default('CASHIER'),
   isActive: z.boolean().default(true),
 });
 
