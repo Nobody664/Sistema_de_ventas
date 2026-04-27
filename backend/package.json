@@ -7,15 +7,14 @@
   },
   "scripts": {
     "dev": "nest start --watch",
-    "start": "node dist/main.js",
-    "start:prod": "node dist/main.js",
-    "build": "tsc --project tsconfig.build.json",
-    "build:force": "tsc",
-    "postinstall": "prisma generate",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "nest start --entryFile src/main.ts",
+    "build": "nest build",
+    "build:prod": "nest build --optimize",
     "lint": "tsc --noEmit",
     "format": "prettier --check \"src/**/*.ts\"",
     "db:push": "prisma db push",
-    "db:seed": "node prisma/seed.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
@@ -47,6 +46,7 @@
     "helmet": "^8.0.0",
     "keyv": "^5.3.4",
     "mercadopago": "^2.12.0",
+    "module-alias": "^2.3.4",
     "nodemailer": "^7.0.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -68,7 +68,6 @@
     "prettier": "^3.4.2",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.2"
   }
 }
