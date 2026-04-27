@@ -54,8 +54,8 @@ export class ExportSalesQueryDto {
   endDate?: string;
 
   @IsOptional()
-  @IsIn(['COMPLETED', 'VOIDED', 'REFUNDED'])
-  status?: 'COMPLETED' | 'VOIDED' | 'REFUNDED';
+  @IsIn(['COMPLETED', 'CANCELLED', 'REFUNDED', 'PENDING'])
+  status?: 'COMPLETED' | 'CANCELLED' | 'REFUNDED' | 'PENDING';
 
   @IsOptional()
   @IsString()

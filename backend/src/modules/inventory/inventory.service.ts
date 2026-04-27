@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { CreateInventoryAdjustmentDto } from './dto/inventory.dto';
 
@@ -38,7 +37,7 @@ export class InventoryService {
       throw new NotFoundException('Product not found.');
     }
 
-    return this.prisma.$transaction(async (tx: Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$extends'>) => {
+    return this.prisma.$transaction(async (tx) => {
       const updatedProduct = await tx.product.update({
         where: { id: input.productId },
         data: {

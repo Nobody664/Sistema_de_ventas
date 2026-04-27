@@ -57,37 +57,9 @@ export class CustomersService {
   findByCompany(companyId: string) {
     return this.prisma.customer.findMany({
       where: { companyId },
-      include: {
-        sales: {
-          select: { totalAmount: true },
-        },
-      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-  }
-
-  async calculateTotalPurchases(companyId: string) {
-    const customers = await this.prisma.customer.findMany({
-      where: { companyId },
-      include: {
-        sales: {
-          select: { totalAmount: true },
-        },
-      },
-    });
-
-    await Promise.all(
-      customers.map(async (customer) => {
-        const totalPurchases = customer.sales.reduce((acc, s) => acc + Number(s.totalAmount), 0);
-        await this.prisma.customer.update({
-          where: { id: customer.id },
-          data: { totalPurchases: totalPurchases.toFixed(2) },
-        });
-      }),
-    );
-
-    return { success: true, updated: customers.length };
   }
 
   async create(companyId: string, input: CreateCustomerDto) {

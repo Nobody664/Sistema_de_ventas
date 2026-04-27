@@ -62,7 +62,7 @@ export class CreateProductDto {
   costPrice!: string;
 
   @IsNumberString()
-  price!: string;
+  salePrice!: string;
 
   @IsOptional()
   @IsInt()
@@ -72,7 +72,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  minStockLevel?: number;
+  minStock?: number;
 }
 
 export class UpdateProductDto {
@@ -102,7 +102,7 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsNumberString()
-  price?: string;
+  salePrice?: string;
 
   @IsOptional()
   @IsInt()
@@ -112,6 +112,6 @@ export class UpdateProductDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  minStockLevel?: number;
+  minStock?: number;
 }
 

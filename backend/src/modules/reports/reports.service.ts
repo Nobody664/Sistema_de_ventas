@@ -38,7 +38,7 @@ export class ReportsService {
       this.prisma.saleItem.groupBy({
         by: ['productId'],
         where: { sale: { companyId } },
-        _sum: { quantity: true, totalAmount: true },
+        _sum: { quantity: true, totalPrice: true },
         orderBy: { _sum: { quantity: 'desc' } },
         take: 10,
       }),
@@ -63,7 +63,7 @@ export class ReportsService {
       productId: p.productId,
       name: productMap.get(p.productId) || 'Unknown',
       quantity: p._sum.quantity || 0,
-      revenue: Number(p._sum.totalAmount || 0),
+      revenue: Number(p._sum.totalPrice || 0),
     }));
 
     const last7Days: { date: string; sales: number; revenue: number }[] = [];

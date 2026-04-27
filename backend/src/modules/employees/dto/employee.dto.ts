@@ -25,8 +25,8 @@ export class CreateEmployeeDto {
   @MinLength(8, { message: 'El DNI debe tener 8 dígitos' })
   dni?: string;
 
-  @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'STAFF'])
-  role!: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
+  @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'])
+  role!: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'VIEWER';
 
   @IsOptional()
   @IsBoolean()
@@ -56,8 +56,8 @@ export class UpdateEmployeeDto {
   dni?: string;
 
   @IsOptional()
-  @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'STAFF'])
-  role?: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
+  @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'])
+  role?: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'VIEWER';
 
   @IsOptional()
   @IsBoolean()

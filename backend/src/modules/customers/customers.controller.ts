@@ -16,12 +16,6 @@ export class CustomersController {
     return this.customersService.getLimitsInfo(request.tenantId);
   }
 
-  @Roles('COMPANY_ADMIN')
-  @Post('calculate-totals')
-  calculateTotals(@Req() request: { tenantId: string }) {
-    return this.customersService.calculateTotalPurchases(request.tenantId);
-  }
-
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Get(':id')
   findById(@Req() request: { tenantId: string }, @Param('id') id: string) {

@@ -58,7 +58,7 @@ export class SubscriptionLimitService {
       employeesCount,
       categoriesCount,
     ] = await Promise.all([
-      this.prisma.companyMembership.count({
+      this.prisma.membership.count({
         where: { companyId, isActive: true },
       }),
       this.prisma.product.count({ where: { companyId } }),

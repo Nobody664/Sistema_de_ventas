@@ -123,7 +123,7 @@ export class PaymentsService {
       where: { id },
       data: {
         status: 'SUCCEEDED',
-        transactionId: paymentDate ? `manual-${Date.now()}` : `paid-${Date.now()}`,
+        providerPaymentId: paymentDate ? `manual-${Date.now()}` : `paid-${Date.now()}`,
       },
       include: {
         subscription: {
@@ -353,6 +353,7 @@ export class PaymentsService {
         providerSubscriptionId: transactionId,
         billingCycle: 'MONTHLY',
         startDate: new Date(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
 
@@ -366,7 +367,7 @@ export class PaymentsService {
         data: {
           subscriptionId: subscription.id,
           provider: 'MERCADOPAGO',
-          transactionId: transactionId || `mp-${Date.now()}`,
+          providerPaymentId: transactionId || `mp-${Date.now()}`,
           amount: plan.priceMonthly,
           currency: 'PEN',
           status: 'SUCCEEDED',
