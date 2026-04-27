@@ -10,7 +10,7 @@ export const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(10),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
-  REDIS_URL: z.string().url(),
+  REDIS_URL: z.string().url().optional(),
   S3_BUCKET: z.string().default(''),
   S3_REGION: z.string().default(''),
   S3_ACCESS_KEY_ID: z.string().default(''),

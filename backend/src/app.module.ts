@@ -66,7 +66,7 @@ import { HealthModule } from '@/modules/health/health.module';
         if (!redisUrl) {
           console.log('[Bull] REDIS_URL no configurado. BullModule deshabilitado (sin colas).');
           return {
-            connection: { url: 'redis://invalid:0' },
+            connection: { host: 'localhost', port: 6379 },
             defaultJobOptions: { removeOnFail: true },
           };
         }
