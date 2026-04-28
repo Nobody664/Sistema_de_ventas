@@ -123,10 +123,10 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                 <tbody>
                   {initialSale.items?.map((item) => (
                     <tr key={item.id} className="border-b border-slate-100">
-                      <td className="py-3">{item.productName || 'Producto'}</td>
+                      <td className="py-3">{item.product?.name || 'Producto'}</td>
                       <td className="py-3 text-center">{item.quantity}</td>
                       <td className="py-3 text-right">S/ {Number(item.unitPrice).toFixed(2)}</td>
-                      <td className="py-3 text-right">S/ {Number(item.totalAmount).toFixed(2)}</td>
+                      <td className="py-3 text-right">S/ {Number(item.totalPrice).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>

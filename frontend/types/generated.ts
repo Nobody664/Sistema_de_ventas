@@ -98,8 +98,6 @@ export interface Plan {
 
 export interface Subscription {
   id: string;
-  export interface Subscription {
-  id: string;
   companyId: string;
   planId: string;
   status: SubscriptionStatus;
@@ -198,6 +196,7 @@ export interface Sale {
   paidAmount: string;
   changeAmount: string;
   notes?: string | null;
+  paidAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   company?: Company;

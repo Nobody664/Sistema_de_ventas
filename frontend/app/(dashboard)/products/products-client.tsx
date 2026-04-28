@@ -258,12 +258,12 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                       <td className="py-4 text-center">
                         <span
                           className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
-                            product.status === 'ACTIVE'
+                            product.isActive
                               ? 'border-green-500/30 bg-green-500/20 text-green-700'
                               : 'border-gray-500/30 bg-gray-500/20 text-gray-600'
                           }`}
                         >
-                          {product.status === 'ACTIVE' ? 'Activo' : 'Inactivo'}
+                          {product.isActive ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
                       <td className="py-4 pr-4 text-right">

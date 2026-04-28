@@ -248,8 +248,9 @@ model Customer {
   documentType   String?  @map("document_type")
   documentValue  String?  @map("document_value")
   address        String?
-  notes          String?
-  createdAt      DateTime @default(now()) @map("created_at")
+notes          String?
+  paidAt        DateTime?       @map("paid_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)

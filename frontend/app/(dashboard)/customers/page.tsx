@@ -110,8 +110,7 @@ export default async function CustomersPage() {
                   <CustomerActions customer={customer} />
                   <p className="mt-2 font-display text-lg">
                     S/ {(
-                      Number(customer.totalPurchases || 0) +
-                      (customer.sales?.reduce((acc, s) => acc + Number(s.totalAmount), 0) || 0)
+                      customer.sales?.reduce((acc, s) => acc + Number(s.totalAmount), 0) || 0
                     ).toFixed(2)}
                   </p>
                   <p className="text-xs text-foreground/50">compras</p>

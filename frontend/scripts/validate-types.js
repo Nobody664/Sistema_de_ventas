@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
+const FRONTEND_DIR = path.join(__dirname, '..');
 
 const INVALID_PATTERNS = [
   { pattern: '._count', message: 'Usa _count solo si está incluido en la query' },

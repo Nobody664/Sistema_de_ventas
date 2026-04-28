@@ -49,7 +49,13 @@ export type CheckoutRequestApi = CheckoutRequest;
 export { Product, Customer, Sale, Company, Subscription, Plan, Category, Employee, Notification, PaymentSetting, SaleItem, CheckoutRequest };
 
 export type SubscriberWithCompany = Company & {
-  subscription?: SubscriptionApi | null;
+  subscription?: SubscriptionApi & {
+    plan?: Plan;
+    billingCycle: 'MONTHLY' | 'YEARLY';
+    startDate: Date;
+    endDate?: Date | null;
+    company?: Company;
+  } | null;
   _count?: {
     users: number;
   };
