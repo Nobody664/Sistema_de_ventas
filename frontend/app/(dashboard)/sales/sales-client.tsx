@@ -34,8 +34,16 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const salesToday = sales.filter(s => new Date(s.paidAt) >= today).length;
-  const revenueToday = sales.filter(s => new Date(s.paidAt) >= today).reduce((acc, s) => acc + Number(s.totalAmount), 0);
+  const parsePaidAt = (sale: Sale) => {
+    const paidAt = sale.paidAt as Date | null | undefined;
+    return paidAt ? new Date(paidAt) : null;
+  };
+  const isTodaySale = (sale: Sale) => {
+    const paidAt = parsePaidAt(sale);
+    return paidAt ? paidAt >= today : false;
+  };
+  const salesToday = sales.filter(isTodaySale).length;
+  const revenueToday = sales.filter(isTodaySale).reduce((acc, s) => acc + Number(s.totalAmount), 0);
 
   const paymentMethods: Record<string, { icon: typeof CreditCard; label: string }> = {
     CASH: { icon: Banknote, label: 'Efectivo' },
@@ -180,7 +188,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
           {!isLoading && sales.length > 0 ? (
             sales.slice(0, 15).map((sale, index) => {
               const PaymentIcon = paymentMethods[sale.paymentMethod]?.icon || DollarSign;
-              const isToday = sale.paidAt ? new Date(sale.paidAt) >= today : false;
+              const isToday = isTodaySale(sale);
               return (
                 <Link
                   key={sale.id}
@@ -207,7 +215,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                     <p className="font-display text-xl">S/ {Number(sale.totalAmount || 0).toFixed(2)}</p>
                     <p className="text-sm text-foreground/50">
                       {sale.paidAt 
-                        ? new Date(sale.paidAt).toLocaleDateString('es-PE', {
+                        ? new Date(sale.paidAt as Date).toLocaleString('es-PE', {
                             day: 'numeric',
                             month: 'short',
                             hour: '2-digit',

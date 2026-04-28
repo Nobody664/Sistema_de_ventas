@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:clean": "rimraf .next .tsbuildinfo && next build",
     "start": "next start",
     "lint": "tsc --noEmit",
     "format": "prettier --check \"**/*.{ts,tsx,css}\"",

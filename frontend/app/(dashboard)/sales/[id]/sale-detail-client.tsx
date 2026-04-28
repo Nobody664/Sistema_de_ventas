@@ -61,7 +61,7 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                 <h1 className="text-2xl font-bold text-slate-900">Venta #{initialSale.saleNumber}</h1>
                 <p className="text-sm text-slate-500">
                   {initialSale.paidAt 
-                    ? new Date(initialSale.paidAt).toLocaleDateString('es-PE', {
+                    ? new Date(initialSale.paidAt as Date).toLocaleString('es-PE', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric',

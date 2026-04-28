@@ -151,7 +151,7 @@ export function CustomerDetailClient({ customer, purchasesData }: CustomerDetail
                         <p className="font-medium">{sale.saleNumber}</p>
                         <p className="text-sm text-slate-500">
                           {sale.paidAt 
-                            ? new Date(sale.paidAt).toLocaleDateString('es-PE', {
+                            ? new Date(sale.paidAt as Date).toLocaleString('es-PE', {
                                 day: 'numeric',
                                 month: 'short',
                                 hour: '2-digit',
