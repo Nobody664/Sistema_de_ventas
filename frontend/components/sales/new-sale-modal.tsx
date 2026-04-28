@@ -51,7 +51,7 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
     return products.filter(
       p => p.stockQuantity > 0 && 
       (p.name.toLowerCase().includes(searchProduct.toLowerCase()) || 
-       p.sku.toLowerCase().includes(searchProduct.toLowerCase()))
+       p.sku?.toLowerCase().includes(searchProduct.toLowerCase()))
     );
   }, [products, searchProduct]);
 

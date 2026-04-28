@@ -28,7 +28,7 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
     const matchesSearch =
       searchQuery === '' ||
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase());
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory =
       selectedCategory === '' || product.categoryId === selectedCategory;
     return matchesSearch && matchesCategory;
