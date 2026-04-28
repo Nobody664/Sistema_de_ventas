@@ -136,6 +136,9 @@ export interface Category {
   updatedAt: Date;
   company?: Company;
   products?: Product[];
+  _count?: {
+    products: number;
+  };
 }
 
 export interface Product {
