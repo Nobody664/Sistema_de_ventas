@@ -26,12 +26,12 @@ export default async function SubscribersPage() {
   const allSubscribers = await serverApiFetch<SubscriberWithCompany[]>('/subscriptions/subscribers', accessToken);
   
   const subscribers = allSubscribers?.filter(sub => 
-    sub.status === 'ACTIVE' || sub.status === 'TRIALING'
+    sub.subscription?.status === 'ACTIVE' || sub.subscription?.status === 'TRIALING'
   ) ?? [];
 
   const totalMonthlyRevenue = subscribers
-    .filter(sub => sub.status === 'ACTIVE' && sub.billingCycle === 'MONTHLY')
-    .reduce((acc, sub) => acc + Number(sub.plan?.priceMonthly || 0), 0);
+    .filter(sub => sub.subscription?.status === 'ACTIVE' && sub.subscription?.billingCycle === 'MONTHLY')
+    .reduce((acc, sub) => acc + Number(sub.subscription?.plan?.priceMonthly || 0), 0);
 
   const statusConfig: Record<string, { color: string; bg: string; icon: typeof Clock; label: string }> = {
     TRIALING: { color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', icon: Clock, label: 'En prueba' },
@@ -62,13 +62,13 @@ export default async function SubscribersPage() {
         <Card className="rounded-[30px] bg-white/80 p-6">
           <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Suscripciones activas</p>
           <p className="mt-4 font-display text-3xl text-green-600">
-            {subscribers.filter(s => s.status === 'ACTIVE').length}
+            {subscribers.filter(s => s.subscription?.status === 'ACTIVE').length}
           </p>
         </Card>
         <Card className="rounded-[30px] bg-white/80 p-6">
           <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">En período de prueba</p>
           <p className="mt-4 font-display text-3xl text-blue-600">
-            {subscribers.filter(s => s.status === 'TRIALING').length}
+            {subscribers.filter(s => s.subscription?.status === 'TRIALING').length}
           </p>
         </Card>
         <Card className="rounded-[30px] bg-white/80 p-6">
@@ -93,19 +93,20 @@ export default async function SubscribersPage() {
       <div className="grid gap-4 xl:grid-cols-3">
         {subscribers && subscribers.length > 0 ? (
           subscribers.map((sub) => {
-            const status = statusConfig[sub.status] || statusConfig.TRIALING;
+            const subStatus = sub.subscription?.status || 'TRIALING';
+            const status = statusConfig[subStatus] || statusConfig.TRIALING;
             const StatusIcon = status.icon;
-            const planColor = planColors[sub.plan?.code || 'START'];
+            const planColor = planColors[sub.subscription?.plan?.code || 'START'];
             return (
               <Card key={sub.id} className="group rounded-[30px] bg-white/80 p-6 transition hover:shadow-lg">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
-                      {sub.company?.name?.charAt(0) || '?'}
+                      {sub.name?.charAt(0) || '?'}
                     </div>
                     <div>
-                      <h3 className="font-display text-xl">{sub.company?.name}</h3>
-                      <p className="text-sm text-foreground/50">{sub.company?.email || 'Sin email'}</p>
+                      <h3 className="font-display text-xl">{sub.name}</h3>
+                      <p className="text-sm text-foreground/50">{sub.email || 'Sin email'}</p>
                     </div>
                   </div>
                   <SubscriberActions subscriber={sub} />
@@ -116,10 +117,10 @@ export default async function SubscribersPage() {
                     <StatusIcon className={`size-4 ${status.color}`} />
                     <span className={`text-sm font-medium ${status.color}`}>{status.label}</span>
                   </div>
-                  {sub.plan && (
+                  {sub.subscription?.plan && (
                     <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${planColor}`}>
                       <Crown className="size-3" />
-                      {sub.plan.name}
+                      {sub.subscription.plan.name}
                     </span>
                   )}
                 </div>
@@ -128,29 +129,29 @@ export default async function SubscribersPage() {
                   <div className="flex items-center gap-2 text-foreground/60">
                     <CreditCard className="size-4" />
                     <span>
-                      {sub.billingCycle === 'MONTHLY' ? 'Mensual' : 'Anual'} - S/ {sub.billingCycle === 'MONTHLY' ? Number(sub.plan?.priceMonthly) : Number(sub.plan?.priceYearly)}
+                      {sub.subscription?.billingCycle === 'MONTHLY' ? 'Mensual' : 'Anual'} - S/ {sub.subscription?.billingCycle === 'MONTHLY' ? Number(sub.subscription?.plan?.priceMonthly) : Number(sub.subscription?.plan?.priceYearly)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-foreground/60">
                     <Clock className="size-4" />
                     <span>
-                      Inicio: {new Date(sub.startDate).toLocaleDateString('es-PE')}
-                      {sub.endDate && ` - Fin: ${new Date(sub.endDate).toLocaleDateString('es-PE')}`}
+                      Inicio: {new Date(sub.subscription?.startDate || Date.now()).toLocaleDateString('es-PE')}
+                      {sub.subscription?.endDate && ` - Fin: ${new Date(sub.subscription.endDate).toLocaleDateString('es-PE')}`}
                     </span>
                   </div>
                 </div>
 
                 <div className="mt-5 flex items-center justify-between border-t border-foreground/10 pt-4">
                   <div className="text-center">
-                    <p className="font-display text-lg">{sub.company?.status}</p>
+                    <p className="font-display text-lg">{sub.subscription?.status || 'N/A'}</p>
                     <p className="text-xs text-foreground/50">Empresa</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-display text-lg">{sub.autoRenew ? 'Sí' : 'No'}</p>
+                    <p className="font-display text-lg">{sub.subscription?.autoRenew ? 'Sí' : 'No'}</p>
                     <p className="text-xs text-foreground/50">Renovación</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-display text-lg">{sub.payments?.length || 0}</p>
+                    <p className="font-display text-lg">{sub.subscription?.payments?.length || 0}</p>
                     <p className="text-xs text-foreground/50">Pagos</p>
                   </div>
                 </div>

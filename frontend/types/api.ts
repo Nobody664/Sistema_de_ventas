@@ -49,12 +49,27 @@ export type CheckoutRequestApi = CheckoutRequest;
 export { Product, Customer, Sale, Company, Subscription, Plan, Category, Employee, Notification, PaymentSetting, SaleItem, CheckoutRequest };
 
 export type SubscriberWithCompany = Company & {
-  subscription?: SubscriptionApi & {
-    plan?: Plan;
+  subscription?: {
+    id: string;
+    status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
     billingCycle: 'MONTHLY' | 'YEARLY';
     startDate: Date;
     endDate?: Date | null;
+    plan?: {
+      id: string;
+      name: string;
+      code: string;
+      priceMonthly: string;
+      priceYearly: string;
+    };
     company?: Company;
+    autoRenew?: boolean;
+    payments?: Array<{
+      id: string;
+      amount: string;
+      status: string;
+      paidAt?: Date;
+    }>;
   } | null;
   _count?: {
     users: number;
