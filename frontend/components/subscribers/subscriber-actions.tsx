@@ -55,8 +55,9 @@ export function SubscriberActions({ subscriber }: SubscriberActionsProps) {
     }
   };
 
-  const isPending = subscriber.status === 'TRIALING';
-  const isActive = subscriber.status === 'ACTIVE';
+  const subStatus = subscriber.subscription?.status;
+  const isPending = subStatus === 'TRIALING';
+  const isActive = subStatus === 'ACTIVE';
 
   return (
     <DropdownMenu>

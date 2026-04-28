@@ -12,9 +12,14 @@ interface ApiResult<T> {
   loading: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ApiClient = typeof api;
+
 export function useApi() {
+  const client = api as any;
+
   const get = useCallback(async <T>(url: string): Promise<ApiResult<T>> => {
-    const { data, error } = await api.GET(url);
+    const { data, error } = await client.GET(url);
     return {
       data: data || null,
       error: error ? { message: error.message, status: error.status } : null,
@@ -24,7 +29,7 @@ export function useApi() {
 
   const post = useCallback(
     async <T, B = unknown>(url: string, body?: B): Promise<ApiResult<T>> => {
-      const { data, error } = await api.POST(url, { body });
+      const { data, error } = await client.POST(url, { body });
       return {
         data: data || null,
         error: error ? { message: error.message, status: error.status } : null,
@@ -36,7 +41,7 @@ export function useApi() {
 
   const patch = useCallback(
     async <T, B = unknown>(url: string, body?: B): Promise<ApiResult<T>> => {
-      const { data, error } = await api.PATCH(url, { body });
+      const { data, error } = await client.PATCH(url, { body });
       return {
         data: data || null,
         error: error ? { message: error.message, status: error.status } : null,
@@ -47,7 +52,7 @@ export function useApi() {
   );
 
   const del = useCallback(async <T>(url: string): Promise<ApiResult<T>> => {
-    const { data, error } = await api.DELETE(url);
+    const { data, error } = await client.DELETE(url);
     return {
       data: data || null,
       error: error ? { message: error.message, status: error.status } : null,

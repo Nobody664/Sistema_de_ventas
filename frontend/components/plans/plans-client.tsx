@@ -11,20 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { apiFetch } from '@/lib/api';
 import { Plus, Edit, Trash2, Check, Crown, Zap, Rocket, Star, DollarSign, Users, Package, Building2, Loader2 } from 'lucide-react';
-
-interface Plan {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  priceMonthly: string;
-  priceYearly: string;
-  billingCycle: string;
-  maxUsers: number | null;
-  maxProducts: number | null;
-  features: string[] | Record<string, unknown>;
-  isActive: boolean;
-}
+import type { Plan } from '@/types/generated';
 
 interface PlansClientProps {
   initialPlans: Plan[];
@@ -65,9 +52,9 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
     SCALE: Star,
   };
 
-  const parseFeatures = (features: string[] | Record<string, unknown>): string[] => {
+  const parseFeatures = (features: unknown): string[] => {
     if (Array.isArray(features)) {
-      return features;
+      return features as string[];
     }
     return [];
   };

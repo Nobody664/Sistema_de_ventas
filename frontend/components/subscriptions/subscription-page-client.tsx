@@ -80,9 +80,9 @@ export function SubscriptionPageClient({ initialSubscription, initialPlans, pend
     }
   };
 
-  const parseFeatures = (features: string[] | Record<string, unknown>): string[] => {
+  const parseFeatures = (features: unknown): string[] => {
     if (Array.isArray(features)) {
-      return features;
+      return features as string[];
     }
     return [];
   };

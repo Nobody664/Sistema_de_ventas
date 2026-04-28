@@ -243,7 +243,7 @@ export function ProductModal({ product, categories, children }: ProductModalProp
                         id="name" 
                         name="name" 
                         required 
-                        defaultValue={product?.name} 
+                        defaultValue={product?.name ?? ''} 
                         placeholder="Ej: Café Premium Supremo"
                         className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                       />
@@ -256,7 +256,7 @@ export function ProductModal({ product, categories, children }: ProductModalProp
                           <Input 
                             id="sku" 
                             name="sku" 
-                            defaultValue={product?.sku} 
+                            defaultValue={product?.sku ?? ''} 
                             placeholder="ACM-001"
                             disabled={isEdit}
                             className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-10 ${isEdit ? 'bg-slate-100 text-slate-400' : 'focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'}`}
@@ -331,7 +331,7 @@ export function ProductModal({ product, categories, children }: ProductModalProp
                           type="number" 
                           step="0.01" 
                           required 
-                          defaultValue={product?.costPrice} 
+                          defaultValue={product?.costPrice ?? ''} 
                           placeholder="0.00"
                           className="h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-12 pr-4 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                         />
@@ -347,7 +347,7 @@ export function ProductModal({ product, categories, children }: ProductModalProp
                           type="number" 
                           step="0.01" 
                           required 
-                          defaultValue={product?.salePrice} 
+                          defaultValue={product?.salePrice ?? ''} 
                           placeholder="0.00"
                           className="h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-12 pr-4 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                         />

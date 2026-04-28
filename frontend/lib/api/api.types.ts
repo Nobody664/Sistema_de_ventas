@@ -9,4 +9,6 @@ export type ApiResponse<T> = {
 };
 
 // Placeholder - generate with: npm run generate:api-types
-export interface paths {}
+export interface paths {
+  [key: string]: any;
+}
