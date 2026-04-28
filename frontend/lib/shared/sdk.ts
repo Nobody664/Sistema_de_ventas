@@ -30,6 +30,7 @@ export const CompanySchema = z.object({
   trialEndsAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
+  subscription: SubscriptionSchema.optional(), // Singular para 1:1
   _count: z
     .object({
       memberships: z.number(),

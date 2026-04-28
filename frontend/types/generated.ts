@@ -51,6 +51,7 @@ export interface Company {
   trialEndsAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  subscription?: Subscription; // Singular para 1:1 o primera relación
   subscriptions?: Subscription[];
   memberships?: Membership[];
   customers?: Customer[];
