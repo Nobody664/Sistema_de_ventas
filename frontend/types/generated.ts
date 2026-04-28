@@ -1,6 +1,10 @@
 // Generated types from Prisma Schema
 // DO NOT EDIT - Run `prisma generate` to regenerate
 
+export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
+export type JsonObject = { [key: string]: JsonValue };
+export type JsonArray = JsonValue[];
+
 export type CompanyStatus = 'ACTIVE' | 'SUSPENDED' | 'TRIAL' | 'PAST_DUE' | 'INACTIVE';
 export type BillingCycle = 'MONTHLY' | 'YEARLY';
 export type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
@@ -20,15 +24,16 @@ export type ProofStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export interface User {
   id: string;
   email: string;
-  passwordHash: string;
   fullName: string;
   globalRole: GlobalRole;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   memberships?: Membership[];
-  employee?: Employee | null;
   notifications?: Notification[];
-  auditLogs?: AuditLog[];
+  _count?: {
+    memberships: number;
+  };
 }
 
 export interface Company {
@@ -60,6 +65,14 @@ export interface Company {
   inventoryMovements?: InventoryMovement[];
   planUpgradeRequests?: PlanUpgradeRequest[];
   checkoutRequests?: CheckoutRequest[];
+  _count?: {
+    memberships: number;
+    customers: number;
+    products: number;
+    categories: number;
+    sales: number;
+    employees: number;
+  };
 }
 
 export interface Plan {
@@ -72,16 +85,19 @@ export interface Plan {
   billingCycle: BillingCycle;
   maxUsers: number;
   maxProducts: number;
-  features?: Record<string, unknown> | null;
+  features: JsonValue;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   subscriptions?: Subscription[];
-  planUpgradeRequests?: PlanUpgradeRequest[];
-  checkoutRequests?: CheckoutRequest[];
+  _count?: {
+    subscriptions: number;
+  };
 }
 
 export interface Subscription {
+  id: string;
+  export interface Subscription {
   id: string;
   companyId: string;
   planId: string;
@@ -89,13 +105,16 @@ export interface Subscription {
   provider: PaymentProvider;
   billingCycle: BillingCycle;
   startDate: Date;
-  endDate: Date;
+  endDate?: Date | null;
   autoRenew: boolean;
   createdAt: Date;
   updatedAt: Date;
   company?: Company;
   plan?: Plan;
   payments?: Payment[];
+  _count?: {
+    payments: number;
+  };
 }
 
 export interface Membership {
