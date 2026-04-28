@@ -7,35 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { Check, CreditCard, Calendar, AlertCircle, Loader2, Crown, Zap, Rocket } from 'lucide-react';
-
-interface Plan {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  priceMonthly: string;
-  priceYearly: string;
-  billingCycle: string;
-  maxUsers: number | null;
-  maxProducts: number | null;
-  features: string[] | Record<string, unknown>;
-  isActive: boolean;
-}
-
-interface Subscription {
-  id: string;
-  status: string;
-  billingCycle: string;
-  startDate: string;
-  endDate: string | null;
-  plan?: Plan;
-  payments?: Array<{
-    id: string;
-    amount: string;
-    status: string;
-    createdAt: string;
-  }>;
-}
+import type { Subscription, Plan } from '@/types/generated';
 
 interface PlanUpgradeRequest {
   id: string;
