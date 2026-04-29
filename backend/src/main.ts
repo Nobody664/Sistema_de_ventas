@@ -21,8 +21,15 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: true,
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://sistema-de-ventas-frontend-seven.vercel.app',
+      'https://sistema-de-ventas-git-main-cm1803419-1650s-projects.vercel.app',
+    ],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   });
 
   const apiPrefix = configService.get<string>('API_PREFIX') || 'api';
