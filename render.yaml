@@ -3,15 +3,15 @@ services:
     name: sistema-de-ventas-backend
     rootDir: backend
     region: oregon
-    buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npm run start:prod
+    buildCommand: npm install && npx prisma generate && npx nest build
+    startCommand: npm run start
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "20.19.0"
+        value: "22"
       - key: PORT
-        value: "4000"
+        value: "10000"
       - key: DATABASE_URL
         value: postgresql://postgres.hdnvtecbwvvqhsrmudgi:nYZLwQY6JO3PcQ1U@aws-1-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=disable
       - key: JWT_ACCESS_SECRET
