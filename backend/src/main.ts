@@ -16,15 +16,15 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // =========================
-  // TRUST PROXY (Render / Vercel / Nginx)
+  // TRUST PROXY (CORRECTO EN NEST)
   // =========================
-  app.set('trust proxy', 1);
+  const server = app.getHttpAdapter().getInstance();
+  server.set('trust proxy', 1);
 
   // =========================
-  // SECURITY
+  // SECURITY MIDDLEWARE
   // =========================
   app.use(helmet());
-
   app.use(json({ limit: '2mb' }));
   app.use(urlencoded({ extended: true, limit: '2mb' }));
   app.use(cookieParser());
@@ -37,14 +37,11 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
     }),
   );
 
   // =========================
-  // CORS (PRO)
+  // CORS (CORREGIDO)
   // =========================
   const allowedOrigins = [
     'http://localhost:3000',
@@ -61,24 +58,33 @@ async function bootstrap() {
         return callback(null, true);
       }
 
-      logger.warn(`Blocked CORS origin: ${origin}`);
+      logger.warn(`Blocked CORS: ${origin}`);
       return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
   });
 
   // =========================
-  // PREFIX
+  // PREFIX API
   // =========================
   const apiPrefix = configService.get<string>('API_PREFIX') || 'api';
   app.setGlobalPrefix(apiPrefix);
 
   // =========================
-  // SWAGGER (solo dev/pro controlado)
+  // ENV LOGS
   // =========================
-  const enableSwagger = configService.get<string>('NODE_ENV') !== 'production';
+  const port = parseInt(process.env.PORT || '10000', 10);
+  const redisUrl = configService.get<string>('REDIS_URL');
 
-  if (enableSwagger) {
+  logger.log('🚀 Starting server...');
+  logger.log(`📦 API Prefix: ${apiPrefix}`);
+  logger.log(`🌐 Port: ${port}`);
+  logger.log(`[Redis] ${redisUrl ? 'Configured' : 'Not configured'}`);
+
+  // =========================
+  // SWAGGER (SOLO DEV)
+  // =========================
+  if (configService.get('NODE_ENV') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Ventas SaaS API')
       .setDescription('API para sistema de gestión de ventas')
@@ -94,39 +100,11 @@ async function bootstrap() {
       },
     });
 
-    logger.log(`📚 Swagger enabled at /${apiPrefix}/docs`);
+    logger.log(`📚 Swagger: /${apiPrefix}/docs`);
   }
 
   // =========================
-  // ENV DEBUG
-  // =========================
-  const port = parseInt(process.env.PORT || '10000', 10);
-  const redisUrl = configService.get<string>('REDIS_URL');
-
-  logger.log(`🚀 Starting server...`);
-  logger.log(`📦 API Prefix: ${apiPrefix}`);
-  logger.log(`🌐 Port: ${port}`);
-  logger.log(`[Redis] ${redisUrl ? 'Configured' : 'Not configured'}`);
-
-  // =========================
-  // GRACEFUL SHUTDOWN (CLAVE)
-  // =========================
-  app.enableShutdownHooks();
-
-  process.on('SIGINT', async () => {
-    logger.warn('SIGINT received. Closing app...');
-    await app.close();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', async () => {
-    logger.warn('SIGTERM received. Closing app...');
-    await app.close();
-    process.exit(0);
-  });
-
-  // =========================
-  // START
+  // START SERVER
   // =========================
   await app.listen(port, '0.0.0.0');
 
@@ -134,6 +112,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  console.error('❌ Fatal error during bootstrap:', err);
+  console.error('❌ Error starting server:', err);
   process.exit(1);
 });
