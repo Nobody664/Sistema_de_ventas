@@ -8,13 +8,14 @@
   "scripts": {
     "dev": "ts-node -r dotenv/config src/main.ts",
     "start": "node dist/main.js",
-    "start:dev": "ts-node -r dotenv/config src/main.ts",
+    "start:dev": "ts-node -r tsconfig-paths/register -r dotenv/config src/main.ts",
     "build": "tsc",
     "build:prod": "tsc",
     "lint": "tsc --noEmit",
     "prisma:generate": "prisma generate"
   },
   "dependencies": {
+    "@keyv/redis": "^5.1.6",
     "@nestjs/bullmq": "^11.0.0",
     "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^11.0.0",
