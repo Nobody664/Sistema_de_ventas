@@ -5,12 +5,13 @@ import { APP_GUARD } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+
 import Keyv from 'keyv';
-import { createKeyv } from '@keyv/redis';
+import KeyvRedis from '@keyv/redis';
+
 import { PrismaModule } from '@/database/prisma/prisma.module';
 import { validateEnv } from '@/config/env';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
+
 import { AuthModule } from '@/modules/auth/auth.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { CompaniesModule } from '@/modules/companies/companies.module';
@@ -34,66 +35,95 @@ import { HealthModule } from '@/modules/health/health.module';
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
+
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
     }),
+
+    // =========================
+    // CACHE (REDIS + KEYV)
+    // =========================
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const redisUrl = configService.get<string>('REDIS_URL');
 
-        console.log('[Cache] Debug - REDIS_URL:', redisUrl || 'NO_CONFIG');
-
         if (!redisUrl) {
           console.log('[Cache] Sin REDIS. Usando cache en memoria.');
-          return { stores: [new Keyv({ namespace: 'cache' })] };
+          return {
+            stores: [],
+          };
         }
 
         try {
-          const Redis = require('ioredis');
-          const redis = new Redis(redisUrl);
-          const store = new Keyv({ store: 'redis', redis });
-          return { stores: [store] };
-        } catch (e) {
-          console.log('[Cache] Error Redis:', e.message);
-          return { stores: [new Keyv({ namespace: 'cache' })] };
+          const store = new Keyv({
+            store: new KeyvRedis(redisUrl),
+          });
+
+          return {
+            stores: [store],
+          };
+        } catch (e: unknown) {
+          if (e instanceof Error) {
+            console.log('[Cache] Error Redis:', e.message);
+          } else {
+            console.log('[Cache] Error Redis:', e);
+          }
+
+          return {
+            stores: [],
+          };
         }
       },
     }),
+
+    // =========================
+    // BULLMQ (COLAS)
+    // =========================
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const redisUrl = configService.get<string>('REDIS_URL');
 
-        console.log('[Bull] Debug - REDIS_URL:', redisUrl || 'NO_CONFIG');
+        console.log('[Bull] REDIS_URL:', redisUrl || 'NO_CONFIG');
+
         if (!redisUrl) {
-          console.log('[Bull] REDIS_URL no configurado. BullModule deshabilitado (sin colas).');
+          console.log('[Bull] Usando fallback local (sin Redis)');
           return {
-            connection: { host: 'localhost', port: 6379 },
-            defaultJobOptions: { removeOnFail: true },
+            connection: {
+              host: 'localhost',
+              port: 6379,
+            },
+            defaultJobOptions: {
+              removeOnFail: true,
+            },
           };
         }
 
         return {
           connection: {
             url: redisUrl,
-            maxRetriesPerRequest: false,
-            retryStrategy: (times: number) => {
-              if (times > 3) return null;
-              return Math.min(times * 200, 2000);
-            },
+            maxRetriesPerRequest: null,
           },
         };
       },
     }),
+
+    // =========================
+    // RATE LIMIT
+    // =========================
     ThrottlerModule.forRoot([
       {
         ttl: 60_000,
         limit: 60,
       },
     ]),
+
+    // =========================
+    // MODULES
+    // =========================
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -115,6 +145,7 @@ import { HealthModule } from '@/modules/health/health.module';
     DniModule,
     HealthModule,
   ],
+
   providers: [
     {
       provide: APP_GUARD,
