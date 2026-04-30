@@ -3,8 +3,8 @@ services:
     name: sistema-de-ventas-backend
     rootDir: backend
     region: oregon
-    buildCommand: npm install && npx prisma generate && npx nest build
-    startCommand: npm run start -- --port 10000
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start --port 10000
     envVars:
       - key: NODE_ENV
         value: production
@@ -20,6 +20,8 @@ services:
         value: refresh_secret_ventas_2026
       - key: SMTP_ENABLED
         value: "false"
+      - key: REDIS_URL
+        value: rediss://default:gQAAAAAAAaRdAAIgcDFhOWRjOTZmOTI5MDE0OWIyYWUzMTc3YTZmODUyMTlmZg@national-quagga-107613.upstash.io:6379
     healthCheck:
       path: /api/health/ready
       interval: 30
