@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -12,18 +12,39 @@ async function bootstrap() {
     bufferLogs: true,
   });
 
+  const logger = new Logger('Bootstrap');
   const configService = app.get(ConfigService);
 
   // =========================
-  // SECURITY MIDDLEWARE
+  // TRUST PROXY (Render / Vercel / Nginx)
+  // =========================
+  app.set('trust proxy', 1);
+
+  // =========================
+  // SECURITY
   // =========================
   app.use(helmet());
+
   app.use(json({ limit: '2mb' }));
   app.use(urlencoded({ extended: true, limit: '2mb' }));
   app.use(cookieParser());
 
   // =========================
-  // CORS
+  // VALIDATION GLOBAL
+  // =========================
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
+
+  // =========================
+  // CORS (PRO)
   // =========================
   const allowedOrigins = [
     'http://localhost:3000',
@@ -34,63 +55,85 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // En dev o server-to-server requests
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(null, true);
+
+      logger.warn(`Blocked CORS origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   });
 
   // =========================
-  // PREFIX API
+  // PREFIX
   // =========================
   const apiPrefix = configService.get<string>('API_PREFIX') || 'api';
   app.setGlobalPrefix(apiPrefix);
 
   // =========================
-  // REDIS DEBUG LOG (CORREGIDO)
+  // SWAGGER (solo dev/pro controlado)
   // =========================
+  const enableSwagger = configService.get<string>('NODE_ENV') !== 'production';
+
+  if (enableSwagger) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Ventas SaaS API')
+      .setDescription('API para sistema de gestión de ventas')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+
+    SwaggerModule.setup(`${apiPrefix}/docs`, app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    });
+
+    logger.log(`📚 Swagger enabled at /${apiPrefix}/docs`);
+  }
+
+  // =========================
+  // ENV DEBUG
+  // =========================
+  const port = parseInt(process.env.PORT || '10000', 10);
   const redisUrl = configService.get<string>('REDIS_URL');
 
-  console.log('🚀 Starting server...');
-  console.log('📦 API Prefix:', apiPrefix);
-  console.log('🌐 Port:', process.env.PORT || 10000);
-  console.log('[Redis] URL:', redisUrl || 'NO_CONFIG');
+  logger.log(`🚀 Starting server...`);
+  logger.log(`📦 API Prefix: ${apiPrefix}`);
+  logger.log(`🌐 Port: ${port}`);
+  logger.log(`[Redis] ${redisUrl ? 'Configured' : 'Not configured'}`);
 
   // =========================
-  // SWAGGER
+  // GRACEFUL SHUTDOWN (CLAVE)
   // =========================
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Ventas SaaS API')
-    .setDescription('API para sistema de gestión de ventas')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
+  app.enableShutdownHooks();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  process.on('SIGINT', async () => {
+    logger.warn('SIGINT received. Closing app...');
+    await app.close();
+    process.exit(0);
+  });
 
-  SwaggerModule.setup(`${apiPrefix}/docs`, app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
+  process.on('SIGTERM', async () => {
+    logger.warn('SIGTERM received. Closing app...');
+    await app.close();
+    process.exit(0);
   });
 
   // =========================
-  // START SERVER
+  // START
   // =========================
-  const port = parseInt(process.env.PORT || '10000', 10);
+  await app.listen(port, '0.0.0.0');
 
-  await app.listen(port);
-
-  console.log('✅ Server running on port:', port);
-  console.log(`📚 Swagger: http://localhost:${port}/${apiPrefix}/docs`);
+  logger.log(`✅ Server running on port ${port}`);
 }
 
 bootstrap().catch((err) => {
-  console.error('❌ Error starting server:', err);
+  console.error('❌ Fatal error during bootstrap:', err);
   process.exit(1);
 });
