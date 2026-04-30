@@ -44,18 +44,22 @@ import { HealthModule } from '@/modules/health/health.module';
       useFactory: (configService: ConfigService) => {
         const redisUrl = configService.get<string>('REDIS_URL');
 
-        if (redisUrl) {
-          try {
-            const store = createKeyv(redisUrl);
-            return { stores: [store] };
-          } catch {
-            console.log('[Cache] Redis no disponible. Usando cache en memoria.');
-            return { stores: [new Keyv()] };
-          }
+        console.log('[Cache] Debug - REDIS_URL:', redisUrl || 'NO_CONFIG');
+
+        if (!redisUrl) {
+          console.log('[Cache] Sin REDIS. Usando cache en memoria.');
+          return { stores: [new Keyv({ namespace: 'cache' })] };
         }
 
-        console.log('[Cache] Debug - REDIS_URL:', redisUrl || 'NO_CONFIG');
-        return { stores: [new Keyv({ namespace: 'cache' })] };
+        try {
+          const Redis = require('ioredis');
+          const redis = new Redis(redisUrl);
+          const store = new Keyv({ store: 'redis', redis });
+          return { stores: [store] };
+        } catch (e) {
+          console.log('[Cache] Error Redis:', e.message);
+          return { stores: [new Keyv({ namespace: 'cache' })] };
+        }
       },
     }),
     BullModule.forRootAsync({
