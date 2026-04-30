@@ -54,8 +54,8 @@ import { HealthModule } from '@/modules/health/health.module';
           }
         }
 
-        console.log('[Cache] REDIS_URL no configurado. Usando cache en memoria.');
-        return { stores: [new Keyv()] };
+        console.log('[Cache] Debug - REDIS_URL:', redisUrl || 'NO_CONFIG');
+        return { stores: [new Keyv({ namespace: 'cache' })] };
       },
     }),
     BullModule.forRootAsync({
@@ -63,6 +63,7 @@ import { HealthModule } from '@/modules/health/health.module';
       useFactory: (configService: ConfigService) => {
         const redisUrl = configService.get<string>('REDIS_URL');
 
+        console.log('[Bull] Debug - REDIS_URL:', redisUrl || 'NO_CONFIG');
         if (!redisUrl) {
           console.log('[Bull] REDIS_URL no configurado. BullModule deshabilitado (sin colas).');
           return {
