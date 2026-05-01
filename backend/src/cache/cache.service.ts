@@ -132,4 +132,11 @@ export class CacheService implements OnModuleDestroy {
   getMode(): string {
     return this.useMemory ? 'memory' : 'redis';
   }
+
+  async ping(): Promise<string> {
+    if (this.redis && !this.useMemory) {
+      return this.redis.ping();
+    }
+    return 'memory';
+  }
 }

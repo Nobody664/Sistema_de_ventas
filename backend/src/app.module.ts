@@ -29,6 +29,7 @@ import { EmailModule } from './modules/email/email.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { DniModule } from './modules/dni/dni.module';
 import { HealthModule } from './modules/health/health.module';
+import { DebugModule } from './modules/debug/debug.module';
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { HealthModule } from './modules/health/health.module';
     InvoicesModule,
     DniModule,
     HealthModule,
+    DebugModule,
   ],
   providers: [
     {

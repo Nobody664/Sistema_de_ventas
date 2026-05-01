@@ -6,7 +6,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import type { Request, Response } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -68,13 +67,6 @@ async function bootstrap() {
   app.setGlobalPrefix(apiPrefix);
 
   // =========================
-  // HEALTH CHECK (CRÍTICO PARA RENDER)
-  // =========================
-  app.getHttpAdapter().getInstance().get('/health', (req: Request, res: Response) => {
-    res.status(200).send('OK');
-  });
-
-  // =========================
   // SWAGGER (DEV ONLY)
   // =========================
   if (config.get('NODE_ENV') !== 'production') {
@@ -101,7 +93,8 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   logger.log(`🚀 Server running on port ${port}`);
-  logger.log(`🌐 Health check: /health`);
+  logger.log(`🌐 Health check: /${apiPrefix}/health/live`);
+  logger.log(`🔧 Debug routes: /${apiPrefix}/debug/routes`);
 }
 
 bootstrap().catch((err) => {
