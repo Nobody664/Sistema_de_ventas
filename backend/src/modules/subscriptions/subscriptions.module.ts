@@ -5,9 +5,10 @@ import { PlanUpgradeRequestsController } from './plan-upgrade-requests.controlle
 import { PlanUpgradeRequestsService } from './plan-upgrade-requests.service';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { EmailModule } from '@/modules/email/email.module';
+import { PrismaModule } from '@/database/prisma/prisma.module';
 
 @Module({
-  imports: [NotificationsModule, EmailModule],
+  imports: [PrismaModule, NotificationsModule, EmailModule],
   controllers: [SubscriptionsController, PlanUpgradeRequestsController],
   providers: [SubscriptionsService, PlanUpgradeRequestsService],
   exports: [SubscriptionsService],

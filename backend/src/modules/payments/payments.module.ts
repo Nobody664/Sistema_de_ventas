@@ -7,9 +7,10 @@ import { PaymentSettingsController } from './payment-settings.controller';
 import { PaymentSettingsService } from './payment-settings.service';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { EmailModule } from '@/modules/email/email.module';
+import { PrismaModule } from '@/database/prisma/prisma.module';
 
 @Module({
-  imports: [NotificationsModule, EmailModule],
+  imports: [PrismaModule, NotificationsModule, EmailModule],
   controllers: [PaymentsController, PaymentSettingsController, CheckoutRequestsController],
   providers: [PaymentsService, PaymentSettingsService, CheckoutRequestsService],
   exports: [PaymentsService, PaymentSettingsService, CheckoutRequestsService],
