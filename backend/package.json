@@ -16,7 +16,6 @@
     "prisma:generate": "prisma generate"
   },
   "dependencies": {
-    "@keyv/redis": "^5.1.6",
     "@nestjs/bullmq": "^11.0.0",
     "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^11.0.0",
@@ -38,7 +37,6 @@
     "express": "^4.21.0",
     "helmet": "^8.0.0",
     "ioredis": "^5.10.1",
-    "keyv": "^5.2.0",
     "mercadopago": "^2.0.0",
     "nodemailer": "^7.0.0",
     "passport": "^0.7.0",
