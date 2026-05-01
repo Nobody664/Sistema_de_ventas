@@ -1,11 +1,12 @@
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { ConfigService } from '@nestjs/config';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { json, urlencoded } from 'express';
-import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { ConfigService } from '@nestjs/config';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import type { Request, Response } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -50,7 +51,7 @@ async function bootstrap() {
   ];
 
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
 
@@ -69,7 +70,7 @@ async function bootstrap() {
   // =========================
   // HEALTH CHECK (CRÍTICO PARA RENDER)
   // =========================
-  app.getHttpAdapter().getInstance().get('/health', (req, res) => {
+  app.getHttpAdapter().getInstance().get('/health', (req: Request, res: Response) => {
     res.status(200).send('OK');
   });
 

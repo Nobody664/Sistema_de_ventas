@@ -26,9 +26,7 @@
     "strict": true,
 
     "skipLibCheck": true,
-    "incremental": false,
-
-    "ignoreDeprecations": "6.0"   // ✅ evita fallo en Render
+    "incremental": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
