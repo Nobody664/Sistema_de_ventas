@@ -13,41 +13,50 @@ export class CacheService implements OnModuleDestroy {
   private redis: Redis | null = null;
   private memoryCache = new Map<string, CacheItem<unknown>>();
   private readonly DEFAULT_TTL = 3600;
+  private useMemory = false;
 
   constructor(@Inject(REDIS_CLIENT) redisClient: Redis | null) {
     this.redis = redisClient;
+    this.useMemory = !redisClient;
   }
 
   async onModuleInit() {
-    if (this.redis) {
+    if (this.redis && !this.useMemory) {
       try {
         await this.redis.connect();
-        this.logger.log('CacheService inicializado con Redis');
-      } catch (error: unknown) {
+        this.logger.log('✅ CacheService inicializado con Redis');
+      } catch (error) {
         const err = error as Error;
-        this.logger.error('Error al conectar Redis:', err?.message ?? String(error));
+        this.logger.warn(`⚠️ Error connecting to Redis: ${err?.message}, usando memoria`);
         this.redis = null;
+        this.useMemory = true;
       }
     } else {
-      this.logger.log('CacheService inicializado con memoria local');
+      this.useMemory = true;
+      this.logger.log('⚠️ CacheService inicializado con memoria local (fallback)');
     }
   }
 
   async onModuleDestroy() {
     if (this.redis) {
-      await this.redis.quit();
+      try {
+        await this.redis.quit();
+      } catch {
+        // ignore errors on shutdown
+      }
     }
     this.memoryCache.clear();
   }
 
   async get<T>(key: string): Promise<T | null> {
-    if (this.redis) {
+    if (this.redis && !this.useMemory) {
       try {
         const value = await this.redis.get(key);
         return value ? JSON.parse(value) as T : null;
-      } catch (error: unknown) {
+      } catch (error) {
         const err = error as Error;
-        this.logger.error(`Error getting key ${key}:`, err?.message ?? String(error));
+        this.logger.warn(`⚠️ Redis get error: ${err?.message}, usando memoria`);
+        this.useMemory = true;
       }
     }
 
@@ -63,13 +72,14 @@ export class CacheService implements OnModuleDestroy {
   async set(key: string, value: unknown, ttl?: number): Promise<void> {
     const expireTime = ttl ? Date.now() + ttl * 1000 : 0;
 
-    if (this.redis) {
+    if (this.redis && !this.useMemory) {
       try {
         await this.redis.set(key, JSON.stringify(value), 'EX', ttl || this.DEFAULT_TTL);
         return;
-      } catch (error: unknown) {
+      } catch (error) {
         const err = error as Error;
-        this.logger.error(`Error setting key ${key}:`, err?.message ?? String(error));
+        this.logger.warn(`⚠️ Redis set error: ${err?.message}, usando memoria`);
+        this.useMemory = true;
       }
     }
 
@@ -77,12 +87,12 @@ export class CacheService implements OnModuleDestroy {
   }
 
   async del(key: string): Promise<void> {
-    if (this.redis) {
+    if (this.redis && !this.useMemory) {
       try {
         await this.redis.del(key);
-      } catch (error: unknown) {
+      } catch (error) {
         const err = error as Error;
-        this.logger.error(`Error deleting key ${key}:`, err?.message ?? String(error));
+        this.logger.warn(`⚠️ Redis del error: ${err?.message}`);
       }
     }
 
@@ -90,12 +100,12 @@ export class CacheService implements OnModuleDestroy {
   }
 
   async flush(): Promise<void> {
-    if (this.redis) {
+    if (this.redis && !this.useMemory) {
       try {
         await this.redis.flushdb();
-      } catch (error: unknown) {
+      } catch (error) {
         const err = error as Error;
-        this.logger.error('Error flushing Redis:', err?.message ?? String(error));
+        this.logger.warn(`⚠️ Redis flush error: ${err?.message}`);
       }
     }
 
@@ -103,7 +113,7 @@ export class CacheService implements OnModuleDestroy {
   }
 
   async has(key: string): Promise<boolean> {
-    if (this.redis) {
+    if (this.redis && !this.useMemory) {
       try {
         const exists = await this.redis.exists(key);
         return exists === 1;
@@ -116,6 +126,10 @@ export class CacheService implements OnModuleDestroy {
   }
 
   isConnected(): boolean {
-    return this.redis !== null;
+    return this.redis !== null && !this.useMemory;
+  }
+
+  getMode(): string {
+    return this.useMemory ? 'memory' : 'redis';
   }
 }
