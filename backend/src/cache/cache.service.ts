@@ -1,5 +1,6 @@
-import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, Logger, Inject } from '@nestjs/common';
 import Redis from 'ioredis';
+import { REDIS_CLIENT } from './redis.module';
 
 interface CacheItem<T> {
   value: T;
@@ -13,7 +14,7 @@ export class CacheService implements OnModuleDestroy {
   private memoryCache = new Map<string, CacheItem<unknown>>();
   private readonly DEFAULT_TTL = 3600;
 
-  constructor(private redisClient: Redis | null) {
+  constructor(@Inject(REDIS_CLIENT) redisClient: Redis | null) {
     this.redis = redisClient;
   }
 

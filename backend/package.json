@@ -10,7 +10,7 @@
     "start": "node -r tsconfig-paths/register dist/main.js",
     "start:dev": "ts-node -r tsconfig-paths/register -r dotenv/config src/main.ts",
     "start:prod": "npm run build && npm run start",
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "build:prod": "tsc",
     "lint": "tsc --noEmit",
     "prisma:generate": "prisma generate"
@@ -61,6 +61,7 @@
     "prettier": "^3.0.0",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.0",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.7.0"
   }
 }
