@@ -13,6 +13,13 @@ type JwtPayload = {
   companyStatus?: string;
 };
 
+const extractJwtFromCookie = (req: Request): string | null => {
+  if (req.cookies?.access_token) {
+    return req.cookies.access_token;
+  }
+  return null;
+};
+
 const extractJwtFromQuery = (req: Request): string | null => {
   if (req.query?.token && typeof req.query.token === 'string') {
     return req.query.token;
@@ -28,10 +35,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     super({
       jwtFromRequest: (req: Request) => {
+        const fromCookie = extractJwtFromCookie(req);
+        if (fromCookie) return fromCookie;
+        
         const fromQuery = extractJwtFromQuery(req);
-        if (fromQuery) {
-          return fromQuery;
-        }
+        if (fromQuery) return fromQuery;
+        
         return ExtractJwt.fromAuthHeaderAsBearerToken()(req);
       },
       ignoreExpiration: false,

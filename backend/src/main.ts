@@ -40,24 +40,38 @@ async function bootstrap() {
   );
 
   // =========================
-  // CORS
+  // CORS - Allow frontend origins
   // =========================
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
     'https://sistema-de-ventas-frontend-seven.vercel.app',
-    'https://sistema-de-ventas-git-main-cm1803419-1650s-projects.vercel.app',
+    /\.vercel\.app$/,
   ];
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (typeof allowed === 'string') {
+          return origin === allowed;
+        }
+        return allowed.test(origin);
+      });
+      
+      if (isAllowed) {
+        return callback(null, true);
+      }
 
       logger.warn(`Blocked CORS: ${origin}`);
       return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   });
 
   // =========================
