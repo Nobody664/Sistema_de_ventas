@@ -4,33 +4,32 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "lib": ["ES2022"],
-    
+
     "rootDir": "./src",
     "outDir": "./dist",
-    
+
+    "baseUrl": ".",               // ✅ NECESARIO
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
     "sourceMap": true,
     "removeComments": true,
-    
+
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    
+
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    
+
     "strict": true,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
-    
+
     "skipLibCheck": true,
     "incremental": false,
-    
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+
+    "ignoreDeprecations": "6.0"   // ✅ evita fallo en Render
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"],
-  "tsBuildInfoFile": "tsconfig.tsbuildinfo"
+  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
 }

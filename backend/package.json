@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "ts-node -r tsconfig-paths/register -r dotenv/config src/main.ts",
-    "start": "node -r tsconfig-paths/register dist/main.js",
+    "start": "node dist/main.js",
     "start:dev": "ts-node -r tsconfig-paths/register -r dotenv/config src/main.ts",
     "start:prod": "npm run build && npm run start",
     "build": "tsc && tsc-alias",
