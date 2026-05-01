@@ -1,11 +1,11 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ArrowLeft, Printer, Download, FileText, User, Calendar, CreditCard } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Sale } from '@/types/api';
 
 interface SaleDetailClientProps {
@@ -13,13 +13,13 @@ interface SaleDetailClientProps {
 }
 
 export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
 
   const handlePrint = async () => {
     try {
-      const response = await apiFetch<{ html: string }>(`/invoices/generate/${initialSale.id}`, {
-        token: session?.accessToken,
-      });
+    const response = await apiFetch<{ html: string }>(`/invoices/generate/${initialSale.id}`, {
+      token: getAccessToken(),
+    });
 
       if (response?.html) {
         const printWindow = window.open('', '_blank');

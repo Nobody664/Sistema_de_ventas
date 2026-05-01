@@ -1,13 +1,14 @@
-import { auth } from '@/auth';
+
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
+import { getServerSession } from '@/lib/session';
 import { Users, UserPlus, Mail, Phone } from 'lucide-react';
 import { CustomerActions, NewCustomerButton } from '@/components/customers/customer-actions';
 import type { Customer } from '@/types/api';
 import Link from 'next/link';
 
 export default async function CustomersPage() {
-  const session = await auth();
+  const session = await getServerSession();
   const accessToken = session?.accessToken;
 
   const customers = await serverApiFetch<Customer[]>('/customers', accessToken);

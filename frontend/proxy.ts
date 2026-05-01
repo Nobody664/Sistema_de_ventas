@@ -1,57 +1,97 @@
-import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export const config = {
-  matcher: [
-    '/',
-    '/dashboard/:path*',
-    '/products/:path*',
-    '/categories/:path*',
-    '/sales/:path*',
-    '/customers/:path*',
-    '/employees/:path*',
-    '/reports/:path*',
-    '/companies/:path*',
-    '/subscribers/:path*',
-    '/upgrade-requests/:path*',
-    '/subscriptions/:path*',
-    '/audit/:path*',
-    '/notifications/:path*',
-    '/settings/:path*',
-    '/invoices/:path*',
-    '/profile/:path*',
-    '/api/:path*',
-  ],
-};
+const PUBLIC_PATHS = [
+  '/',
+  '/sign-in',
+  '/sign-up',
+  '/pricing',
+  '/api/health',
+  '/api/docs',
+];
 
-export default auth((req) => {
-  const isLoggedIn = !!req.auth;
-  const { pathname } = req.nextUrl;
+const PROTECTED_PATTERNS = [
+  '/dashboard',
+  '/products',
+  '/categories',
+  '/sales',
+  '/customers',
+  '/employees',
+  '/reports',
+  '/companies',
+  '/subscribers',
+  '/subscriptions',
+  '/subscription',
+  '/notifications',
+  '/settings',
+  '/profile',
+  '/invoices',
+  '/audit',
+  '/payment-settings',
+  '/checkout',
+  '/upgrade-requests',
+];
 
-  const publicPaths = ['/', '/sign-in', '/sign-up', '/register', '/api/auth', '/pricing', '/contact'];
-  const isPublicPath = publicPaths.some(path => pathname === path || pathname.startsWith(path + '/'));
-  
-  const isApiRoute = pathname.startsWith('/api');
-  const isNextAuthApi = pathname.startsWith('/api/auth');
-  const isPublicApi = pathname === '/api/auth/register' || isNextAuthApi || pathname === '/api/auth/login' || pathname === '/api/auth/callback' || pathname === '/api/auth/session';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
-  if (isPublicPath && !isApiRoute) {
-    if (isLoggedIn && (pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/register')) {
-      return Response.redirect(new URL('/dashboard', req.url));
-    }
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PATTERNS.some((pattern) => pathname.startsWith(pattern));
+}
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(path + '/'));
+}
+
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  if (isApiRoute && isPublicApi) {
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname.includes('.')
+  ) {
     return NextResponse.next();
   }
 
-  if (!isLoggedIn && !isPublicPath) {
-    if (isApiRoute) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isProtectedPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  const accessToken = request.cookies.get('access_token')?.value;
+
+  if (!accessToken) {
+    const signInUrl = new URL('/sign-in', request.url);
+    signInUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const signInUrl = new URL('/sign-in', request.url);
+      signInUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(signInUrl);
     }
-    return Response.redirect(new URL('/sign-in', req.url));
+  } catch {
+    const signInUrl = new URL('/sign-in', request.url);
+    signInUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(signInUrl);
   }
 
   return NextResponse.next();
-});
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+};

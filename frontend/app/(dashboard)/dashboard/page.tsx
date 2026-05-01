@@ -1,4 +1,4 @@
-import { auth } from '@/auth';
+import { getServerSession } from '@/lib/session';
 import { serverApiFetch } from '@/lib/server-api';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 
@@ -74,17 +74,18 @@ type Subscription = {
 };
 
 export default async function DashboardPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
+  const session = await getServerSession();
   const accessToken = session?.accessToken;
-  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
 
   const [globalMetrics, auditLogs, recentSubscriptions, tenantMetrics] = await Promise.all([
-    isSuperAdmin ? serverApiFetch<GlobalMetrics>('/dashboard/global', accessToken) : Promise.resolve(null),
-    isSuperAdmin ? serverApiFetch<AuditLog[]>('/audit/global', accessToken) : Promise.resolve(null),
-    isSuperAdmin ? serverApiFetch<Subscription[]>('/subscriptions/subscribers', accessToken) : Promise.resolve(null),
-    !isSuperAdmin ? serverApiFetch<TenantMetrics>('/dashboard/tenant', accessToken) : Promise.resolve(null),
+    serverApiFetch<GlobalMetrics | null>('/dashboard/global', accessToken ?? undefined),
+    serverApiFetch<AuditLog[] | null>('/audit/global', accessToken ?? undefined),
+    serverApiFetch<Subscription[] | null>('/subscriptions/subscribers', accessToken ?? undefined),
+    serverApiFetch<TenantMetrics | null>('/dashboard/tenant', accessToken ?? undefined),
   ]);
+
+  const userRoles = session?.user?.roles ?? [];
+  const isSuperAdmin = userRoles.includes('SUPER_ADMIN') || userRoles.includes('SUPPORT_ADMIN');
 
   return (
     <DashboardClient

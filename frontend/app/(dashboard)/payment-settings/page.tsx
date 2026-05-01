@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { auth } from '@/auth';
+
 import { Card } from '@/components/ui/card';
+import { getServerSession } from '@/lib/session';
 import { PaymentSettingsManager } from '@/components/settings/payment-settings';
 import { CreditCard, Shield, ArrowLeft } from 'lucide-react';
 
 export default async function PaymentSettingsPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
+  const session = await getServerSession();
+  const roles: string[] = session?.user?.roles || [];
   
   if (!roles.includes('SUPER_ADMIN')) {
     redirect('/dashboard');

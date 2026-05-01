@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
 import { Search, Loader2, Check, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface DniResult {
   dni: string;
@@ -27,7 +27,7 @@ interface DniSearchProps {
 }
 
 export function DniSearch({ onResult, documentType = 'DNI' }: DniSearchProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const [documentNumber, setDocumentNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function DniSearch({ onResult, documentType = 'DNI' }: DniSearchProps) {
     try {
       if (documentType === 'DNI') {
         const data = await apiFetch<DniResult>(`/dni/${documentNumber}`, {
-          token: session?.accessToken,
+          token: getAccessToken(),
         });
 
         if (data) {
@@ -68,7 +68,7 @@ export function DniSearch({ onResult, documentType = 'DNI' }: DniSearchProps) {
         }
       } else {
         const data = await apiFetch<DniResult>(`/dni/ruc/${documentNumber}`, {
-          token: session?.accessToken,
+          token: getAccessToken(),
         });
 
         if (data) {
@@ -88,7 +88,7 @@ export function DniSearch({ onResult, documentType = 'DNI' }: DniSearchProps) {
     } finally {
       setLoading(false);
     }
-  }, [documentNumber, documentType, session?.accessToken, onResult]);
+  }, [documentNumber, documentType, onResult]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Save, ArrowLeft, Loader2, MapPin, Phone, Mail, FileText, Hash, CheckCircle, Sparkles } from 'lucide-react';
@@ -9,8 +8,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CompanyData {
   id: string;
@@ -25,7 +25,7 @@ interface CompanyData {
 }
 
 export default function CompanySettingsPage() {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const queryClient = useQueryClient();
   const addToast = useUiStore((state) => state.addToast);
@@ -43,8 +43,8 @@ export default function CompanySettingsPage() {
 
   const { data: company, isLoading } = useQuery({
     queryKey: ['company-current'],
-    queryFn: () => apiFetch<CompanyData>('/companies/current', { token: session?.accessToken }),
-    enabled: !!session?.accessToken,
+    queryFn: () => apiFetch<CompanyData>('/companies/current', { token: getAccessToken() }),
+    enabled: !!getAccessToken(),
   });
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function CompanySettingsPage() {
     mutationFn: (data: Partial<CompanyData>) =>
       apiFetch<CompanyData>('/companies/current', {
         method: 'PATCH',
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       }),
     onSuccess: (data) => {

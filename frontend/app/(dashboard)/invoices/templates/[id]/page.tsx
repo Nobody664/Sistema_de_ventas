@@ -1,6 +1,7 @@
-import { auth } from '@/auth';
+
 import { redirect } from 'next/navigation';
 import { serverApiFetch } from '@/lib/server-api';
+import { getServerSession } from '@/lib/session';
 import { TemplateEditor } from '../template-editor';
 
 interface InvoiceTemplate {
@@ -34,15 +35,15 @@ interface InvoiceTemplate {
 }
 
 export default async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession();
   const { id } = await params;
-  const session = await auth();
 
   if (!session?.user) {
     redirect('/sign-in');
   }
 
-  const roles = session.user.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN');
+  const roles: string[] = session?.user?.roles || [];
+  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
   
   if (!isSuperAdmin) {
     redirect('/dashboard');
@@ -53,7 +54,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
   if (id !== 'new') {
     const templates = await serverApiFetch<InvoiceTemplate[]>(
       '/invoices/templates',
-      session.accessToken
+      session?.accessToken
     );
     template = templates?.find(t => t.id === id) || null;
   }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -17,8 +16,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
+import { useAuthStore } from '@/stores/auth.store';
 import { 
   validatePhone, 
   validateEmail, 
@@ -34,7 +34,7 @@ interface EmployeeModalProps {
 }
 
 export function EmployeeModal({ employee, children }: EmployeeModalProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
@@ -110,7 +110,7 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
 
       await apiFetch(url, {
         method,
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       });
 

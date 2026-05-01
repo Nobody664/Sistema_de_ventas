@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { 
   Settings, 
   User, 
@@ -62,7 +62,7 @@ type ProfileClientProps = {
 };
 
 export function ProfileClient({ initialSubscription, initialCompany, userName, userEmail }: ProfileClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(initialCompany);
   const [subscription, setSubscription] = useState<Subscription | null>(initialSubscription);

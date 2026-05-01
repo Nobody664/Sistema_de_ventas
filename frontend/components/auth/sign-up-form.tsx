@@ -2,7 +2,6 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
-import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -10,6 +9,8 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { validatePhone, validateTextOnly, formatPhone, PERU_VALIDATIONS } from '@/lib/validations';
+import { register as apiRegister } from '@/lib/api/auth';
+import { setTokens } from '@/lib/api/auth';
 
 const signUpSchema = z.object({
   fullName: z.string()
@@ -67,38 +68,14 @@ export function SignUpForm() {
     setError(null);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: values.fullName,
-          companyName: values.companyName,
-          email: values.email,
-          phone: values.phone || undefined,
-          password: values.password,
-          planCode: values.planCode,
-        }),
+      const response = await apiRegister({
+        email: values.email,
+        password: values.password,
+        fullName: values.fullName,
       });
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({ message: 'Error al registrar usuario' }));
-        throw new Error(data.message || 'Error al registrar usuario');
-      }
-
-      const result = await response.json();
-
-      if (result.accessToken) {
-        await signIn('credentials', {
-          email: values.email,
-          password: values.password,
-          redirect: false,
-          callbackUrl: '/dashboard',
-        });
-      } else {
-        throw new Error('No se recibio token de autenticacion');
-      }
-
-      window.location.href = '/dashboard';
+      setTokens(response.accessToken, response.refreshToken);
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar usuario');
     } finally {

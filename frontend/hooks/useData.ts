@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
-import { useSession } from 'next-auth/react';
+import { getAccessToken } from '@/lib/api/auth';
 import type { Product, Category, Customer, Employee, Sale } from '@/types/api';
 
 const QUERY_KEYS = {
@@ -14,46 +14,46 @@ const QUERY_KEYS = {
 } as const;
 
 export function useProducts() {
-  const { data: session } = useSession();
+  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.products,
-    queryFn: () => apiFetch<Product[]>('/products', { token: session?.accessToken }),
+    queryFn: () => apiFetch<Product[]>('/products', { token: token ?? undefined }),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useCategories() {
-  const { data: session } = useSession();
+  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.categories,
-    queryFn: () => apiFetch<Category[]>('/products/categories', { token: session?.accessToken }),
+    queryFn: () => apiFetch<Category[]>('/products/categories', { token: token ?? undefined }),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useCustomers() {
-  const { data: session } = useSession();
+  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.customers,
-    queryFn: () => apiFetch<Customer[]>('/customers', { token: session?.accessToken }),
+    queryFn: () => apiFetch<Customer[]>('/customers', { token: token ?? undefined }),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useEmployees() {
-  const { data: session } = useSession();
+  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.employees,
-    queryFn: () => apiFetch<Employee[]>('/employees', { token: session?.accessToken }),
+    queryFn: () => apiFetch<Employee[]>('/employees', { token: token ?? undefined }),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useSales() {
-  const { data: session } = useSession();
+  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.sales,
-    queryFn: () => apiFetch<Sale[]>('/sales', { token: session?.accessToken }),
+    queryFn: () => apiFetch<Sale[]>('/sales', { token: token ?? undefined }),
     staleTime: 5 * 60 * 1000,
   });
 }

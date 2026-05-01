@@ -2,13 +2,13 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
-import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/stores/auth.store';
 
 const signInSchema = z.object({
   email: z.string().email('Correo electrónico inválido'),
@@ -19,6 +19,7 @@ type SignInValues = z.infer<typeof signInSchema>;
 
 export function SignInForm() {
   const router = useRouter();
+  const login = useAuthStore((state) => state.login);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,20 +35,14 @@ export function SignInForm() {
     setIsSubmitting(true);
     setError(null);
 
-    const result = await signIn('credentials', {
-      ...values,
-      redirect: false,
-      callbackUrl: '/dashboard',
-    });
-
-    setIsSubmitting(false);
-
-    if (result?.error) {
-      setError('Credenciales incorrectas. Por favor intenta de nuevo.');
-      return;
+    try {
+      await login(values.email, values.password);
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Credenciales incorrectas');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.push(result?.url ?? '/dashboard');
   });
 
   return (

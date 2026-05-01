@@ -1,16 +1,17 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useNotificationsStore } from '@/store/notifications-store';
+import { useAuthStore } from '@/stores/auth.store';
+import { getAccessToken } from '@/lib/api';
 import { Bell, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function NotificationBell() {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
-  const accessToken = session?.accessToken;
+  const accessToken = user ? getAccessToken() : undefined;
   
   const { 
     unreadCount, 
@@ -22,9 +23,10 @@ export function NotificationBell() {
   } = useNotificationsStore();
 
   useEffect(() => {
-    if (accessToken) {
-      fetchUnreadCount(accessToken);
-      connectToStream(accessToken);
+    const token = getAccessToken();
+    if (token) {
+      fetchUnreadCount(token);
+      connectToStream(token);
     }
 
     return () => {
@@ -32,7 +34,7 @@ export function NotificationBell() {
     };
   }, [accessToken, fetchUnreadCount, connectToStream, disconnectFromStream]);
 
-  if (!session) {
+  if (!user) {
     return null;
   }
 

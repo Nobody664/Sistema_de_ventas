@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { ShoppingCart, DollarSign, CreditCard, Banknote, TrendingUp, Calendar, Download } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Product, Customer, Sale } from '@/types/api';
 
 interface SalesPageClientProps {
@@ -15,11 +15,11 @@ interface SalesPageClientProps {
 }
 
 export function SalesPageClient({ sales: initialSales, products, customers }: SalesPageClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
 
   const { data: salesData, isLoading } = useQuery({
     queryKey: ['sales'],
-    queryFn: () => apiFetch<Sale[]>('/sales', { token: session?.accessToken }),
+    queryFn: () => apiFetch<Sale[]>('/sales', { token: getAccessToken() }),
     initialData: initialSales,
     refetchInterval: 30000,
   });
@@ -55,7 +55,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
     try {
       const params = new URLSearchParams({ format });
       const response = await apiFetch<{ data: string; contentType: string; filename: string }>(`/sales/export?${params}`, {
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
 
       if (response?.data) {

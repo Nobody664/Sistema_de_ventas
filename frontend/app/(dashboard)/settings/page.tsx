@@ -1,5 +1,6 @@
-import { auth } from '@/auth';
+
 import { Card } from '@/components/ui/card';
+import { getServerSession } from '@/lib/session';
 import { Settings, Globe, Palette, Bell, Database, Key, Monitor, Moon, Sun, CreditCard, LucideIcon, Building2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,9 +20,9 @@ type SettingsSection = {
 };
 
 export default async function SettingsPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN');
+  const session = await getServerSession();
+  const roles: string[] = session?.user?.roles || [];
+  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
 
   const settingsSections: SettingsSection[] = [
     {

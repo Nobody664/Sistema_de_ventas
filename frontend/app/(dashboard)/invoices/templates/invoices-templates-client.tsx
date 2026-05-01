@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -13,8 +12,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface InvoiceTemplate {
   id: string;
@@ -85,20 +85,20 @@ const templatePresets = [
 ];
 
 export function InvoicesTemplatesClient({ templates: initialTemplates, companies: initialCompanies }: InvoicesTemplatesClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const queryClient = useQueryClient();
   const addToast = useUiStore((state) => state.addToast);
 
   const { data: templates } = useQuery({
     queryKey: ['invoice-templates'],
-    queryFn: () => apiFetch<InvoiceTemplate[]>('/invoices/templates', { token: session?.accessToken }),
+    queryFn: () => apiFetch<InvoiceTemplate[]>('/invoices/templates', { token: getAccessToken() }),
     initialData: initialTemplates,
   });
 
   const { data: companies } = useQuery({
     queryKey: ['companies'],
-    queryFn: () => apiFetch<Array<{ id: string; name: string; taxId: string | null; address: string | null; phone: string | null }>>('/companies', { token: session?.accessToken }),
+    queryFn: () => apiFetch<Array<{ id: string; name: string; taxId: string | null; address: string | null; phone: string | null }>>('/companies', { token: getAccessToken() }),
     initialData: initialCompanies,
   });
 
@@ -106,7 +106,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
     mutationFn: (id: string) =>
       apiFetch(`/invoices/templates/${id}`, {
         method: 'DELETE',
-        token: session?.accessToken,
+        token: getAccessToken(),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoice-templates'] });

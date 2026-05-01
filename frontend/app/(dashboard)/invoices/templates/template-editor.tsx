@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -12,8 +11,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface InvoiceTemplate {
   id: string;
@@ -86,7 +86,7 @@ const sampleItems = [
 ];
 
 export function TemplateEditor({ template, preset }: TemplateEditorProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const queryClient = useQueryClient();
   const addToast = useUiStore((state) => state.addToast);
@@ -133,7 +133,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
     mutationFn: (data: Partial<InvoiceTemplate>) =>
       apiFetch<InvoiceTemplate>('/invoices/templates', {
         method: 'POST',
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
@@ -150,7 +150,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
     mutationFn: (data: Partial<InvoiceTemplate>) =>
       apiFetch<InvoiceTemplate>(`/invoices/templates/${template?.id}`, {
         method: 'PATCH',
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       }),
     onSuccess: () => {

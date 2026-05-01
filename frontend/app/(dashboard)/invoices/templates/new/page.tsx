@@ -1,5 +1,6 @@
-import { auth } from '@/auth';
+
 import { redirect } from 'next/navigation';
+import { getServerSession } from '@/lib/session';
 import { TemplateEditor } from '../template-editor';
 
 interface InvoiceTemplate {
@@ -37,15 +38,15 @@ interface NewTemplatePageProps {
 }
 
 export default async function NewTemplatePage({ searchParams }: NewTemplatePageProps) {
+  const session = await getServerSession();
   const { type } = await searchParams;
-  const session = await auth();
 
   if (!session?.user) {
     redirect('/sign-in');
   }
 
-  const roles = session.user.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN');
+  const roles: string[] = session?.user?.roles || [];
+  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
   
   if (!isSuperAdmin) {
     redirect('/dashboard');

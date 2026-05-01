@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { Bell, AlertTriangle, CheckCircle, Info, XCircle, Trash2, Eye, Search, CreditCard, Building2, Clock, Check, ArrowRight } from 'lucide-react';
 import type { Notification } from '@/types/api';
 
@@ -62,7 +62,7 @@ const notificationRoutes: Record<string, string> = {
 };
 
 export function NotificationsClient({ initialNotifications, unreadCount: initialUnreadCount, isAdmin }: NotificationsClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,7 +71,7 @@ export function NotificationsClient({ initialNotifications, unreadCount: initial
     queryKey: ['notifications'],
     queryFn: async () => {
       const data = await apiFetch<Notification[]>('/notifications', {
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
       return data || [];
     },
@@ -82,7 +82,7 @@ export function NotificationsClient({ initialNotifications, unreadCount: initial
     mutationFn: async (id: string) => {
       return apiFetch(`/notifications/${id}/read`, {
         method: 'PATCH',
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
     },
     onSuccess: () => {
@@ -94,7 +94,7 @@ export function NotificationsClient({ initialNotifications, unreadCount: initial
     mutationFn: async () => {
       return apiFetch('/notifications/read-all', {
         method: 'PATCH',
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
     },
     onSuccess: () => {

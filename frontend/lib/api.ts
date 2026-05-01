@@ -1,3 +1,9 @@
+import { clearTokens } from './api/auth';
+
+export { getAccessToken, getRefreshToken, setTokens, clearTokens, isAuthenticated } from './api/auth';
+export { login, register, logout, getMe, refreshToken } from './api/auth';
+export type { LoginRequest, RegisterRequest, AuthResponse, RefreshResponse } from './api/auth';
+
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api').replace(/\/$/, '');
 
 export async function apiFetch<T>(path: string, init?: RequestInit & { token?: string }): Promise<T> {
@@ -24,9 +30,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit & { token?: s
     
     if (response.status === 401 || response.status === 403) {
       if (typeof window !== 'undefined') {
-        const { signOut } = await import('next-auth/react');
-        const { error: errorData } = JSON.parse(errorText);
-        throw new Error(errorData?.message || (response.status === 401 ? 'Sesión expirada' : 'No tienes permisos para esta acción'));
+        clearTokens();
+        window.location.href = '/sign-in';
+        throw new Error('Sesión expirada');
       }
     }
 

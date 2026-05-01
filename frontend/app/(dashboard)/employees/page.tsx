@@ -1,6 +1,7 @@
-import { auth } from '@/auth';
+
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
+import { getServerSession } from '@/lib/session';
 import { Users, UserPlus, Shield, Mail, Phone, Calendar } from 'lucide-react';
 import { EmployeeActions, NewEmployeeButton } from '@/components/employees/employee-actions';
 import type { Employee } from '@/types/api';
@@ -14,7 +15,7 @@ const roleConfig: Record<string, { label: string; color: string; bg: string }> =
 };
 
 export default async function EmployeesPage() {
-  const session = await auth();
+  const session = await getServerSession();
   const accessToken = session?.accessToken;
 
   const employees = await serverApiFetch<Employee[]>('/employees', accessToken);

@@ -1,11 +1,11 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useAuthStore } from '@/stores/auth.store';
 import { ROLE_PERMISSIONS, type Permission } from '@/types/permissions';
 
 export function usePermissions() {
-  const { data: session } = useSession();
-  const roles = session?.user?.roles ?? [];
+  const user = useAuthStore((state) => state.user);
+  const roles = user?.roles ?? [];
 
   const hasPermission = (permission: Permission): boolean => {
     return roles.some((role) => ROLE_PERMISSIONS[role]?.includes(permission));

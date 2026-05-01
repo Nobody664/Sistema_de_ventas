@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { getServerSession } from '@/lib/session';
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 
 export default async function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const session = await auth();
+  const session = await getServerSession();
 
   if (!session?.user) {
     redirect('/sign-in');
@@ -17,7 +17,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
         <div className="flex min-w-0 flex-1 flex-col border-l border-foreground/10">
           <AppHeader
             companyId={session.user.companyId ?? null}
-            fullName={session.user.name ?? session.user.email ?? 'Usuario'}
+            fullName={session.user.fullName}
             roles={session.user.roles}
             email={session.user.email ?? ''}
           />

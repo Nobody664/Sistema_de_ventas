@@ -1,11 +1,11 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus, Check, X, Mail, Phone, Calendar, CreditCard } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { CompanyWithPlanModal } from '@/components/companies/company-with-plan-modal';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Company, Plan } from '@/types/api';
 
 interface SubscriptionsClientProps {
@@ -14,7 +14,7 @@ interface SubscriptionsClientProps {
 }
 
 export function SubscriptionsClient({ companies: initialCompanies, plans }: SubscriptionsClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
   const statusColors: Record<string, { bg: string; text: string; label: string }> = {
@@ -36,7 +36,7 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
     try {
       await apiFetch(`/companies/${companyId}/approve`, {
         method: 'POST',
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
       queryClient.invalidateQueries({ queryKey: ['companies'] });
     } catch (error) {
@@ -48,7 +48,7 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
     try {
       await apiFetch(`/companies/${companyId}/reject`, {
         method: 'POST',
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
       queryClient.invalidateQueries({ queryKey: ['companies'] });
     } catch (error) {

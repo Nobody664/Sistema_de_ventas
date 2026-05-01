@@ -1,7 +1,7 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { Card } from '@/components/ui/card';
+import { useAuthStore } from '@/stores/auth.store';
 import { RevenueChart } from '@/components/charts/revenue-chart';
 import { Building2, CreditCard, DollarSign, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Package, ShoppingCart, TrendingDown, Wallet, Receipt, Star } from 'lucide-react';
 
@@ -85,7 +85,7 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions, tenantMetrics, isSuperAdmin }: DashboardClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
 
   const stats = isSuperAdmin
     ? [

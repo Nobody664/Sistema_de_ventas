@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Loader2, Upload, Image as ImageIcon, X, Package, Barcode, Tag, DollarSign, Boxes, AlertTriangle } from 'lucide-react';
+import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, DollarSign, Boxes, AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,8 +14,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Category, Product } from '@/types/api';
 
 interface ProductModalProps {
@@ -26,7 +26,7 @@ interface ProductModalProps {
 }
 
 export function ProductModal({ product, categories, children }: ProductModalProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
@@ -84,7 +84,7 @@ export function ProductModal({ product, categories, children }: ProductModalProp
 
       await apiFetch(url, {
         method,
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       });
 

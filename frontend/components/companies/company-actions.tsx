@@ -1,11 +1,11 @@
 'use client';
 
 import { Edit, Trash2, Pause, Play } from 'lucide-react';
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth.store';
 import { CompanyModal } from '@/components/companies/company-modal';
 import { PermissionGuard } from '@/components/auth/permission-guard';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import type { Company } from '@/types/api';
 
 interface CompanyActionsProps {
@@ -13,7 +13,7 @@ interface CompanyActionsProps {
 }
 
 export function CompanyActions({ company }: CompanyActionsProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
   const handleToggleStatus = async () => {
@@ -21,7 +21,7 @@ export function CompanyActions({ company }: CompanyActionsProps) {
     try {
       await apiFetch(`/companies/${company.id}/status`, {
         method: 'PATCH',
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify({ status: newStatus }),
       });
       queryClient.invalidateQueries({ queryKey: ['companies'] });

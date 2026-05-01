@@ -3,12 +3,12 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
 import { Crown, Check, Loader2, Smartphone, Building2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface Plan {
   id: string;
@@ -52,7 +52,7 @@ const paymentMethods = [
 export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'select' | 'payment' | 'success'>('select');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -82,7 +82,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
   const fetchPaymentSettings = async () => {
     try {
       const data = await apiFetch<PaymentSettings[]>('/payments/settings', {
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
       setPaymentSettings(data || []);
     } catch (error) {
@@ -103,7 +103,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
     try {
       const data = await apiFetch<UpgradeResponse>('/subscriptions/upgrade-requests', {
         method: 'POST',
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify({
           newPlanCode: selectedPlan,
           paymentMethod: selectedPayment,
@@ -135,7 +135,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
     try {
       await apiFetch(`/subscriptions/upgrade-requests/${upgradeRequestId}/proof`, {
         method: 'POST',
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify({
           imageBase64: proofImage,
         }),

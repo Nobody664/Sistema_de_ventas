@@ -1,6 +1,8 @@
-import { auth } from '@/auth';
+
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
+import { getAccessToken } from '@/lib/api';
+import { getServerSession } from '@/lib/session';
 import { Activity, Filter, Search, Calendar, User, Building2, ShoppingCart, Package, Users, CreditCard, Settings } from 'lucide-react';
 
 type AuditLog = {
@@ -17,9 +19,9 @@ type AuditLog = {
 };
 
 export default async function AuditPage() {
-  const session = await auth();
+  const session = await getServerSession();
   const accessToken = session?.accessToken;
-  const roles = session?.user?.roles ?? [];
+  const roles: string[] = session?.user?.roles ?? [];
   const isAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
 
   if (!isAdmin) {

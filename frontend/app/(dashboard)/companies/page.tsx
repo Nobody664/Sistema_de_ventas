@@ -1,14 +1,15 @@
-import { auth } from '@/auth';
+
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
+import { getServerSession } from '@/lib/session';
 import { Building2, Search, Mail, Phone, Calendar, CheckCircle, AlertCircle, Pause } from 'lucide-react';
 import { CompanyActions, NewCompanyButton } from '@/components/companies/company-actions';
 import type { Company } from '@/types/api';
 
 export default async function CompaniesPage() {
-  const session = await auth();
+  const session = await getServerSession();
   const accessToken = session?.accessToken;
-  const roles = session?.user?.roles ?? [];
+  const roles: string[] = session?.user?.roles || [];
   const isAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
 
   if (!isAdmin) {

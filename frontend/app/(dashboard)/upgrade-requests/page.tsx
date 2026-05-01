@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Search, Check, X, Clock, Upload, Smartphone, Building2, CreditCard, DollarSign } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 
 interface CheckoutRequest {
   id: string;
@@ -69,7 +68,6 @@ const statusLabels: Record<string, string> = {
 
 export default function UpgradeRequestsPage() {
   const queryClient = useQueryClient();
-  const { data: session } = useSession();
   const [selectedRequest, setSelectedRequest] = useState<AllRequest | null>(null);
   const [showProofModal, setShowProofModal] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
@@ -79,7 +77,7 @@ export default function UpgradeRequestsPage() {
     queryKey: ['checkout-requests'],
     queryFn: async () => {
       const data = await apiFetch<CheckoutRequest[]>('/payments/checkout/requests/pending', {
-        token: session?.accessToken,
+        token: getAccessToken() ?? undefined,
       });
       return data || [];
     },
@@ -91,13 +89,13 @@ export default function UpgradeRequestsPage() {
       if (type === 'checkout') {
         return apiFetch(`/payments/checkout/requests/${requestId}/review`, {
           method: 'PATCH',
-          token: session?.accessToken,
+          token: getAccessToken() ?? undefined,
           body: JSON.stringify({ status: 'APPROVED', reviewNotes }),
         });
       } else {
         return apiFetch(`/subscriptions/upgrade-requests/${requestId}/review`, {
           method: 'POST',
-          token: session?.accessToken,
+          token: getAccessToken() ?? undefined,
           body: JSON.stringify({ status: 'APPROVED', reviewNotes }),
         });
       }
@@ -116,13 +114,13 @@ export default function UpgradeRequestsPage() {
       if (type === 'checkout') {
         return apiFetch(`/payments/checkout/requests/${requestId}/review`, {
           method: 'PATCH',
-          token: session?.accessToken,
+          token: getAccessToken() ?? undefined,
           body: JSON.stringify({ status: 'REJECTED', reviewNotes }),
         });
       } else {
         return apiFetch(`/subscriptions/upgrade-requests/${requestId}/review`, {
           method: 'POST',
-          token: session?.accessToken,
+          token: getAccessToken() ?? undefined,
           body: JSON.stringify({ status: 'REJECTED', reviewNotes }),
         });
       }

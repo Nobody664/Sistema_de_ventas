@@ -1,15 +1,15 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { apiFetch } from '@/lib/api';
 import { Plus, Edit, Trash2, Check, Crown, Zap, Rocket, Star, DollarSign, Users, Package, Building2, Loader2 } from 'lucide-react';
 import type { Plan } from '@/types/generated';
 
@@ -18,7 +18,7 @@ interface PlansClientProps {
 }
 
 export function PlansClient({ initialPlans }: PlansClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [plans, setPlans] = useState<Plan[]>(initialPlans);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -106,13 +106,13 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         await apiFetch(`/plans/${editingPlan.id}`, {
           method: 'PATCH',
           body: JSON.stringify(payload),
-          token: session?.accessToken,
+          token: getAccessToken(),
         });
       } else {
         await apiFetch('/plans', {
           method: 'POST',
           body: JSON.stringify(payload),
-          token: session?.accessToken,
+          token: getAccessToken(),
         });
       }
 
@@ -120,7 +120,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
       setIsDialogOpen(false);
       
       const updatedPlans = await apiFetch<Plan[]>('/plans', {
-        headers: { Authorization: `Bearer ${session?.accessToken}` }
+        token: getAccessToken(),
       });
       setPlans(updatedPlans || []);
     } catch (error) {
@@ -137,12 +137,12 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
     try {
       await apiFetch(`/plans/${planId}`, {
         method: 'DELETE',
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
       
       queryClient.invalidateQueries({ queryKey: ['plans'] });
       const updatedPlans = await apiFetch<Plan[]>('/plans', {
-        headers: { Authorization: `Bearer ${session?.accessToken}` }
+        token: getAccessToken(),
       });
       setPlans(updatedPlans || []);
     } catch (error) {
@@ -158,12 +158,12 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
       await apiFetch(`/plans/${plan.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ isActive: !plan.isActive }),
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
       
       queryClient.invalidateQueries({ queryKey: ['plans'] });
       const updatedPlans = await apiFetch<Plan[]>('/plans', {
-        headers: { Authorization: `Bearer ${session?.accessToken}` }
+        token: getAccessToken(),
       });
       setPlans(updatedPlans || []);
     } catch (error) {

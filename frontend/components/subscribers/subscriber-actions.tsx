@@ -11,8 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { apiFetch } from '@/lib/api';
-import { useSession } from 'next-auth/react';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import type { SubscriberWithCompany } from '@/types/api';
 
 interface SubscriberActionsProps {
@@ -22,7 +22,7 @@ interface SubscriberActionsProps {
 export function SubscriberActions({ subscriber }: SubscriberActionsProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleApprove = async () => {
@@ -30,7 +30,7 @@ export function SubscriberActions({ subscriber }: SubscriberActionsProps) {
     try {
       await apiFetch(`/subscriptions/subscribers/${subscriber.id}/approve`, {
         method: 'PATCH',
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
       queryClient.invalidateQueries({ queryKey: ['subscribers'] });
     } catch (error) {
@@ -45,7 +45,7 @@ export function SubscriberActions({ subscriber }: SubscriberActionsProps) {
     try {
       await apiFetch(`/subscriptions/subscribers/${subscriber.id}/reject`, {
         method: 'PATCH',
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
       queryClient.invalidateQueries({ queryKey: ['subscribers'] });
     } catch (error) {

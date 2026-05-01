@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,14 +29,14 @@ const paymentProviders = [
 ];
 
 export function PaymentSettingsManager() {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const [settings, setSettings] = useState<PaymentSettings[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const token = session?.accessToken as string | undefined;
+  const token = getAccessToken();
 
   useEffect(() => {
     if (token) {

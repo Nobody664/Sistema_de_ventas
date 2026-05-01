@@ -1,4 +1,5 @@
-import { auth } from '@/auth';
+
+import { getServerSession } from '@/lib/session';
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
 import { Bell, AlertTriangle, CheckCircle, Info, XCircle, Trash2, Eye, Search, CreditCard, Building2, Clock, Check } from 'lucide-react';
@@ -17,9 +18,9 @@ const typeConfig: Record<string, { icon: typeof Info; color: string; bg: string;
 };
 
 export default async function NotificationsPage() {
-  const session = await auth();
+  const session = await getServerSession();
   const accessToken = session?.accessToken;
-  const roles = session?.user?.roles ?? [];
+  const roles: string[] = session?.user?.roles || [];
   const isAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
 
   const notifications = await serverApiFetch<Notification[]>('/notifications', accessToken);
@@ -27,7 +28,7 @@ export default async function NotificationsPage() {
 
   const unreadCount = notificationsData.filter(n => !n.isRead).length;
 
-  if (!session) {
+  if (!session?.user) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <div className="text-center">

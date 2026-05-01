@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { Search, Loader2, Check, AlertCircle, User, X, FileText, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CustomerData {
   id?: string;
@@ -34,7 +34,7 @@ interface CustomerSearchProps {
 }
 
 export function CustomerSearch({ onSelect, showExisting = true, customers = [] }: CustomerSearchProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const [searchQuery, setSearchQuery] = useState('');
   const [documentType, setDocumentType] = useState<'DNI' | 'RUC'>('DNI');
   const [loading, setLoading] = useState(false);
@@ -76,7 +76,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
           telefono?: string;
           direccion?: string;
         }>(`/dni/${searchQuery}`, {
-          token: session?.accessToken,
+          token: getAccessToken(),
         });
 
         if (data) {
@@ -98,7 +98,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
           direccion?: string;
           estado?: string;
         }>(`/dni/ruc/${searchQuery}`, {
-          token: session?.accessToken,
+          token: getAccessToken(),
         });
 
         if (data) {
@@ -117,7 +117,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, documentType, session?.accessToken]);
+  }, [searchQuery, documentType]);
 
   const handleSelectCustomer = (customer: ApiCustomer) => {
     const customerData: CustomerData = {

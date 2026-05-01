@@ -1,11 +1,11 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { Check, CreditCard, Calendar, AlertCircle, Loader2, Crown, Zap, Rocket } from 'lucide-react';
 import type { Subscription, Plan } from '@/types/generated';
 
@@ -23,7 +23,7 @@ interface SubscriptionPageClientProps {
 }
 
 export function SubscriptionPageClient({ initialSubscription, initialPlans, pendingUpgrade }: SubscriptionPageClientProps) {
-  const { data: session, update } = useSession();
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(initialSubscription ?? null);

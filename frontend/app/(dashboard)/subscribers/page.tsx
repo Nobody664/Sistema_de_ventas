@@ -1,14 +1,15 @@
-import { auth } from '@/auth';
+
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
+import { getServerSession } from '@/lib/session';
 import { Users, Search, CheckCircle, XCircle, Clock, CreditCard, Crown, DollarSign } from 'lucide-react';
 import { SubscriberActions } from '@/components/subscribers/subscriber-actions';
 import type { SubscriberWithCompany } from '@/types/api';
 
 export default async function SubscribersPage() {
-  const session = await auth();
+  const session = await getServerSession();
   const accessToken = session?.accessToken;
-  const roles = session?.user?.roles ?? [];
+  const roles: string[] = session?.user?.roles || [];
   const isAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
 
   if (!isAdmin) {

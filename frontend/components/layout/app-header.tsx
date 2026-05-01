@@ -1,8 +1,8 @@
 'use client';
 
 import { LogOut, Settings, User, CreditCard, Users, UserCog, Package, ShoppingCart } from 'lucide-react';
-import { signOut } from 'next-auth/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { NotificationBell } from './notification-bell';
+import { clearTokens } from '@/lib/api/auth';
 
 type AppHeaderProps = {
   fullName: string;
@@ -22,6 +23,7 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps) {
+  const router = useRouter();
   const initials = fullName
     .split(' ')
     .map((n) => n[0])
@@ -30,7 +32,8 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
     .slice(0, 2);
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: '/sign-in' });
+    clearTokens();
+    router.push('/sign-in');
   };
 
   const isCompanyAdmin = roles.includes('COMPANY_ADMIN') || roles.includes('MANAGER');

@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, DollarSign, Boxes, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { handleLimitError } from '@/lib/handle-limit-error';
 import { useUiStore } from '@/store/ui-store';
+import { useAuthStore } from '@/stores/auth.store';
 import { createProductSchema } from '@/lib/validations/product.validation';
 import type { Category, Product } from '@/types/api';
 import { z } from 'zod';
@@ -23,7 +23,7 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ product, categories }: ProductFormProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
@@ -99,7 +99,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
       await apiFetch(url, {
         method,
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       });
 

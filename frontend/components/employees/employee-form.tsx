@@ -1,16 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Loader2, User, Mail, Phone, FileText, AlertTriangle, ArrowLeft, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { handleLimitError } from '@/lib/handle-limit-error';
 import { useUiStore } from '@/store/ui-store';
+import { useAuthStore } from '@/stores/auth.store';
 import { createEmployeeSchema } from '@/lib/validations/employee.validation';
 import type { Employee } from '@/types/api';
 
@@ -19,7 +19,7 @@ interface EmployeeFormProps {
 }
 
 export function EmployeeForm({ employee }: EmployeeFormProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
@@ -68,7 +68,7 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
 
       await apiFetch(url, {
         method,
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       });
 

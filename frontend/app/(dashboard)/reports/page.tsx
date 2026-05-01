@@ -1,6 +1,7 @@
-import { auth } from '@/auth';
+
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
+import { getServerSession } from '@/lib/session';
 import { BarChart3, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 
 type ReportOverview = {
@@ -13,7 +14,7 @@ type ReportOverview = {
 };
 
 export default async function ReportsPage() {
-  const session = await auth();
+  const session = await getServerSession();
   const accessToken = session?.accessToken;
 
   const report = await serverApiFetch<ReportOverview>('/reports/overview', accessToken);

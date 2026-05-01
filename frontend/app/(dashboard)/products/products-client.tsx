@@ -5,8 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Package, AlertTriangle, TrendingUp, Search, Download } from 'lucide-react';
 import { ProductActions, NewProductButton } from '@/components/products/product-actions';
 import { ImageLightbox } from '@/components/products/image-lightbox';
-import { apiFetch } from '@/lib/api';
-import { useSession } from 'next-auth/react';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Product, Category } from '@/types/api';
 
 interface ProductsPageClientProps {
@@ -15,7 +15,7 @@ interface ProductsPageClientProps {
 }
 
 export function ProductsPageClient({ initialProducts, categories }: ProductsPageClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const [products] = useState(initialProducts);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -40,7 +40,7 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
       if (selectedCategory) params.append('categoryId', selectedCategory);
 
       const response = await apiFetch<{ data: string; contentType: string; filename: string }>(`/products/export?${params}`, {
-        token: session?.accessToken,
+        token: getAccessToken(),
       });
 
       if (response?.data) {

@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Minus, Trash2, ShoppingCart, Search, ArrowLeft, Banknote, CreditCard, Building2, Check, Printer, Receipt, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
+import { useAuthStore } from '@/stores/auth.store';
 import { CustomerSearch } from '@/components/ui/customer-search';
 import type { Product, Customer } from '@/types/api';
 
@@ -38,7 +38,7 @@ interface SaleFormProps {
 }
 
 export function SaleForm({ products, customers }: SaleFormProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
@@ -124,7 +124,7 @@ export function SaleForm({ products, customers }: SaleFormProps) {
     try {
       const result = await apiFetch<{ saleNumber: string }>('/sales', {
         method: 'POST',
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       });
 

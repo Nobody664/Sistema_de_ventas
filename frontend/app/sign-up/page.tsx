@@ -1,13 +1,10 @@
-import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { Suspense } from 'react';
 import { SignUpPageClient } from './sign-up-client';
 
-export default async function SignUpPage() {
-  const session = await auth();
-
-  if (session?.user) {
-    redirect('/dashboard');
-  }
-
-  return <SignUpPageClient />;
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="size-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" /></div>}>
+      <SignUpPageClient />
+    </Suspense>
+  );
 }

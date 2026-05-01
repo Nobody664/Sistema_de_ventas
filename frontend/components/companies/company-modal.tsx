@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Company } from '@/types/api';
 
 interface CompanyModalProps {
@@ -25,7 +25,7 @@ interface CompanyModalProps {
 }
 
 export function CompanyModal({ company, children }: CompanyModalProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,7 +64,7 @@ export function CompanyModal({ company, children }: CompanyModalProps) {
 
       await apiFetch(url, {
         method,
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       });
 

@@ -1,13 +1,13 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Check, Loader2, Smartphone, Building2, Upload, Home, ArrowLeft, CreditCard, Lock } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 const plans = {
   FREE: { name: 'Free', price: 0, priceYearly: 0 },
@@ -34,8 +34,11 @@ const paymentMethods = [
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const user = useAuthStore((state) => state.user);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const accessToken = getAccessToken();
   
+  const isAuthenticated = !!user?.companyId;
   const planCode = searchParams.get('plan') || 'START';
   const isUpgrade = searchParams.get('upgrade') === 'true';
   const plan = plans[planCode as keyof typeof plans] || plans.START;
@@ -52,14 +55,11 @@ function CheckoutContent() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isAuthenticated = !!session?.user?.companyId;
-  const accessToken = session?.accessToken;
-
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (!isAuthenticated && !isLoading) {
       router.push('/sign-in?callbackUrl=/checkout?plan=' + planCode + '&upgrade=true');
     }
-  }, [status, router, planCode]);
+  }, [isAuthenticated, isLoading, router, planCode]);
 
   useEffect(() => {
     fetchPaymentSettings();
@@ -112,13 +112,13 @@ function CheckoutContent() {
     setError(null);
 
     try {
-      const response = await apiFetch<{ requestId: string; status: string }>('/payments/checkout/requests', {
+      const response =       await apiFetch<{ requestId: string; status: string }>('/payments/checkout/requests', {
         method: 'POST',
         token: accessToken,
         body: JSON.stringify({
           planCode,
           paymentMethod: selectedPayment,
-          companyId: session?.user?.companyId,
+          companyId: user?.companyId,
         }),
       });
 
@@ -138,7 +138,7 @@ function CheckoutContent() {
     }
   };
 
-  if (status === 'loading') {
+  if (isLoading) {
     return (
       <main className="container flex h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-foreground/40" />
@@ -349,7 +349,7 @@ function CheckoutContent() {
                 <Check className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="font-medium text-green-800">Cuenta verificada</p>
-                  <p className="text-sm text-green-600">Plan actual: {session?.user?.planCode || 'Trial'}</p>
+                  <p className="text-sm text-green-600">Plan actual: {user?.planCode || 'Trial'}</p>
                 </div>
               </div>
             </div>
