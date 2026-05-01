@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
+import nodemailer from 'nodemailer';
 
 export interface SendEmailJob {
   to: string;
@@ -111,13 +110,21 @@ Equipo Ventas SaaS
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+  private readonly transporter;
   private readonly fromEmail: string;
 
-  constructor(
-    @InjectQueue('email') private readonly emailQueue: Queue,
-    private readonly configService: ConfigService,
-  ) {
-    this.fromEmail = this.configService.get<string >('EMAIL_FROM') || 'noreply@ventassaas.com';
+  constructor(private readonly configService: ConfigService) {
+    this.fromEmail = this.configService.get<string>('SMTP_FROM_EMAIL') || 'noreply@ventassaas.com';
+    
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get<string>('SMTP_HOST') || 'smtp.gmail.com',
+      port: parseInt(this.configService.get<string>('SMTP_PORT') || '587', 10),
+      secure: this.configService.get<boolean>('SMTP_USE_TLS') ?? true,
+      auth: {
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASSWORD'),
+      },
+    });
   }
 
   async sendEmail(job: SendEmailJob): Promise<void> {
@@ -131,9 +138,10 @@ export class EmailService {
     const text = this.interpolateTemplate(template.text, job.data);
     const subject = this.interpolateTemplate(template.subject, job.data);
 
-    await this.emailQueue.add('send-email', {
-      to: job.to,
+    // Direct send (no queue)
+    await this.transporter.sendMail({
       from: this.fromEmail,
+      to: job.to,
       subject,
       text,
     });

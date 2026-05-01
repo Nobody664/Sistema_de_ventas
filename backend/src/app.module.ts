@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
-import { BullModule } from '@nestjs/bullmq';
+// import { BullModule } from '@nestjs/bullmq'; // production: enable with Redis
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 import { PrismaModule } from './database/prisma/prisma.module';
@@ -45,16 +45,10 @@ import { HealthModule } from './modules/health/health.module';
     CacheModule,
 
     // =========================
-    // BULL MQ (colas)
+    // BULL MQ ( solo si REDIS_URL configurado - production only)
     // =========================
-    BullModule.forRootAsync({
-      useFactory: () => ({
-        connection: {
-          host: 'localhost',
-          port: 6379,
-        },
-      }),
-    }),
+    // BullModule.forRootAsync({...}), // requires Redis for queues
+    // In production: descomenta y usa REDIS_URL
 
     // =========================
     // THROTTLER (rate limiting)
