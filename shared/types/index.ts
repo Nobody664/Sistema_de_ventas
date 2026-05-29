@@ -1,17 +1,34 @@
-import { Product, Customer, Sale, User, Company, Subscription, Plan, Category, Employee, Membership, Notification, Payment, InventoryMovement, InvoiceTemplate, PaymentSetting } from '@prisma/client';
+export type AuthTokens = {
+  accessToken: string;
+  refreshToken: string;
+};
 
-export type ProductDTO = Product;
-export type CustomerDTO = Customer;
-export type SaleDTO = Sale;
-export type UserDTO = User;
-export type CompanyDTO = Company;
-export type SubscriptionDTO = Subscription;
-export type PlanDTO = Plan;
-export type CategoryDTO = Category;
-export type EmployeeDTO = Employee;
-export type MembershipDTO = Membership;
-export type NotificationDTO = Notification;
-export type PaymentDTO = Payment;
-export type InventoryMovementDTO = InventoryMovement;
-export type InvoiceTemplateDTO = InvoiceTemplate;
-export type PaymentSettingDTO = PaymentSetting;
+export type PaginatedResponse<T> = {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export type ApiError = {
+  statusCode: number;
+  message: string;
+  error?: string;
+};
+
+export type ApiResponse<T> = {
+  data: T;
+  message?: string;
+};
+
+export type SortDirection = 'asc' | 'desc';
+
+export type PaginationParams = {
+  page?: number;
+  limit?: number;
+  sort?: string;
+  order?: SortDirection;
+};

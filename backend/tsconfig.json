@@ -8,7 +8,7 @@
     "rootDir": "./src",
     "outDir": "./dist",
 
-    "baseUrl": ".",               // ✅ NECESARIO
+    "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     },
@@ -20,10 +20,11 @@
     "emitDecoratorMetadata": true,
 
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
 
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
 
     "skipLibCheck": true,
     "incremental": false
