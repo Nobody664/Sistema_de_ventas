@@ -9,7 +9,7 @@ import type { Customer } from '@/types/api';
 export function CustomerActions({ customer }: { customer: Customer }) {
   return (
     <div className="flex items-center gap-2">
-      <PermissionGuard permission="customers:update">
+      <PermissionGuard permission="customer:update">
         <Link
           href={`/customers/${customer.id}/edit`}
           className="rounded-lg p-2 hover:bg-foreground/5"
@@ -17,7 +17,7 @@ export function CustomerActions({ customer }: { customer: Customer }) {
           <Edit className="size-4 text-foreground/50" />
         </Link>
       </PermissionGuard>
-      <PermissionGuard permission="customers:delete" fallback={null}>
+      <PermissionGuard permission="customer:delete" fallback={null}>
         <DeleteDialog id={customer.id} entity="customer" />
       </PermissionGuard>
     </div>
@@ -26,7 +26,7 @@ export function CustomerActions({ customer }: { customer: Customer }) {
 
 export function NewCustomerButton() {
   return (
-    <PermissionGuard permission="customers:create">
+    <PermissionGuard permission="customer:create">
       <Link
         href="/customers/new"
         className="rounded-2xl bg-white px-6 py-3 text-sm font-medium text-cyan-600 transition hover:bg-white/90"

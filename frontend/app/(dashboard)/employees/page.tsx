@@ -11,7 +11,7 @@ const roleConfig: Record<string, { label: string; color: string; bg: string }> =
   COMPANY_ADMIN: { label: 'Admin', color: 'text-violet-700', bg: 'bg-violet-50' },
   MANAGER: { label: 'Gerente', color: 'text-blue-700', bg: 'bg-blue-50' },
   CASHIER: { label: 'Cajero', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-  STAFF: { label: 'Personal', color: 'text-amber-700', bg: 'bg-amber-50' },
+  VIEWER: { label: 'Visor', color: 'text-amber-700', bg: 'bg-amber-50' },
 };
 
 export default async function EmployeesPage() {
@@ -83,7 +83,7 @@ export default async function EmployeesPage() {
         <div className="grid gap-4 md:grid-cols-2 max-h-[600px] overflow-auto">
           {(employees?.length ?? 0) > 0 ? (
             employees?.map((employee, index) => {
-              const role = roleConfig[employee.role] || roleConfig.STAFF;
+              const role = roleConfig[employee.role] || roleConfig.VIEWER;
               return (
                 <div
                   key={employee.id}

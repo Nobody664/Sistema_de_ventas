@@ -1,115 +1,197 @@
 export type Permission =
-  | 'products:read'
-  | 'products:create'
-  | 'products:update'
-  | 'products:delete'
-  | 'categories:read'
-  | 'categories:create'
-  | 'categories:update'
-  | 'categories:delete'
-  | 'customers:read'
-  | 'customers:create'
-  | 'customers:update'
-  | 'customers:delete'
-  | 'employees:read'
-  | 'employees:create'
-  | 'employees:update'
-  | 'employees:delete'
-  | 'companies:read'
-  | 'companies:create'
-  | 'companies:update'
-  | 'companies:delete'
-  | 'sales:read'
-  | 'sales:create'
-  | 'sales:delete'
-  | 'reports:read'
-  | 'reports:export'
-  | 'dashboard:read'
+  | 'product:list'
+  | 'product:create'
+  | 'product:update'
+  | 'product:delete'
+  | 'product:export'
+  | 'product:view_low_stock'
+  | 'category:list'
+  | 'category:create'
+  | 'category:update'
+  | 'category:delete'
+  | 'customer:list'
+  | 'customer:create'
+  | 'customer:update'
+  | 'customer:delete'
+  | 'employee:list'
+  | 'employee:create'
+  | 'employee:update'
+  | 'employee:delete'
+  | 'sale:list'
+  | 'sale:create'
+  | 'sale:view_detail'
+  | 'sale:cancel'
+  | 'sale:export'
+  | 'inventory:view'
+  | 'inventory:inbound'
+  | 'inventory:outbound'
+  | 'inventory:adjust'
+  | 'cash:open_close'
+  | 'cash:view_report'
+  | 'dashboard:view'
+  | 'report:sales'
+  | 'report:financial'
+  | 'company:view'
+  | 'company:update'
+  | 'company:manage_plans'
+  | 'company:view_audit'
+  | 'company:manage_all'
+  | 'subscription:view'
+  | 'subscription:manage'
+  | 'user:manage'
   | 'settings:read'
   | 'settings:update';
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: [
-    'products:read',
-    'products:create',
-    'products:update',
-    'products:delete',
-    'categories:read',
-    'categories:create',
-    'categories:update',
-    'categories:delete',
-    'customers:read',
-    'customers:create',
-    'customers:update',
-    'customers:delete',
-    'employees:read',
-    'employees:create',
-    'employees:update',
-    'employees:delete',
-    'companies:read',
-    'companies:create',
-    'companies:update',
-    'companies:delete',
-    'sales:read',
-    'sales:create',
-    'sales:delete',
-    'reports:read',
-    'reports:export',
-    'dashboard:read',
+    'product:list',
+    'product:create',
+    'product:update',
+    'product:delete',
+    'product:export',
+    'product:view_low_stock',
+    'category:list',
+    'category:create',
+    'category:update',
+    'category:delete',
+    'customer:list',
+    'customer:create',
+    'customer:update',
+    'customer:delete',
+    'employee:list',
+    'employee:create',
+    'employee:update',
+    'employee:delete',
+    'sale:list',
+    'sale:create',
+    'sale:view_detail',
+    'sale:cancel',
+    'sale:export',
+    'inventory:view',
+    'inventory:inbound',
+    'inventory:outbound',
+    'inventory:adjust',
+    'cash:open_close',
+    'cash:view_report',
+    'dashboard:view',
+    'report:sales',
+    'report:financial',
+    'company:view',
+    'company:update',
+    'company:manage_plans',
+    'company:view_audit',
+    'company:manage_all',
+    'subscription:view',
+    'subscription:manage',
+    'user:manage',
     'settings:read',
     'settings:update',
   ],
+
   COMPANY_ADMIN: [
-    'products:read',
-    'products:create',
-    'products:update',
-    'products:delete',
-    'categories:read',
-    'categories:create',
-    'categories:update',
-    'categories:delete',
-    'customers:read',
-    'customers:create',
-    'customers:update',
-    'customers:delete',
-    'employees:read',
-    'employees:create',
-    'employees:update',
-    'employees:delete',
-    'sales:read',
-    'sales:create',
-    'sales:delete',
-    'reports:read',
-    'reports:export',
-    'dashboard:read',
+    'product:list',
+    'product:create',
+    'product:update',
+    'product:delete',
+    'product:export',
+    'product:view_low_stock',
+    'category:list',
+    'category:create',
+    'category:update',
+    'category:delete',
+    'customer:list',
+    'customer:create',
+    'customer:update',
+    'customer:delete',
+    'employee:list',
+    'employee:create',
+    'employee:update',
+    'employee:delete',
+    'sale:list',
+    'sale:create',
+    'sale:view_detail',
+    'sale:cancel',
+    'sale:export',
+    'inventory:view',
+    'inventory:inbound',
+    'inventory:outbound',
+    'inventory:adjust',
+    'cash:open_close',
+    'cash:view_report',
+    'dashboard:view',
+    'report:sales',
+    'report:financial',
+    'company:view',
+    'company:update',
+    'subscription:view',
     'settings:read',
     'settings:update',
   ],
+
   MANAGER: [
-    'products:read',
-    'products:create',
-    'products:update',
-    'categories:read',
-    'categories:create',
-    'categories:update',
-    'customers:read',
-    'customers:create',
-    'customers:update',
-    'employees:read',
-    'employees:create',
-    'sales:read',
-    'sales:create',
-    'reports:read',
-    'dashboard:read',
+    'product:list',
+    'product:create',
+    'product:update',
+    'product:export',
+    'product:view_low_stock',
+    'category:list',
+    'category:create',
+    'category:update',
+    'customer:list',
+    'customer:create',
+    'customer:update',
+    'employee:list',
+    'employee:create',
+    'sale:list',
+    'sale:create',
+    'sale:view_detail',
+    'sale:cancel',
+    'sale:export',
+    'inventory:view',
+    'inventory:inbound',
+    'inventory:outbound',
+    'cash:open_close',
+    'cash:view_report',
+    'dashboard:view',
+    'report:sales',
+    'report:financial',
+    'company:view',
+    'subscription:view',
+    'settings:read',
   ],
+
   CASHIER: [
-    'products:read',
-    'customers:read',
-    'customers:create',
-    'customers:update',
-    'sales:read',
-    'sales:create',
-    'dashboard:read',
+    'product:list',
+    'customer:list',
+    'customer:create',
+    'customer:update',
+    'sale:list',
+    'sale:create',
+    'sale:view_detail',
+    'cash:open_close',
+    'cash:view_report',
+    'dashboard:view',
+    'report:sales',
+    'company:view',
   ],
-  STAFF: ['products:read', 'dashboard:read'],
+
+  VIEWER: [
+    'product:list',
+    'category:list',
+    'customer:list',
+    'sale:list',
+    'sale:view_detail',
+    'dashboard:view',
+    'report:sales',
+    'company:view',
+    'subscription:view',
+  ],
+
+  SUPPORT_ADMIN: [
+    'company:view',
+    'company:manage_all',
+    'subscription:view',
+    'subscription:manage',
+    'user:manage',
+  ],
 };

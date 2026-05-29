@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Search, Check, X, Clock, Upload, Smartphone, Building2, CreditCard, DollarSign } from 'lucide-react';
 import { apiFetch, getAccessToken } from '@/lib/api';
+import { PageGuard } from '@/components/auth/page-guard';
 
 interface CheckoutRequest {
   id: string;
@@ -151,7 +152,8 @@ export default function UpgradeRequestsPage() {
   const requests = activeTab === 'checkout' ? checkoutRequests : [];
 
   return (
-    <div className="space-y-6">
+    <PageGuard requiredRoles={['SUPER_ADMIN', 'SUPPORT_ADMIN']}>
+      <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-4xl">Solicitudes de Upgrade</h1>
@@ -366,5 +368,6 @@ export default function UpgradeRequestsPage() {
         </div>
       )}
     </div>
+    </PageGuard>
   );
 }

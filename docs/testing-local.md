@@ -29,7 +29,7 @@ curl -X POST http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"superadmin@ventas-saas.local","password":"Admin123!"}'
 
-# Register
+# Register 
 curl -X POST http://localhost:4000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"new@test.com","password":"Test1234!","fullName":"New User"}'

@@ -196,13 +196,13 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
                 id="role"
                 name="role"
                 required
-                defaultValue={employee?.role || 'STAFF'}
+                defaultValue={employee?.role || 'VIEWER'}
                 className="flex h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
               >
                 <option value="COMPANY_ADMIN">Administrador</option>
                 <option value="MANAGER">Gerente</option>
                 <option value="CASHIER">Cajero</option>
-                <option value="STAFF">Personal</option>
+                <option value="VIEWER">Visor</option>
               </select>
             </div>
             {isEdit && (

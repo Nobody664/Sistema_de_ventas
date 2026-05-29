@@ -32,14 +32,14 @@ export function CompanyActions({ company }: CompanyActionsProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <PermissionGuard permission="companies:update">
+      <PermissionGuard permission="company:update">
         <CompanyModal company={company}>
           <button className="rounded-lg p-2 hover:bg-foreground/5">
             <Edit className="size-4 text-foreground/50" />
           </button>
         </CompanyModal>
       </PermissionGuard>
-      <PermissionGuard permission="companies:delete" fallback={null}>
+      <PermissionGuard permission="company:manage_all" fallback={null}>
         <button
           onClick={handleToggleStatus}
           className="rounded-lg p-2 hover:bg-foreground/5"
@@ -58,7 +58,7 @@ export function CompanyActions({ company }: CompanyActionsProps) {
 
 export function NewCompanyButton() {
   return (
-    <PermissionGuard permission="companies:create">
+    <PermissionGuard permission="company:manage_all">
       <CompanyModal>
         <button className="flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-medium text-slate-900 transition hover:bg-white/90">
           <span className="text-lg">+</span>
