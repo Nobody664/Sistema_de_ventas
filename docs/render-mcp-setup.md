@@ -43,6 +43,37 @@ Abre `E:\Sistema_de_ventas\.cursor\mcp.json` y reemplaza `<YOUR_RENDER_API_KEY>`
 
 > **⚠️ Seguridad**: No commitees este archivo con tu API Key real. El archivo actual ya está en `.gitignore` (verifica). Si no, agrega `.cursor/` al `.gitignore`.
 
+## ⚠️ Nota: Bug conocido del MCP hosteado
+
+El MCP server hosteado de Render (`https://mcp.render.com/mcp`) tiene un bug conocido
+([issue #10](https://github.com/render-oss/render-mcp-server/issues/10))
+donde las API keys funcionan con la REST API pero el MCP devuelve "unauthorized".
+
+**Solución**: Usar el MCP server **local** en vez del hosteado.
+
+### Instalación local (Windows)
+
+1. Descarga el binario para Windows desde:
+   https://github.com/render-oss/render-mcp-server/releases/download/v0.3.0/render-mcp-server_0.3.0_windows_amd64.zip
+
+2. Extrae el contenido del zip en `C:\tools\render-mcp-server\`
+
+3. El `.cursor/mcp.json` ya está configurado para apuntar al ejecutable local:
+
+```json
+{
+  "mcpServers": {
+    "render": {
+      "command": "C:\\tools\\render-mcp-server\\render-mcp-server.exe",
+      "args": [],
+      "env": {
+        "RENDER_API_KEY": "<YOUR_API_KEY>"
+      }
+    }
+  }
+}
+```
+
 ## Paso 3: Verificar conexión
 
 Una vez configurado, abre OpenCode y prueba con estos comandos:
