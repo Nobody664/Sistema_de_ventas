@@ -45,7 +45,7 @@ export class SubscriptionLimitService {
       maxProducts: plan.maxProducts ?? 10,
       maxCustomers: (plan.maxProducts ?? 10) * 5,
       maxEmployees: plan.maxUsers ?? 1,
-      maxCategories: Math.floor((plan.maxProducts ?? 10) / 20),
+      maxCategories: Math.max(1, Math.floor((plan.maxProducts ?? 10) / 20)),
       features: (plan.features as string[]) ?? [],
     };
   }
@@ -153,7 +153,7 @@ export class SubscriptionLimitService {
       users: Math.round((counts.users / limits.maxUsers) * 100),
       customers: Math.round((counts.customers / limits.maxCustomers) * 100),
       employees: Math.round((counts.employees / limits.maxEmployees) * 100),
-      categories: Math.round((counts.categories / limits.maxCategories) * 100),
+      categories: Math.round((counts.categories / Math.max(1, limits.maxCategories)) * 100),
       sales: 0,
     };
 

@@ -6,6 +6,7 @@ export const envSchema = z.object({
   API_PREFIX: z.string().default('api'),
   APP_NAME: z.string().default('Ventas SaaS API'),
   DATABASE_URL: z.string().min(1),
+  DIRECT_URL: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().min(10),
   JWT_REFRESH_SECRET: z.string().min(10),
   JWT_ACCESS_TTL: z.string().default('15m'),
@@ -20,6 +21,13 @@ export const envSchema = z.object({
   MERCADOPAGO_ACCESS_TOKEN: z.string().default(''),
   PAYPAL_CLIENT_ID: z.string().default(''),
   PAYPAL_CLIENT_SECRET: z.string().default(''),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM_EMAIL: z.string().email().optional(),
+  SMTP_FROM_NAME: z.string().optional(),
+  SMTP_ENABLED: z.string().default('false'),
 });
 
 export type Env = z.infer<typeof envSchema>;

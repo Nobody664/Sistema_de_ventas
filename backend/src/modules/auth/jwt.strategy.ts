@@ -20,13 +20,6 @@ const extractJwtFromCookie = (req: Request): string | null => {
   return null;
 };
 
-const extractJwtFromQuery = (req: Request): string | null => {
-  if (req.query?.token && typeof req.query.token === 'string') {
-    return req.query.token;
-  }
-  return null;
-};
-
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -37,10 +30,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: (req: Request) => {
         const fromCookie = extractJwtFromCookie(req);
         if (fromCookie) return fromCookie;
-        
-        const fromQuery = extractJwtFromQuery(req);
-        if (fromQuery) return fromQuery;
-        
+
         return ExtractJwt.fromAuthHeaderAsBearerToken()(req);
       },
       ignoreExpiration: false,
@@ -55,13 +45,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         where: { id: payload.companyId },
         select: { status: true },
       });
-      
+
       return {
         ...payload,
         companyStatus: company?.status,
       };
     }
-    
+
     return payload;
   }
 }

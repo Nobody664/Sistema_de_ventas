@@ -3,7 +3,7 @@ services:
     name: sistema-de-ventas-backend
     rootDir: backend
     region: oregon
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
     startCommand: bash start.sh
     envVars:
       - key: NODE_ENV

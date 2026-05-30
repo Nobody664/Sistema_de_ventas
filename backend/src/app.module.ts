@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
-// import { BullModule } from '@nestjs/bullmq'; // production: enable with Redis
+import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 import { PrismaModule } from './database/prisma/prisma.module';
 import { CacheModule } from './cache/cache.module';
 import { validateEnv } from './config/env';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 // modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -29,7 +31,6 @@ import { EmailModule } from './modules/email/email.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { DniModule } from './modules/dni/dni.module';
 import { HealthModule } from './modules/health/health.module';
-import { DebugModule } from './modules/debug/debug.module';
 
 @Module({
   imports: [
@@ -46,10 +47,15 @@ import { DebugModule } from './modules/debug/debug.module';
     CacheModule,
 
     // =========================
-    // BULL MQ ( solo si REDIS_URL configurado - production only)
+    // BULL MQ (optional - requires REDIS_URL)
     // =========================
-    // BullModule.forRootAsync({...}), // requires Redis for queues
-    // In production: descomenta y usa REDIS_URL
+    ...(process.env.REDIS_URL
+      ? [
+          BullModule.forRoot({
+            connection: { url: process.env.REDIS_URL },
+          }),
+        ]
+      : []),
 
     // =========================
     // THROTTLER (rate limiting)
@@ -88,12 +94,19 @@ import { DebugModule } from './modules/debug/debug.module';
     InvoicesModule,
     DniModule,
     HealthModule,
-    DebugModule,
   ],
   providers: [
     {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+    {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })
