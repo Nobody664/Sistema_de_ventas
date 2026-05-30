@@ -24,7 +24,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps) {
   const router = useRouter();
-  const initials = fullName
+  const initials = (fullName ?? '')
     .split(' ')
     .map((n) => n[0])
     .join('')
@@ -55,7 +55,7 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-foreground/68">{fullName}</span>
+                <span className="text-foreground/68">{fullName || 'Usuario'}</span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 rounded-2xl border-foreground/10 p-2">

@@ -8,6 +8,7 @@ import { PrismaService } from '@/database/prisma/prisma.service';
 type JwtPayload = {
   sub: string;
   email: string;
+  fullName: string;
   companyId?: string | null;
   roles: string[];
   companyStatus?: string;

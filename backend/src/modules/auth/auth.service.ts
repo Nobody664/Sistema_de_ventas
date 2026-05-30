@@ -137,6 +137,7 @@ export class AuthService {
       const payload = await this.jwtService.verifyAsync<{
         sub: string;
         email: string;
+        fullName: string;
         companyId?: string | null;
         roles: string[];
       }>(refreshToken, {
@@ -193,6 +194,7 @@ export class AuthService {
       {
         sub: input.sub,
         email: input.email,
+        fullName: input.fullName,
         companyId: input.companyId,
         roles: input.roles,
         companyStatus,
@@ -207,6 +209,7 @@ export class AuthService {
       {
         sub: input.sub,
         email: input.email,
+        fullName: input.fullName,
         companyId: input.companyId,
         roles: input.roles,
         companyStatus,
