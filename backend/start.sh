@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 echo "=== Running Prisma db push ==="
 npx prisma db push --skip-generate \
@@ -7,15 +6,20 @@ npx prisma db push --skip-generate \
   || echo "⚠️ Database push failed (non-fatal, continuing...)"
 echo ""
 
+echo "=== Checking build output ==="
+if [ ! -f dist/main.js ]; then
+  echo "❌ dist/main.js not found! Build may have failed."
+  echo "Contents of dist/:"
+  ls -la dist/ 2>/dev/null || echo "(dist/ does not exist)"
+  exit 1
+fi
+echo "✅ dist/main.js found"
+echo ""
+
 echo "=== Starting application ==="
 echo "Node version: $(node -v)"
 echo "NODE_ENV: ${NODE_ENV:-not set}"
 echo "PORT: ${PORT:-not set}"
-echo "DATABASE_URL: ${DATABASE_URL:+set (${#DATABASE_URL} chars)}"
-echo "DIRECT_URL: ${DIRECT_URL:+set (${#DIRECT_URL} chars)}"
-echo "JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:+set (${#JWT_ACCESS_SECRET} chars)}"
-echo "REDIS_URL: ${REDIS_URL:+set (${#REDIS_URL} chars)}"
-echo "SMTP_ENABLED: ${SMTP_ENABLED:-not set}"
 echo ""
 
 node dist/main.js

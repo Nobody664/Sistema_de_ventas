@@ -15,7 +15,7 @@ services:
       - key: DATABASE_URL
         value: postgresql://postgres.kvokpmfbufnuqhrubsuh:3OCllZ8hdtBME99A@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require
       - key: DIRECT_URL
-        value: postgresql://postgres.kvokpmfbufnuqhrubsuh:3OCllZ8hdtBME99A@aws-1-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=require
+        value: postgresql://postgres.kvokpmfbufnuqhrubsuh:3OCllZ8hdtBME99A@db.kvokpmfbufnuqhrubsuh.supabase.co:5432/postgres?sslmode=require
       - key: JWT_ACCESS_SECRET
         value: 1037025e8c19352d69bb857d837ace54
       - key: JWT_REFRESH_SECRET

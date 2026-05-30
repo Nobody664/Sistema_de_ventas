@@ -2,8 +2,7 @@
 set -e
 
 echo "=== Installing dependencies (including devDependencies) ==="
-npm config set include=dev
-npm ci
+npm ci --include=dev
 
 echo "=== Generating Prisma client ==="
 npx prisma generate

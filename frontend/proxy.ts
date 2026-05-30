@@ -70,7 +70,7 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/auth/me`, {
+    const response = await fetch(`${BACKEND_URL}/auth/me`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
