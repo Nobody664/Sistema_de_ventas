@@ -14,6 +14,7 @@ frontend/.next/
 .agents/
 .claude
 .cortex
+.cursor/
 skills/
 
 nul
