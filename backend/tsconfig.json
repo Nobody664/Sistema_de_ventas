@@ -2,15 +2,14 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "lib": ["ES2022"],
 
     "rootDir": "./src",
     "outDir": "./dist",
 
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
     "sourceMap": true,
@@ -25,6 +24,8 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
+
+    "types": ["node"],
 
     "skipLibCheck": true,
     "incremental": false
