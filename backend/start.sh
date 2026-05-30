@@ -1,9 +1,9 @@
 #!/bin/bash
 
-echo "=== Running Prisma db push ==="
-npx prisma db push --skip-generate \
+echo "=== Running Prisma db push (with 30s timeout) ==="
+timeout 30 npx prisma db push --skip-generate \
   && echo "✅ Database schema synced" \
-  || echo "⚠️ Database push failed (non-fatal, continuing...)"
+  || echo "⚠️ Database push failed or timed out (non-fatal, continuing...)"
 echo ""
 
 echo "=== Checking build output ==="
@@ -22,4 +22,5 @@ echo "NODE_ENV: ${NODE_ENV:-not set}"
 echo "PORT: ${PORT:-not set}"
 echo ""
 
-node dist/main.js
+echo "Starting node dist/main.js..."
+exec node dist/main.js
