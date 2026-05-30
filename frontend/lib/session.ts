@@ -21,7 +21,7 @@ export interface ServerSession {
 
 export async function getServerSession(): Promise<ServerSession | null> {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get('access_token')?.value;
+  const accessToken = cookieStore.get('accessToken')?.value;
   
   if (!accessToken) {
     return null;
@@ -43,7 +43,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
     return {
       user,
       accessToken,
-      refreshToken: cookieStore.get('refresh_token')?.value,
+      refreshToken: cookieStore.get('refreshToken')?.value,
     };
   } catch {
     return null;

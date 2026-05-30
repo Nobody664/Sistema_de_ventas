@@ -7,7 +7,8 @@ const PUBLIC_PATHS = [
   '/sign-up',
   '/pricing',
   '/api/health',
-  '/api/docs',
+  '/api/auth/register',
+  '/api/auth/login',
 ];
 
 const PROTECTED_PATTERNS = [
@@ -32,7 +33,7 @@ const PROTECTED_PATTERNS = [
   '/upgrade-requests',
 ];
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:4000';
 
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PATTERNS.some((pattern) => pathname.startsWith(pattern));
@@ -61,7 +62,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const accessToken = request.cookies.get('access_token')?.value;
+  const accessToken = request.cookies.get('accessToken')?.value;
 
   if (!accessToken) {
     const signInUrl = new URL('/sign-in', request.url);
@@ -70,7 +71,7 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/auth/me`, {
+    const response = await fetch(`${BACKEND_URL}/api/auth/me`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },

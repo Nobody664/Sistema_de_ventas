@@ -119,6 +119,8 @@ export function setTokens(accessToken: string, refreshToken: string): void {
   if (typeof window !== 'undefined') {
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
+    document.cookie = `accessToken=${accessToken}; path=/; max-age=900; SameSite=Lax`;
+    document.cookie = `refreshToken=${refreshToken}; path=/; max-age=604800; SameSite=Lax`;
   }
 }
 
@@ -136,6 +138,8 @@ export function clearTokens(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    document.cookie = 'accessToken=; path=/; max-age=0';
+    document.cookie = 'refreshToken=; path=/; max-age=0';
   }
 }
 
