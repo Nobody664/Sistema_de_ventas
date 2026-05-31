@@ -55,6 +55,7 @@ enum PaymentProvider {
 
 enum GlobalRole {
   SUPER_ADMIN
+  SUPPORT_ADMIN
   ADMIN
   USER
 }

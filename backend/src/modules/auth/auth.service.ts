@@ -121,11 +121,15 @@ export class AuthService {
       }
     }
 
+    const roles = membership
+      ? [user.globalRole, membership.role]
+      : [user.globalRole];
+
     return this.createSession({
       sub: user.id,
       email: user.email,
       companyId: membership?.companyId ?? null,
-      roles: membership ? [membership.role] : [user.globalRole],
+      roles,
       fullName: user.fullName,
       planCode,
       subscriptionStatus,

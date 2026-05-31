@@ -43,7 +43,7 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
       email: formData.get('email') as string,
       phone: (formData.get('phone') as string) || undefined,
       dni: formData.get('dni') as string,
-      role: (formData.get('role') as 'MANAGER' | 'CASHIER' | 'SUPPORT') || 'CASHIER',
+      role: (formData.get('role') as 'MANAGER' | 'CASHIER' | 'VIEWER') || 'CASHIER',
       isActive: formData.get('isActive') === 'on',
     };
 
