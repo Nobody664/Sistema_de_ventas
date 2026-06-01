@@ -72,6 +72,7 @@ export function SignUpForm() {
         email: values.email,
         password: values.password,
         fullName: values.fullName,
+        companyName: values.companyName,
       });
 
       setTokens(response.accessToken, response.refreshToken);
