@@ -76,16 +76,22 @@ type Subscription = {
 export default async function DashboardPage() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
-
-  const [globalMetrics, auditLogs, recentSubscriptions, tenantMetrics] = await Promise.all([
-    serverApiFetch<GlobalMetrics | null>('/dashboard/global', accessToken ?? undefined),
-    serverApiFetch<AuditLog[] | null>('/audit/global', accessToken ?? undefined),
-    serverApiFetch<Subscription[] | null>('/subscriptions/subscribers', accessToken ?? undefined),
-    serverApiFetch<TenantMetrics | null>('/dashboard/tenant', accessToken ?? undefined),
-  ]);
-
   const userRoles = session?.user?.roles ?? [];
   const isSuperAdmin = userRoles.includes('SUPER_ADMIN') || userRoles.includes('SUPPORT_ADMIN');
+
+  const fetches: Promise<unknown>[] = [
+    serverApiFetch<TenantMetrics | null>('/dashboard/tenant', accessToken ?? undefined),
+  ];
+
+  if (isSuperAdmin) {
+    fetches.push(
+      serverApiFetch<GlobalMetrics | null>('/dashboard/global', accessToken ?? undefined),
+      serverApiFetch<AuditLog[] | null>('/audit/global', accessToken ?? undefined),
+      serverApiFetch<Subscription[] | null>('/subscriptions/subscribers', accessToken ?? undefined),
+    );
+  }
+
+  const [tenantMetrics, globalMetrics, auditLogs, recentSubscriptions] = await Promise.all(fetches);
 
   return (
     <DashboardClient

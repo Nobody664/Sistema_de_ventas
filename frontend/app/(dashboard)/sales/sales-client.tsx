@@ -24,9 +24,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
     refetchInterval: 30000,
   });
 
-  console.log('SalesClient: salesData', salesData);
   const sales = salesData ?? initialSales;
-  console.log('SalesClient: sales', sales);
 
   const totalRevenue = sales.reduce((acc, s) => acc + Number(s.totalAmount), 0);
   const totalSalesCount = sales.length;

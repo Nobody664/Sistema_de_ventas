@@ -12,9 +12,8 @@ export class CreateEmployeeDto {
   @IsString()
   lastName?: string;
 
-  @IsOptional()
   @IsEmail()
-  email?: string;
+  email!: string;
 
   @IsOptional()
   @IsString()
@@ -24,6 +23,10 @@ export class CreateEmployeeDto {
   @IsString()
   @MinLength(8, { message: 'El DNI debe tener 8 dígitos' })
   dni?: string;
+
+  @IsString()
+  @MinLength(8)
+  password!: string;
 
   @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'])
   role!: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'VIEWER';

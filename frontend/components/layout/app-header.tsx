@@ -1,6 +1,7 @@
 'use client';
 
 import { LogOut, Settings, User, CreditCard, Users, UserCog, Package, ShoppingCart } from 'lucide-react';
+import { ThemeToggle } from './theme-toggle';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -46,6 +47,7 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
           <h1 className="font-display text-2xl">Multi-tenant operations</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <ThemeToggle />
           <NotificationBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

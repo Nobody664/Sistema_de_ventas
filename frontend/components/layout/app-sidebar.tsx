@@ -48,11 +48,11 @@ export function AppSidebar({ roles }: AppSidebarProps) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
   return (
-    <aside className="sticky top-0 hidden h-screen flex-col justify-between border-r border-white/10 bg-[#0d1520] px-4 py-6 lg:flex lg:w-64 shrink-0">
+    <aside className="sticky top-0 hidden h-screen flex-col justify-between border-r border-sidebar-muted/50 bg-sidebar px-4 py-6 lg:flex lg:w-64 shrink-0">
       <div className="flex min-h-0 flex-col gap-6 overflow-hidden">
-        <div className="rounded-2xl border border-white/5 bg-white/5 p-4 shrink-0">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-white/40">Ventas SaaS</p>
-          <p className="mt-2 font-display text-2xl text-white">Control</p>
+        <div className="rounded-2xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-sidebar-foreground/40">Ventas SaaS</p>
+          <p className="mt-2 font-display text-2xl text-sidebar-foreground">Control</p>
           <p className="mt-1 text-xs font-medium text-orange-400">Stack</p>
         </div>
 
@@ -67,7 +67,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                   active 
                     ? 'bg-orange-500/15 text-orange-400' 
-                    : 'text-white/60 hover:bg-white/5 hover:text-white'
+                    : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
                 }`}
               >
                 <Icon className={`size-4 ${active ? 'text-orange-400' : ''}`} />
@@ -79,7 +79,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
 
         {isCompanyAdmin && visibleCompanyItems.length > 0 && (
           <nav className="space-y-1 overflow-y-auto py-1">
-            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-white/30">Gestión</p>
+            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">Gestión</p>
             {visibleCompanyItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -90,7 +90,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
                   className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                     active 
                       ? 'bg-orange-500/15 text-orange-400' 
-                      : 'text-white/60 hover:bg-white/5 hover:text-white'
+                      : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
                   }`}
                 >
                   <Icon className={`size-4 ${active ? 'text-orange-400' : ''}`} />
@@ -103,7 +103,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
 
         {isSuperAdmin && visibleSuperAdminItems.length > 0 && (
           <nav className="space-y-1 overflow-y-auto py-1">
-            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-white/30">Plataforma</p>
+            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">Plataforma</p>
             {visibleSuperAdminItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -114,7 +114,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
                   className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                     active 
                       ? 'bg-orange-500/15 text-orange-400' 
-                      : 'text-white/60 hover:bg-white/5 hover:text-white'
+                      : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
                   }`}
                 >
                   <Icon className={`size-4 ${active ? 'text-orange-400' : ''}`} />
@@ -127,7 +127,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
 
         {isSuperAdmin && visibleAdminItems.length > 0 && (
           <nav className="space-y-1 overflow-y-auto py-1">
-            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-white/30">Sistema</p>
+            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">Sistema</p>
             {visibleAdminItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -138,7 +138,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
                   className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                     active 
                       ? 'bg-orange-500/15 text-orange-400' 
-                      : 'text-white/60 hover:bg-white/5 hover:text-white'
+                      : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
                   }`}
                 >
                   <Icon className={`size-4 ${active ? 'text-orange-400' : ''}`} />
@@ -150,9 +150,9 @@ export function AppSidebar({ roles }: AppSidebarProps) {
         )}
       </div>
 
-      <div className="rounded-xl border border-white/5 bg-white/5 p-4 shrink-0">
-        <p className="text-xs text-white/40">¿Necesitas ayuda?</p>
-        <p className="mt-1 text-sm text-white/60">Consulta la documentación</p>
+      <div className="rounded-xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
+        <p className="text-xs text-sidebar-foreground/40">¿Necesitas ayuda?</p>
+        <p className="mt-1 text-sm text-sidebar-foreground/60">Consulta la documentación</p>
       </div>
     </aside>
   );

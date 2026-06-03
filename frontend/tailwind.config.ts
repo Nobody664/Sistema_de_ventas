@@ -40,12 +40,17 @@ const config: Config = {
           DEFAULT: 'hsl(var(--muted))',
           foreground: 'hsl(var(--muted-foreground))',
         },
-        card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
-        },
+      card: {
+        DEFAULT: 'hsl(var(--card))',
+        foreground: 'hsl(var(--card-foreground))',
       },
-      borderRadius: {
+      sidebar: {
+        DEFAULT: 'hsl(var(--sidebar))',
+        foreground: 'hsl(var(--sidebar-foreground))',
+        muted: 'hsl(var(--sidebar-muted))',
+      },
+    },
+    borderRadius: {
         xl: '1.25rem',
         '2xl': '1.75rem',
         '3xl': '2rem',

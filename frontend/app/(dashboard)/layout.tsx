@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   }
 
   return (
-    <div className="min-h-screen bg-[#fbf6ef]">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <AppSidebar roles={session.user.roles} />
         <div className="flex min-w-0 flex-1 flex-col border-l border-foreground/10">

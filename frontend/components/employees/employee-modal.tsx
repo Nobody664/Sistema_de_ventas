@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +51,8 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
     const lastName = formData.get('lastName') as string;
     const email = formData.get('email') as string;
     const phone = formData.get('phone') as string;
+    const password = formData.get('password') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
 
     if (!firstName || firstName.trim().length < 2) {
       newErrors.firstName = 'El nombre debe tener al menos 2 caracteres';
@@ -62,12 +64,23 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
       newErrors.lastName = 'Solo se permiten letras';
     }
 
-    if (email && !validateEmail(email)) {
+    if (!email) {
+      newErrors.email = 'El correo es requerido';
+    } else if (!validateEmail(email)) {
       newErrors.email = PERU_VALIDATIONS.email.error;
     }
 
     if (phone && !validatePhone(phone)) {
       newErrors.phone = PERU_VALIDATIONS.phone.error;
+    }
+
+    if (!isEdit) {
+      if (!password || password.length < 8) {
+        newErrors.password = 'La contraseña debe tener al menos 8 caracteres';
+      }
+      if (password !== confirmPassword) {
+        newErrors.confirmPassword = 'Las contraseñas no coinciden';
+      }
     }
 
     setErrors(newErrors);
@@ -95,13 +108,15 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
     const data: Record<string, unknown> = {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName') || null,
-      email: formData.get('email') || null,
+      email: formData.get('email'),
       phone: formData.get('phone') || null,
       role: formData.get('role'),
     };
 
     if (isEdit) {
       data.isActive = formData.get('isActive') === 'on';
+    } else {
+      data.password = formData.get('password');
     }
 
     try {
@@ -205,6 +220,32 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
                 <option value="VIEWER">Visor</option>
               </select>
             </div>
+            {!isEdit && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Contraseña *</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    placeholder="Mínimo 8 caracteres"
+                  />
+                  {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar *</Label>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    required
+                    placeholder="Repite la contraseña"
+                  />
+                  {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
+                </div>
+              </div>
+            )}
             {isEdit && (
               <div className="flex items-center gap-2">
                 <input

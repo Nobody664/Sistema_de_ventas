@@ -83,7 +83,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     }
   },
 
-  connectToStream: (accessToken?: string) => {
+  connectToStream: () => {
     const { eventSource, isConnected } = get();
     
     if (eventSource || isConnected) {
@@ -91,10 +91,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-    const url = accessToken 
-      ? `${apiUrl}/notifications/stream?token=${encodeURIComponent(accessToken)}`
-      : `${apiUrl}/notifications/stream`;
-    const es = new EventSource(url, {
+    const es = new EventSource(`${apiUrl}/notifications/stream`, {
       withCredentials: true,
     });
 

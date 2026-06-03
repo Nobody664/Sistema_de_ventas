@@ -9,7 +9,7 @@ import { DashboardService } from './dashboard.service';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
-  @Roles('SUPER_ADMIN')
+  @Roles('SUPER_ADMIN', 'SUPPORT_ADMIN')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('global')
   globalMetrics() {

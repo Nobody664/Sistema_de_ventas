@@ -13,47 +13,49 @@ const QUERY_KEYS = {
   sales: ['sales'],
 } as const;
 
+function withToken<T>(path: string) {
+  return async (): Promise<T> => {
+    const token = getAccessToken();
+    return apiFetch<T>(path, { token: token ?? undefined });
+  };
+}
+
 export function useProducts() {
-  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.products,
-    queryFn: () => apiFetch<Product[]>('/products', { token: token ?? undefined }),
+    queryFn: withToken<Product[]>('/products'),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useCategories() {
-  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.categories,
-    queryFn: () => apiFetch<Category[]>('/products/categories', { token: token ?? undefined }),
+    queryFn: withToken<Category[]>('/products/categories'),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useCustomers() {
-  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.customers,
-    queryFn: () => apiFetch<Customer[]>('/customers', { token: token ?? undefined }),
+    queryFn: withToken<Customer[]>('/customers'),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useEmployees() {
-  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.employees,
-    queryFn: () => apiFetch<Employee[]>('/employees', { token: token ?? undefined }),
+    queryFn: withToken<Employee[]>('/employees'),
     staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useSales() {
-  const token = getAccessToken();
   return useQuery({
     queryKey: QUERY_KEYS.sales,
-    queryFn: () => apiFetch<Sale[]>('/sales', { token: token ?? undefined }),
+    queryFn: withToken<Sale[]>('/sales'),
     staleTime: 5 * 60 * 1000,
   });
 }
