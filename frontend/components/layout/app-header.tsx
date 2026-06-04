@@ -51,9 +51,9 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
           <NotificationBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 rounded-full border border-foreground/10 bg-white px-3 py-1.5 pr-4 text-sm transition hover:border-foreground/20 hover:bg-gray-50">
+              <button className="flex items-center gap-3 rounded-full border border-foreground/10 bg-card px-3 py-1.5 pr-4 text-sm transition hover:border-foreground/20 hover:bg-muted">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-medium">
+                  <AvatarFallback className="bg-primary/15 text-primary text-xs font-medium">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -69,13 +69,13 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="my-1" />
               
-              <Link href="/profile" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
+              <Link href="/profile" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
                 <User className="mr-2 h-4 w-4" />
                 <span>Perfil</span>
               </Link>
               
               {roles.includes('COMPANY_ADMIN') && (
-                <Link href="/subscription" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
+                <Link href="/subscription" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
                   <CreditCard className="mr-2 h-4 w-4" />
                   <span>Mi Plan</span>
                 </Link>
@@ -83,18 +83,18 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
               
               {isCompanyAdmin && (
                 <>
-                  <Link href="/customers" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
+                  <Link href="/customers" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
                     <Users className="mr-2 h-4 w-4" />
                     <span>Clientes</span>
                   </Link>
-                  <Link href="/employees" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
+                  <Link href="/employees" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
                     <UserCog className="mr-2 h-4 w-4" />
                     <span>Empleados</span>
                   </Link>
                 </>
               )}
               
-              <Link href="/settings" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-gray-100">
+              <Link href="/settings" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Configuración</span>
               </Link>

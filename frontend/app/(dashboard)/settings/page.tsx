@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { getServerSession } from '@/lib/session';
 import { Settings, Globe, Palette, Bell, Database, Key, Monitor, Moon, Sun, CreditCard, LucideIcon, Building2 } from 'lucide-react';
 import Link from 'next/link';
+import { ProfileCompletenessIndicator } from '@/components/settings/profile-completeness';
 
 type SelectOption = { value: string; label: string; icon?: LucideIcon };
 
@@ -210,14 +211,16 @@ export default async function SettingsPage() {
         </div>
       </Card>
 
+      <ProfileCompletenessIndicator />
+
       <div className="grid gap-6 xl:grid-cols-2">
         {settingsSections.map((section) => {
           const Icon = section.icon;
           return (
-            <Card key={section.title} className="rounded-[30px] bg-white/85 p-6">
+            <Card key={section.title} className="rounded-[30px] bg-card/80 p-6">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2">
-                  <Icon className="size-5 text-slate-600" />
+                <div className="rounded-xl bg-muted p-2">
+                  <Icon className="size-5 text-muted-foreground" />
                 </div>
                 <h2 className="font-display text-xl">{section.title}</h2>
               </div>
@@ -235,12 +238,12 @@ export default async function SettingsPage() {
 
                     {item.type === 'toggle' && (
                       <button
-                        className={`relative h-6 w-11 rounded-full transition-colors ${
-                          item.enabled ? 'bg-slate-800' : 'bg-gray-200'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+                          className={`relative h-6 w-11 rounded-full transition-colors ${
+                            item.enabled ? 'bg-foreground/80' : 'bg-muted'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-1 h-4 w-4 rounded-full bg-card transition-transform ${
                             item.enabled ? 'left-6' : 'left-1'
                           }`}
                         />
@@ -294,14 +297,14 @@ export default async function SettingsPage() {
         })}
       </div>
 
-      <Card className="rounded-[30px] bg-red-50 border border-red-100 p-6">
-        <h2 className="font-display text-xl text-red-800">Zona de peligro</h2>
-        <p className="mt-1 text-red-600/70">Estas acciones son irreversibles</p>
+      <Card className="rounded-[30px] bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 p-6">
+        <h2 className="font-display text-xl text-red-800 dark:text-red-300">Zona de peligro</h2>
+        <p className="mt-1 text-red-600/70 dark:text-red-400/70">Estas acciones son irreversibles</p>
         <div className="mt-4 flex gap-4">
-          <button className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50">
+          <button className="rounded-xl border border-red-200 dark:border-red-800 bg-card px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 transition hover:bg-red-50 dark:hover:bg-red-950/50">
             Eliminar cuenta
           </button>
-          <button className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50">
+          <button className="rounded-xl border border-red-200 dark:border-red-800 bg-card px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 transition hover:bg-red-50 dark:hover:bg-red-950/50">
             Cancelar suscripción
           </button>
         </div>

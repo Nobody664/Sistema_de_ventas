@@ -74,6 +74,14 @@ type Subscription = {
   company?: { name: string };
 };
 
+type PaginatedSubscriptions = {
+  data: Subscription[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
 async function DashboardDataLoader() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
@@ -89,11 +97,14 @@ async function DashboardDataLoader() {
   ]);
 
   if (isSuperAdmin) {
-    [globalMetrics, auditLogs, recentSubscriptions] = await Promise.all([
+    const [globals, logs, subsResponse] = await Promise.all([
       serverApiFetch<GlobalMetrics | null>('/dashboard/global', accessToken ?? undefined),
       serverApiFetch<AuditLog[] | null>('/audit/global', accessToken ?? undefined),
-      serverApiFetch<Subscription[] | null>('/subscriptions/subscribers', accessToken ?? undefined),
+      serverApiFetch<PaginatedSubscriptions | null>('/subscriptions/subscribers', accessToken ?? undefined),
     ]);
+    globalMetrics = globals;
+    auditLogs = logs;
+    recentSubscriptions = subsResponse?.data ?? null;
   }
 
   return (

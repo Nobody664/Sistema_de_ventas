@@ -1,4 +1,4 @@
-import { ArrayMinSize, IsArray, IsDateString, IsIn, IsInt, IsNumberString, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class CreateSaleItemDto {
@@ -9,8 +9,9 @@ class CreateSaleItemDto {
   quantity!: number;
 
   @IsOptional()
-  @IsNumberString()
-  discountAmount?: string;
+  @IsNumber()
+  @Type(() => Number)
+  discountAmount?: number;
 }
 
 export class CreateSaleDto {
@@ -26,12 +27,14 @@ export class CreateSaleDto {
   paymentMethod!: 'CASH' | 'CARD' | 'TRANSFER';
 
   @IsOptional()
-  @IsNumberString()
-  taxAmount?: string;
+  @IsNumber()
+  @Type(() => Number)
+  taxAmount?: number;
 
   @IsOptional()
-  @IsNumberString()
-  discountAmount?: string;
+  @IsNumber()
+  @Type(() => Number)
+  discountAmount?: number;
 
   @IsArray()
   @ArrayMinSize(1)

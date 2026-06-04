@@ -1,4 +1,5 @@
-import { IsArray, IsBoolean, IsIn, IsInt, IsNumberString, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreatePlanDto {
   @IsString()
@@ -11,11 +12,13 @@ export class CreatePlanDto {
   @IsString()
   description?: string;
 
-  @IsNumberString()
-  priceMonthly!: string;
+  @IsNumber()
+  @Type(() => Number)
+  priceMonthly!: number;
 
-  @IsNumberString()
-  priceYearly!: string;
+  @IsNumber()
+  @Type(() => Number)
+  priceYearly!: number;
 
   @IsIn(['MONTHLY', 'YEARLY'])
   billingCycle!: 'MONTHLY' | 'YEARLY';
@@ -48,12 +51,14 @@ export class UpdatePlanDto {
   description?: string;
 
   @IsOptional()
-  @IsNumberString()
-  priceMonthly?: string;
+  @IsNumber()
+  @Type(() => Number)
+  priceMonthly?: number;
 
   @IsOptional()
-  @IsNumberString()
-  priceYearly?: string;
+  @IsNumber()
+  @Type(() => Number)
+  priceYearly?: number;
 
   @IsOptional()
   @IsIn(['MONTHLY', 'YEARLY'])

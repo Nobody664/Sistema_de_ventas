@@ -31,9 +31,9 @@ function ResourceBar({ resource, label, icon }: LimitsUsageBarProps) {
   const percentage = limits.percentages[resource];
 
   const getStatus = () => {
-    if (percentage >= 100) return { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500' };
-    if (percentage >= 80) return { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500' };
-    return { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500' };
+    if (percentage >= 100) return { icon: XCircle, color: 'text-red-500 dark:text-red-400', bg: 'bg-red-500' };
+    if (percentage >= 80) return { icon: AlertTriangle, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500' };
+    return { icon: CheckCircle, color: 'text-green-500 dark:text-green-400', bg: 'bg-green-500' };
   };
 
   const status = getStatus();
@@ -57,7 +57,7 @@ function ResourceBar({ resource, label, icon }: LimitsUsageBarProps) {
         />
       </div>
       {percentage >= 80 && (
-        <p className={`text-xs ${percentage >= 100 ? 'text-red-500' : 'text-amber-500'}`}>
+        <p className={`text-xs ${percentage >= 100 ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>
           {percentage >= 100
             ? 'Has alcanzado el límite. Upgrade tu plan para continuar.'
             : `Casi llegas al límite (${percentage}%)`}
@@ -69,7 +69,7 @@ function ResourceBar({ resource, label, icon }: LimitsUsageBarProps) {
 
 export function SubscriptionUsage() {
   return (
-    <div className="rounded-2xl border border-foreground/10 bg-white p-6">
+    <div className="rounded-2xl border border-foreground/10 bg-card p-6">
       <h3 className="font-display text-lg mb-4">Uso de tu plan</h3>
       <div className="space-y-4">
         <ResourceBar resource="products" label="Productos" />

@@ -1,4 +1,5 @@
-import { IsInt, IsNumberString, IsOptional, IsString, Min, IsIn } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Min, IsIn } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateCategoryDto {
   @IsString()
@@ -58,11 +59,13 @@ export class CreateProductDto {
   @IsString()
   imageUrl?: string;
 
-  @IsNumberString()
-  costPrice!: string;
+  @IsNumber()
+  @Type(() => Number)
+  costPrice!: number;
 
-  @IsNumberString()
-  salePrice!: string;
+  @IsNumber()
+  @Type(() => Number)
+  salePrice!: number;
 
   @IsOptional()
   @IsInt()
@@ -97,12 +100,14 @@ export class UpdateProductDto {
   imageUrl?: string;
 
   @IsOptional()
-  @IsNumberString()
-  costPrice?: string;
+  @IsNumber()
+  @Type(() => Number)
+  costPrice?: number;
 
   @IsOptional()
-  @IsNumberString()
-  salePrice?: string;
+  @IsNumber()
+  @Type(() => Number)
+  salePrice?: number;
 
   @IsOptional()
   @IsInt()

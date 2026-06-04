@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { PrismaModule } from './database/prisma/prisma.module';
 import { CacheModule } from './cache/cache.module';
@@ -32,9 +33,12 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { DniModule } from './modules/dni/dni.module';
 import { HealthModule } from './modules/health/health.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { CompanyProfileModule } from './modules/company-profile/company-profile.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
+
     PassportModule.register({ defaultStrategy: 'jwt' }),
 
     ConfigModule.forRoot({
@@ -96,6 +100,7 @@ import { BillingModule } from './modules/billing/billing.module';
     DniModule,
     HealthModule,
     BillingModule,
+    CompanyProfileModule,
   ],
   providers: [
     {

@@ -225,23 +225,24 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
           <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-350">
             <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Suscripciones</p>
             <div className="mt-5 space-y-4">
-              {recentSubscriptions?.slice(0, 5).map((sub) => (
-                <div key={sub.id} className="flex items-center justify-between rounded-xl border border-foreground/5 p-3 transition hover:border-violet-500/20">
-                  <div className="flex items-center gap-3">
-                    <div className={`rounded-lg p-2 ${sub.status === 'ACTIVE' ? 'bg-green-100' : 'bg-amber-100'}`}>
-                      <CreditCard className={`size-4 ${sub.status === 'ACTIVE' ? 'text-green-600' : 'text-amber-600'}`} />
+              {recentSubscriptions && recentSubscriptions.length > 0 ? (
+                recentSubscriptions.slice(0, 5).map((sub) => (
+                  <div key={sub.id} className="flex items-center justify-between rounded-xl border border-foreground/5 p-3 transition hover:border-violet-500/20">
+                    <div className="flex items-center gap-3">
+                      <div className={`rounded-lg p-2 ${sub.status === 'ACTIVE' ? 'bg-green-100' : 'bg-amber-100'}`}>
+                        <CreditCard className={`size-4 ${sub.status === 'ACTIVE' ? 'text-green-600' : 'text-amber-600'}`} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{sub.company?.name || 'Empresa'}</p>
+                        <p className="text-xs text-foreground/50">{sub.plan?.name} · {sub.provider}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{sub.company?.name || 'Empresa'}</p>
-                      <p className="text-xs text-foreground/50">{sub.plan?.name} · {sub.provider}</p>
-                    </div>
+                    <span className={`rounded-full border px-2 py-0.5 text-xs ${sub.status === 'ACTIVE' ? 'border-green-500/30 bg-green-500/20 text-green-700' : 'border-amber-500/30 bg-amber-500/20 text-amber-700'}`}>
+                      {sub.status}
+                    </span>
                   </div>
-                  <span className={`rounded-full border px-2 py-0.5 text-xs ${sub.status === 'ACTIVE' ? 'border-green-500/30 bg-green-500/20 text-green-700' : 'border-amber-500/30 bg-amber-500/20 text-amber-700'}`}>
-                    {sub.status}
-                  </span>
-                </div>
-              ))}
-              {(!recentSubscriptions || recentSubscriptions.length === 0) && (
+                ))
+              ) : (
                 <p className="text-center text-sm text-foreground/50">No hay suscripciones</p>
               )}
             </div>
