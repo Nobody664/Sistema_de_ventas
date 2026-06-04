@@ -41,8 +41,10 @@ export class CompaniesService {
     return company;
   }
 
-  create(input: CreateCompanyDto) {
+  async create(input: CreateCompanyDto) {
     const slug = input.slug ?? input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const freePlan = await this.prisma.plan.findUnique({ where: { code: 'FREE' } });
 
     return this.prisma.company.create({
       data: {
@@ -56,6 +58,19 @@ export class CompaniesService {
         timezone: input.timezone ?? 'America/Lima',
         currency: input.currency ?? 'PEN',
         status: 'TRIAL',
+        trialEndsAt,
+        subscriptions: freePlan ? {
+          create: {
+            planId: freePlan.id,
+            status: 'TRIALING',
+            billingCycle: 'MONTHLY',
+            startDate: new Date(),
+            endDate: trialEndsAt,
+          },
+        } : undefined,
+      },
+      include: {
+        subscriptions: { include: { plan: true }, take: 1 },
       },
     });
   }

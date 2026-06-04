@@ -5,6 +5,7 @@ import { Permission } from '@/common/constants/permissions.constant';
 import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { SubscriptionLimitGuard, LimitResource } from '@/common/guards/subscription-limit.guard';
 import {
   CreateCategoryDto,
   CreateProductDto,
@@ -60,6 +61,8 @@ export class ProductsController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER')
   @Permissions(Permission.CATEGORY_CREATE)
+  @UseGuards(SubscriptionLimitGuard)
+  @LimitResource('categories')
   @Post('categories')
   createCategory(@Req() request: { tenantId: string }, @Body() body: CreateCategoryDto) {
     return this.productsService.createCategory(request.tenantId, body);
@@ -99,6 +102,8 @@ export class ProductsController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER')
   @Permissions(Permission.PRODUCT_CREATE)
+  @UseGuards(SubscriptionLimitGuard)
+  @LimitResource('products')
   @Post()
   createProduct(@Req() request: { tenantId: string }, @Body() body: CreateProductDto) {
     return this.productsService.createProduct(request.tenantId, body);

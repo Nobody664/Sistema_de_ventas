@@ -115,7 +115,7 @@ export default async function CompaniesPage() {
                     <p className="text-xs text-foreground/50">Clientes</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-display text-xl">{company.subscription?.plan?.name ?? '-'}</p>
+                    <p className="font-display text-xl">{company.subscriptions?.[0]?.plan?.name ?? '-'}</p>
                     <p className="text-xs text-foreground/50">Plan</p>
                   </div>
                 </div>

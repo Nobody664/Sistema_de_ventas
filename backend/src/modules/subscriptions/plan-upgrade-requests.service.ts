@@ -295,6 +295,11 @@ export class PlanUpgradeRequestsService {
         },
       });
 
+      await tx.company.update({
+        where: { id: request.companyId },
+        data: { status: 'ACTIVE' },
+      });
+
       await tx.payment.create({
         data: {
           subscriptionId: subscription.id,

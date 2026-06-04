@@ -5,6 +5,7 @@ import { Permission } from '@/common/constants/permissions.constant';
 import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { SubscriptionLimitGuard, LimitResource } from '@/common/guards/subscription-limit.guard';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { CustomersService } from './customers.service';
 
@@ -43,6 +44,8 @@ export class CustomersController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Permissions(Permission.CUSTOMER_CREATE)
+  @UseGuards(SubscriptionLimitGuard)
+  @LimitResource('customers')
   @Post()
   create(@Req() request: { tenantId: string }, @Body() body: CreateCustomerDto) {
     return this.customersService.create(request.tenantId, body);

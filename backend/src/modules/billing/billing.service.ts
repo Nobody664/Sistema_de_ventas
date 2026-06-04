@@ -23,12 +23,14 @@ export class BillingService {
       markedPastDue: 0,
       suspended: 0,
       expiredTrials: 0,
+      trialRemindersSent: 0,
     };
 
     results.pendingPaymentsCreated = await this.createPendingPayments();
     results.markedPastDue = await this.markPastDue();
     results.suspended = await this.suspendOverdue();
     results.expiredTrials = await this.processExpiredTrials();
+    results.trialRemindersSent = await this.notifyExpiringTrials();
 
     this.logger.log(`Billing cycle complete: ${JSON.stringify(results)}`);
     return results;
@@ -259,6 +261,82 @@ export class BillingService {
             companyName: sub.company.name,
             planName: sub.plan.name,
             message: `Tu período de prueba del plan "${sub.plan.name}" ha expirado. Adquiere un plan para continuar usando el sistema.`,
+          },
+        });
+      }
+
+      count++;
+    }
+
+    return count;
+  }
+
+  private async notifyExpiringTrials(): Promise<number> {
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    const expiringTrials = await this.prisma.subscription.findMany({
+      where: {
+        status: 'TRIALING',
+        endDate: { gte: now, lte: threeDaysFromNow },
+      },
+      include: {
+        plan: true,
+        company: {
+          include: {
+            memberships: {
+              where: { role: 'COMPANY_ADMIN' },
+              include: { user: true },
+            },
+          },
+        },
+      },
+    });
+
+    let count = 0;
+    for (const sub of expiringTrials) {
+      const daysLeft = Math.ceil((sub.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const admin = sub.company.memberships[0]?.user;
+      if (!admin) continue;
+
+      if (daysLeft <= 1) {
+        await this.notificationsService.create({
+          userId: admin.id,
+          companyId: sub.companyId,
+          type: 'TRIAL_EXPIRING_SOON',
+          channel: 'IN_APP',
+          title: '¡Tu prueba gratis vence mañana!',
+          message: `Tu plan ${sub.plan.name} expira en menos de 24 horas. Suscríbete a un plan para no perder el acceso.`,
+        });
+
+        await this.emailService.sendEmailDirect({
+          to: admin.email,
+          subject: 'Tu prueba gratis vence mañana',
+          template: 'welcome' as never,
+          data: {
+            companyName: sub.company.name,
+            planName: sub.plan.name,
+            message: `Tu plan ${sub.plan.name} expira en menos de 24 horas. Ingresa a tu panel y suscríbete a un plan para continuar.`,
+          },
+        });
+      } else {
+        await this.notificationsService.create({
+          userId: admin.id,
+          companyId: sub.companyId,
+          type: 'TRIAL_EXPIRING_SOON',
+          channel: 'IN_APP',
+          title: `Tu prueba gratis termina en ${daysLeft} día(s)`,
+          message: `Tu plan ${sub.plan.name} expirará el ${sub.endDate.toLocaleDateString('es-PE')}. Suscríbete a un plan para no perder tu información.`,
+        });
+
+        await this.emailService.sendEmailDirect({
+          to: admin.email,
+          subject: `Tu prueba gratis termina en ${daysLeft} día(s)`,
+          template: 'welcome' as never,
+          data: {
+            companyName: sub.company.name,
+            planName: sub.plan.name,
+            message: `Tu plan ${sub.plan.name} expirará el ${sub.endDate.toLocaleDateString('es-PE')}. Ingresa a tu panel y suscríbete a un plan para continuar usando el sistema.`,
           },
         });
       }

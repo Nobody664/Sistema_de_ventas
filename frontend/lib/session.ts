@@ -9,8 +9,10 @@ export interface ServerSessionUser {
   fullName: string;
   roles: string[];
   companyId: string | null;
+  companyStatus: string | null;
   planCode: string | null;
   subscriptionStatus: string | null;
+  trialEndsAt?: string | null;
 }
 
 export interface ServerSession {

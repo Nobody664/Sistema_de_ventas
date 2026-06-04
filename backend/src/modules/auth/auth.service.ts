@@ -186,12 +186,14 @@ export class AuthService {
     const refreshTtl = this.configService.getOrThrow<string>('JWT_REFRESH_TTL') as never;
 
     let companyStatus: string | undefined;
+    let trialEndsAt: string | null | undefined;
     if (input.companyId) {
       const company = await this.prisma.company.findUnique({
         where: { id: input.companyId },
-        select: { status: true },
+        select: { status: true, trialEndsAt: true },
       });
       companyStatus = company?.status;
+      trialEndsAt = company?.trialEndsAt?.toISOString() ?? null;
     }
 
     const accessToken = await this.jwtService.signAsync(
@@ -202,6 +204,7 @@ export class AuthService {
         companyId: input.companyId,
         roles: input.roles,
         companyStatus,
+        trialEndsAt,
       },
       {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
@@ -217,6 +220,7 @@ export class AuthService {
         companyId: input.companyId,
         roles: input.roles,
         companyStatus,
+        trialEndsAt,
       },
       {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
@@ -233,8 +237,10 @@ export class AuthService {
         fullName: input.fullName,
         companyId: input.companyId,
         roles: input.roles,
+        companyStatus,
         planCode: input.planCode,
         subscriptionStatus: input.subscriptionStatus,
+        trialEndsAt,
       },
       expiresIn: this.configService.getOrThrow<string>('JWT_ACCESS_TTL'),
     };

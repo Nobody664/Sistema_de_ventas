@@ -43,8 +43,14 @@ export class TenantGuard implements CanActivate {
       companyStatus = company?.status;
     }
 
-    if (companyStatus === 'SUSPENDED') {
-      throw new ForbiddenException('Tu cuenta ha sido suspendida. Contacta al administrador.');
+    const BLOCKED_MESSAGES: Record<string, string> = {
+      SUSPENDED: 'Tu cuenta ha sido suspendida. Contacta al administrador.',
+      INACTIVE: 'Tu período de prueba ha expirado. Adquiere un plan para continuar.',
+      PAST_DUE: 'Tu suscripción está vencida. Realiza el pago para reactivar tu cuenta.',
+    };
+
+    if (BLOCKED_MESSAGES[companyStatus ?? '']) {
+      throw new ForbiddenException(BLOCKED_MESSAGES[companyStatus!]);
     }
 
     request.tenantId = user.companyId as string;

@@ -5,6 +5,7 @@ import { Permission } from '@/common/constants/permissions.constant';
 import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { SubscriptionLimitGuard, LimitResource } from '@/common/guards/subscription-limit.guard';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 import { EmployeesService } from './employees.service';
 
@@ -36,6 +37,8 @@ export class EmployeesController {
 
   @Roles('COMPANY_ADMIN')
   @Permissions(Permission.EMPLOYEE_CREATE)
+  @UseGuards(SubscriptionLimitGuard)
+  @LimitResource('employees')
   @Post()
   create(@Req() request: { tenantId: string }, @Body() body: CreateEmployeeDto) {
     return this.employeesService.create(request.tenantId, body);
