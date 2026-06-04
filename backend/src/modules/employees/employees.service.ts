@@ -25,7 +25,18 @@ export class EmployeesService {
   findByCompany(companyId: string) {
     return this.prisma.employee.findMany({
       where: { companyId },
-      include: { user: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        dni: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        user: { select: { email: true } },
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });

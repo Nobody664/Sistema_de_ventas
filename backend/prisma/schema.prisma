@@ -223,6 +223,7 @@ model Subscription {
   paymentProofs PaymentProof[]
 
   @@unique([companyId])
+  @@index([status, endDate])
   @@map("subscriptions")
 }
 
@@ -259,6 +260,7 @@ notes          String?
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sales   Sale[]
 
+  @@index([companyId])
   @@map("customers")
 }
 
@@ -300,6 +302,7 @@ model Product {
   saleItems          SaleItem[]
   inventoryMovements InventoryMovement[]
 
+  @@index([companyId, isActive])
   @@map("products")
 }
 
@@ -326,6 +329,8 @@ model Sale {
   employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   items    SaleItem[]
 
+  @@index([companyId, createdAt])
+  @@index([companyId, status])
   @@map("sales")
 }
 
@@ -342,6 +347,8 @@ model SaleItem {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([saleId, productId])
+  @@index([saleId])
+  @@index([productId])
   @@map("sale_items")
 }
 
@@ -380,6 +387,7 @@ model InventoryMovement {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@index([companyId, productId])
   @@map("inventory_movements")
 }
 
@@ -399,6 +407,7 @@ model Payment {
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
+  @@index([subscriptionId, status])
   @@map("payments")
 }
 
@@ -486,6 +495,7 @@ model Notification {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead])
   @@map("notifications")
 }
 

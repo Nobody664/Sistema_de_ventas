@@ -327,4 +327,4 @@ Mismos campos que Create (email y dni opcionales en update).
 - [ ] PlanUpgradeRequest: modelo para solicitudes de upgrade
 - [ ] InventoryMovement: movimientos de inventario
 - [ ] InvoiceTemplate: plantillas de facturas
-- [ ] AuditLog: logs de auditoría
+- [ ] AuditLog: logs de auditoría 

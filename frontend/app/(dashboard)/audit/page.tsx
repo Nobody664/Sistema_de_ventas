@@ -1,7 +1,6 @@
 
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
-import { getAccessToken } from '@/lib/api';
 import { getServerSession } from '@/lib/session';
 import { Activity, Filter, Search, Calendar, User, Building2, ShoppingCart, Package, Users, CreditCard, Settings } from 'lucide-react';
 

@@ -1,6 +1,7 @@
 import { getServerSession } from '@/lib/session';
 import { serverApiFetch } from '@/lib/server-api';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
+import { Suspense } from 'react';
 
 type GlobalMetrics = {
   totalCompanies: number;
@@ -73,7 +74,7 @@ type Subscription = {
   company?: { name: string };
 };
 
-export default async function DashboardPage() {
+async function DashboardDataLoader() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
   const userRoles = session?.user?.roles ?? [];
@@ -101,5 +102,29 @@ export default async function DashboardPage() {
       tenantMetrics={tenantMetrics}
       isSuperAdmin={isSuperAdmin}
     />
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+        <div className="h-48 rounded-[34px] bg-gray-200" />
+        <div className="h-48 rounded-[34px] bg-gray-100" />
+      </div>
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-32 rounded-[30px] bg-gray-100" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardDataLoader />
+    </Suspense>
   );
 }

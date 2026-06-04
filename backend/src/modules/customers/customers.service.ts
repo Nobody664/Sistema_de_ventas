@@ -57,6 +57,16 @@ export class CustomersService {
   findByCompany(companyId: string) {
     return this.prisma.customer.findMany({
       where: { companyId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        documentType: true,
+        documentValue: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });

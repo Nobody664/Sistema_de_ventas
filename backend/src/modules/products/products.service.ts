@@ -32,7 +32,21 @@ export class ProductsService {
   findByCompany(companyId: string) {
     return this.prisma.product.findMany({
       where: { companyId },
-      include: { category: true },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        barcode: true,
+        salePrice: true,
+        costPrice: true,
+        stockQuantity: true,
+        minStock: true,
+        isActive: true,
+        imageUrl: true,
+        description: true,
+        createdAt: true,
+        category: { select: { id: true, name: true } },
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -264,9 +278,17 @@ export class ProductsService {
       where: {
         companyId,
         isActive: true,
+        stockQuantity: { lte: 5 },
       },
-      include: { category: true },
+      select: {
+        id: true,
+        name: true,
+        stockQuantity: true,
+        minStock: true,
+        category: { select: { name: true } },
+      },
       orderBy: { stockQuantity: 'asc' },
+      take: 100,
     });
 
     return products.filter((p) => p.stockQuantity <= p.minStock);

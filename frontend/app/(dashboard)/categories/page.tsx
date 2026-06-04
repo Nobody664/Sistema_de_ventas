@@ -1,7 +1,7 @@
 
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
-import { getAccessToken } from '@/lib/api';
+import { getServerSession } from '@/lib/session';
 import { FolderTree } from 'lucide-react';
 import { CategoryActions, NewCategoryButton } from '@/components/categories/category-actions';
 import type { Category } from '@/types/api';
@@ -9,7 +9,8 @@ import type { Category } from '@/types/api';
 export const dynamic = 'force-dynamic';
 
 export default async function CategoriesPage() {
-  const accessToken = getAccessToken();
+  const session = await getServerSession();
+  const accessToken = session?.accessToken;
 
   const categories = await serverApiFetch<Category[]>('/products/categories', accessToken);
 

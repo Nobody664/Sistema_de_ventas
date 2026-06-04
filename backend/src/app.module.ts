@@ -31,6 +31,7 @@ import { EmailModule } from './modules/email/email.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { DniModule } from './modules/dni/dni.module';
 import { HealthModule } from './modules/health/health.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { HealthModule } from './modules/health/health.module';
     InvoicesModule,
     DniModule,
     HealthModule,
+    BillingModule,
   ],
   providers: [
     {

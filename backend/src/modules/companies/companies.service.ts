@@ -6,19 +6,21 @@ import { CreateCompanyDto, UpdateCompanyDto, UpdateCompanyStatusDto } from './dt
 export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.company.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        subscriptions: {
-          include: { plan: true },
-          take: 1,
+  async findAll(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.company.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          subscriptions: { include: { plan: true }, take: 1 },
+          _count: { select: { memberships: true, customers: true } },
         },
-        _count: {
-          select: { memberships: true, customers: true },
-        },
-      },
-    });
+      }),
+      this.prisma.company.count(),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: string) {

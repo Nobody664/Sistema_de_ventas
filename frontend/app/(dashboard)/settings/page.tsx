@@ -183,6 +183,12 @@ export default async function SettingsPage() {
             type: 'button' as const,
             action: 'subscription',
           },
+          {
+            label: 'Mis pagos',
+            description: 'Historial de pagos y subir comprobantes',
+            type: 'button' as const,
+            action: 'payments',
+          },
         ],
         link: '/subscription',
       },
@@ -257,6 +263,13 @@ export default async function SettingsPage() {
                         className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5"
                       >
                         Configurar
+                      </Link>
+                    ) : item.type === 'button' && item.action === 'payments' ? (
+                      <Link 
+                        href="/payments"
+                        className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5"
+                      >
+                        Ver
                       </Link>
                     ) : item.type === 'button' && section.link ? (
                       <Link 

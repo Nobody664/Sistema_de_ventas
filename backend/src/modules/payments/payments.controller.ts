@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch, Query, Req, UseGuards, DefaultValuePipe, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { Public } from '@/common/decorators/public.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { TenantGuard } from '@/common/guards/tenant.guard';
@@ -20,6 +20,40 @@ export class PaymentsController {
   @Get('pending')
   findPending(@Req() request: { tenantId: string }) {
     return this.paymentsService.findPendingByCompany(request.tenantId);
+  }
+
+  @UseGuards(JwtAuthGuard, TenantGuard)
+  @Get('history')
+  getHistory(
+    @Req() request: { tenantId: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+  ) {
+    return this.paymentsService.getPaymentHistory(request.tenantId, page, limit);
+  }
+
+  @UseGuards(JwtAuthGuard, TenantGuard)
+  @Get('current-pending')
+  getCurrentPending(@Req() request: { tenantId: string }) {
+    return this.paymentsService.getCurrentPending(request.tenantId);
+  }
+
+  @UseGuards(JwtAuthGuard, TenantGuard)
+  @Post(':id/proof')
+  uploadProof(
+    @Param('id') id: string,
+    @Req() request: { tenantId: string },
+    @Body() body: { imageBase64: string; paymentDate?: string },
+  ) {
+    if (!body.imageBase64) {
+      throw new BadRequestException('imageBase64 es requerido');
+    }
+    return this.paymentsService.uploadProofForPayment(
+      id,
+      request.tenantId,
+      body.imageBase64,
+      body.paymentDate ? new Date(body.paymentDate) : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
@@ -47,8 +81,11 @@ export class PaymentsController {
   @Roles('SUPER_ADMIN')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('admin/pending')
-  findAllPending() {
-    return this.paymentsService.findAllPending();
+  findAllPending(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+  ) {
+    return this.paymentsService.findAllPending(page, limit);
   }
 
   @Roles('SUPER_ADMIN')

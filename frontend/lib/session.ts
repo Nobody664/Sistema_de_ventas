@@ -1,5 +1,5 @@
+import { cache } from 'react';
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 
@@ -19,7 +19,7 @@ export interface ServerSession {
   refreshToken: string | undefined;
 }
 
-export async function getServerSession(): Promise<ServerSession | null> {
+export const getServerSession = cache(async (): Promise<ServerSession | null> => {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get('accessToken')?.value;
   
@@ -48,11 +48,4 @@ export async function getServerSession(): Promise<ServerSession | null> {
   } catch {
     return null;
   }
-}
-
-export function createAuthMiddleware() {
-  return async function authMiddleware() {
-    const session = await getServerSession();
-    return session;
-  };
-}
+});

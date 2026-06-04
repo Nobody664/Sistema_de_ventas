@@ -26,8 +26,11 @@ export class SubscriptionsService {
     });
   }
 
-  findAllSubscribers(filters?: { status?: string; planId?: string }) {
+  async findAllSubscribers(filters?: { status?: string; planId?: string; page?: number; limit?: number }) {
     const where: Record<string, unknown> = {};
+    const page = filters?.page ?? 1;
+    const limit = filters?.limit ?? 20;
+    const skip = (page - 1) * limit;
     
     if (filters?.status) {
       where.status = filters.status;
@@ -36,26 +39,33 @@ export class SubscriptionsService {
       where.planId = filters.planId;
     }
 
-    return this.prisma.subscription.findMany({
-      where,
-      include: {
-        plan: true,
-        company: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            status: true,
-            createdAt: true,
+    const [data, total] = await Promise.all([
+      this.prisma.subscription.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          plan: true,
+          company: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              status: true,
+              createdAt: true,
+            },
+          },
+          payments: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
           },
         },
-        payments: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.subscription.count({ where }),
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async approveSubscriber(subscriptionId: string) {

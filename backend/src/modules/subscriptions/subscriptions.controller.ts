@@ -45,8 +45,10 @@ export class SubscriptionsController {
   findAllSubscribers(
     @Query('status') status?: string,
     @Query('planId') planId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.subscriptionsService.findAllSubscribers({ status, planId });
+    return this.subscriptionsService.findAllSubscribers({ status, planId, page, limit });
   }
 
   @Roles('SUPER_ADMIN')

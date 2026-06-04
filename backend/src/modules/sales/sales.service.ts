@@ -18,9 +18,15 @@ export class SalesService {
       console.log('[SalesService] Finding sales for company:', companyId);
       const sales = this.prisma.sale.findMany({
         where: { companyId },
-        include: {
-          customer: true,
-          employee: true,
+        select: {
+          id: true,
+          saleNumber: true,
+          totalAmount: true,
+          paymentMethod: true,
+          status: true,
+          createdAt: true,
+          customer: { select: { firstName: true, lastName: true } },
+          employee: { select: { firstName: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -249,27 +255,23 @@ export class SalesService {
       });
 
       await Promise.all(
-        input.items.map(async (item) => {
-          await tx.product.update({
+        input.items.map((item) =>
+          tx.product.update({
             where: { id: item.productId },
-            data: {
-              stockQuantity: {
-                decrement: item.quantity,
-              },
-            },
-          });
-
-          await tx.inventoryMovement.create({
-            data: {
-              companyId,
-              productId: item.productId,
-              type: 'OUT',
-              quantity: item.quantity * -1,
-              notes: `Sale ${sale.saleNumber}`,
-            },
-          });
-        }),
+            data: { stockQuantity: { decrement: item.quantity } },
+          }),
+        ),
       );
+
+      await tx.inventoryMovement.createMany({
+        data: input.items.map((item) => ({
+          companyId,
+          productId: item.productId,
+          type: 'OUT' as const,
+          quantity: item.quantity * -1,
+          notes: `Sale ${sale.saleNumber}`,
+        })),
+      });
 
       return sale;
     });

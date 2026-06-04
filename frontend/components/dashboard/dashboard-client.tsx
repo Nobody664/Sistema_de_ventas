@@ -3,6 +3,7 @@
 import { Card } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth.store';
 import { RevenueChart } from '@/components/charts/revenue-chart';
+import { ErrorBoundary } from '@/components/common/error-boundary';
 import { Building2, CreditCard, DollarSign, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Package, ShoppingCart, TrendingDown, Wallet, Receipt, Star } from 'lucide-react';
 
 type GlobalMetrics = {
@@ -218,7 +219,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                 +12.5%
               </div>
             </div>
-            <RevenueChart />
+            <ErrorBoundary><RevenueChart /></ErrorBoundary>
           </Card>
 
           <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-350">

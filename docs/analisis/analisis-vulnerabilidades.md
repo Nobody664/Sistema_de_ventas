@@ -128,7 +128,7 @@ Este documento analiza las posibles vulnerabilidades de seguridad del Sistema de
 - [ ] Penetration testing
 - [ ] Code review de seguridad
 - [ ] Analisis de dependencias
-- [ ] OWASP Top 10 checklist
+- [ ] OWASP Top 10 checklist 
 
 ---
 

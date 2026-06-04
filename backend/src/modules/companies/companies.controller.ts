@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Permissions } from '@/common/decorators/permissions.decorator';
 import { Permission } from '@/common/constants/permissions.constant';
@@ -33,8 +33,11 @@ export class CompaniesController {
   @Permissions(Permission.COMPANY_MANAGE_ALL)
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Get()
-  findAll() {
-    return this.companiesService.findAll();
+  findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.companiesService.findAll(page, limit);
   }
 
   @Roles('SUPER_ADMIN')

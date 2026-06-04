@@ -262,6 +262,7 @@ export interface Payment {
   createdAt: Date;
   updatedAt: Date;
   subscription?: Subscription;
+  paymentProofs?: PaymentProof[];
 }
 
 export interface PlanUpgradeRequest {

@@ -26,7 +26,7 @@ export function RevenueChart() {
           <CartesianGrid stroke="#e7ddcf" strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
           <Tooltip />
-          <Area type="monotone" dataKey="revenue" stroke="#eb6c3e" strokeWidth={3} fill="url(#revenueFill)" />
+          <Area type="monotone" dataKey="revenue" stroke="#eb6c3e" strokeWidth={3} fill="url(#revenueFill)" isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>

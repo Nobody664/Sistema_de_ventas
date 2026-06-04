@@ -1,11 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { CacheService } from '@/cache/cache.service';
+
+type SalesOverview = {
+  totalSales: number;
+  totalRevenue: number;
+  totalCustomers: number;
+  averageTicket: number;
+  revenueChange: number;
+  topProducts: Array<{ productId: string; name: string; quantity: number; revenue: number }>;
+  salesByDay: Array<{ date: string; sales: number; revenue: number }>;
+};
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
-  async getSalesOverview(companyId: string) {
+  async getSalesOverview(companyId: string): Promise<SalesOverview> {
+    const cacheKey = `reports:sales-overview:${companyId}`;
+    const cached = await this.cache.get<SalesOverview>(cacheKey);
+    if (cached) return cached;
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -15,8 +33,8 @@ export class ReportsService {
       totalSales,
       totalRevenue,
       totalCustomers,
-      salesThisMonth,
-      salesLastMonth,
+      revenueThisMonth,
+      revenueLastMonth,
       topProducts,
       recentSales,
     ] = await Promise.all([
@@ -26,14 +44,16 @@ export class ReportsService {
         _sum: { totalAmount: true },
       }),
       this.prisma.customer.count({ where: { companyId } }),
-      this.prisma.sale.findMany({
+      this.prisma.sale.aggregate({
         where: { companyId, createdAt: { gte: startOfMonth } },
+        _sum: { totalAmount: true },
       }),
-      this.prisma.sale.findMany({
+      this.prisma.sale.aggregate({
         where: {
           companyId,
           createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
         },
+        _sum: { totalAmount: true },
       }),
       this.prisma.saleItem.groupBy({
         by: ['productId'],
@@ -46,12 +66,12 @@ export class ReportsService {
         where: { companyId },
         orderBy: { createdAt: 'desc' },
         take: 30,
-        include: { items: true },
+        select: { id: true, createdAt: true, totalAmount: true },
       }),
     ]);
 
-    const revenueThisMonth = salesThisMonth.reduce((acc, s) => acc + Number(s.totalAmount), 0);
-    const revenueLastMonth = salesLastMonth.reduce((acc, s) => acc + Number(s.totalAmount), 0);
+    const revenueThisMonthVal = Number(revenueThisMonth._sum.totalAmount || 0);
+    const revenueLastMonthVal = Number(revenueLastMonth._sum.totalAmount || 0);
 
     const productIds = topProducts.map(p => p.productId);
     const products = await this.prisma.product.findMany({
@@ -87,16 +107,19 @@ export class ReportsService {
 
     const averageTicket = totalSales > 0 ? Number(totalRevenue._sum.totalAmount || 0) / totalSales : 0;
 
-    return {
+    const result = {
       totalSales,
       totalRevenue: Number(totalRevenue._sum.totalAmount || 0),
       totalCustomers,
       averageTicket,
-      revenueChange: revenueLastMonth > 0 
-        ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100 
+      revenueChange: revenueLastMonthVal > 0 
+        ? ((revenueThisMonthVal - revenueLastMonthVal) / revenueLastMonthVal) * 100 
         : 0,
       topProducts: topProductsData,
       salesByDay: last7Days,
     };
+
+    await this.cache.set(cacheKey, result, 30);
+    return result;
   }
 }

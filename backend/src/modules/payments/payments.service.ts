@@ -35,6 +35,75 @@ export class PaymentsService {
     return subscriptions[0].payments;
   }
 
+  async getPaymentHistory(companyId: string, page = 1, limit = 20) {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { companyId },
+      select: { id: true },
+    });
+    if (!subscription) return { data: [], total: 0, page, limit, totalPages: 0 };
+
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: { subscriptionId: subscription.id },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.payment.count({ where: { subscriptionId: subscription.id } }),
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async getCurrentPending(companyId: string) {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { companyId },
+      select: { id: true },
+    });
+    if (!subscription) return null;
+
+    return this.prisma.payment.findFirst({
+      where: {
+        subscriptionId: subscription.id,
+        status: 'PENDING',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async uploadProofForPayment(paymentId: string, companyId: string, imageBase64: string, paymentDate?: Date) {
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        id: paymentId,
+        subscription: { companyId },
+      },
+      include: { subscription: true },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Pago no encontrado');
+    }
+
+    if (payment.status !== 'PENDING') {
+      throw new BadRequestException('Este pago ya fue procesado');
+    }
+
+    if (!imageBase64.startsWith('data:image/')) {
+      throw new BadRequestException('Formato de comprobante inválido');
+    }
+
+    return this.prisma.paymentProof.create({
+      data: {
+        subscriptionId: payment.subscriptionId,
+        imageBase64,
+        amount: payment.amount.toString(),
+        paymentDate: paymentDate ?? new Date(),
+        status: 'PENDING',
+      },
+    });
+  }
+
   async findPendingByCompany(companyId: string) {
     const subscription = await this.prisma.subscription.findFirst({
       where: { companyId, status: 'ACTIVE' },
@@ -119,10 +188,12 @@ export class PaymentsService {
       throw new BadRequestException('Este pago ya fue procesado');
     }
 
+    const now = new Date();
     const updated = await this.prisma.payment.update({
       where: { id },
       data: {
         status: 'SUCCEEDED',
+        paidAt: now,
         providerPaymentId: paymentDate ? `manual-${Date.now()}` : `paid-${Date.now()}`,
       },
       include: {
@@ -133,11 +204,16 @@ export class PaymentsService {
     });
 
     const subscription = updated.subscription;
-    const company = subscription.company;
+
+    const newEndDate = new Date();
+    newEndDate.setMonth(newEndDate.getMonth() + (subscription.billingCycle === 'YEARLY' ? 12 : 1));
 
     await this.prisma.subscription.update({
       where: { id: subscription.id },
-      data: { status: 'ACTIVE' },
+      data: {
+        status: 'ACTIVE',
+        endDate: newEndDate,
+      },
     });
 
     await this.prisma.company.update({
@@ -151,19 +227,23 @@ export class PaymentsService {
     };
   }
 
-  async findAllPending() {
-    return this.prisma.payment.findMany({
-      where: { status: 'PENDING' },
-      include: {
-        subscription: {
-          include: {
-            plan: true,
-            company: true,
+  async findAllPending(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: { status: 'PENDING' },
+        skip,
+        take: limit,
+        include: {
+          subscription: {
+            include: { plan: true, company: true },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.payment.count({ where: { status: 'PENDING' } }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async getStats() {

@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { CacheService } from '@/cache/cache.service';
 
 type JwtPayload = {
   sub: string;
@@ -26,6 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
   ) {
     super({
       jwtFromRequest: (req: Request) => {
@@ -42,14 +44,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(req: Request, payload: JwtPayload) {
     if (payload.companyId) {
-      const company = await this.prisma.company.findUnique({
-        where: { id: payload.companyId },
-        select: { status: true },
-      });
+      const cacheKey = `company:status:${payload.companyId}`;
+      let companyStatus = await this.cache.get<string>(cacheKey);
+
+      if (!companyStatus) {
+        const company = await this.prisma.company.findUnique({
+          where: { id: payload.companyId },
+          select: { status: true },
+        });
+        companyStatus = company?.status ?? null;
+        if (companyStatus) {
+          await this.cache.set(cacheKey, companyStatus, 30);
+        }
+      }
 
       return {
         ...payload,
-        companyStatus: company?.status,
+        companyStatus,
       };
     }
 

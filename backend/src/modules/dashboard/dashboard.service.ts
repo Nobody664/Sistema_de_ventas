@@ -1,5 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { CacheService } from '@/cache/cache.service';
+
+type GlobalMetrics = {
+  totalCompanies: number;
+  activeCompanies: number;
+  suspendedCompanies: number;
+  monthlyRecurringRevenue: number;
+  annualRecurringRevenue: number;
+  collectedRevenue: number;
+};
 
 type SalesAnalytics = {
   daily: Array<{ date: string; sales: number; revenue: number }>;
@@ -46,9 +56,15 @@ type TenantMetrics = {
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
-  async getGlobalMetrics() {
+  async getGlobalMetrics(): Promise<GlobalMetrics> {
+    const cached = await this.cache.get<GlobalMetrics>('dashboard:global');
+    if (cached) return cached;
+
     const [totalCompanies, activeCompanies, suspendedCompanies, activeSubscriptions, succeededPayments] =
       await Promise.all([
         this.prisma.company.count(),
@@ -78,7 +94,7 @@ export class DashboardService {
     );
     const collectedRevenue = payments.reduce((total: number, payment) => total + Number(payment.amount), 0);
 
-    return {
+    const result = {
       totalCompanies,
       activeCompanies,
       suspendedCompanies,
@@ -86,9 +102,20 @@ export class DashboardService {
       annualRecurringRevenue,
       collectedRevenue,
     };
+
+    await this.cache.set('dashboard:global', result, 120);
+    return result;
   }
 
   async getTenantMetrics(companyId: string) {
+    if (!companyId) {
+      return null;
+    }
+
+    const cacheKey = `dashboard:tenant:${companyId}`;
+    const cached = await this.cache.get<TenantMetrics>(cacheKey);
+    if (cached) return cached;
+
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -109,20 +136,14 @@ export class DashboardService {
       totalEmployees,
       allSales,
       allProducts,
-      allCustomers,
+      newThisMonth,
     ] = await Promise.all([
       this.prisma.sale.findMany({
-        where: {
-          companyId,
-          createdAt: { gte: todayStart },
-        },
-        include: { items: true },
+        where: { companyId, createdAt: { gte: todayStart } },
+        select: { totalAmount: true },
       }),
       this.prisma.product.count({
-        where: {
-          companyId,
-          stockQuantity: { lte: 10 },
-        },
+        where: { companyId, stockQuantity: { lte: 10 } },
       }),
       this.prisma.sale.findMany({
         where: { companyId },
@@ -139,15 +160,23 @@ export class DashboardService {
       this.prisma.employee.count({ where: { companyId } }),
       this.prisma.sale.findMany({
         where: { companyId, createdAt: { gte: thirtyDaysAgo } },
-        include: { items: { include: { product: true } }, customer: true },
+        select: {
+          id: true,
+          createdAt: true,
+          totalAmount: true,
+          paymentMethod: true,
+          customer: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
       }),
       this.prisma.product.findMany({
         where: { companyId },
-        select: { id: true, name: true, stockQuantity: true, costPrice: true, salePrice: true },
+        select: { id: true, name: true, stockQuantity: true, salePrice: true },
+        take: 10000,
       }),
-      this.prisma.customer.findMany({
-        where: { companyId },
-        include: { sales: { select: { id: true, totalAmount: true } } },
+      this.prisma.customer.count({
+        where: { companyId, createdAt: { gte: monthStart } },
       }),
     ]);
 
@@ -156,7 +185,7 @@ export class DashboardService {
       items: Array<{ productId: string; quantity: number; product: { name: string } }>;
     }>;
 
-    const revenueToday = todaySales.reduce((total: number, sale) => total + Number(sale.totalAmount), 0);
+    const revenueToday = todaySales.reduce((total, sale) => total + Number(sale.totalAmount), 0);
     const topProductMap = new Map<string, { productId: string; name: string; quantity: number }>();
 
     salesWithItems.forEach((sale) => {
@@ -181,7 +210,6 @@ export class DashboardService {
       totalAmount: unknown;
       customer: { firstName: string; lastName: string } | null;
       paymentMethod: string;
-      items: Array<{ productId: string; quantity: number; product: { name: string; salePrice: unknown } }>;
     }>;
 
     const dailyMap = new Map<string, { sales: number; revenue: number }>();
@@ -243,7 +271,6 @@ export class DashboardService {
       id: string;
       name: string;
       stockQuantity: number;
-      costPrice: unknown;
       salePrice: unknown;
     }>;
 
@@ -251,15 +278,6 @@ export class DashboardService {
     const totalItems = products.reduce((sum, p) => sum + p.stockQuantity, 0);
     const outOfStockCount = products.filter((p) => p.stockQuantity === 0).length;
     const slowMovingCount = products.filter((p) => p.stockQuantity > 50).length;
-
-    const customersData = allCustomers as Array<{
-      id: string;
-      firstName: string;
-      lastName: string;
-      createdAt: Date;
-    }>;
-
-    const newThisMonth = customersData.filter((c) => new Date(c.createdAt) >= monthStart).length;
 
     const salesAnalytics = {
       daily,
@@ -284,7 +302,7 @@ export class DashboardService {
       topCustomers,
     };
 
-    return {
+    const result = {
       company,
       companyId,
       totalProducts,
@@ -299,5 +317,8 @@ export class DashboardService {
       inventoryMetrics,
       customerStats,
     };
+
+    await this.cache.set(cacheKey, result, 60);
+    return result;
   }
 }
