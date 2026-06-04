@@ -80,19 +80,21 @@ async function DashboardDataLoader() {
   const userRoles = session?.user?.roles ?? [];
   const isSuperAdmin = userRoles.includes('SUPER_ADMIN') || userRoles.includes('SUPPORT_ADMIN');
 
-  const fetches: Promise<unknown>[] = [
+  let globalMetrics: GlobalMetrics | null = null;
+  let auditLogs: AuditLog[] | null = null;
+  let recentSubscriptions: Subscription[] | null = null;
+
+  const [tenantMetrics] = await Promise.all([
     serverApiFetch<TenantMetrics | null>('/dashboard/tenant', accessToken ?? undefined),
-  ];
+  ]);
 
   if (isSuperAdmin) {
-    fetches.push(
+    [globalMetrics, auditLogs, recentSubscriptions] = await Promise.all([
       serverApiFetch<GlobalMetrics | null>('/dashboard/global', accessToken ?? undefined),
       serverApiFetch<AuditLog[] | null>('/audit/global', accessToken ?? undefined),
       serverApiFetch<Subscription[] | null>('/subscriptions/subscribers', accessToken ?? undefined),
-    );
+    ]);
   }
-
-  const [tenantMetrics, globalMetrics, auditLogs, recentSubscriptions] = await Promise.all(fetches);
 
   return (
     <DashboardClient
