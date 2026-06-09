@@ -24,6 +24,7 @@ export default async function SettingsPage() {
   const session = await getServerSession();
   const roles: string[] = session?.user?.roles || [];
   const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
+  const isCompanyAdmin = roles.includes('COMPANY_ADMIN');
 
   const settingsSections: SettingsSection[] = [
     {
@@ -173,27 +174,25 @@ export default async function SettingsPage() {
       ],
       link: '/payment-settings',
       isPayment: true,
-    }] : [
-      {
-        title: 'Suscripción',
-        icon: CreditCard,
-        items: [
-          {
-            label: 'Mi plan',
-            description: 'Verifica tu plan actual y mejora tu suscripción',
-            type: 'button' as const,
-            action: 'subscription',
-          },
-          {
-            label: 'Mis pagos',
-            description: 'Historial de pagos y subir comprobantes',
-            type: 'button' as const,
-            action: 'payments',
-          },
-        ],
-        link: '/subscription',
-      },
-    ]),
+    }] : isCompanyAdmin ? [{
+      title: 'Suscripción',
+      icon: CreditCard,
+      items: [
+        {
+          label: 'Mi plan',
+          description: 'Verifica tu plan actual y mejora tu suscripción',
+          type: 'button' as const,
+          action: 'subscription',
+        },
+        {
+          label: 'Mis pagos',
+          description: 'Historial de pagos y subir comprobantes',
+          type: 'button' as const,
+          action: 'payments',
+        },
+      ],
+      link: '/subscription',
+    }] : []),
   ];
 
   return (

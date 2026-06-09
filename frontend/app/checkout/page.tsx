@@ -5,8 +5,10 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Check, Loader2, Smartphone, Building2, Upload, Home, ArrowLeft, CreditCard, Lock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Check, Loader2, Smartphone, Building2, Upload, Home, ArrowLeft, CreditCard, Lock, Eye, EyeOff, User, Building, Mail } from 'lucide-react';
 import { apiFetch, getAccessToken } from '@/lib/api';
+import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/stores/auth.store';
 
 const plans = {
@@ -55,11 +57,12 @@ function CheckoutContent() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!isAuthenticated && !isLoading) {
-      router.push('/sign-in?callbackUrl=/checkout?plan=' + planCode + '&upgrade=true');
-    }
-  }, [isAuthenticated, isLoading, router, planCode]);
+  // Registration form state (for unauthenticated users)
+  const [fullName, setFullName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     fetchPaymentSettings();
@@ -67,7 +70,7 @@ function CheckoutContent() {
 
   const fetchPaymentSettings = async () => {
     try {
-      const data = await apiFetch<PaymentSettings[]>('/payments/settings/all');
+      const data = await apiFetch<PaymentSettings[]>('/payment-settings');
       setPaymentSettings(data || []);
       const enabled = (data || [])
         .filter((p: PaymentSettings) => p.isEnabled)
@@ -94,12 +97,13 @@ function CheckoutContent() {
     setStep('payment');
   };
 
-  const handleImageUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setProofImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+  const handleImageUpload = async (file: File) => {
+    try {
+      const compressed = await compressImage(file);
+      setProofImage(compressed);
+    } catch {
+      setError('Error al procesar la imagen');
+    }
   };
 
   const handleSubmitPayment = async () => {
@@ -112,22 +116,36 @@ function CheckoutContent() {
     setError(null);
 
     try {
-      const response =       await apiFetch<{ requestId: string; status: string }>('/payments/checkout/requests', {
+      const body: Record<string, unknown> = {
+        planCode,
+        paymentMethod: selectedPayment,
+      };
+      if (isAuthenticated) {
+        body.companyId = user?.companyId;
+      } else {
+        body.fullName = fullName;
+        body.companyName = companyName;
+        body.email = email;
+        body.password = password;
+      }
+
+      const response = await apiFetch<{ requestId: string; status: string }>('/payments/checkout/requests', {
         method: 'POST',
         token: accessToken,
-        body: JSON.stringify({
-          planCode,
-          paymentMethod: selectedPayment,
-          companyId: user?.companyId,
-        }),
+        body: JSON.stringify(body),
       });
+
+      const proofBody: Record<string, unknown> = {
+        imageBase64: proofImage,
+      };
+      if (isAuthenticated) {
+        proofBody.companyId = user?.companyId;
+      }
 
       await apiFetch(`/payments/checkout/requests/${response.requestId}/proof`, {
         method: 'POST',
         token: accessToken,
-        body: JSON.stringify({
-          imageBase64: proofImage,
-        }),
+        body: JSON.stringify(proofBody),
       });
 
       setStep('success');
@@ -343,13 +361,82 @@ function CheckoutContent() {
         </p>
 
         <Card className="mt-8 rounded-[34px] bg-white/85 p-8">
-          {isAuthenticated && (
+          {isAuthenticated ? (
             <div className="mb-6 rounded-xl bg-green-50 p-4">
               <div className="flex items-center gap-2">
                 <Check className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="font-medium text-green-800">Cuenta verificada</p>
                   <p className="text-sm text-green-600">Plan actual: {user?.planCode || 'Trial'}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-6 space-y-4">
+              <h3 className="font-display text-lg">Tus datos</h3>
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="fullName">Nombre completo</Label>
+                  <div className="relative mt-1">
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="Tu nombre"
+                      className="pl-9"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="companyName">Nombre de empresa</Label>
+                  <div className="relative mt-1">
+                    <Building className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+                    <Input
+                      id="companyName"
+                      type="text"
+                      placeholder="Nombre de tu empresa"
+                      className="pl-9"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="email">Correo electrónico</Label>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="correo@ejemplo.com"
+                      className="pl-9"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="password">Contraseña</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Mín. 8 caracteres"
+                      className="pl-9 pr-9"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

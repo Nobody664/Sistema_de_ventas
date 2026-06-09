@@ -13,53 +13,52 @@ import {
 export class PaymentSettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAllSettings(companyId: string): Promise<PaymentSettingsResponseDto[]> {
+  async getAllSettings(): Promise<PaymentSettingsResponseDto[]> {
     return this.prisma.paymentSetting.findMany({
-      where: { companyId },
       orderBy: { provider: 'asc' },
     }) as Promise<PaymentSettingsResponseDto[]>;
   }
 
   async getSettingsByProvider(
-    companyId: string,
     provider: PaymentProvider,
   ): Promise<PaymentSettingsResponseDto | null> {
     return this.prisma.paymentSetting.findFirst({
-      where: { companyId, provider },
+      where: { provider },
     }) as Promise<PaymentSettingsResponseDto | null>;
   }
 
   async updateSettings(
-    companyId: string,
     provider: PaymentProvider,
     data: UpdatePaymentSettingsDto,
   ): Promise<PaymentSettingsResponseDto> {
     const existing = await this.prisma.paymentSetting.findFirst({
-      where: { companyId, provider },
+      where: { provider },
     });
 
     if (existing) {
       return this.prisma.paymentSetting.update({
         where: { id: existing.id },
-        data: data as never,
+        data: {
+          ...data,
+          config: data.config ?? {},
+        } as never,
       }) as Promise<PaymentSettingsResponseDto>;
     }
 
     return this.prisma.paymentSetting.create({
       data: {
-        companyId,
         provider,
         ...data,
+        config: data.config ?? {},
       } as never,
     }) as Promise<PaymentSettingsResponseDto>;
   }
 
   async getEnabledProvider(
-    companyId: string,
     provider: PaymentProvider,
   ): Promise<PaymentSettingsResponseDto | null> {
     const settings = await this.prisma.paymentSetting.findFirst({
-      where: { companyId, provider, isEnabled: true },
+      where: { provider, isEnabled: true },
     });
 
     return settings as PaymentSettingsResponseDto | null;

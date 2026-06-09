@@ -26,6 +26,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
       <TrialBanner
         companyStatus={companyStatus ?? ''}
         trialEndsAt={session.user.trialEndsAt ?? null}
+        roles={session.user.roles}
       />
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <AppSidebar roles={session.user.roles} />

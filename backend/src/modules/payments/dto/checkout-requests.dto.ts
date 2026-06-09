@@ -47,6 +47,10 @@ export class SubmitCheckoutProofDto {
   @Type(() => Date)
   @IsDate()
   paymentDate?: Date;
+
+  @IsOptional()
+  @IsString()
+  companyId?: string;
 }
 
 export class ReviewCheckoutRequestDto {

@@ -53,7 +53,8 @@ export default async function ProfilePage() {
         stats = await serverApiFetch<DashboardStats>('/dashboard/global', accessToken);
       } catch {}
       try {
-        companies = await serverApiFetch<Company[]>('/companies', accessToken) ?? [];
+        const result = await serverApiFetch<{ data: Company[]; total: number }>('/companies', accessToken);
+        companies = Array.isArray(result?.data) ? result.data : [];
       } catch {}
     }
 
@@ -93,6 +94,7 @@ export default async function ProfilePage() {
       initialCompany={company}
       userName={userName}
       userEmail={userEmail}
+      userRoles={userRoles}
     />
   );
 }

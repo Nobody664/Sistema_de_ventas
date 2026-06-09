@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { apiFetch, getAccessToken } from '@/lib/api';
+import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/stores/auth.store';
 
 interface Plan {
@@ -81,7 +82,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
 
   const fetchPaymentSettings = async () => {
     try {
-      const data = await apiFetch<PaymentSettings[]>('/payments/settings', {
+      const data = await apiFetch<PaymentSettings[]>('/payment-settings', {
         token: getAccessToken(),
       });
       setPaymentSettings(data || []);
@@ -120,12 +121,13 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
     }
   };
 
-  const handleImageUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setProofImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+  const handleImageUpload = async (file: File) => {
+    try {
+      const compressed = await compressImage(file);
+      setProofImage(compressed);
+    } catch {
+      setError('Error al procesar la imagen');
+    }
   };
 
   const handleSubmitProof = async () => {

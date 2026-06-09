@@ -54,14 +54,26 @@ type Company = {
   createdAt: string;
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  COMPANY_ADMIN: 'Administrador',
+  MANAGER: 'Gerente',
+  CASHIER: 'Cajero',
+  VIEWER: 'Visualizador',
+  SUPER_ADMIN: 'Super Admin',
+  SUPPORT_ADMIN: 'Soporte',
+};
+
 type ProfileClientProps = {
   initialSubscription: Subscription | null;
   initialCompany: Company | null;
   userName: string;
   userEmail: string;
+  userRoles: string[];
 };
 
-export function ProfileClient({ initialSubscription, initialCompany, userName, userEmail }: ProfileClientProps) {
+export function ProfileClient({ initialSubscription, initialCompany, userName, userEmail, userRoles }: ProfileClientProps) {
+  const userRole = userRoles.find(r => ROLE_LABELS[r]) || '';
+  const displayRole = ROLE_LABELS[userRole] || userRole;
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(initialCompany);
@@ -161,10 +173,12 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
     };
   };
 
+  const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+
   const menuItems = [
     { label: 'Mi Perfil', icon: User, href: '/profile', active: true },
     { label: 'Empresa', icon: Building2, href: '/settings/company' },
-    { label: 'Suscripción', icon: CreditCard, href: '/subscription' },
+    ...(isCompanyAdmin ? [{ label: 'Suscripción', icon: CreditCard, href: '/subscription' }] : []),
     { label: 'Notificaciones', icon: Bell, href: '/notifications' },
   ];
 
@@ -198,7 +212,13 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
               {userEmail}
             </p>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            {displayRole && (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-medium text-white">{displayRole}</span>
+              </div>
+            )}
             <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${companyStatus.bg}`}>
               <span className={`w-2 h-2 rounded-full ${companyStatus.dot}`} />
               <span className={`font-medium ${companyStatus.color}`}>{companyStatus.label}</span>
@@ -294,13 +314,15 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
                     <p className="text-sm text-slate-500 mt-0.5">Datos de tu organización</p>
                   </div>
                 </div>
-                <Link 
-                  href="/settings/company"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-medium text-sm shadow-sm hover:shadow-md hover:border-indigo-300 hover:text-indigo-600 transition-all duration-200 group/btn"
-                >
-                  <Settings className="w-4 h-4 transition-transform group-hover/btn:rotate-45" />
-                  Editar
-                </Link>
+                {isCompanyAdmin && (
+                  <Link 
+                    href="/settings/company"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-medium text-sm shadow-sm hover:shadow-md hover:border-indigo-300 hover:text-indigo-600 transition-all duration-200 group/btn"
+                  >
+                    <Settings className="w-4 h-4 transition-transform group-hover/btn:rotate-45" />
+                    Editar
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -383,7 +405,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
               </div>
             </div>
 
-            {company?.trialEndsAt && company.status === 'TRIAL' && (
+            {isCompanyAdmin && company?.trialEndsAt && company.status === 'TRIAL' && (
               <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
@@ -411,65 +433,66 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
             )}
           </Card>
 
-          {/* Subscription Card */}
-          <Card className="rounded-3xl bg-white border-slate-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="font-display text-xl font-semibold text-slate-900">Mi Suscripción</h2>
-                <p className="text-sm text-slate-500 mt-1">Plan y facturación actual</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
-                  <CreditCard className="w-7 h-7" />
-                </div>
+          {isCompanyAdmin && (
+            <Card className="rounded-3xl bg-white border-slate-200 p-6">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="font-display text-2xl font-semibold">
-                    {subscription?.plan?.name || 'Sin plan'}
-                  </p>
-                  <p className="text-slate-300 text-sm">
-                    {subscription?.billingCycle === 'YEARLY' ? 'Facturación anual' : 'Facturación mensual'}
-                  </p>
+                  <h2 className="font-display text-xl font-semibold text-slate-900">Mi Suscripción</h2>
+                  <p className="text-sm text-slate-500 mt-1">Plan y facturación actual</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-display text-3xl font-bold">
-                  {subscription?.plan?.priceMonthly === '0' ? 'Gratis' : `S/ ${subscription?.plan?.priceMonthly}`}
-                </p>
-                {subscription?.plan?.priceMonthly !== '0' && (
-                  <p className="text-slate-300 text-sm">/mes</p>
-                )}
-              </div>
-            </div>
 
-            {subscription?.endDate && (
-              <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 p-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-slate-500" />
-                  <span className="text-sm text-slate-600">
-                    {subscription.status === 'TRIALING' ? 'Período de prueba termina:' : 'Próximo cobro:'}
+              <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
+                    <CreditCard className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <p className="font-display text-2xl font-semibold">
+                      {subscription?.plan?.name || 'Sin plan'}
+                    </p>
+                    <p className="text-slate-300 text-sm">
+                      {subscription?.billingCycle === 'YEARLY' ? 'Facturación anual' : 'Facturación mensual'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-display text-3xl font-bold">
+                    {subscription?.plan?.priceMonthly === '0' ? 'Gratis' : `S/ ${subscription?.plan?.priceMonthly}`}
+                  </p>
+                  {subscription?.plan?.priceMonthly !== '0' && (
+                    <p className="text-slate-300 text-sm">/mes</p>
+                  )}
+                </div>
+              </div>
+
+              {subscription?.endDate && (
+                <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-slate-500" />
+                    <span className="text-sm text-slate-600">
+                      {subscription.status === 'TRIALING' ? 'Período de prueba termina:' : 'Próximo cobro:'}
+                    </span>
+                  </div>
+                  <span className="font-semibold text-slate-900">
+                    {new Date(subscription.endDate).toLocaleDateString('es-PE', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
                   </span>
                 </div>
-                <span className="font-semibold text-slate-900">
-                  {new Date(subscription.endDate).toLocaleDateString('es-PE', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </span>
-              </div>
-            )}
+              )}
 
-            <Link
-              href="/subscription"
-              className="mt-4 flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-            >
-              Ver todos los planes
-              <ChevronRight className="w-4 h-4" />
-            </Link>
-          </Card>
+              <Link
+                href="/subscription"
+                className="mt-4 flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                Ver todos los planes
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </Card>
+          )}
         </div>
       </div>
     </div>

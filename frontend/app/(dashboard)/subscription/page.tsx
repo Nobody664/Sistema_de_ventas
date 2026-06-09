@@ -19,6 +19,11 @@ export default async function SubscriptionPage() {
     redirect('/sign-in');
   }
 
+  const roles: string[] = session?.user?.roles || [];
+  if (!roles.includes('COMPANY_ADMIN')) {
+    redirect('/dashboard');
+  }
+
   const accessToken = session?.accessToken;
 
   const [subscription, plans, pendingRequest] = await Promise.all([

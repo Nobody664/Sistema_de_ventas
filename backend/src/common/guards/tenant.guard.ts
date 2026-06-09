@@ -25,6 +25,10 @@ export class TenantGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user as { companyId?: string | null; roles?: string[]; companyStatus?: string } | undefined;
 
+    if (user?.companyId) {
+      request.tenantId = user.companyId;
+    }
+
     if (user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('SUPPORT_ADMIN')) {
       return true;
     }

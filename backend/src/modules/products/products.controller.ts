@@ -95,6 +95,13 @@ export class ProductsController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Permissions(Permission.PRODUCT_LIST)
+  @Get('barcode/:code')
+  findByBarcode(@Req() request: { tenantId: string }, @Param('code') code: string) {
+    return this.productsService.findByBarcode(request.tenantId, code);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Permissions(Permission.PRODUCT_LIST)
   @Get(':id')
   findProductById(@Req() request: { tenantId: string }, @Param('id') id: string) {
     return this.productsService.findProductById(request.tenantId, id);

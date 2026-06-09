@@ -31,6 +31,10 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { EmailModule } from './modules/email/email.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { DniModule } from './modules/dni/dni.module';
+import { KardexModule } from './modules/kardex/kardex.module';
+import { ProductBatchesModule } from './modules/product-batches/product-batches.module';
+import { ReplenishmentModule } from './modules/replenishment/replenishment.module';
+import { BranchesModule } from './modules/branches/branches.module';
 import { HealthModule } from './modules/health/health.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CompanyProfileModule } from './modules/company-profile/company-profile.module';
@@ -98,6 +102,10 @@ import { CompanyProfileModule } from './modules/company-profile/company-profile.
     EmailModule,
     InvoicesModule,
     DniModule,
+    KardexModule,
+    ProductBatchesModule,
+    ReplenishmentModule,
+    BranchesModule,
     HealthModule,
     BillingModule,
     CompanyProfileModule,

@@ -65,7 +65,39 @@ export class SubscriptionsService {
       this.prisma.subscription.count({ where }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const transformed = data.map((sub) => ({
+      id: sub.company.id,
+      name: sub.company.name,
+      email: sub.company.email,
+      status: sub.company.status,
+      createdAt: sub.company.createdAt,
+      subscription: {
+        id: sub.id,
+        status: sub.status as 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED',
+        billingCycle: sub.billingCycle as 'MONTHLY' | 'YEARLY',
+        startDate: sub.startDate,
+        endDate: sub.endDate,
+        plan: sub.plan
+          ? {
+              id: sub.plan.id,
+              name: sub.plan.name,
+              code: sub.plan.code,
+              priceMonthly: sub.plan.priceMonthly?.toString() ?? '0',
+              priceYearly: sub.plan.priceYearly?.toString() ?? '0',
+            }
+          : undefined,
+        autoRenew: sub.autoRenew,
+        payments: sub.payments?.map((p) => ({
+          id: p.id,
+          amount: p.amount?.toString() ?? '0',
+          status: p.status,
+          paidAt: p.paidAt,
+        })),
+        company: sub.company,
+      },
+    }));
+
+    return { data: transformed, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async approveSubscriber(subscriptionId: string) {

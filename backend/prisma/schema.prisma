@@ -80,6 +80,26 @@ enum NotificationType {
   INVENTORY
   SUBSCRIPTION
   SYSTEM
+  PLAN_UPGRADED
+  PLAN_UPGRADE_REQUEST
+  SUBSCRIPTION_APPROVED
+  SUBSCRIPTION_REJECTED
+  SUBSCRIPTION_PENDING
+  LOW_STOCK
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  PAYMENT_PROOF_PENDING
+  NEW_COMPANY_REGISTRATION
+  CHECKOUT_REQUEST_PENDING
+  ACCOUNT_ACTIVATED
+  ACCOUNT_APPROVED
+  TRIAL_EXPIRING_SOON
+  TRIAL_EXPIRED
+  NEW_SALE
+  NEW_CUSTOMER
+  SALE_COMPLETED
+  SALE_RETURNED
+  GENERAL
 }
 
 enum NotificationChannel {
@@ -117,6 +137,14 @@ enum InventoryMovementType {
   IN
   OUT
   ADJUSTMENT
+  RETURN
+  LOSS
+  TRANSFER
+}
+
+enum InventoryCostMethod {
+  FIFO
+  WEIGHTED_AVERAGE
 }
 
 enum ProofStatus {
@@ -148,20 +176,21 @@ model User {
 }
 
 model Company {
-  id          String        @id @default(cuid())
-  name        String
-  slug        String        @unique
-  legalName   String?       @map("legal_name")
-  taxId       String?       @map("tax_id")
-  address     String?
-  email       String?
-  phone       String?
-  timezone    String        @default("America/Lima")
-  currency    String        @default("PEN")
-  status      CompanyStatus @default(TRIAL)
-  trialEndsAt DateTime?     @map("trial_ends_at")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id                  String              @id @default(cuid())
+  name                String
+  slug                String              @unique
+  legalName           String?             @map("legal_name")
+  taxId               String?             @map("tax_id")
+  address             String?
+  email               String?
+  phone               String?
+  timezone            String              @default("America/Lima")
+  currency            String              @default("PEN")
+  status              CompanyStatus       @default(TRIAL)
+  inventoryCostMethod InventoryCostMethod @default(WEIGHTED_AVERAGE) @map("inventory_cost_method")
+  trialEndsAt         DateTime?           @map("trial_ends_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
 
   subscriptions       Subscription[]
   memberships         Membership[]
@@ -173,10 +202,13 @@ model Company {
   invoices            InvoiceTemplate[]
   notifications       Notification[]
   auditLogs           AuditLog[]
-  paymentSettings     PaymentSetting[]
+
   inventoryMovements  InventoryMovement[]
   planUpgradeRequests PlanUpgradeRequest[]
-  checkoutRequests   CheckoutRequest[]
+  checkoutRequests    CheckoutRequest[]
+  branches            Branch[]
+  productBatches      ProductBatch[]
+  kardexEntries       InventoryKardex[]
 
   @@map("companies")
 }
@@ -290,7 +322,11 @@ model Product {
   salePrice     Decimal  @map("sale_price") @db.Decimal(10, 2)
   costPrice     Decimal? @map("cost_price") @db.Decimal(10, 2)
   stockQuantity Int      @default(0) @map("stock_quantity")
-  minStock     Int      @default(5) @map("min_stock")
+  minStock      Int      @default(5) @map("min_stock")
+  reorderPoint  Int?     @map("reorder_point")
+  safetyStock   Int?     @map("safety_stock")
+  leadTimeDays  Int?     @map("lead_time_days")
+  lastSoldAt    DateTime? @map("last_sold_at")
   isActive      Boolean  @default(true) @map("is_active")
   imageUrl      String?  @map("image_url")
   barcode       String?  @unique
@@ -301,6 +337,8 @@ model Product {
   category           Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   saleItems          SaleItem[]
   inventoryMovements InventoryMovement[]
+  batches            ProductBatch[]
+  kardexEntries      InventoryKardex[]
 
   @@index([companyId, isActive])
   @@map("products")
@@ -373,10 +411,80 @@ model Employee {
   @@map("employees")
 }
 
+model Branch {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  name      String
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productBatches    ProductBatch[]
+  inventoryMovements InventoryMovement[]
+
+  @@index([companyId])
+  @@map("branches")
+}
+
+model ProductBatch {
+  id                String    @id @default(cuid())
+  companyId         String    @map("company_id")
+  productId         String    @map("product_id")
+  branchId          String?   @map("branch_id")
+  batchNumber       String    @map("batch_number")
+  quantityReceived  Int       @map("quantity_received")
+  quantityAvailable Int       @map("quantity_available")
+  purchasePrice     Decimal   @map("purchase_price") @db.Decimal(10, 2)
+  expirationDate    DateTime? @map("expiration_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, productId])
+  @@index([expirationDate])
+  @@map("product_batches")
+}
+
+model InventoryKardex {
+  id               String   @id @default(cuid())
+  companyId        String   @map("company_id")
+  productId        String   @map("product_id")
+  movementId       String?  @map("movement_id")
+  movementDate     DateTime @map("movement_date")
+  movementType     String   @map("movement_type")
+
+  qtyIn            Int      @default(0) @map("qty_in")
+  unitCostIn       Decimal? @map("unit_cost_in") @db.Decimal(10, 2)
+  totalCostIn      Decimal? @map("total_cost_in") @db.Decimal(12, 2)
+
+  qtyOut           Int      @default(0) @map("qty_out")
+  unitCostOut      Decimal? @map("unit_cost_out") @db.Decimal(10, 2)
+  totalCostOut     Decimal? @map("total_cost_out") @db.Decimal(12, 2)
+
+  balanceQty       Int      @map("balance_qty")
+  balanceUnitCost  Decimal  @map("balance_unit_cost") @db.Decimal(10, 2)
+  balanceTotalCost Decimal  @map("balance_total_cost") @db.Decimal(12, 2)
+
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, productId, movementDate])
+  @@index([companyId, movementDate])
+  @@map("inventory_kardex")
+}
+
 model InventoryMovement {
   id        String                @id @default(cuid())
   companyId String                @map("company_id")
   productId String                @map("product_id")
+  branchId  String?               @map("branch_id")
   type      InventoryMovementType
   quantity  Int
   reference String?
@@ -386,8 +494,10 @@ model InventoryMovement {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@index([companyId, productId])
+  @@index([companyId, branchId])
   @@map("inventory_movements")
 }
 
@@ -519,7 +629,6 @@ model AuditLog {
 
 model PaymentSetting {
   id              String          @id @default(cuid())
-  companyId       String          @map("company_id")
   provider        PaymentProvider
   config         Json
   qrImageBase64  String?         @map("qr_image_base64")
@@ -531,9 +640,7 @@ model PaymentSetting {
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, provider])
+  @@unique([provider])
   @@map("payment_settings")
 }
 

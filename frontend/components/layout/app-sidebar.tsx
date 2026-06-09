@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Bell, Building2, CreditCard, LayoutDashboard, Package, ShoppingCart, Users, Activity, UserCog, FolderTree, UserPlus, ArrowUpCircle, FileText, DollarSign } from 'lucide-react';
+import { BarChart3, Bell, Building2, CreditCard, LayoutDashboard, Package, ShoppingCart, Users, Activity, UserCog, FolderTree, UserPlus, ArrowUpCircle, FileText, DollarSign, Warehouse } from 'lucide-react';
 
 const mainItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
@@ -17,13 +17,14 @@ const superAdminItems = [
 ];
 
 const companyItems = [
+  { label: 'Inventario', href: '/inventory', icon: Warehouse, roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Productos', href: '/products', icon: Package, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
   { label: 'Categorías', href: '/categories', icon: FolderTree, roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Ventas', href: '/sales', icon: ShoppingCart, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
   { label: 'Clientes', href: '/customers', icon: Users, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
   { label: 'Empleados', href: '/employees', icon: UserCog, roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Pagos', href: '/payments', icon: DollarSign, roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Reportes', href: '/reports', icon: BarChart3, roles: ['COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Reportes', href: '/reports', icon: BarChart3, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
 ];
 
 const adminItems = [
@@ -78,7 +79,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
           })}
         </nav>
 
-        {isCompanyAdmin && visibleCompanyItems.length > 0 && (
+        {visibleCompanyItems.length > 0 && (
           <nav className="space-y-1 overflow-y-auto py-1">
             <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">Gestión</p>
             {visibleCompanyItems.map((item) => {

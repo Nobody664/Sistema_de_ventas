@@ -7,13 +7,15 @@ import { useState } from 'react';
 type TrialBannerProps = {
   companyStatus: string;
   trialEndsAt: string | null;
+  roles: string[];
 };
 
-export function TrialBanner({ companyStatus, trialEndsAt }: TrialBannerProps) {
+export function TrialBanner({ companyStatus, trialEndsAt, roles }: TrialBannerProps) {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
   if (companyStatus !== 'TRIAL' || !trialEndsAt) return null;
+  if (!roles.includes('COMPANY_ADMIN')) return null;
 
   const now = Date.now();
   const trialEnd = new Date(trialEndsAt).getTime();
@@ -39,7 +41,7 @@ export function TrialBanner({ companyStatus, trialEndsAt }: TrialBannerProps) {
               : `Te quedan ${daysLeft} día(s) de prueba gratis.`}
           </span>
           <Link
-            href="/subscriptions"
+            href="/subscription"
             className={`ml-2 rounded-full px-3 py-0.5 text-xs font-semibold ${
               isUrgent
                 ? 'bg-white text-red-700 hover:bg-white/90'

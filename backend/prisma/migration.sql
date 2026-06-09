@@ -23,7 +23,7 @@ CREATE TYPE "MembershipRole" AS ENUM ('COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VI
 CREATE TYPE "SaleStatus" AS ENUM ('COMPLETED', 'CANCELLED', 'REFUNDED', 'PENDING');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('SALE', 'PAYMENT', 'INVENTORY', 'SUBSCRIPTION', 'SYSTEM');
+CREATE TYPE "NotificationType" AS ENUM ('SALE', 'PAYMENT', 'INVENTORY', 'SUBSCRIPTION', 'SYSTEM', 'PLAN_UPGRADED', 'PLAN_UPGRADE_REQUEST', 'SUBSCRIPTION_APPROVED', 'SUBSCRIPTION_REJECTED', 'SUBSCRIPTION_PENDING', 'LOW_STOCK', 'PAYMENT_RECEIVED', 'PAYMENT_FAILED', 'PAYMENT_PROOF_PENDING', 'NEW_COMPANY_REGISTRATION', 'CHECKOUT_REQUEST_PENDING', 'ACCOUNT_ACTIVATED', 'ACCOUNT_APPROVED', 'TRIAL_EXPIRING_SOON', 'TRIAL_EXPIRED', 'NEW_SALE', 'NEW_CUSTOMER', 'SALE_COMPLETED', 'SALE_RETURNED', 'GENERAL');
 
 -- CreateEnum
 CREATE TYPE "NotificationChannel" AS ENUM ('EMAIL', 'IN_APP', 'SMS', 'WHATSAPP');
@@ -364,7 +364,6 @@ CREATE TABLE "audit_logs" (
 -- CreateTable
 CREATE TABLE "payment_settings" (
     "id" TEXT NOT NULL,
-    "company_id" TEXT NOT NULL,
     "provider" "PaymentProvider" NOT NULL,
     "config" JSONB NOT NULL,
     "qr_image_base64" TEXT,
@@ -461,7 +460,7 @@ CREATE UNIQUE INDEX "employees_user_id_key" ON "employees"("user_id");
 CREATE UNIQUE INDEX "employees_dni_key" ON "employees"("dni");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "payment_settings_company_id_provider_key" ON "payment_settings"("company_id", "provider");
+CREATE UNIQUE INDEX "payment_settings_provider_key" ON "payment_settings"("provider");
 
 ┌─────────────────────────────────────────────────────────┐
 │  Update available 5.22.0 -> 7.8.0                       │

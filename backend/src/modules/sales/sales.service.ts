@@ -3,6 +3,8 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { CreateSaleDto, ExportSalesQueryDto } from './dto/sale.dto';
 import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
+import { KardexService } from '@/modules/kardex/kardex.service';
+import { ProductBatchesService } from '@/modules/product-batches/product-batches.service';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
 
@@ -11,6 +13,8 @@ export class SalesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly kardexService: KardexService,
+    private readonly productBatchesService: ProductBatchesService,
   ) {}
 
   findRecentSales(companyId: string) {
@@ -263,15 +267,42 @@ export class SalesService {
         ),
       );
 
-      await tx.inventoryMovement.createMany({
-        data: input.items.map((item) => ({
-          companyId,
-          productId: item.productId,
-          type: 'OUT' as const,
-          quantity: item.quantity * -1,
-          notes: `Sale ${sale.saleNumber}`,
-        })),
-      });
+      await Promise.all(
+        input.items.map((item) =>
+          this.productBatchesService.reserveFromBatch(
+            companyId,
+            item.productId,
+            item.quantity,
+            tx,
+          ),
+        ),
+      );
+
+      const movements = await Promise.all(
+        input.items.map((item) =>
+          tx.inventoryMovement.create({
+            data: {
+              companyId,
+              productId: item.productId,
+              type: 'OUT' as const,
+              quantity: item.quantity * -1,
+              notes: `Sale ${sale.saleNumber}`,
+            },
+          }),
+        ),
+      );
+
+      await Promise.all(
+        movements.map((movement, index) =>
+          this.kardexService.recordOutMovement(
+            companyId,
+            input.items[index].productId,
+            input.items[index].quantity,
+            movement.id,
+            tx,
+          ),
+        ),
+      );
 
       return sale;
     });

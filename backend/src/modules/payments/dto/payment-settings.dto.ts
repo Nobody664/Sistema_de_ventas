@@ -48,7 +48,7 @@ export class PaymentSettingsResponseDto {
 
 export class UploadPaymentProofDto {
   @IsString()
-  @MaxLength(500000)
+  @MaxLength(2_000_000)
   imageBase64!: string;
 
   @IsString()

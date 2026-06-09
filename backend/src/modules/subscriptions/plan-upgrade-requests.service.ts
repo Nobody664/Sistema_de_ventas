@@ -51,7 +51,7 @@ export class PlanUpgradeRequestsService {
     }
 
     const settings = await this.prisma.paymentSetting.findFirst({
-      where: { companyId, provider: input.paymentMethod, isEnabled: true },
+      where: { provider: input.paymentMethod, isEnabled: true },
     });
 
     if (!settings) {

@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Calendar, CheckCircle, Clock, AlertCircle, XCircle, DollarSign, Shield, Upload, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { compressImage } from '@/lib/image-compression';
 import { useRouter } from 'next/navigation';
 
 interface BillingStatus {
@@ -105,10 +106,13 @@ export function PaymentHistoryClient({ billingStatus, isSuperAdmin }: PaymentHis
 
   const { subscription, currentPending, recentPayments } = billingStatus;
 
-  const handleImageUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => setProofImage(reader.result as string);
-    reader.readAsDataURL(file);
+  const handleImageUpload = async (file: File) => {
+    try {
+      const compressed = await compressImage(file);
+      setProofImage(compressed);
+    } catch {
+      setMessage({ type: 'error', text: 'Error al procesar la imagen' });
+    }
   };
 
   const handleSubmitProof = async () => {

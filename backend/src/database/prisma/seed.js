@@ -275,6 +275,65 @@ async function main() {
     },
   });
 
+  const paymentSettings = await Promise.all([
+    prisma.paymentSetting.upsert({
+      where: { provider: 'YAPE' },
+      update: {},
+      create: {
+        provider: 'YAPE',
+        config: { type: 'mobile' },
+        accountNumber: '999587587',
+        accountName: 'Cesar (Super Admin)',
+        instructions: 'Escanea el código QR o envía el pago al número Yape indicado.',
+        isEnabled: true,
+      },
+    }),
+    prisma.paymentSetting.upsert({
+      where: { provider: 'PLIN' },
+      update: {},
+      create: {
+        provider: 'PLIN',
+        config: { type: 'mobile' },
+        accountNumber: '999587588',
+        accountName: 'Cesar (Super Admin)',
+        instructions: 'Escanea el código QR o envía el pago al número Plin indicado.',
+        isEnabled: true,
+      },
+    }),
+    prisma.paymentSetting.upsert({
+      where: { provider: 'TRANSFER' },
+      update: {},
+      create: {
+        provider: 'TRANSFER',
+        config: { type: 'bank_transfer' },
+        accountNumber: '191-1234567-0-00',
+        accountName: 'Cesar (Super Admin)',
+        instructions: 'Realiza la transferencia bancaria a la cuenta indicada y sube el comprobante.',
+        isEnabled: true,
+      },
+    }),
+    prisma.paymentSetting.upsert({
+      where: { provider: 'STRIPE' },
+      update: {},
+      create: {
+        provider: 'STRIPE',
+        config: { type: 'card', publishableKey: 'pk_test_...', secretKey: 'sk_test_...' },
+        instructions: 'Pago con tarjeta de crédito/débito vía Stripe.',
+        isEnabled: true,
+      },
+    }),
+    prisma.paymentSetting.upsert({
+      where: { provider: 'MERCADOPAGO' },
+      update: {},
+      create: {
+        provider: 'MERCADOPAGO',
+        config: { type: 'card', publicKey: 'TEST-...', accessToken: 'TEST-...' },
+        instructions: 'Pago con tarjeta de crédito/débito vía MercadoPago.',
+        isEnabled: true,
+      },
+    }),
+  ]);
+
   console.log('Seeded successfully!');
   console.log('\nDemo credentials:');
   console.log('- superadmin@ventas-saas.local / Admin123! (Super Admin - acceso total plataforma)');

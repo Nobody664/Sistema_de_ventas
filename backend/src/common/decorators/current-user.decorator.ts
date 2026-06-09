@@ -8,9 +8,10 @@ export type AuthUser = {
 };
 
 export const CurrentUser = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): AuthUser | undefined => {
+  (data: string | undefined, ctx: ExecutionContext): AuthUser | unknown => {
     const request = ctx.switchToHttp().getRequest();
-    return request.user;
+    const user = request.user as AuthUser | undefined;
+    return data ? user?.[data as keyof AuthUser] : user;
   },
 );
 

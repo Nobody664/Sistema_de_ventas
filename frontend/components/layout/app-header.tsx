@@ -37,7 +37,8 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
     router.push('/sign-in');
   };
 
-  const isCompanyAdmin = roles.includes('COMPANY_ADMIN') || roles.includes('MANAGER');
+  const isAdminOrManager = roles.includes('COMPANY_ADMIN') || roles.includes('MANAGER');
+  const canManageCustomers = roles.some(r => ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'].includes(r));
 
   return (
     <header className="sticky top-0 z-20 border-b border-foreground/10 bg-background/85 px-5 py-4 backdrop-blur md:px-8">
@@ -81,17 +82,17 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
                 </Link>
               )}
               
-              {isCompanyAdmin && (
-                <>
-                  <Link href="/customers" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
-                    <Users className="mr-2 h-4 w-4" />
-                    <span>Clientes</span>
-                  </Link>
-                  <Link href="/employees" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
-                    <UserCog className="mr-2 h-4 w-4" />
-                    <span>Empleados</span>
-                  </Link>
-                </>
+              {canManageCustomers && (
+                <Link href="/customers" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
+                  <Users className="mr-2 h-4 w-4" />
+                  <span>Clientes</span>
+                </Link>
+              )}
+              {isAdminOrManager && (
+                <Link href="/employees" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">
+                  <UserCog className="mr-2 h-4 w-4" />
+                  <span>Empleados</span>
+                </Link>
               )}
               
               <Link href="/settings" className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted">

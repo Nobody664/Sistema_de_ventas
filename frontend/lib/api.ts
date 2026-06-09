@@ -1,10 +1,8 @@
-import { clearTokens } from './api/auth';
-
 export { getAccessToken, getRefreshToken, setTokens, clearTokens, isAuthenticated } from './api/auth';
 export { login, register, logout, getMe, refreshToken } from './api/auth';
 export type { LoginRequest, RegisterRequest, AuthResponse, RefreshResponse } from './api/auth';
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api').replace(/\/$/, '');
+const API_URL = '/api';
 
 export async function apiFetch<T>(path: string, init?: RequestInit & { token?: string }): Promise<T> {
   const headers: Record<string, string> = {
@@ -27,14 +25,6 @@ export async function apiFetch<T>(path: string, init?: RequestInit & { token?: s
 
   if (!response.ok) {
     const errorText = await response.text();
-    
-    if (response.status === 401 || response.status === 403) {
-      if (typeof window !== 'undefined') {
-        clearTokens();
-        window.location.href = '/sign-in';
-        throw new Error('Sesión expirada');
-      }
-    }
 
     try {
       const error = JSON.parse(errorText);

@@ -32,13 +32,12 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const parsePaidAt = (sale: Sale) => {
-    const paidAt = sale.paidAt as Date | null | undefined;
-    return paidAt ? new Date(paidAt) : null;
+  const parseSaleDate = (sale: Sale) => {
+    return new Date(sale.createdAt);
   };
   const isTodaySale = (sale: Sale) => {
-    const paidAt = parsePaidAt(sale);
-    return paidAt ? paidAt >= today : false;
+    const date = parseSaleDate(sale);
+    return date >= today;
   };
   const salesToday = sales.filter(isTodaySale).length;
   const revenueToday = sales.filter(isTodaySale).reduce((acc, s) => acc + Number(s.totalAmount), 0);
@@ -212,14 +211,12 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                   <div className="text-right">
                     <p className="font-display text-xl">S/ {Number(sale.totalAmount || 0).toFixed(2)}</p>
                     <p className="text-sm text-foreground/50">
-                      {sale.paidAt 
-                        ? new Date(sale.paidAt as Date).toLocaleString('es-PE', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : 'Sin fecha'}
+                      {new Date(sale.createdAt).toLocaleString('es-PE', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </p>
                   </div>
                 </Link>

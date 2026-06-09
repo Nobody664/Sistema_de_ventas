@@ -3,12 +3,13 @@
 import { useState, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, DollarSign, Boxes, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, DollarSign, Boxes, AlertTriangle, ArrowLeft, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { handleLimitError } from '@/lib/handle-limit-error';
+import { BarcodeScanner } from '@/components/ui/barcode-scanner';
 import { useUiStore } from '@/store/ui-store';
 import { useAuthStore } from '@/stores/auth.store';
 import { createProductSchema } from '@/lib/validations/product.validation';
@@ -31,6 +32,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(product?.imageUrl || null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [barcodeValue, setBarcodeValue] = useState(product?.barcode || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = !!product;
@@ -278,15 +280,19 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="barcode" className="text-sm font-semibold text-slate-700">Código de barras</Label>
-                        <div className="relative">
-                          <Input 
-                            id="barcode" 
-                            name="barcode"
-                            defaultValue={product?.barcode || ''}
-                            placeholder="100000000001"
-                            className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-10 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.barcode ? 'border-red-500' : ''}`}
-                          />
-                          <Barcode className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Input 
+                              id="barcode" 
+                              name="barcode"
+                              value={barcodeValue}
+                              onChange={(e) => setBarcodeValue(e.target.value)}
+                              placeholder="100000000001"
+                              className={`h-12 w-full rounded-xl border-slate-200 bg-slate-50/50 pl-10 pr-4 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.barcode ? 'border-red-500' : ''}`}
+                            />
+                            <Barcode className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+                          </div>
+                          <BarcodeScanner onDetected={(code) => setBarcodeValue(code)} />
                         </div>
                       </div>
                     </div>

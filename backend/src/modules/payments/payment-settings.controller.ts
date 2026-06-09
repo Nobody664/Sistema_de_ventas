@@ -21,42 +21,36 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Public } from '@/common/decorators/public.decorator';
-import { GlobalRole, MembershipRole } from '@prisma/client';
+import { GlobalRole } from '@prisma/client';
 
-@Controller('payments/settings')
+@Controller('payment-settings')
 export class PaymentSettingsController {
   constructor(private readonly paymentSettingsService: PaymentSettingsService) {}
 
   @Public()
   @Get()
-  async getAllSettingsRoot(
-    @Query('companyId') companyId?: string,
-  ): Promise<PaymentSettingsResponseDto[]> {
-    return this.paymentSettingsService.getAllSettings(companyId || '');
-  }
-
-  @Public()
-  @Get('test')
-  async test(): Promise<{ message: string }> {
-    return { message: 'Test works!' };
-  }
-
-  @Public()
-  @Get('all')
-  async getAllSettings(
-    @Query('companyId') companyId?: string,
-  ): Promise<PaymentSettingsResponseDto[]> {
-    return this.paymentSettingsService.getAllSettings(companyId || '');
+  async getAllSettings(): Promise<PaymentSettingsResponseDto[]> {
+    return this.paymentSettingsService.getAllSettings();
   }
 
   @Public()
   @Get('provider/:provider')
   async getSettingsByProvider(
     @Param('provider') provider: string,
-    @Query('companyId') companyId?: string,
   ): Promise<PaymentSettingsResponseDto | null> {
     const paymentProvider = provider.toUpperCase() as PaymentProvider;
-    return this.paymentSettingsService.getSettingsByProvider(companyId || '', paymentProvider);
+    return this.paymentSettingsService.getSettingsByProvider(paymentProvider);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(GlobalRole.SUPER_ADMIN)
+  @Patch('provider/:provider')
+  async updateSettings(
+    @Param('provider') provider: string,
+    @Body() data: UpdatePaymentSettingsDto,
+  ): Promise<PaymentSettingsResponseDto> {
+    const paymentProvider = provider.toUpperCase() as PaymentProvider;
+    return this.paymentSettingsService.updateSettings(paymentProvider, data);
   }
 
   @Public()
@@ -74,24 +68,6 @@ export class PaymentSettingsController {
     @Param('subscriptionId') subscriptionId: string,
   ): Promise<PaymentProofResponseDto[]> {
     return this.paymentSettingsService.getProofsBySubscription(subscriptionId);
-  }
-
-  @Public()
-  @Post('test/:id')
-  async testPublicEndpoint(@Param('id') id: string): Promise<{ message: string }> {
-    return { message: 'Test works: ' + id };
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(GlobalRole.SUPER_ADMIN)
-  @Patch('provider/:provider')
-  async updateSettings(
-    @Param('provider') provider: string,
-    @Query('companyId') companyId: string,
-    @Body() data: UpdatePaymentSettingsDto,
-  ): Promise<PaymentSettingsResponseDto> {
-    const paymentProvider = provider.toUpperCase() as PaymentProvider;
-    return this.paymentSettingsService.updateSettings(companyId, paymentProvider, data);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

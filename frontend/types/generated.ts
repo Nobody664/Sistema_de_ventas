@@ -18,7 +18,8 @@ export type NotificationChannel = 'EMAIL' | 'IN_APP' | 'SMS' | 'WHATSAPP';
 export type PlanUpgradeStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type CheckoutRequestStatus = 'DRAFT' | 'SUBMITTED' | 'REVIEWING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'EXPORT';
-export type InventoryMovementType = 'IN' | 'OUT' | 'ADJUSTMENT';
+export type InventoryMovementType = 'IN' | 'OUT' | 'ADJUSTMENT' | 'RETURN' | 'LOSS' | 'TRANSFER';
+export type InventoryCostMethod = 'FIFO' | 'WEIGHTED_AVERAGE';
 export type ProofStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface User {
@@ -48,10 +49,11 @@ export interface Company {
   timezone: string;
   currency: string;
   status: CompanyStatus;
+  inventoryCostMethod: InventoryCostMethod;
   trialEndsAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  subscription?: Subscription; // Singular para 1:1 o primera relación
+  subscription?: Subscription;
   subscriptions?: Subscription[];
   memberships?: Membership[];
   customers?: Customer[];
@@ -62,10 +64,12 @@ export interface Company {
   invoices?: InvoiceTemplate[];
   notifications?: Notification[];
   auditLogs?: AuditLog[];
-  paymentSettings?: PaymentSetting[];
   inventoryMovements?: InventoryMovement[];
   planUpgradeRequests?: PlanUpgradeRequest[];
   checkoutRequests?: CheckoutRequest[];
+  branches?: Branch[];
+  productBatches?: ProductBatch[];
+  kardexEntries?: InventoryKardex[];
   _count?: {
     memberships: number;
     customers: number;
@@ -73,6 +77,7 @@ export interface Company {
     categories: number;
     sales: number;
     employees: number;
+    branches: number;
   };
 }
 
@@ -170,6 +175,10 @@ export interface Product {
   costPrice?: string | null;
   stockQuantity: number;
   minStock: number;
+  reorderPoint?: number | null;
+  safetyStock?: number | null;
+  leadTimeDays?: number | null;
+  lastSoldAt?: Date | null;
   isActive: boolean;
   imageUrl?: string | null;
   barcode?: string | null;
@@ -179,6 +188,8 @@ export interface Product {
   category?: Category | null;
   saleItems?: SaleItem[];
   inventoryMovements?: InventoryMovement[];
+  batches?: ProductBatch[];
+  kardexEntries?: InventoryKardex[];
 }
 
 export interface Sale {
@@ -235,10 +246,62 @@ export interface Employee {
   sales?: Sale[];
 }
 
+export interface Branch {
+  id: string;
+  companyId: string;
+  name: string;
+  address?: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  company?: Company;
+  productBatches?: ProductBatch[];
+  inventoryMovements?: InventoryMovement[];
+}
+
+export interface ProductBatch {
+  id: string;
+  companyId: string;
+  productId: string;
+  branchId?: string | null;
+  batchNumber: string;
+  quantityReceived: number;
+  quantityAvailable: number;
+  purchasePrice: string;
+  expirationDate?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  company?: Company;
+  product?: Product;
+  branch?: Branch | null;
+}
+
+export interface InventoryKardex {
+  id: string;
+  companyId: string;
+  productId: string;
+  movementId?: string | null;
+  movementDate: Date;
+  movementType: string;
+  qtyIn: number;
+  unitCostIn?: string | null;
+  totalCostIn?: string | null;
+  qtyOut: number;
+  unitCostOut?: string | null;
+  totalCostOut?: string | null;
+  balanceQty: number;
+  balanceUnitCost: string;
+  balanceTotalCost: string;
+  createdAt: Date;
+  company?: Company;
+  product?: Product;
+}
+
 export interface InventoryMovement {
   id: string;
   companyId: string;
   productId: string;
+  branchId?: string | null;
   type: InventoryMovementType;
   quantity: number;
   reference?: string | null;
@@ -247,6 +310,7 @@ export interface InventoryMovement {
   createdAt: Date;
   company?: Company;
   product?: Product;
+  branch?: Branch | null;
 }
 
 export interface Payment {
@@ -288,8 +352,6 @@ export interface InvoiceTemplate {
   createdAt: Date;
   updatedAt: Date;
   company?: Company | null;
-  
-  // Campos adicionales de configuracion
   type?: string | null;
   description?: string | null;
   headerText?: string | null;
@@ -350,7 +412,6 @@ export interface AuditLog {
 
 export interface PaymentSetting {
   id: string;
-  companyId: string;
   provider: PaymentProvider;
   config: Record<string, unknown>;
   qrImageBase64?: string | null;
@@ -361,7 +422,6 @@ export interface PaymentSetting {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  company?: Company;
 }
 
 export interface CheckoutRequest {

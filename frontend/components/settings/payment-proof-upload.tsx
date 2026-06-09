@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { apiFetch } from '@/lib/api';
+import { compressImage } from '@/lib/image-compression';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,19 +33,20 @@ export function PaymentProofUploader({ subscriptionId, amount, provider, onSucce
 
   const fetchPaymentSettings = async () => {
     try {
-      const data = await apiFetch<PaymentSettings>(`/payments/settings/provider/${provider}`);
+      const data = await apiFetch<PaymentSettings>(`/payment-settings/provider/${provider}`);
       setPaymentSettings(data);
     } catch (error) {
       console.error('Error fetching payment settings:', error);
     }
   };
 
-  const handleImageUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setProofImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+  const handleImageUpload = async (file: File) => {
+    try {
+      const compressed = await compressImage(file);
+      setProofImage(compressed);
+    } catch {
+      setMessage({ type: 'error', text: 'Error al procesar la imagen' });
+    }
   };
 
   const handleSubmit = async () => {
@@ -55,7 +57,7 @@ export function PaymentProofUploader({ subscriptionId, amount, provider, onSucce
 
     setLoading(true);
     try {
-      await apiFetch(`/payments/settings/proof/${subscriptionId}`, {
+      await apiFetch(`/payment-settings/proof/${subscriptionId}`, {
         method: 'POST',
         body: JSON.stringify({
           imageBase64: proofImage,

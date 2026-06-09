@@ -6,7 +6,7 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { GlobalRole, PaymentProvider } from '@prisma/client';
 import { CheckoutRequestsService } from './checkout-requests.service';
-import { CreateCheckoutRequestDto, ReviewCheckoutRequestDto, SubmitCheckoutProofDto } from './dto/checkout-requests.dto';
+import { ReviewCheckoutRequestDto, SubmitCheckoutProofDto } from './dto/checkout-requests.dto';
 
 @Controller('payments/checkout')
 export class CheckoutRequestsController {
@@ -22,9 +22,9 @@ export class CheckoutRequestsController {
     return { message: 'Test POST works!' };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Public()
   @Post('requests')
-  create(@CurrentUser() user: { id: string; companyId: string }, @Body() body: any) {
+  create(@Body() body: any) {
     const paymentMethod = body.paymentMethod?.toUpperCase();
     if (!paymentMethod || !Object.values(PaymentProvider).includes(paymentMethod)) {
       throw new BadRequestException('Método de pago inválido');
@@ -33,18 +33,21 @@ export class CheckoutRequestsController {
     return this.checkoutRequestsService.createRequest({
       planCode: body.planCode,
       paymentMethod: paymentMethod as PaymentProvider,
-      companyId: user.companyId,
+      companyId: body.companyId,
+      fullName: body.fullName,
+      companyName: body.companyName,
+      email: body.email,
+      password: body.password,
     });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Public()
   @Post('requests/:requestId/proof')
   submitProof(
-    @CurrentUser() user: { id: string; companyId: string },
     @Param('requestId') requestId: string,
     @Body() body: SubmitCheckoutProofDto,
   ) {
-    return this.checkoutRequestsService.submitProof(requestId, user.companyId, body);
+    return this.checkoutRequestsService.submitProof(requestId, body.companyId, body);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

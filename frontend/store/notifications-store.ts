@@ -90,8 +90,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       return;
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-    const es = new EventSource(`${apiUrl}/notifications/stream`, {
+    const es = new EventSource('/api/notifications/stream', {
       withCredentials: true,
     });
 

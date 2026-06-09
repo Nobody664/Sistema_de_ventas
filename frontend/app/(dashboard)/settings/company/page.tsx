@@ -30,6 +30,28 @@ export default function CompanySettingsPage() {
   const queryClient = useQueryClient();
   const addToast = useUiStore((state) => state.addToast);
 
+  const userRoles = user?.roles ?? [];
+  const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+
+  if (!isCompanyAdmin) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+            <Building2 className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Acceso restringido</h2>
+          <p className="text-slate-500 max-w-md">
+            Solo el administrador de la empresa puede editar la información de la organización.
+          </p>
+          <Button onClick={() => router.push('/dashboard')} variant="outline" className="rounded-xl">
+            Volver al inicio
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const [formData, setFormData] = useState({
     name: '',
     legalName: '',

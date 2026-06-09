@@ -60,6 +60,20 @@ export enum Permission {
 
   // Users (admin)
   USER_MANAGE = 'user:manage',
+
+  // Kardex
+  KARDEX_VIEW = 'kardex:view',
+  KARDEX_EXPORT = 'kardex:export',
+
+  // Replenishment
+  REPLENISHMENT_VIEW = 'replenishment:view',
+  REPLENISHMENT_MANAGE = 'replenishment:manage',
+
+  // Forecast
+  FORECAST_VIEW = 'forecast:view',
+
+  // Branches
+  BRANCH_MANAGE = 'branch:manage',
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -110,6 +124,11 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.COMPANY_UPDATE,
 
     Permission.SUBSCRIPTION_VIEW,
+
+    Permission.KARDEX_VIEW,
+    Permission.KARDEX_EXPORT,
+    Permission.REPLENISHMENT_VIEW,
+    Permission.FORECAST_VIEW,
   ],
 
   MANAGER: [
@@ -150,6 +169,9 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.COMPANY_VIEW,
 
     Permission.SUBSCRIPTION_VIEW,
+
+    Permission.KARDEX_VIEW,
+    Permission.REPLENISHMENT_VIEW,
   ],
 
   CASHIER: [

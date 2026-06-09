@@ -24,11 +24,12 @@ export default async function SubscribersPage() {
     );
   }
 
-  const allSubscribers = await serverApiFetch<SubscriberWithCompany[]>('/subscriptions/subscribers', accessToken);
+  const result = await serverApiFetch<{ data: SubscriberWithCompany[]; total: number }>('/subscriptions/subscribers', accessToken);
+  const allSubscribers = Array.isArray(result?.data) ? result.data : [];
   
-  const subscribers = allSubscribers?.filter(sub => 
+  const subscribers = allSubscribers.filter(sub => 
     sub.subscription?.status === 'ACTIVE' || sub.subscription?.status === 'TRIALING'
-  ) ?? [];
+  );
 
   const totalMonthlyRevenue = subscribers
     .filter(sub => sub.subscription?.status === 'ACTIVE' && sub.subscription?.billingCycle === 'MONTHLY')

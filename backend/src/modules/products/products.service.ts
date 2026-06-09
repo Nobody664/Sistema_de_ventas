@@ -29,6 +29,13 @@ export class ProductsService {
     });
   }
 
+  findByBarcode(companyId: string, barcode: string) {
+    return this.prisma.product.findFirst({
+      where: { companyId, barcode },
+      include: { category: true },
+    });
+  }
+
   findByCompany(companyId: string) {
     return this.prisma.product.findMany({
       where: { companyId },

@@ -11,6 +11,9 @@ import type {
   PaymentSetting,
   SaleItem,
   CheckoutRequest,
+  InventoryKardex,
+  ProductBatch,
+  Branch,
 } from '@/types/generated';
 
 export type ProductApi = Omit<Product, 'costPrice' | 'salePrice'> & {
@@ -46,7 +49,7 @@ export type NotificationApi = Notification;
 export type PaymentSettingApi = PaymentSetting;
 export type CheckoutRequestApi = CheckoutRequest;
 
-export { Product, Customer, Sale, Company, Subscription, Plan, Category, Employee, Notification, PaymentSetting, SaleItem, CheckoutRequest };
+export { Product, Customer, Sale, Company, Subscription, Plan, Category, Employee, Notification, PaymentSetting, SaleItem, CheckoutRequest, InventoryKardex, ProductBatch, Branch };
 
 export type SubscriberWithCompany = Company & {
   subscription?: {

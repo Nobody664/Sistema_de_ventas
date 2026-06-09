@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { apiFetch, getAccessToken } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
+import { compressImage } from '@/lib/image-compression';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,6 @@ const paymentProviders = [
 ];
 
 export function PaymentSettingsManager() {
-  const user = useAuthStore((state) => state.user);
   const [settings, setSettings] = useState<PaymentSettings[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,7 +45,7 @@ export function PaymentSettingsManager() {
 
   const fetchSettings = async () => {
     try {
-      const data = await apiFetch<PaymentSettings[]>('/payments/settings', { token });
+      const data = await apiFetch<PaymentSettings[]>('/payment-settings', { token });
       setSettings(data || []);
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -71,7 +70,7 @@ export function PaymentSettingsManager() {
     if (!token) return;
     setSaving(true);
     try {
-      await apiFetch(`/payments/settings/provider/${provider}`, {
+      await apiFetch(`/payment-settings/provider/${provider}`, {
         method: 'PATCH',
         body: JSON.stringify({ isEnabled: enabled }),
         token,
@@ -104,7 +103,7 @@ export function PaymentSettingsManager() {
     if (!token) return;
     setSaving(true);
     try {
-      const updated = await apiFetch<PaymentSettings>(`/payments/settings/provider/${provider}`, {
+      const updated = await apiFetch<PaymentSettings>(`/payment-settings/provider/${provider}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
         token,
@@ -128,13 +127,13 @@ export function PaymentSettingsManager() {
     }
   };
 
-  const handleImageUpload = (provider: string, file: File, onImageChange: (base64: string) => void) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      onImageChange(base64);
-    };
-    reader.readAsDataURL(file);
+  const handleImageUpload = async (provider: string, file: File, onImageChange: (base64: string) => void) => {
+    try {
+      const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.9 });
+      onImageChange(compressed);
+    } catch {
+      setMessage({ type: 'error', text: 'Error al procesar la imagen' });
+    }
   };
 
   const handleCancelEdit = () => {

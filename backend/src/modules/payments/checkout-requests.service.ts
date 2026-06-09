@@ -45,7 +45,7 @@ export class CheckoutRequestsService {
       });
       if (existingPendingRequest) {
         const settings = await this.prisma.paymentSetting.findFirst({
-          where: { companyId: input.companyId, provider: existingPendingRequest.provider },
+          where: { provider: existingPendingRequest.provider },
         });
         return {
           requestId: existingPendingRequest.id,
@@ -211,7 +211,7 @@ const settings = await this.prisma.paymentSetting.findFirst({
     };
   }
 
-  async submitProof(requestId: string, companyId: string, input: SubmitCheckoutProofDto) {
+  async submitProof(requestId: string, companyId: string | undefined, input: SubmitCheckoutProofDto) {
     if (!input.imageBase64.startsWith('data:image/')) {
       throw new BadRequestException('Formato de comprobante invÃ¡lido');
     }
@@ -223,7 +223,7 @@ const settings = await this.prisma.paymentSetting.findFirst({
     if (!request) {
       throw new NotFoundException('Solicitud no encontrada');
     }
-    if (request.companyId !== companyId) {
+    if (request.companyId && request.companyId !== companyId) {
       throw new ForbiddenException('No tienes permiso para modificar esta solicitud');
     }
     if (request.status !== 'DRAFT') {
