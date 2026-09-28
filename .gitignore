@@ -11,6 +11,8 @@ backend/prisma/dev.db-journal
 frontend/.next/
 *.log
 
+frontend/package-lock.json
+
 .agents/
 .claude
 .cortex
