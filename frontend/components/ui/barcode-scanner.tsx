@@ -7,6 +7,27 @@ interface BarcodeScannerProps {
   onDetected: (barcode: string) => void;
 }
 
+type BarcodeFormat =
+  | 'ean_13'
+  | 'ean_8'
+  | 'code_128'
+  | 'code_39'
+  | 'upc_a'
+  | 'upc_e'
+  | 'codabar'
+  | 'itf';
+
+declare global {
+  interface BarcodeDetector {
+    detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>;
+  }
+
+  var BarcodeDetector: {
+    new (options?: { formats?: BarcodeFormat[] }): BarcodeDetector;
+    getSupportedFormats(): Promise<string[]>;
+  };
+}
+
 const FORMATS: BarcodeFormat[] = [
   'ean_13', 'ean_8', 'code_128', 'code_39',
   'upc_a', 'upc_e', 'codabar', 'itf',
