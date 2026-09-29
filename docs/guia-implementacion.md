@@ -121,5 +121,5 @@ Se ejecuta en pushes a `main`/`develop` y PRs contra `main`.
 1. **Push a GitHub** para activar CI/CD y actualizar IaC de Render
 2. **Eliminar `sass_ventas`** desde Render Dashboard
 3. **Habilitar auto-deploy** en Render Dashboard → `Sistema_de_ventas`
-4. **Cambiar start command** en Render Dashboard a `bash start.sh`
+4. **Configurar start command** en Render como `npm run start`; ejecutar migraciones aparte con `npx prisma migrate deploy`
 5. **Configurar Vercel** con las variables de `frontend/.env.production`

@@ -4,7 +4,8 @@ services:
     rootDir: backend
     region: oregon
     buildCommand: bash scripts/build.sh
-    startCommand: bash start.sh
+    startCommand: npm run start
+    healthCheckPath: /api/health/ready
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,23 +14,18 @@ services:
       - key: PORT
         value: "10000"
       - key: DATABASE_URL
-        value: postgresql://postgres.kvokpmfbufnuqhrubsuh:3OCllZ8hdtBME99A@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require
+        sync: false
       - key: DIRECT_URL
-        value: postgresql://postgres.kvokpmfbufnuqhrubsuh:3OCllZ8hdtBME99A@db.kvokpmfbufnuqhrubsuh.supabase.co:5432/postgres?sslmode=require
+        sync: false
       - key: JWT_ACCESS_SECRET
-        value: 1037025e8c19352d69bb857d837ace54
+        sync: false
       - key: JWT_REFRESH_SECRET
-        value: bfbca9a3ec1f497e18eb6ff68f08f6a8
+        sync: false
       - key: JWT_ACCESS_TTL
         value: 15m
       - key: JWT_REFRESH_TTL
         value: 30d
+      - key: REDIS_URL
+        sync: false
       - key: SMTP_ENABLED
         value: "false"
-      - key: REDIS_URL
-        value: rediss://default:gQAAAAAAAaRdAAIgcDFhOWRjOTZmOTI5MDE0OWIyYWUzMTc3YTZmODUyMTlmZg@national-quagga-107613.upstash.io:6379
-    healthCheck:
-      path: /api/health/ready
-      interval: 30
-      timeout: 10
-      unhealthyThreshold: 3

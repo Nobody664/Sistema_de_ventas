@@ -107,9 +107,9 @@ Agregado `router.refresh()` en todos los formularios:
 ### Credenciales para pruebas
 | Email | Password | Rol |
 |-------|----------|-----|
-| `admin@acme.local` | `Admin123!` | COMPANY_ADMIN |
-| `manager@acme.local` | `Admin123!` | MANAGER |
-| `superadmin@ventas-saas.local` | `Admin123!` | SUPER_ADMIN |
+| `admin@acme.local` | `<SEED_DEFAULT_PASSWORD>` | COMPANY_ADMIN |
+| `manager@acme.local` | `<SEED_DEFAULT_PASSWORD>` | MANAGER |
+| `superadmin@ventas-saas.local` | `<SEED_DEFAULT_PASSWORD>` | SUPER_ADMIN |
 
 ### Rutas principales
 - `/sign-in` - Inicio de sesión

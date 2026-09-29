@@ -13,9 +13,9 @@ import { useAuthStore } from '@/stores/auth.store';
 
 const plans = {
   FREE: { name: 'Free', price: 0, priceYearly: 0 },
-  START: { name: 'Start', price: 19, priceYearly: 190 },
-  GROWTH: { name: 'Growth', price: 59, priceYearly: 590 },
-  SCALE: { name: 'Scale', price: 149, priceYearly: 1490 },
+  START: { name: 'Start', price: 50, priceYearly: 600 },
+  GROWTH: { name: 'Growth', price: 100, priceYearly: 1200 },
+  SCALE: { name: 'Scale', price: 180, priceYearly: 2160 },
 };
 
 interface PaymentSettings {
@@ -191,7 +191,7 @@ function CheckoutContent() {
             </p>
           </div>
           <div className="mt-6">
-            <Button onClick={() => router.push('/')} className="gap-2">
+            <Button onClick={() => router.push('/dashboard')} className="gap-2">
               <Home className="h-4 w-4" />
               Volver al inicio
             </Button>

@@ -249,6 +249,6 @@ Cuando el usuario intenta crear un recurso y alcanza el límite:
 
 | Email | Password | Rol |
 |-------|----------|-----|
-| `superadmin@ventas-saas.local` | `Admin123!` | SUPER_ADMIN |
-| `admin@acme.local` | `Admin123!` | COMPANY_ADMIN |
-| `manager@acme.local` | `Admin123!` | MANAGER |
+| `superadmin@ventas-saas.local` | `<SEED_DEFAULT_PASSWORD>` | SUPER_ADMIN |
+| `admin@acme.local` | `<SEED_DEFAULT_PASSWORD>` | COMPANY_ADMIN |
+| `manager@acme.local` | `<SEED_DEFAULT_PASSWORD>` | MANAGER |

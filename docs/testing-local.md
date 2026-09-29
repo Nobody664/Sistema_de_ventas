@@ -27,7 +27,7 @@ curl http://localhost:4000/api/health/ready
 # Login
 curl -X POST http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"superadmin@ventas-saas.local","password":"Admin123!"}'
+  -d '{"email":"superadmin@ventas-saas.local","password":"<SEED_DEFAULT_PASSWORD>"}'
 
 # Register 
 curl -X POST http://localhost:4000/api/auth/register \
@@ -42,10 +42,10 @@ curl http://localhost:4000/api/plans
 
 | Email | Password | Role |
 |-------|----------|------|
-| superadmin@ventas-saas.local | Admin123! | SUPER_ADMIN |
-| admin@acme.local | Admin123! | COMPANY_ADMIN |
-| manager@acme.local | Admin123! | MANAGER |
-| cajero@acme.local | Admin123! | CASHIER |
+| superadmin@ventas-saas.local | <SEED_DEFAULT_PASSWORD> | SUPER_ADMIN |
+| admin@acme.local | <SEED_DEFAULT_PASSWORD> | COMPANY_ADMIN |
+| manager@acme.local | <SEED_DEFAULT_PASSWORD> | MANAGER |
+| cajero@acme.local | <SEED_DEFAULT_PASSWORD> | CASHIER |
 
 ## Production URLs
 
@@ -61,5 +61,5 @@ curl https://sistema-de-ventas-c6xb.onrender.com/api/health/ready
 
 curl -X POST https://sistema-de-ventas-c6xb.onrender.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"superadmin@ventas-saas.local","password":"Admin123!"}'
+  -d '{"email":"superadmin@ventas-saas.local","password":"<SEED_DEFAULT_PASSWORD>"}'
 ```

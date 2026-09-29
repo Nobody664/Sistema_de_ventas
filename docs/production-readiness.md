@@ -23,7 +23,7 @@ Generated: 2026-05-29
 |------|--------|---------|
 | Prisma connection | ✅ Fixed | `onModuleInit` + `OnModuleInit` interface implemented |
 | `directUrl` | ✅ Configured | Added `directUrl = env("DIRECT_URL")` for Render's PG proxy |
-| Migrations | ✅ Handled | `start.sh` runs `prisma db push` before starting the app |
+| Migrations | ✅ Handled | Apply committed migrations with `npx prisma migrate deploy` before starting the app |
 
 ## Security
 
@@ -51,7 +51,7 @@ Generated: 2026-05-29
 | Item | Status | Details |
 |------|--------|---------|
 | Node version | ✅ Updated | `.nvmrc` → `22` (LTS) |
-| Render build command | ✅ Fixed | `npm ci --include=dev` so `@types/*` install in production |
+| Render build command | ✅ Fixed | `bash scripts/build.sh` installs dependencies, generates Prisma Client, and builds |
 | Render deploy config | ✅ Complete | `render.yaml` with proper build/start commands |
 | CI/CD | ✅ Configured | `.github/workflows/ci.yml` for PR validation |
 | Debug module | ✅ Removed | No longer imported in `AppModule` |
@@ -75,7 +75,7 @@ Generated: 2026-05-29
 ## Render Deploy Checklist
 
 - [x] `render.yaml` committed and pushed
-- [x] `start.sh` committed and pushed with `chmod +x`
+- [x] Render starts the compiled app with `npm run start`; migrations are not run on every restart
 - [x] `.nvmrc` at Node 22
 - [x] `npm ci --include=dev` as build command
 - [x] `DIRECT_URL` env var configured in Render dashboard
