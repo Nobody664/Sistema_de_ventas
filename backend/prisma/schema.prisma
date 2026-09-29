@@ -4,8 +4,6 @@ generator client {
 
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
-  directUrl    = env("DIRECT_URL")
   relationMode = "prisma"
 }
 
@@ -255,6 +253,7 @@ model Subscription {
   paymentProofs PaymentProof[]
 
   @@unique([companyId])
+  @@index([planId])
   @@index([status, endDate])
   @@map("subscriptions")
 }
@@ -271,6 +270,8 @@ model Membership {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
   @@map("memberships")
 }
 
@@ -341,6 +342,7 @@ model Product {
   kardexEntries      InventoryKardex[]
 
   @@index([companyId, isActive])
+  @@index([categoryId])
   @@map("products")
 }
 
@@ -369,6 +371,8 @@ model Sale {
 
   @@index([companyId, createdAt])
   @@index([companyId, status])
+  @@index([customerId])
+  @@index([employeeId])
   @@map("sales")
 }
 
@@ -408,7 +412,9 @@ model Employee {
   user   User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   sales  Sale[]
 
+  @@index([companyId])
   @@map("employees")
+
 }
 
 model Branch {
@@ -447,6 +453,8 @@ model ProductBatch {
 
   @@index([companyId, productId])
   @@index([expirationDate])
+  @@index([productId])
+  @@index([branchId])
   @@map("product_batches")
 }
 
@@ -477,6 +485,7 @@ model InventoryKardex {
 
   @@index([companyId, productId, movementDate])
   @@index([companyId, movementDate])
+  @@index([productId])
   @@map("inventory_kardex")
 }
 
@@ -498,6 +507,8 @@ model InventoryMovement {
 
   @@index([companyId, productId])
   @@index([companyId, branchId])
+  @@index([productId, type])
+  @@index([branchId, type])
   @@map("inventory_movements")
 }
 
@@ -543,6 +554,8 @@ model PlanUpgradeRequest {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   plan    Plan    @relation(fields: [planId], references: [id])
 
+  @@index([companyId])
+  @@index([planId])
   @@map("plan_upgrade_requests")
 }
 
@@ -586,6 +599,7 @@ model InvoiceTemplate {
 
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  @@index([companyId])
   @@map("invoice_templates")
 }
 
@@ -605,7 +619,10 @@ model Notification {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+
   @@index([userId, isRead])
+  @@index([companyId])
+
   @@map("notifications")
 }
 
@@ -625,6 +642,8 @@ model AuditLog {
   user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+  @@index([companyId])
+  @@index([userId])
 }
 
 model PaymentSetting {
@@ -671,6 +690,8 @@ model CheckoutRequest {
   company Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   plan    Plan     @relation(fields: [planId], references: [id])
 
+  @@index([companyId])
+  @@index([planId])
   @@map("checkout_requests")
 }
 
@@ -689,5 +710,6 @@ model PaymentProof {
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
+  @@index([subscriptionId])
   @@map("payment_proofs")
 }

@@ -311,10 +311,6 @@ const settings = await this.prisma.paymentSetting.findFirst({
         where: { companyId: request.companyId },
       });
 
-      if (!existingSubscription) {
-        throw new NotFoundException('Suscripción no encontrada');
-      }
-
       await tx.company.update({
         where: { id: request.companyId },
         data: { status: CompanyStatus.ACTIVE },
@@ -324,17 +320,25 @@ const settings = await this.prisma.paymentSetting.findFirst({
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1);
 
-      const subscription = await tx.subscription.update({
-        where: { id: existingSubscription.id },
-        data: {
-          planId: request.planId,
-          billingCycle: request.plan.billingCycle,
-          startDate,
-          endDate,
-          status: 'ACTIVE',
-          provider: request.provider,
-        },
-      });
+      const subscriptionData = {
+        planId: request.planId,
+        billingCycle: request.plan.billingCycle,
+        startDate,
+        endDate,
+        status: SubscriptionStatus.ACTIVE,
+        provider: request.provider,
+      };
+      const subscription = existingSubscription
+        ? await tx.subscription.update({
+            where: { id: existingSubscription.id },
+            data: subscriptionData,
+          })
+        : await tx.subscription.create({
+            data: {
+              ...subscriptionData,
+              companyId: request.companyId,
+            },
+          });
 
       await tx.payment.create({
         data: {
