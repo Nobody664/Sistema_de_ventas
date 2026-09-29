@@ -1,11 +1,10 @@
-import { Decimal } from '@prisma/client/runtime/library';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
 
 export interface CostingResult {
-  unitCost: Decimal;
-  totalCost: Decimal;
+  unitCost: Prisma.Decimal;
+  totalCost: Prisma.Decimal;
 }
 
 export interface CostingStrategy {

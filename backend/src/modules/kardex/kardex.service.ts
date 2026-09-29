@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { CostingStrategy } from './strategies/costing.strategy';
 import { FifoStrategy } from './strategies/fifo.strategy';
@@ -39,7 +38,7 @@ export class KardexService {
     companyId: string,
     productId: string,
     quantity: number,
-    unitCost: Decimal,
+    unitCost: Prisma.Decimal,
     movementId: string,
     tx: PrismaTx,
   ): Promise<void> {
@@ -49,11 +48,11 @@ export class KardexService {
     });
 
     const prevBalanceQty = lastEntry?.balanceQty ?? 0;
-    const prevBalanceTotalCost = lastEntry?.balanceTotalCost ?? new Decimal(0);
+    const prevBalanceTotalCost = lastEntry?.balanceTotalCost ?? new Prisma.Decimal(0);
     const totalCostIn = unitCost.mul(quantity);
     const newBalanceQty = prevBalanceQty + quantity;
     const newBalanceTotalCost = prevBalanceTotalCost.plus(totalCostIn);
-    const newBalanceUnitCost = newBalanceQty > 0 ? newBalanceTotalCost.div(newBalanceQty) : new Decimal(0);
+    const newBalanceUnitCost = newBalanceQty > 0 ? newBalanceTotalCost.div(newBalanceQty) : new Prisma.Decimal(0);
 
     await tx.inventoryKardex.create({
       data: {
@@ -79,7 +78,7 @@ export class KardexService {
     quantity: number,
     movementId: string,
     tx: PrismaTx,
-  ): Promise<{ unitCost: Decimal; totalCost: Decimal }> {
+  ): Promise<{ unitCost: Prisma.Decimal; totalCost: Prisma.Decimal }> {
     const strategy = await this.getStrategy(companyId);
     const { unitCost, totalCost } = await strategy.calculateOutCost(
       productId,
@@ -94,10 +93,10 @@ export class KardexService {
     });
 
     const prevBalanceQty = lastEntry?.balanceQty ?? 0;
-    const prevBalanceTotalCost = lastEntry?.balanceTotalCost ?? new Decimal(0);
+    const prevBalanceTotalCost = lastEntry?.balanceTotalCost ?? new Prisma.Decimal(0);
     const newBalanceQty = prevBalanceQty - quantity;
     const newBalanceTotalCost = prevBalanceTotalCost.minus(totalCost);
-    const newBalanceUnitCost = newBalanceQty > 0 ? newBalanceTotalCost.div(newBalanceQty) : new Decimal(0);
+    const newBalanceUnitCost = newBalanceQty > 0 ? newBalanceTotalCost.div(newBalanceQty) : new Prisma.Decimal(0);
 
     await tx.inventoryKardex.create({
       data: {
@@ -163,14 +162,14 @@ export class KardexService {
           productName: product?.name ?? 'Unknown',
           productSku: product?.sku ?? '',
           balanceQty: r._max.balanceQty ?? 0,
-          balanceUnitCost: r._max.balanceUnitCost ?? new Decimal(0),
-          balanceTotalCost: r._max.balanceTotalCost ?? new Decimal(0),
+          balanceUnitCost: r._max.balanceUnitCost ?? new Prisma.Decimal(0),
+          balanceTotalCost: r._max.balanceTotalCost ?? new Prisma.Decimal(0),
         };
       });
 
     const totalValue = entries.reduce(
       (sum, e) => sum.plus(e.balanceTotalCost),
-      new Decimal(0),
+      new Prisma.Decimal(0),
     );
 
     return { entries, totalValue };
@@ -203,17 +202,17 @@ export class KardexService {
       include: { sale: { select: { createdAt: true } } },
     });
 
-    const revenueByProduct = new Map<string, Decimal>();
+    const revenueByProduct = new Map<string, Prisma.Decimal>();
     for (const item of saleItems) {
       if (startDate && item.sale.createdAt < new Date(startDate)) continue;
       if (endDate && item.sale.createdAt > new Date(endDate)) continue;
-      const current = revenueByProduct.get(item.productId) ?? new Decimal(0);
+      const current = revenueByProduct.get(item.productId) ?? new Prisma.Decimal(0);
       revenueByProduct.set(item.productId, current.plus(item.totalPrice));
     }
 
-    const costByProduct = new Map<string, Decimal>();
+    const costByProduct = new Map<string, Prisma.Decimal>();
     for (const entry of kardexEntries) {
-      const current = costByProduct.get(entry.productId) ?? new Decimal(0);
+      const current = costByProduct.get(entry.productId) ?? new Prisma.Decimal(0);
       costByProduct.set(entry.productId, current.plus(entry.totalCostOut ?? 0));
     }
 
@@ -229,12 +228,12 @@ export class KardexService {
     const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
     return products.map((product) => {
-      const revenue = revenueByProduct.get(product.id) ?? new Decimal(0);
-      const cost = costByProduct.get(product.id) ?? new Decimal(0);
+      const revenue = revenueByProduct.get(product.id) ?? new Prisma.Decimal(0);
+      const cost = costByProduct.get(product.id) ?? new Prisma.Decimal(0);
       const grossProfit = revenue.minus(cost);
       const margin = revenue.gt(0)
         ? grossProfit.div(revenue).mul(100)
-        : new Decimal(0);
+        : new Prisma.Decimal(0);
 
       return {
         productId: product.id,

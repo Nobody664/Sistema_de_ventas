@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type GlobalRole } from '@prisma/client';
 import * as argon2 from 'argon2';
 
@@ -7,7 +8,14 @@ declare const process: {
   exitCode?: number;
 };
 
-const prisma = new PrismaClient();
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL must be configured before running the seed.');
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: databaseUrl }),
+});
 
 function getSeedPassword(): string {
   const password = process.env.SEED_DEFAULT_PASSWORD;

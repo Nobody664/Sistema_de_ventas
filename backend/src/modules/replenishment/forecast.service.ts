@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
-import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class ForecastService {
@@ -60,16 +60,16 @@ export class ForecastService {
 
     const totals = saleItems.reduce(
       (acc, item) => {
-        const revenue = acc.revenue.get(item.productId) ?? new Decimal(0);
+        const revenue = acc.revenue.get(item.productId) ?? new Prisma.Decimal(0);
         acc.revenue.set(item.productId, revenue.plus(item.totalPrice));
         const qty = acc.qty.get(item.productId) ?? 0;
         acc.qty.set(item.productId, qty + item.quantity);
         return acc;
       },
-      { revenue: new Map<string, Decimal>(), qty: new Map<string, number>() },
+      { revenue: new Map<string, Prisma.Decimal>(), qty: new Map<string, number>() },
     );
 
-    const totalRevenue = Array.from(totals.revenue.values()).reduce((s, v) => s.plus(v), new Decimal(0));
+    const totalRevenue = Array.from(totals.revenue.values()).reduce((s, v) => s.plus(v), new Prisma.Decimal(0));
     const ranked = products
       .map((p) => ({
         id: p.id,
@@ -77,10 +77,10 @@ export class ForecastService {
         sku: p.sku ?? '',
         stockQuantity: p.stockQuantity,
         totalSold: totals.qty.get(p.id) ?? 0,
-        revenue: totals.revenue.get(p.id) ?? new Decimal(0),
+        revenue: totals.revenue.get(p.id) ?? new Prisma.Decimal(0),
         dailyAverage: Number(((totals.qty.get(p.id) ?? 0) / days).toFixed(2)),
         revenueShare: totalRevenue.gt(0)
-          ? Number(((totals.revenue.get(p.id) ?? new Decimal(0)).div(totalRevenue).mul(100)).toFixed(2))
+          ? Number(((totals.revenue.get(p.id) ?? new Prisma.Decimal(0)).div(totalRevenue).mul(100)).toFixed(2))
           : 0,
       }))
       .sort((a, b) => Number(b.revenue) - Number(a.revenue));

@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { CostingStrategy, CostingResult } from './costing.strategy';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
 
 interface InventoryLayer {
   qty: number;
-  unitCost: Decimal;
+  unitCost: Prisma.Decimal;
 }
 
 @Injectable()
@@ -43,7 +42,7 @@ export class FifoStrategy implements CostingStrategy {
     }
 
     let remainingToConsume = quantity;
-    let totalCost = new Decimal(0);
+    let totalCost = new Prisma.Decimal(0);
 
     while (remainingToConsume > 0 && layers.length > 0) {
       const layer = layers[0];
