@@ -1,33 +1,49 @@
-require('dotenv').config();
-const argon2 = require('argon2');
-const { PrismaClient } = require('@prisma/client');
+import 'dotenv/config';
+import { PrismaClient, type GlobalRole } from '@prisma/client';
+import * as argon2 from 'argon2';
+
+declare const process: {
+  env: Record<string, string | undefined>;
+  exitCode?: number;
+};
 
 const prisma = new PrismaClient();
 
-async function upsertUser({ email, fullName, password, globalRole = 'USER' }) {
-  const passwordHash = await argon2.hash(password);
+function getSeedPassword(): string {
+  const password = process.env.SEED_DEFAULT_PASSWORD;
+  if (!password) {
+    throw new Error('SEED_DEFAULT_PASSWORD must be set before running the seed.');
+  }
+  return password;
+}
+
+const seedPassword = getSeedPassword();
+
+async function upsertUser(input: {
+  email: string;
+  fullName: string;
+  globalRole?: GlobalRole;
+}) {
+  const passwordHash = await argon2.hash(seedPassword);
 
   return prisma.user.upsert({
-    where: { email },
+    where: { email: input.email },
     update: {
-      fullName,
-      passwordHash,
-      globalRole,
+      fullName: input.fullName,
+      globalRole: input.globalRole ?? 'USER',
       isActive: true,
     },
     create: {
-      email,
-      fullName,
+      email: input.email,
+      fullName: input.fullName,
       passwordHash,
-      globalRole,
+      globalRole: input.globalRole ?? 'USER',
     },
   });
 }
 
 async function main() {
-  const password = 'Admin123!';
-
-  const [freePlan, starterPlan, growthPlan, scalePlan] = await Promise.all([
+  await Promise.all([
     prisma.plan.upsert({
       where: { code: 'FREE' },
       update: {},
@@ -90,12 +106,12 @@ async function main() {
     }),
   ]);
 
-  const [superAdmin, supportAdmin, acmeAdminUser, acmeManagerUser, acmeCashierUser] = await Promise.all([
-    upsertUser({ email: 'superadmin@ventas-saas.local', fullName: 'Super Admin', password, globalRole: 'SUPER_ADMIN' }),
-    upsertUser({ email: 'support@ventas-saas.local', fullName: 'Support Team', password, globalRole: 'SUPPORT_ADMIN' }),
-    upsertUser({ email: 'admin@acme.local', fullName: 'Admin Acme', password, globalRole: 'USER' }),
-    upsertUser({ email: 'manager@acme.local', fullName: 'Manager Acme', password, globalRole: 'USER' }),
-    upsertUser({ email: 'cajero@acme.local', fullName: 'Cajero Acme', password, globalRole: 'USER' }),
+  const [superAdmin, , acmeAdminUser, acmeManagerUser, acmeCashierUser] = await Promise.all([
+    upsertUser({ email: 'superadmin@ventas-saas.local', fullName: 'Super Admin', globalRole: 'SUPER_ADMIN' }),
+    upsertUser({ email: 'support@ventas-saas.local', fullName: 'Support Team', globalRole: 'SUPPORT_ADMIN' }),
+    upsertUser({ email: 'admin@acme.local', fullName: 'Admin Acme' }),
+    upsertUser({ email: 'manager@acme.local', fullName: 'Manager Acme' }),
+    upsertUser({ email: 'cajero@acme.local', fullName: 'Cajero Acme' }),
   ]);
 
   const acmeCompany = await prisma.company.upsert({
@@ -111,7 +127,7 @@ async function main() {
     },
   });
 
-  const novaCompany = await prisma.company.upsert({
+  await prisma.company.upsert({
     where: { slug: 'nova' },
     update: { status: 'ACTIVE' },
     create: {
@@ -124,60 +140,35 @@ async function main() {
     },
   });
 
-  const [membership1, membership2, membership3] = await Promise.all([
+  await Promise.all([
     prisma.membership.upsert({
       where: { userId_companyId: { userId: acmeAdminUser.id, companyId: acmeCompany.id } },
       update: { role: 'COMPANY_ADMIN' },
-      create: {
-        userId: acmeAdminUser.id,
-        companyId: acmeCompany.id,
-        role: 'COMPANY_ADMIN',
-      },
+      create: { userId: acmeAdminUser.id, companyId: acmeCompany.id, role: 'COMPANY_ADMIN' },
     }),
     prisma.membership.upsert({
       where: { userId_companyId: { userId: acmeManagerUser.id, companyId: acmeCompany.id } },
       update: { role: 'MANAGER' },
-      create: {
-        userId: acmeManagerUser.id,
-        companyId: acmeCompany.id,
-        role: 'MANAGER',
-      },
+      create: { userId: acmeManagerUser.id, companyId: acmeCompany.id, role: 'MANAGER' },
     }),
     prisma.membership.upsert({
       where: { userId_companyId: { userId: acmeCashierUser.id, companyId: acmeCompany.id } },
       update: { role: 'CASHIER' },
-      create: {
-        userId: acmeCashierUser.id,
-        companyId: acmeCompany.id,
-        role: 'CASHIER',
-      },
+      create: { userId: acmeCashierUser.id, companyId: acmeCompany.id, role: 'CASHIER' },
     }),
   ]);
 
-  const [category1, category2] = await Promise.all([
+  await Promise.all([
     prisma.category.upsert({
       where: { id: 'cat-general' },
       update: {},
-      create: {
-        id: 'cat-general',
-        companyId: acmeCompany.id,
-        name: 'General',
-        slug: 'general',
-      },
+      create: { id: 'cat-general', companyId: acmeCompany.id, name: 'General', slug: 'general' },
     }),
     prisma.category.upsert({
       where: { id: 'cat-bebidas' },
       update: {},
-      create: {
-        id: 'cat-bebidas',
-        companyId: acmeCompany.id,
-        name: 'Bebidas',
-        slug: 'bebidas',
-      },
+      create: { id: 'cat-bebidas', companyId: acmeCompany.id, name: 'Bebidas', slug: 'bebidas' },
     }),
-  ]);
-
-  const [product1, product2] = await Promise.all([
     prisma.product.upsert({
       where: { id: 'prod-cafe' },
       update: {},
@@ -204,9 +195,6 @@ async function main() {
         minStock: 5,
       },
     }),
-  ]);
-
-  const [customerOne, customerTwo] = await Promise.all([
     prisma.customer.upsert({
       where: { id: 'cust-001' },
       update: {},
@@ -233,49 +221,49 @@ async function main() {
     }),
   ]);
 
-  const employeeAdmin = await prisma.employee.upsert({
-    where: { id: 'emp-admin' },
-    update: { userId: acmeAdminUser.id, role: 'COMPANY_ADMIN', firstName: 'Admin', lastName: 'Acme' },
-    create: {
-      id: 'emp-admin',
-      companyId: acmeCompany.id,
-      userId: acmeAdminUser.id,
-      firstName: 'Admin',
-      lastName: 'Acme',
-      role: 'COMPANY_ADMIN',
-      isActive: true,
-    },
-  });
+  await Promise.all([
+    prisma.employee.upsert({
+      where: { id: 'emp-admin' },
+      update: { userId: acmeAdminUser.id, role: 'COMPANY_ADMIN', firstName: 'Admin', lastName: 'Acme' },
+      create: {
+        id: 'emp-admin',
+        companyId: acmeCompany.id,
+        userId: acmeAdminUser.id,
+        firstName: 'Admin',
+        lastName: 'Acme',
+        role: 'COMPANY_ADMIN',
+        isActive: true,
+      },
+    }),
+    prisma.employee.upsert({
+      where: { id: 'emp-manager' },
+      update: { userId: acmeManagerUser.id, role: 'MANAGER', firstName: 'Manager', lastName: 'Acme' },
+      create: {
+        id: 'emp-manager',
+        companyId: acmeCompany.id,
+        userId: acmeManagerUser.id,
+        firstName: 'Manager',
+        lastName: 'Acme',
+        role: 'MANAGER',
+        isActive: true,
+      },
+    }),
+    prisma.employee.upsert({
+      where: { id: 'emp-cashier' },
+      update: { userId: acmeCashierUser.id, role: 'CASHIER', firstName: 'Cajero', lastName: 'Acme' },
+      create: {
+        id: 'emp-cashier',
+        companyId: acmeCompany.id,
+        userId: acmeCashierUser.id,
+        firstName: 'Cajero',
+        lastName: 'Acme',
+        role: 'CASHIER',
+        isActive: true,
+      },
+    }),
+  ]);
 
-  const employeeManager = await prisma.employee.upsert({
-    where: { id: 'emp-manager' },
-    update: { userId: acmeManagerUser.id, role: 'MANAGER', firstName: 'Manager', lastName: 'Acme' },
-    create: {
-      id: 'emp-manager',
-      companyId: acmeCompany.id,
-      userId: acmeManagerUser.id,
-      firstName: 'Manager',
-      lastName: 'Acme',
-      role: 'MANAGER',
-      isActive: true,
-    },
-  });
-
-  const employeeCashier = await prisma.employee.upsert({
-    where: { id: 'emp-cashier' },
-    update: { userId: acmeCashierUser.id, role: 'CASHIER', firstName: 'Cajero', lastName: 'Acme' },
-    create: {
-      id: 'emp-cashier',
-      companyId: acmeCompany.id,
-      userId: acmeCashierUser.id,
-      firstName: 'Cajero',
-      lastName: 'Acme',
-      role: 'CASHIER',
-      isActive: true,
-    },
-  });
-
-  const paymentSettings = await Promise.all([
+  await Promise.all([
     prisma.paymentSetting.upsert({
       where: { provider: 'YAPE' },
       update: {},
@@ -335,20 +323,15 @@ async function main() {
   ]);
 
   console.log('Seeded successfully!');
-  console.log('\nDemo credentials:');
-  console.log('- superadmin@ventas-saas.local / Admin123! (Super Admin - acceso total plataforma)');
-  console.log('- support@ventas-saas.local / Admin123! (Support Admin - administracion plataforma)');
-  console.log('- admin@acme.local / Admin123! (Company Admin - administra Acme Corp)');
-  console.log('- manager@acme.local / Admin123! (Manager - gestiona Acme Corp)');
-  console.log('- cajero@acme.local / Admin123! (Cashier - POS Acme Corp)');
-
-  await prisma.$disconnect();
+  console.log('Demo users created; new accounts use the password configured in SEED_DEFAULT_PASSWORD.');
+  console.log(`Super admin: ${superAdmin.email}`);
+  console.log('Existing account passwords are not changed by this seed.');
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();
