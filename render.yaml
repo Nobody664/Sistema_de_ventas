@@ -1,10 +1,11 @@
 services:
   - type: web
+    runtime: node
     name: sistema-de-ventas-backend
     rootDir: backend
     region: oregon
     buildCommand: bash scripts/build.sh
-    startCommand: npm run start
+    startCommand: bash start.sh
     healthCheckPath: /api/health/ready
     envVars:
       - key: NODE_ENV
