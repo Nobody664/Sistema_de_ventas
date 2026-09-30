@@ -14,7 +14,10 @@ if (!databaseUrl) {
 }
 
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: databaseUrl }),
+  adapter: new PrismaPg({
+    connectionString: databaseUrl,
+    ssl: { rejectUnauthorized: false },
+  }),
 });
 
 function getSeedPassword(): string {
