@@ -2,18 +2,12 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { ProductForm } from '@/components/products/product-form';
-import { apiFetch } from '@/lib/api';
+import { serverApiFetch } from '@/lib/server-api';
 import type { Category } from '@/types/api';
 
 async function getCategories(accessToken: string | undefined): Promise<Category[]> {
-  try {
-    const categories = await apiFetch<Category[]>('/products/categories', {
-      token: accessToken,
-    });
-    return categories || [];
-  } catch {
-    return [];
-  }
+  const categories = await serverApiFetch<Category[]>('/products/categories', accessToken);
+  return categories ?? [];
 }
 
 export default async function NewProductPage() {

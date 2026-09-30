@@ -79,6 +79,38 @@ export class KardexService {
     movementId: string,
     tx: PrismaTx,
   ): Promise<{ unitCost: Prisma.Decimal; totalCost: Prisma.Decimal }> {
+    const existingEntry = await tx.inventoryKardex.findFirst({
+      where: { companyId, productId },
+      select: { id: true },
+    });
+
+    if (!existingEntry) {
+      const product = await tx.product.findFirst({
+        where: { id: productId, companyId },
+        select: { stockQuantity: true, costPrice: true },
+      });
+      if (!product) throw new Error(`Product ${productId} not found while initializing kardex.`);
+
+      const openingQuantity = product.stockQuantity + quantity;
+      const openingUnitCost = product.costPrice ?? new Prisma.Decimal(0);
+      const openingTotalCost = openingUnitCost.mul(openingQuantity);
+
+      await tx.inventoryKardex.create({
+        data: {
+          companyId,
+          productId,
+          movementDate: new Date(),
+          movementType: 'IN',
+          qtyIn: openingQuantity,
+          unitCostIn: openingUnitCost,
+          totalCostIn: openingTotalCost,
+          balanceQty: openingQuantity,
+          balanceUnitCost: openingUnitCost,
+          balanceTotalCost: openingTotalCost,
+        },
+      });
+    }
+
     const strategy = await this.getStrategy(companyId);
     const { unitCost, totalCost } = await strategy.calculateOutCost(
       productId,

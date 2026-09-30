@@ -126,6 +126,43 @@ export class ProductBatchesService {
     quantity: number,
     tx: PrismaTx,
   ) {
+    const product = await tx.product.findFirst({
+      where: { id: productId, companyId },
+      select: { stockQuantity: true, costPrice: true },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+
+    const batchStock = await tx.productBatch.aggregate({
+      where: { companyId, productId },
+      _sum: { quantityAvailable: true },
+    });
+    const stockBeforeSale = product.stockQuantity + quantity;
+    const untrackedStock = stockBeforeSale - (batchStock._sum.quantityAvailable ?? 0);
+
+    if (untrackedStock > 0) {
+      const batchNumber = `OPENING-${productId}-${Date.now()}`;
+      await tx.productBatch.create({
+        data: {
+          companyId,
+          productId,
+          batchNumber,
+          quantityReceived: untrackedStock,
+          quantityAvailable: untrackedStock,
+          purchasePrice: product.costPrice ?? 0,
+        },
+      });
+      await tx.inventoryMovement.create({
+        data: {
+          companyId,
+          productId,
+          type: 'ADJUSTMENT',
+          quantity: untrackedStock,
+          reason: 'Legacy stock batch reconciliation',
+          notes: `Opening batch ${batchNumber} created during sale`,
+        },
+      });
+    }
+
     let remaining = quantity;
 
     const batches = await tx.productBatch.findMany({
