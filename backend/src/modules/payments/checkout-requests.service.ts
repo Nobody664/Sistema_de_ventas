@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { CompanyStatus, PaymentProvider, SubscriptionStatus } from '@prisma/client';
+import { CompanyStatus, PaymentProvider, Prisma, SubscriptionStatus } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { EmailService } from '@/modules/email/email.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
@@ -43,7 +43,7 @@ export class CheckoutRequestsService {
         orderBy: { createdAt: 'desc' },
         include: { plan: true },
       });
-      if (existingPendingRequest) {
+      if (existingPendingRequest?.plan.code === input.planCode) {
         const settings = await this.prisma.paymentSetting.findFirst({
           where: { provider: existingPendingRequest.provider },
         });
@@ -53,7 +53,8 @@ export class CheckoutRequestsService {
           plan: {
             code: existingPendingRequest.plan.code,
             name: existingPendingRequest.plan.name,
-            priceMonthly: existingPendingRequest.plan.priceMonthly.toString(),
+            billingCycle: existingPendingRequest.plan.billingCycle,
+            amount: existingPendingRequest.amount,
           },
           paymentMethod: existingPendingRequest.provider,
           paymentSetting: settings ? {
@@ -69,7 +70,7 @@ export class CheckoutRequestsService {
       const plan = await this.prisma.plan.findUnique({
         where: { code: input.planCode },
       });
-      if (!plan) {
+      if (!plan?.isActive) {
         throw new NotFoundException('Plan no encontrado');
       }
 
@@ -89,7 +90,7 @@ export class CheckoutRequestsService {
           passwordHash: '',
           planId: plan.id,
           provider: input.paymentMethod,
-          amount: plan.priceMonthly.toString(),
+          amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
           currency: 'PEN',
           status: 'DRAFT',
         },
@@ -102,7 +103,8 @@ export class CheckoutRequestsService {
         plan: {
           code: request.plan.code,
           name: request.plan.name,
-          priceMonthly: request.plan.priceMonthly.toString(),
+          billingCycle: request.plan.billingCycle,
+          amount: request.amount,
         },
         paymentMethod: request.provider,
         paymentSetting: {
@@ -139,13 +141,14 @@ export class CheckoutRequestsService {
         throw new ConflictException('Método de pago no disponible');
       }
 
-      return {
+      if (existingOpenRequest.plan.code === input.planCode) return {
         requestId: existingOpenRequest.id,
         status: existingOpenRequest.status,
         plan: {
           code: existingOpenRequest.plan.code,
           name: existingOpenRequest.plan.name,
-          priceMonthly: existingOpenRequest.plan.priceMonthly.toString(),
+          billingCycle: existingOpenRequest.plan.billingCycle,
+          amount: existingOpenRequest.amount,
         },
         paymentMethod: existingOpenRequest.provider,
         paymentSetting: {
@@ -161,7 +164,7 @@ export class CheckoutRequestsService {
     const plan = await this.prisma.plan.findUnique({
       where: { code: input.planCode },
     });
-    if (!plan) {
+      if (!plan?.isActive) {
       throw new NotFoundException('Plan no encontrado');
     }
 
@@ -185,7 +188,7 @@ const settings = await this.prisma.paymentSetting.findFirst({
         passwordHash,
         planId: plan.id,
         provider: input.paymentMethod,
-        amount: plan.priceMonthly.toString(),
+        amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
         currency: 'PEN',
         status: 'DRAFT',
       },
@@ -198,7 +201,8 @@ const settings = await this.prisma.paymentSetting.findFirst({
       plan: {
         code: request.plan.code,
         name: request.plan.name,
-        priceMonthly: request.plan.priceMonthly.toString(),
+        billingCycle: request.plan.billingCycle,
+        amount: request.amount,
       },
       paymentMethod: request.provider,
       paymentSetting: {
@@ -318,7 +322,7 @@ const settings = await this.prisma.paymentSetting.findFirst({
 
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setMonth(endDate.getMonth() + (request.plan.billingCycle === 'YEARLY' ? 12 : 1));
 
       const subscriptionData = {
         planId: request.planId,
@@ -345,7 +349,7 @@ const settings = await this.prisma.paymentSetting.findFirst({
           subscriptionId: subscription.id,
           provider: request.provider,
           providerPaymentId: `upgrade-${request.id}`,
-          amount: request.plan.priceMonthly,
+          amount: new Prisma.Decimal(request.amount),
           currency: request.currency,
           status: 'SUCCEEDED',
           providerPayload: {
@@ -450,7 +454,7 @@ const settings = await this.prisma.paymentSetting.findFirst({
 
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setMonth(endDate.getMonth() + (request.plan.billingCycle === 'YEARLY' ? 12 : 1));
 
       const subscription = await tx.subscription.create({
         data: {
@@ -470,7 +474,7 @@ const settings = await this.prisma.paymentSetting.findFirst({
           subscriptionId: subscription.id,
           provider: request.provider,
           transactionId: `proof-${request.id}`,
-          amount: request.plan.priceMonthly,
+          amount: new Prisma.Decimal(request.amount),
           currency: request.currency,
           status: 'SUCCEEDED',
           providerPayload: {

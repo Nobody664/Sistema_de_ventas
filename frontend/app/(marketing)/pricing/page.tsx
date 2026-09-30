@@ -1,57 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, Zap, Rocket, Crown, Star, ArrowRight } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import type { Plan } from '@/types/generated';
 
-const plans = [
-  {
-    code: 'FREE',
-    name: 'Free',
-    price: 0,
-    priceYearly: 0,
-    description: 'Perfecto para empezar a vender.',
-    features: ['1 usuario', '50 productos', '1 sucursal', 'POS básico', 'Reportes simples'],
-    popular: false,
-    cta: 'Crear cuenta gratis',
-    ctaLink: '/sign-up',
-  },
-  {
-    code: 'START',
-    name: 'Start',
-    price: 19,
-    priceYearly: 190,
-    description: 'Para comercios que necesitan crecer.',
-    features: ['5 usuarios', '500 productos', '1 sucursal', 'Soporte básico', 'Inventario básico'],
-    popular: false,
-    cta: 'Crear cuenta primero',
-    ctaLink: '/sign-up',
-  },
-  {
-    code: 'GROWTH',
-    name: 'Growth',
-    price: 59,
-    priceYearly: 590,
-    description: 'Para empresas con equipo y más inventario.',
-    features: ['15 usuarios', '10,000 productos', '3 sucursales', 'Reportes avanzados', 'Webhooks/API'],
-    popular: true,
-    cta: 'Crear cuenta primero',
-    ctaLink: '/sign-up',
-  },
-  {
-    code: 'SCALE',
-    name: 'Scale',
-    price: 149,
-    priceYearly: 1490,
-    description: 'Para operaciones con varias sedes.',
-    features: ['50 usuarios', 'Productos ilimitados', 'Sucursales ilimitadas', 'Todo en Growth', 'Soporte prioritario'],
-    popular: false,
-    cta: 'Crear cuenta primero',
-    ctaLink: '/sign-up',
-  },
-];
+const popularPlans = new Set(['GROWTH']);
 
 const comparisonData = [
   { feature: 'Usuarios', free: '1', start: '5', growth: '15', scale: '50+' },
@@ -65,6 +22,28 @@ const comparisonData = [
 export default function PricingPage() {
   const router = useRouter();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    apiFetch<Plan[]>('/plans')
+      .then((data) => {
+        if (isMounted) setPlans(data.filter((plan) => plan.isActive));
+      })
+      .catch(() => {
+        if (isMounted) setLoadError('No se pudieron cargar los planes. Inténtalo nuevamente.');
+      })
+      .finally(() => {
+        if (isMounted) setLoadingPlans(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const getPlanIcon = (code: string) => {
     switch (code) {
@@ -98,27 +77,41 @@ export default function PricingPage() {
         </p>
       </div>
 
+      {loadingPlans && (
+        <div className="flex justify-center py-12" role="status">
+          <Loader2 className="size-7 animate-spin text-foreground/50" />
+        </div>
+      )}
+      {loadError && <p className="py-8 text-center text-sm text-red-600" role="alert">{loadError}</p>}
+
+      {!loadingPlans && !loadError && (
       <div className="grid gap-6 lg:grid-cols-4 mb-12">
         {plans.map((plan) => {
           const Icon = getPlanIcon(plan.code);
           const isFree = plan.code === 'FREE';
+          const isPopular = popularPlans.has(plan.code);
+          const price = Number(plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly);
+          const periodLabel = plan.billingCycle === 'YEARLY' ? 'año' : 'mes';
+          const features = Array.isArray(plan.features)
+            ? plan.features.filter((feature): feature is string => typeof feature === 'string')
+            : [];
           
           return (
             <Card
               key={plan.code}
               className={`relative rounded-[34px] overflow-hidden ${
-                plan.popular 
+                isPopular
                   ? 'border-2 border-violet-500 shadow-xl shadow-violet-200/50' 
                   : 'border border-foreground/10'
               }`}
             >
-              {plan.popular && (
+              {isPopular && (
                 <div className="absolute -top-0 left-1/2 -translate-x-1/2 rounded-b-xl bg-violet-500 px-4 py-1.5 text-sm font-medium text-white">
                   Más popular
                 </div>
               )}
               
-              <div className={`p-6 ${plan.popular ? 'bg-gradient-to-br from-violet-50 to-indigo-50' : 'bg-white'}`}>
+              <div className={`p-6 ${isPopular ? 'bg-gradient-to-br from-violet-50 to-indigo-50' : 'bg-white'}`}>
                 <div className="flex items-center gap-2 mb-3">
                   <div className={`p-2 rounded-lg ${isFree ? 'bg-slate-100' : 'bg-violet-100'}`}>
                     <Icon className={`w-5 h-5 ${isFree ? 'text-slate-600' : 'text-violet-600'}`} />
@@ -130,14 +123,14 @@ export default function PricingPage() {
                 
                 <div className="flex items-baseline gap-1">
                   <span className="font-display text-4xl">S/</span>
-                  <span className="font-display text-5xl">{plan.price}</span>
-                  <span className="text-foreground/50">/mes</span>
+                  <span className="font-display text-5xl">{price.toFixed(2)}</span>
+                  <span className="text-foreground/50">/{periodLabel}</span>
                 </div>
                 
                 <p className="mt-3 text-sm text-foreground/70">{plan.description}</p>
 
                 <div className="mt-5 space-y-2">
-                  {plan.features.map((feature) => (
+                  {features.map((feature) => (
                     <div key={feature} className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
                       <span className="text-foreground/80">{feature}</span>
@@ -146,12 +139,17 @@ export default function PricingPage() {
                 </div>
 
                 <Button
-                  onClick={() => router.push(plan.ctaLink)}
+                  onClick={() => {
+                    setLoadingPlan(plan.code);
+                    router.push(isFree
+                      ? '/sign-up?plan=FREE'
+                      : `/checkout?plan=${encodeURIComponent(plan.code)}&billingCycle=${plan.billingCycle}`);
+                  }}
                   disabled={loadingPlan === plan.code}
                   className={`w-full mt-6 rounded-xl py-3 ${
                     isFree 
                       ? 'bg-slate-800 hover:bg-slate-700 text-white'
-                      : plan.popular
+                      : isPopular
                         ? 'bg-violet-600 hover:bg-violet-700 text-white'
                         : 'bg-foreground text-white hover:bg-foreground/90'
                   }`}
@@ -160,7 +158,7 @@ export default function PricingPage() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <span className="flex items-center gap-2">
-                      {plan.cta}
+                      {isFree ? 'Crear cuenta gratis' : 'Continuar al pago'}
                       <ArrowRight className="w-4 h-4" />
                     </span>
                   )}
@@ -170,6 +168,7 @@ export default function PricingPage() {
           );
         })}
       </div>
+      )}
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-12">
         <div className="flex items-start gap-4">

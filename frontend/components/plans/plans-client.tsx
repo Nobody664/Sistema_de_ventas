@@ -25,6 +25,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     code: '',
@@ -32,6 +33,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
     description: '',
     priceMonthly: '',
     priceYearly: '',
+    billingCycle: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
     maxUsers: '',
     maxProducts: '',
     features: '',
@@ -60,6 +62,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   };
 
   const handleOpenDialog = (plan?: Plan) => {
+    setSaveError(null);
     if (plan) {
       setEditingPlan(plan);
       setFormData({
@@ -68,6 +71,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         description: plan.description || '',
         priceMonthly: plan.priceMonthly,
         priceYearly: plan.priceYearly,
+        billingCycle: plan.billingCycle,
         maxUsers: plan.maxUsers?.toString() || '',
         maxProducts: plan.maxProducts?.toString() || '',
         features: parseFeatures(plan.features).join('\n'),
@@ -81,6 +85,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         description: '',
         priceMonthly: '0',
         priceYearly: '0',
+        billingCycle: 'MONTHLY',
         maxUsers: '',
         maxProducts: '',
         features: '',
@@ -92,26 +97,30 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
-      const payload = {
-        ...formData,
+      const planFields = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         priceMonthly: parseFloat(formData.priceMonthly),
         priceYearly: parseFloat(formData.priceYearly),
-        maxUsers: formData.maxUsers ? parseInt(formData.maxUsers) : null,
-        maxProducts: formData.maxProducts ? parseInt(formData.maxProducts) : null,
+        billingCycle: formData.billingCycle,
+        ...(formData.maxUsers ? { maxUsers: parseInt(formData.maxUsers, 10) } : {}),
+        ...(formData.maxProducts ? { maxProducts: parseInt(formData.maxProducts, 10) } : {}),
         features: formData.features.split('\n').filter(f => f.trim()),
+        isActive: formData.isActive,
       };
 
       if (editingPlan) {
         await apiFetch(`/plans/${editingPlan.id}`, {
           method: 'PATCH',
-          body: JSON.stringify(payload),
+          body: JSON.stringify(planFields),
           token: getAccessToken(),
         });
       } else {
         await apiFetch('/plans', {
           method: 'POST',
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ code: formData.code.trim(), ...planFields, billingCycle: 'MONTHLY' }),
           token: getAccessToken(),
         });
       }
@@ -125,6 +134,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
       setPlans(updatedPlans || []);
     } catch (error) {
       console.error('Error saving plan:', error);
+      setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el plan.');
     } finally {
       setSaving(false);
     }
@@ -223,7 +233,9 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         {plans.map((plan) => {
           const Icon = planIcons[plan.code] || Crown;
           const colorClass = planColors[plan.code] || 'from-violet-500 to-purple-600';
-          const price = parseFloat(plan.priceMonthly);
+          const monthlyPrice = parseFloat(plan.priceMonthly);
+          const yearlyPrice = parseFloat(plan.priceYearly);
+          const price = plan.billingCycle === 'YEARLY' ? yearlyPrice : monthlyPrice;
 
           return (
             <Card 
@@ -273,11 +285,11 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
               <div className="mt-6">
                 <p className="font-display text-4xl">
                   {price === 0 ? 'Gratis' : `S/ ${price}`}
-                  {price > 0 && <span className="text-lg font-normal text-foreground/50">/mes</span>}
+                  {price > 0 && <span className="text-lg font-normal text-foreground/50">/{plan.billingCycle === 'YEARLY' ? 'año' : 'mes'}</span>}
                 </p>
                 {price > 0 && (
                   <p className="text-sm text-foreground/50">
-                    S/ {parseFloat(plan.priceYearly)}/año (ahorro {Math.round((1 - parseFloat(plan.priceYearly) / (price * 12)) * 100)}%)
+                    S/ {monthlyPrice}/mes · S/ {yearlyPrice}/año
                   </p>
                 )}
               </div>
@@ -293,7 +305,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-foreground/60">
                   <Building2 className="size-4" />
-                  <span>{plan.billingCycle === 'MONTHLY' ? 'Facturación mensual' : 'Facturación anual'}</span>
+                  <span>Facturación {plan.billingCycle === 'MONTHLY' ? 'mensual' : 'anual'}</span>
                 </div>
               </div>
 
@@ -357,6 +369,19 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                   placeholder="ej. Growth"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="billingCycle">Ciclo de facturación</Label>
+              <select
+                id="billingCycle"
+                value={formData.billingCycle}
+                onChange={(event) => setFormData({ ...formData, billingCycle: event.target.value as 'MONTHLY' | 'YEARLY' })}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="MONTHLY">Mensual</option>
+                <option value="YEARLY">Anual</option>
+              </select>
             </div>
 
             <div className="space-y-2">
@@ -429,6 +454,8 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
               />
             </div>
           </div>
+
+          {saveError && <p className="text-sm text-red-600" role="alert">{saveError}</p>}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>

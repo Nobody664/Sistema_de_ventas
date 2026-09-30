@@ -10,13 +10,7 @@ import { Check, Loader2, Smartphone, Building2, Upload, Home, ArrowLeft, CreditC
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/stores/auth.store';
-
-const plans = {
-  FREE: { name: 'Free', price: 0, priceYearly: 0 },
-  START: { name: 'Start', price: 50, priceYearly: 600 },
-  GROWTH: { name: 'Growth', price: 100, priceYearly: 1200 },
-  SCALE: { name: 'Scale', price: 180, priceYearly: 2160 },
-};
+import type { Plan } from '@/types/generated';
 
 interface PaymentSettings {
   provider: string;
@@ -43,7 +37,15 @@ function CheckoutContent() {
   const isAuthenticated = !!user?.companyId;
   const planCode = searchParams.get('plan') || 'START';
   const isUpgrade = searchParams.get('upgrade') === 'true';
-  const plan = plans[planCode as keyof typeof plans] || plans.START;
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const plan = plans.find((availablePlan) => availablePlan.code === planCode && availablePlan.isActive);
+  const billingCycle = plan?.billingCycle ?? 'MONTHLY';
+  const planPrice = plan
+    ? Number(billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly)
+    : 0;
+  const pricePeriod = billingCycle === 'YEARLY' ? 'año' : 'mes';
   
   const [step, setStep] = useState<'summary' | 'payment' | 'success'>('summary');
   const [loading, setLoading] = useState(false);
@@ -66,6 +68,25 @@ function CheckoutContent() {
 
   useEffect(() => {
     fetchPaymentSettings();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    apiFetch<Plan[]>('/plans')
+      .then((data) => {
+        if (isMounted) setPlans(data);
+      })
+      .catch(() => {
+        if (isMounted) setPlansError('No se pudieron cargar los precios del plan.');
+      })
+      .finally(() => {
+        if (isMounted) setPlansLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fetchPaymentSettings = async () => {
@@ -164,6 +185,28 @@ function CheckoutContent() {
     );
   }
 
+  if (plansLoading) {
+    return (
+      <main className="container flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-foreground/40" />
+      </main>
+    );
+  }
+
+  if (plansError || !plan) {
+    return (
+      <main className="container py-14">
+        <div className="mx-auto max-w-md text-center">
+          <h1 className="font-display text-3xl">No se pudo cargar el plan</h1>
+          <p className="mt-3 text-foreground/70">
+            {plansError || 'El plan solicitado no existe o está inactivo.'}
+          </p>
+          <Button className="mt-6" onClick={() => router.push('/pricing')}>Volver a planes</Button>
+        </div>
+      </main>
+    );
+  }
+
   if (step === 'success') {
     return (
       <main className="container py-14">
@@ -217,7 +260,7 @@ function CheckoutContent() {
           
           <h1 className="font-display text-3xl">Completa tu pago</h1>
           <p className="mt-2 text-foreground/60">
-            Plan <strong>{plan.name}</strong> - S/ {plan.price}/mes
+            Plan <strong>{plan.name}</strong> - S/ {planPrice.toFixed(2)}/{pricePeriod}
           </p>
           
           <div className="mt-8 space-y-6">
@@ -258,7 +301,7 @@ function CheckoutContent() {
 
                 <div className="mt-4 p-3 bg-violet-50 rounded-lg">
                   <p className="text-sm text-violet-700">
-                    <strong>Monto a pagar:</strong> S/ {plan.price}
+                    <strong>Monto a pagar:</strong> S/ {planPrice.toFixed(2)}
                   </p>
                 </div>
               </Card>
@@ -355,8 +398,8 @@ function CheckoutContent() {
         </h1>
         <p className="mt-2 text-foreground/60">
           {isUpgrade 
-            ? `Upgrade al plan ${plan.name} - S/ ${plan.price}/mes`
-            : `Seleccionaste el plan ${plan.name} - S/ ${plan.price}/mes`
+            ? `Upgrade al plan ${plan.name} - S/ ${planPrice.toFixed(2)}/${pricePeriod}`
+            : `Seleccionaste el plan ${plan.name} - S/ ${planPrice.toFixed(2)}/${pricePeriod}`
           }
         </p>
 
@@ -449,8 +492,8 @@ function CheckoutContent() {
               </p>
               <ul className="mt-2 space-y-1 text-sm text-violet-700">
                 <li>• Plan: {plan.name}</li>
-                <li>• Precio: S/ {plan.price}/mes</li>
-                <li>• Facturación: Mensual</li>
+                <li>• Precio: S/ {planPrice.toFixed(2)}/{pricePeriod}</li>
+                <li>• Facturación: {billingCycle === 'YEARLY' ? 'Anual' : 'Mensual'}</li>
               </ul>
             </div>
 
