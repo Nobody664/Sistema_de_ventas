@@ -8,11 +8,11 @@
   --card: 0 0% 100%;
   --card-foreground: 218 29% 13%;
   --primary: 15 84% 55%;
-  --primary-foreground: 34 47% 96%;
+  --primary-foreground: 218 29% 13%;
   --secondary: 209 41% 92%;
   --secondary-foreground: 218 29% 13%;
   --accent: 193 77% 43%;
-  --accent-foreground: 210 40% 98%;
+  --accent-foreground: 218 29% 13%;
   --muted: 30 30% 92%;
   --muted-foreground: 217 15% 36%;
   --border: 24 22% 84%;
@@ -29,11 +29,11 @@
   --card: 220 28% 12%;
   --card-foreground: 34 20% 92%;
   --primary: 15 84% 55%;
-  --primary-foreground: 34 47% 96%;
+  --primary-foreground: 218 29% 13%;
   --secondary: 217 25% 18%;
   --secondary-foreground: 34 20% 88%;
   --accent: 193 70% 40%;
-  --accent-foreground: 210 40% 98%;
+  --accent-foreground: 218 29% 13%;
   --muted: 217 20% 16%;
   --muted-foreground: 215 16% 62%;
   --border: 217 20% 22%;
@@ -55,16 +55,36 @@ html {
 body {
   @apply bg-background text-foreground;
   background-image:
-    radial-gradient(circle at top left, rgba(239, 120, 71, 0.14), transparent 28%),
-    radial-gradient(circle at top right, rgba(20, 151, 179, 0.16), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 239, 231, 0.94));
+    radial-gradient(
+      circle at top left,
+      rgba(239, 120, 71, 0.14),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(20, 151, 179, 0.16),
+      transparent 22%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(246, 239, 231, 0.94)
+    );
   min-height: 100vh;
 }
 
 .dark body {
   background-image:
-    radial-gradient(circle at top left, rgba(239, 120, 71, 0.08), transparent 28%),
-    radial-gradient(circle at top right, rgba(20, 151, 179, 0.1), transparent 22%),
+    radial-gradient(
+      circle at top left,
+      rgba(239, 120, 71, 0.08),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(20, 151, 179, 0.1),
+      transparent 22%
+    ),
     linear-gradient(180deg, rgba(17, 24, 39, 0.95), rgba(10, 15, 28, 0.98));
 }
 
@@ -92,7 +112,7 @@ body {
 }
 
 .grain::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -113,8 +133,12 @@ body {
 
 /* Barcode scanner flash */
 @keyframes scanFlash {
-  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
-  100% { box-shadow: 0 0 0 12px rgba(52, 211, 153, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(52, 211, 153, 0);
+  }
 }
 
 /* Page Animations */
@@ -184,16 +208,59 @@ body {
   animation: scanFlash 0.4s ease-out forwards;
 }
 
+.text-foreground\/20,
+.text-foreground\/30,
+.text-foreground\/40,
+.text-foreground\/45,
+.text-foreground\/50,
+.text-foreground\/60 {
+  color: hsl(var(--muted-foreground));
+}
+
+html:not(.dark) .text-slate-300 {
+  color: #64748b;
+}
+
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-gray-400 {
+  color: #475569;
+}
+
+.text-white\/30,
+.text-white\/40,
+.text-white\/50,
+.text-white\/60 {
+  color: #fff;
+}
+
 /* Staggered animation delays */
-.delay-75 { animation-delay: 75ms; }
-.delay-100 { animation-delay: 100ms; }
-.delay-150 { animation-delay: 150ms; }
-.delay-200 { animation-delay: 200ms; }
-.delay-250 { animation-delay: 250ms; }
-.delay-300 { animation-delay: 300ms; }
-.delay-350 { animation-delay: 350ms; }
-.delay-400 { animation-delay: 400ms; }
-.delay-500 { animation-delay: 500ms; }
+.delay-75 {
+  animation-delay: 75ms;
+}
+.delay-100 {
+  animation-delay: 100ms;
+}
+.delay-150 {
+  animation-delay: 150ms;
+}
+.delay-200 {
+  animation-delay: 200ms;
+}
+.delay-250 {
+  animation-delay: 250ms;
+}
+.delay-300 {
+  animation-delay: 300ms;
+}
+.delay-350 {
+  animation-delay: 350ms;
+}
+.delay-400 {
+  animation-delay: 400ms;
+}
+.delay-500 {
+  animation-delay: 500ms;
+}
 
 /* Hover animations */
 .card-hover {
@@ -245,4 +312,3 @@ body {
     transition: none !important;
   }
 }
-
