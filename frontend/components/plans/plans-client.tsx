@@ -110,31 +110,43 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         features: formData.features.split('\n').filter(f => f.trim()),
         isActive: formData.isActive,
       };
+      const signal = AbortSignal.timeout(20_000);
+      const token = getAccessToken();
+      let savedPlan: Plan;
 
       if (editingPlan) {
-        await apiFetch(`/plans/${editingPlan.id}`, {
+        savedPlan = await apiFetch<Plan>(`/plans/${editingPlan.id}`, {
           method: 'PATCH',
           body: JSON.stringify(planFields),
-          token: getAccessToken(),
+          token,
+          signal,
         });
       } else {
-        await apiFetch('/plans', {
+        savedPlan = await apiFetch<Plan>('/plans', {
           method: 'POST',
           body: JSON.stringify({ code: formData.code.trim(), ...planFields, billingCycle: 'MONTHLY' }),
-          token: getAccessToken(),
+          token,
+          signal,
         });
       }
 
+      setPlans((currentPlans) => {
+        const nextPlans = editingPlan
+          ? currentPlans.map((plan) => (plan.id === savedPlan.id ? savedPlan : plan))
+          : [...currentPlans, savedPlan];
+        return nextPlans.sort((left, right) => Number(left.priceMonthly) - Number(right.priceMonthly));
+      });
       queryClient.invalidateQueries({ queryKey: ['plans'] });
       setIsDialogOpen(false);
-      
-      const updatedPlans = await apiFetch<Plan[]>('/plans', {
-        token: getAccessToken(),
-      });
-      setPlans(updatedPlans || []);
     } catch (error) {
       console.error('Error saving plan:', error);
-      setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el plan.');
+      setSaveError(
+        error instanceof DOMException && error.name === 'TimeoutError'
+          ? 'La solicitud tardó demasiado. Comprueba tu conexión e inténtalo nuevamente.'
+          : error instanceof Error
+            ? error.message
+            : 'No se pudo guardar el plan.',
+      );
     } finally {
       setSaving(false);
     }
