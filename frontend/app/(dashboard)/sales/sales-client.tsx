@@ -190,7 +190,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                 <Link
                   key={sale.id}
                   href={`/sales/${sale.id}`}
-                  className={`flex items-center justify-between rounded-2xl border p-4 transition hover:border-orange-500/30 card-hover block ${
+                  className={`flex items-center justify-between rounded-2xl border p-4 transition hover:border-orange-500/30 card-hover ${
                     isToday ? 'bg-orange-50/50 border-orange-200' : 'border-foreground/10'
                   }`}
                 >

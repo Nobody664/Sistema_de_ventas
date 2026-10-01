@@ -410,7 +410,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                       <span className="font-medium text-sm">{method.method}</span>
                     </div>
                     <div className="text-right">
-                      <span className="font-display text-lg text-violet-700">${method.total.toFixed(2)}</span>
+                      <span className="font-display text-lg text-violet-700">S/ {method.total.toFixed(2)}</span>
                       <span className="ml-2 text-xs text-violet-500">({method.count})</span>
                     </div>
                   </div>
@@ -469,7 +469,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                         <p className="text-xs text-foreground/50">{customer.totalPurchases} compras</p>
                       </div>
                     </div>
-                    <span className="font-display text-lg text-amber-700">${customer.totalSpent.toFixed(2)}</span>
+                    <span className="font-display text-lg text-amber-700">S/ {customer.totalSpent.toFixed(2)}</span>
                   </div>
                 ))
               ) : (
