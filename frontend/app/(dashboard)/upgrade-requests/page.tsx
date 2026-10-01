@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, Check, X, Clock, Upload, Smartphone, Building2, CreditCard, DollarSign } from 'lucide-react';
+import { Search, Check, X, Clock, Upload, Smartphone, Building2, CreditCard, Banknote } from 'lucide-react';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { PageGuard } from '@/components/auth/page-guard';
 
@@ -186,7 +186,7 @@ export default function UpgradeRequestsPage() {
               : 'border-transparent text-foreground/60 hover:text-foreground'
           }`}
         >
-          <DollarSign className="size-4" />
+          <Banknote className="size-4" />
           Suscripciones
         </button>
       </div>

@@ -78,7 +78,7 @@ export default async function SettingsPage() {
           type: 'select',
           options: [
             { value: 'PEN', label: 'S/ (Sol Peruano)' },
-            { value: 'USD', label: '$ (Dólar)' },
+            { value: 'USD', label: 'USD (Dólar)' },
             { value: 'EUR', label: '€ (Euro)' },
           ],
           current: 'PEN',

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
-import { ShoppingCart, DollarSign, CreditCard, Banknote, TrendingUp, Calendar, Download } from 'lucide-react';
+import { ShoppingCart, CreditCard, Banknote, TrendingUp, Calendar, Download } from 'lucide-react';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Product, Customer, Sale } from '@/types/api';
@@ -45,7 +45,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
   const paymentMethods: Record<string, { icon: typeof CreditCard; label: string }> = {
     CASH: { icon: Banknote, label: 'Efectivo' },
     CARD: { icon: CreditCard, label: 'Tarjeta' },
-    TRANSFER: { icon: DollarSign, label: 'Transferencia' },
+    TRANSFER: { icon: Banknote, label: 'Transferencia' },
   };
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
@@ -113,7 +113,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
         <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-150">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-green-500/20 p-2">
-              <DollarSign className="size-5 text-green-600" />
+              <Banknote className="size-5 text-green-600" />
             </div>
             <div>
               <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Ingresos hoy</p>
@@ -184,7 +184,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
           {isLoading && <div className="py-8 text-center text-foreground/50">Cargando...</div>}
           {!isLoading && sales.length > 0 ? (
             sales.slice(0, 15).map((sale, index) => {
-              const PaymentIcon = paymentMethods[sale.paymentMethod]?.icon || DollarSign;
+              const PaymentIcon = paymentMethods[sale.paymentMethod]?.icon || Banknote;
               const isToday = isTodaySale(sale);
               return (
                 <Link

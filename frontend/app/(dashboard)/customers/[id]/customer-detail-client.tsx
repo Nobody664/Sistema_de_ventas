@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, User, Mail, Phone, FileText, ShoppingCart, DollarSign, Calendar, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, FileText, ShoppingCart, Banknote, Calendar, Edit, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Customer, Sale } from '@/types/api';
@@ -104,7 +104,7 @@ export function CustomerDetailClient({ customer, purchasesData }: CustomerDetail
 
             <Card className="rounded-2xl p-6">
               <h2 className="mb-4 text-lg font-semibold flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-slate-400" />
+                <Banknote className="h-5 w-5 text-slate-400" />
                 Estadísticas
               </h2>
               <div className="space-y-4">

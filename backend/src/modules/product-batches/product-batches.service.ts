@@ -132,16 +132,20 @@ export class ProductBatchesService {
     });
     if (!product) throw new NotFoundException('Product not found');
 
-    const batchStock = await tx.productBatch.aggregate({
-      where: { companyId, productId },
-      _sum: { quantityAvailable: true },
+    const batches = await tx.productBatch.findMany({
+      where: { companyId, productId, quantityAvailable: { gt: 0 } },
+      orderBy: [
+        { expirationDate: { sort: 'asc', nulls: 'last' } },
+        { createdAt: 'asc' },
+      ],
     });
     const stockBeforeSale = product.stockQuantity + quantity;
-    const untrackedStock = stockBeforeSale - (batchStock._sum.quantityAvailable ?? 0);
+    const availableBatchStock = batches.reduce((total, batch) => total + batch.quantityAvailable, 0);
+    const untrackedStock = stockBeforeSale - availableBatchStock;
 
     if (untrackedStock > 0) {
       const batchNumber = `OPENING-${productId}-${Date.now()}`;
-      await tx.productBatch.create({
+      const openingBatch = await tx.productBatch.create({
         data: {
           companyId,
           productId,
@@ -151,6 +155,7 @@ export class ProductBatchesService {
           purchasePrice: product.costPrice ?? 0,
         },
       });
+      batches.push(openingBatch);
       await tx.inventoryMovement.create({
         data: {
           companyId,
@@ -164,30 +169,7 @@ export class ProductBatchesService {
     }
 
     let remaining = quantity;
-
-    const batches = await tx.productBatch.findMany({
-      where: {
-        companyId,
-        productId,
-        quantityAvailable: { gt: 0 },
-        expirationDate: { not: null },
-      },
-      orderBy: { expirationDate: 'asc' },
-    });
-
-    const noExpiryBatches = await tx.productBatch.findMany({
-      where: {
-        companyId,
-        productId,
-        quantityAvailable: { gt: 0 },
-        expirationDate: null,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    const allBatches = [...batches, ...noExpiryBatches];
-
-    for (const batch of allBatches) {
+    for (const batch of batches) {
       if (remaining <= 0) break;
 
       const deduct = Math.min(batch.quantityAvailable, remaining);

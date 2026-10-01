@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Calendar, CheckCircle, Clock, AlertCircle, XCircle, DollarSign, Shield, Upload, Check, ArrowLeft, Loader2 } from 'lucide-react';
+import { CreditCard, Calendar, CheckCircle, Clock, AlertCircle, XCircle, Banknote, Shield, Upload, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { compressImage } from '@/lib/image-compression';
 import { useRouter } from 'next/navigation';
@@ -137,7 +137,7 @@ export function PaymentHistoryClient({ billingStatus, isSuperAdmin }: PaymentHis
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <div className="rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 p-3 text-white">
-          <DollarSign className="size-8" />
+          <Banknote className="size-8" />
         </div>
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-foreground/40">Finanzas</p>
@@ -333,7 +333,7 @@ export function PaymentHistoryClient({ billingStatus, isSuperAdmin }: PaymentHis
             ))
           ) : (
             <div className="py-8 text-center">
-              <DollarSign className="mx-auto size-10 text-foreground/20" />
+              <Banknote className="mx-auto size-10 text-foreground/20" />
               <p className="mt-2 text-foreground/50">No hay pagos registrados aún</p>
             </div>
           )}

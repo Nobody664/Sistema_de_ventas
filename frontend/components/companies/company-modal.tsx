@@ -131,7 +131,7 @@ export function CompanyModal({ company, children }: CompanyModalProps) {
                   className="flex h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
                 >
                   <option value="PEN">Soles (PEN)</option>
-                  <option value="USD">Dólares (USD)</option>
+                  <option value="USD">USD (Dólar estadounidense)</option>
                   <option value="EUR">Euros (EUR)</option>
                 </select>
               </div>

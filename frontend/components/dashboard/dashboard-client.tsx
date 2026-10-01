@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth.store';
 import { RevenueChart } from '@/components/charts/revenue-chart';
 import { ErrorBoundary } from '@/components/common/error-boundary';
-import { Building2, CreditCard, DollarSign, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Package, ShoppingCart, TrendingDown, Wallet, Receipt, Star } from 'lucide-react';
+import { Building2, CreditCard, Banknote, Users, Activity, TrendingUp, AlertCircle, CheckCircle, Package, ShoppingCart, TrendingDown, Wallet, Receipt, Star } from 'lucide-react';
 
 type GlobalMetrics = {
   totalCompanies: number;
@@ -92,14 +92,14 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
     ? [
         { label: 'Empresas', value: globalMetrics?.totalCompanies ?? 0, icon: Building2, color: 'blue', delta: 'total registradas' },
         { label: 'Activas', value: globalMetrics?.activeCompanies ?? 0, icon: CheckCircle, color: 'green', delta: 'operativas' },
-        { label: 'MRR', value: `$${(globalMetrics?.monthlyRecurringRevenue ?? 0).toFixed(0)}`, icon: DollarSign, color: 'violet', delta: 'mensual' },
-        { label: 'Cobrado', value: `$${(globalMetrics?.collectedRevenue ?? 0).toFixed(0)}`, icon: CreditCard, color: 'emerald', delta: 'total' },
+        { label: 'MRR', value: `S/ ${(globalMetrics?.monthlyRecurringRevenue ?? 0).toFixed(0)}`, icon: Banknote, color: 'violet', delta: 'mensual' },
+        { label: 'Cobrado', value: `S/ ${(globalMetrics?.collectedRevenue ?? 0).toFixed(0)}`, icon: CreditCard, color: 'emerald', delta: 'total' },
       ]
     : [
         { label: 'Ventas hoy', value: tenantMetrics?.salesToday ?? 0, icon: ShoppingCart, color: 'violet', delta: 'transacciones' },
-        { label: 'Ingresos hoy', value: `$${(tenantMetrics?.revenueToday ?? 0).toFixed(2)}`, icon: DollarSign, color: 'green', delta: 'hoy' },
+        { label: 'Ingresos hoy', value: `S/ ${(tenantMetrics?.revenueToday ?? 0).toFixed(2)}`, icon: Banknote, color: 'green', delta: 'hoy' },
         { label: 'Stock bajo', value: tenantMetrics?.lowStockProducts ?? 0, icon: AlertCircle, color: 'amber', delta: 'productos' },
-        { label: 'Valor inventario', value: `$${(tenantMetrics?.inventoryMetrics?.totalValue ?? 0).toFixed(0)}`, icon: Wallet, color: 'blue', delta: 'total' },
+        { label: 'Valor inventario', value: `S/ ${(tenantMetrics?.inventoryMetrics?.totalValue ?? 0).toFixed(0)}`, icon: Wallet, color: 'blue', delta: 'total' },
       ];
 
   const iconColors: Record<string, string> = {
@@ -300,21 +300,21 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                   <p className="text-sm text-foreground/50">MRR (Monthly Recurring Revenue)</p>
                   <TrendingUp className="size-4 text-green-600" />
                 </div>
-                <p className="mt-2 font-display text-3xl">${(globalMetrics?.monthlyRecurringRevenue ?? 0).toFixed(2)}</p>
+                <p className="mt-2 font-display text-3xl">S/ {(globalMetrics?.monthlyRecurringRevenue ?? 0).toFixed(2)}</p>
               </div>
               <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-foreground/50">ARR (Annual Recurring Revenue)</p>
                   <TrendingUp className="size-4 text-green-600" />
                 </div>
-                <p className="mt-2 font-display text-3xl">${(globalMetrics?.annualRecurringRevenue ?? 0).toFixed(2)}</p>
+                <p className="mt-2 font-display text-3xl">S/ {(globalMetrics?.annualRecurringRevenue ?? 0).toFixed(2)}</p>
               </div>
               <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-foreground/50">Total Cobrado</p>
-                  <DollarSign className="size-4 text-violet-600" />
+                  <Banknote className="size-4 text-violet-600" />
                 </div>
-                <p className="mt-2 font-display text-3xl">${(globalMetrics?.collectedRevenue ?? 0).toFixed(2)}</p>
+                <p className="mt-2 font-display text-3xl">S/ {(globalMetrics?.collectedRevenue ?? 0).toFixed(2)}</p>
               </div>
             </div>
           </Card>
@@ -336,7 +336,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                   <p className="text-sm text-foreground/50">Ticket Promedio</p>
                   <Receipt className="size-4 text-violet-600" />
                 </div>
-                <p className="mt-2 font-display text-3xl">${(tenantMetrics.salesAnalytics?.averageTicket ?? 0).toFixed(2)}</p>
+                <p className="mt-2 font-display text-3xl">S/ {(tenantMetrics.salesAnalytics?.averageTicket ?? 0).toFixed(2)}</p>
               </div>
               <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
                 <div className="flex items-center justify-between">
@@ -350,7 +350,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                   <p className="text-sm text-foreground/50">Ingresos (30 días)</p>
                   <TrendingUp className="size-4 text-green-600" />
                 </div>
-                <p className="mt-2 font-display text-3xl">${(tenantMetrics.salesAnalytics?.totalRevenue ?? 0).toFixed(2)}</p>
+                <p className="mt-2 font-display text-3xl">S/ {(tenantMetrics.salesAnalytics?.totalRevenue ?? 0).toFixed(2)}</p>
               </div>
             </div>
           </Card>
@@ -389,7 +389,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                   <Wallet className="size-5 text-slate-600" />
                   <span className="font-medium">Valor Total</span>
                 </div>
-                <span className="font-display text-xl text-slate-700">${(tenantMetrics.inventoryMetrics?.totalValue ?? 0).toFixed(2)}</span>
+                <span className="font-display text-xl text-slate-700">S/ {(tenantMetrics.inventoryMetrics?.totalValue ?? 0).toFixed(2)}</span>
               </div>
             </div>
           </Card>

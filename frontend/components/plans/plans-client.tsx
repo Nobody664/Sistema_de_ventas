@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Check, Crown, Zap, Rocket, Star, DollarSign, Users, Package, Building2, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Check, Crown, Zap, Rocket, Star, Users, Package, Building2, Loader2 } from 'lucide-react';
 import type { Plan } from '@/types/generated';
 
 interface PlansClientProps {

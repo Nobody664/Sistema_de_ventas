@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, DollarSign, Boxes, AlertTriangle, ArrowLeft, QrCode } from 'lucide-react';
+import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, Banknote, Boxes, AlertTriangle, ArrowLeft, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -334,7 +334,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 {/* Pricing Section */}
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
+                    <Banknote className="h-4 w-4" />
                     Precios y costos
                   </p>
                   <div className="grid grid-cols-2 gap-4">

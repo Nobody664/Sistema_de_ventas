@@ -2,7 +2,7 @@
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
 import { getServerSession } from '@/lib/session';
-import { Users, Search, CheckCircle, XCircle, Clock, CreditCard, Crown, DollarSign } from 'lucide-react';
+import { Users, Search, CheckCircle, XCircle, Clock, CreditCard, Crown } from 'lucide-react';
 import { SubscriberActions } from '@/components/subscribers/subscriber-actions';
 import type { SubscriberWithCompany } from '@/types/api';
 

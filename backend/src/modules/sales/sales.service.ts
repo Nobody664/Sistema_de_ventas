@@ -197,17 +197,26 @@ export class SalesService {
   }
 
   async createSale(companyId: string, input: CreateSaleDto) {
+    const quantityByProduct = new Map<string, number>();
+    for (const item of input.items) {
+      quantityByProduct.set(
+        item.productId,
+        (quantityByProduct.get(item.productId) ?? 0) + item.quantity,
+      );
+    }
+    const saleItems = Array.from(quantityByProduct, ([productId, quantity]) => ({ productId, quantity }));
+
     const products = (await this.prisma.product.findMany({
       where: {
         companyId,
-        id: { in: input.items.map((item) => item.productId) },
+        id: { in: saleItems.map((item) => item.productId) },
       },
     })) as Array<{ id: string; stockQuantity: number; name: string; salePrice: unknown }>;
 
     const productMap = new Map<string, (typeof products)[number]>(products.map((product) => [product.id, product]));
 
     let subtotal = 0;
-    const itemsData = input.items.map((item) => {
+    const itemsData = saleItems.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) {
         throw new NotFoundException(`Product ${item.productId} not found.`);
@@ -258,28 +267,31 @@ export class SalesService {
         include: { items: true },
       });
 
-      await Promise.all(
-        input.items.map((item) =>
-          tx.product.update({
-            where: { id: item.productId },
-            data: { stockQuantity: { decrement: item.quantity } },
-          }),
-        ),
-      );
-
-      await Promise.all(
-        input.items.map((item) =>
-          this.productBatchesService.reserveFromBatch(
+      for (const item of saleItems) {
+        const stockUpdate = await tx.product.updateMany({
+          where: {
+            id: item.productId,
             companyId,
-            item.productId,
-            item.quantity,
-            tx,
-          ),
-        ),
-      );
+            stockQuantity: { gte: item.quantity },
+          },
+          data: { stockQuantity: { decrement: item.quantity } },
+        });
+        if (stockUpdate.count !== 1) {
+          throw new BadRequestException(`Insufficient stock for product ${item.productId}.`);
+        }
+      }
+
+      for (const item of saleItems) {
+        await this.productBatchesService.reserveFromBatch(
+          companyId,
+          item.productId,
+          item.quantity,
+          tx,
+        );
+      }
 
       const movements = await Promise.all(
-        input.items.map((item) =>
+        saleItems.map((item) =>
           tx.inventoryMovement.create({
             data: {
               companyId,
@@ -296,8 +308,8 @@ export class SalesService {
         movements.map((movement, index) =>
           this.kardexService.recordOutMovement(
             companyId,
-            input.items[index].productId,
-            input.items[index].quantity,
+            saleItems[index].productId,
+            saleItems[index].quantity,
             movement.id,
             tx,
           ),
@@ -305,6 +317,6 @@ export class SalesService {
       );
 
       return sale;
-    });
+    }, { maxWait: 10_000, timeout: 15_000 });
   }
 }
