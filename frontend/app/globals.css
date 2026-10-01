@@ -5,8 +5,10 @@
 :root {
   --background: 34 47% 96%;
   --foreground: 218 29% 13%;
-  --card: 0 0% 100%;
-  --card-foreground: 218 29% 13%;
+  --card: 220 27% 12%;
+  --card-foreground: 210 40% 96%;
+  --card-muted-foreground: 215 20% 76%;
+  --card-border: 217 20% 25%;
   --primary: 15 84% 55%;
   --primary-foreground: 218 29% 13%;
   --secondary: 209 41% 92%;
@@ -26,8 +28,10 @@
 .dark {
   --background: 220 30% 8%;
   --foreground: 34 20% 92%;
-  --card: 220 28% 12%;
-  --card-foreground: 34 20% 92%;
+  --card: 220 27% 12%;
+  --card-foreground: 210 40% 96%;
+  --card-muted-foreground: 215 20% 76%;
+  --card-border: 217 20% 25%;
   --primary: 15 84% 55%;
   --primary-foreground: 218 29% 13%;
   --secondary: 217 25% 18%;
@@ -231,6 +235,36 @@ html:not(.dark) .text-gray-400 {
 .text-white\/50,
 .text-white\/60 {
   color: #fff;
+}
+
+[data-ui-card] {
+  background-color: hsl(var(--card)) !important;
+  background-image: none !important;
+  border-color: hsl(var(--card-border)) !important;
+  color: hsl(var(--card-foreground));
+}
+
+[data-ui-card] .text-foreground,
+[data-ui-card] .text-card-foreground,
+[data-ui-card] .text-muted-foreground {
+  color: hsl(var(--card-foreground));
+}
+
+[data-ui-card] [class*="text-foreground/"],
+[data-ui-card] [class*="text-slate-"],
+[data-ui-card] [class*="text-gray-"] {
+  color: hsl(var(--card-muted-foreground));
+}
+
+[data-ui-card] :is(input, textarea, select) {
+  background-color: #f8fafc;
+  border-color: #64748b;
+  color: #0f172a !important;
+}
+
+[data-ui-card] :is(input, textarea, select)::placeholder {
+  color: #475569 !important;
+  opacity: 1;
 }
 
 /* Staggered animation delays */

@@ -200,7 +200,7 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
             </div>
           )}
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
+          <div data-ui-card className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
             <div className="space-y-8">
               {/* Personal Info */}
               <div>
@@ -413,7 +413,7 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
           </div>
 
           {/* Permissions Panel */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
+          <div data-ui-card className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-2">
               <Shield className="h-4 w-4" />
               Permisos del rol: <span className="text-purple-600 font-bold">{ROLE_LABELS[selectedRole] || selectedRole}</span>

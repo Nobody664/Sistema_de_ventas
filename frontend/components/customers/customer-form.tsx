@@ -149,7 +149,7 @@ export function CustomerForm({ customer }: CustomerFormProps) {
             </div>
           )}
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
+          <div data-ui-card className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
             <div className="space-y-8">
               {/* Document - Búsqueda al inicio */}
               <div>

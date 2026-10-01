@@ -237,7 +237,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             </div>
 
             {/* Right Column - Form */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
+            <div data-ui-card className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
               <div className="space-y-8">
                 {/* Basic Info Section */}
                 <div>
