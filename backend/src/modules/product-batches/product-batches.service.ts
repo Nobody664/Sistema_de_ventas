@@ -58,17 +58,17 @@ export class ProductBatchesService {
   }
 
   async update(companyId: string, id: string, dto: UpdateProductBatchDto) {
-    const batch = await this.prisma.productBatch.findFirst({ where: { id, companyId } });
-    if (!batch) throw new NotFoundException('Product batch not found');
-
-    return this.prisma.productBatch.update({
-      where: { id },
+    const result = await this.prisma.productBatch.updateMany({
+      where: { id, companyId },
       data: {
         ...(dto.quantityAvailable !== undefined ? { quantityAvailable: dto.quantityAvailable } : {}),
         ...(dto.purchasePrice !== undefined ? { purchasePrice: dto.purchasePrice } : {}),
         ...(dto.expirationDate !== undefined ? { expirationDate: new Date(dto.expirationDate) } : {}),
       },
     });
+    if (result.count === 0) throw new NotFoundException('Product batch not found');
+
+    return this.findById(companyId, id);
   }
 
   async remove(companyId: string, id: string) {
@@ -173,11 +173,16 @@ export class ProductBatchesService {
       if (remaining <= 0) break;
 
       const deduct = Math.min(batch.quantityAvailable, remaining);
-      await tx.productBatch.update({
-        where: { id: batch.id },
+      const reservation = await tx.productBatch.updateMany({
+        where: {
+          id: batch.id,
+          companyId,
+          productId,
+          quantityAvailable: { gte: deduct },
+        },
         data: { quantityAvailable: { decrement: deduct } },
       });
-      remaining -= deduct;
+      if (reservation.count === 1) remaining -= deduct;
     }
 
     if (remaining > 0) {
@@ -198,9 +203,18 @@ export class ProductBatchesService {
       throw new BadRequestException(`Batch ${batch.batchNumber} only has ${batch.quantityAvailable} units available`);
     }
 
-    return this.prisma.productBatch.update({
-      where: { id },
+    const result = await this.prisma.productBatch.updateMany({
+      where: {
+        id,
+        companyId,
+        quantityAvailable: { gte: dto.quantity },
+      },
       data: { quantityAvailable: { decrement: dto.quantity } },
     });
+    if (result.count === 0) {
+      throw new BadRequestException('La disponibilidad del lote cambió. Actualiza el inventario e inténtalo de nuevo.');
+    }
+
+    return this.findById(companyId, id);
   }
 }
