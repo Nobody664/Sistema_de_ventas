@@ -1,10 +1,11 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, AuditAction } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { CreateSaleDto, ExportSalesQueryDto } from './dto/sale.dto';
 import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
 import { KardexService } from '@/modules/kardex/kardex.service';
 import { ProductBatchesService } from '@/modules/product-batches/product-batches.service';
+import { AuditService } from '@/common/services/audit.service';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
 
@@ -15,6 +16,7 @@ export class SalesService {
     private readonly notificationsService: NotificationsService,
     private readonly kardexService: KardexService,
     private readonly productBatchesService: ProductBatchesService,
+    private readonly auditService: AuditService,
   ) {}
 
   findRecentSales(companyId: string) {
@@ -246,8 +248,8 @@ export class SalesService {
     const changeAmount = 0;
     const saleNumber = `SALE-${Date.now()}`;
 
-    return this.prisma.$transaction(async (tx) => {
-      const sale = await tx.sale.create({
+    const sale = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.sale.create({
         data: {
           companyId,
           customerId: input.customerId,
@@ -316,7 +318,31 @@ export class SalesService {
         ),
       );
 
-      return sale;
+      return created;
     }, { maxWait: 10_000, timeout: 15_000 });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.CREATE,
+      entity: 'Sale',
+      entityId: sale.id,
+      changes: {
+        saleNumber: sale.saleNumber,
+        subtotal,
+        taxAmount,
+        discountAmount,
+        totalAmount: Number(sale.totalAmount),
+        paymentMethod: sale.paymentMethod,
+        customerId: sale.customerId,
+        employeeId: sale.employeeId,
+        items: sale.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          totalPrice: Number(item.totalPrice),
+        })),
+      },
+    });
+
+    return sale;
   }
 }

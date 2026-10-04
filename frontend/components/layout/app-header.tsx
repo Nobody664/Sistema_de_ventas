@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { NotificationBell } from './notification-bell';
-import { clearTokens } from '@/lib/api/auth';
+import { useAuthStore } from '@/stores/auth.store';
 
 type AppHeaderProps = {
   fullName: string;
@@ -25,6 +25,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps) {
   const router = useRouter();
+  const logout = useAuthStore((state) => state.logout);
   const initials = (fullName ?? '')
     .split(' ')
     .map((n) => n[0])
@@ -32,8 +33,8 @@ export function AppHeader({ fullName, companyId, roles, email }: AppHeaderProps)
     .toUpperCase()
     .slice(0, 2);
 
-  const handleSignOut = () => {
-    clearTokens();
+  const handleSignOut = async () => {
+    await logout();
     router.push('/sign-in');
   };
 

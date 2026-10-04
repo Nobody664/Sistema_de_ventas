@@ -1,13 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { SubscriptionLimitService } from '@/common/guards/subscription-limit.service';
+import { AuditService } from '@/common/services/audit.service';
 
 @Injectable()
 export class CustomersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly limitService: SubscriptionLimitService,
+    private readonly auditService: AuditService,
   ) {}
 
   async getLimitsInfo(companyId: string) {
@@ -75,25 +78,91 @@ export class CustomersService {
   async create(companyId: string, input: CreateCustomerDto) {
     await this.limitService.validateLimit(companyId, 'customers');
 
-    return this.prisma.customer.create({
+    const customer = await this.prisma.customer.create({
       data: {
         companyId,
         ...input,
       },
     });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.CREATE,
+      entity: 'Customer',
+      entityId: customer.id,
+      changes: {
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        email: customer.email,
+        documentType: customer.documentType,
+      },
+    });
+
+    return customer;
   }
 
   async update(companyId: string, id: string, input: UpdateCustomerDto) {
-    await this.ensureCustomer(companyId, id);
-    return this.prisma.customer.update({
+    const existing = await this.ensureCustomer(companyId, id);
+
+    const customer = await this.prisma.customer.update({
       where: { id },
       data: input,
     });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.UPDATE,
+      entity: 'Customer',
+      entityId: customer.id,
+      changes: {
+        before: {
+          firstName: existing.firstName,
+          lastName: existing.lastName,
+          email: existing.email,
+          phone: existing.phone,
+        },
+        after: input,
+      },
+    });
+
+    return customer;
   }
 
   async remove(companyId: string, id: string) {
-    await this.ensureCustomer(companyId, id);
-    return this.prisma.customer.delete({ where: { id } });
+    const existing = await this.ensureCustomer(companyId, id);
+
+    const salesCount = await this.prisma.sale.count({
+      where: { customerId: id, companyId },
+    });
+
+    if (salesCount > 0) {
+      const customer = await this.prisma.customer.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+
+      await this.auditService.log({
+        companyId,
+        action: AuditAction.DELETE,
+        entity: 'Customer',
+        entityId: id,
+        changes: { softDelete: true, salesCount },
+      });
+
+      return customer;
+    }
+
+    const customer = await this.prisma.customer.delete({ where: { id } });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.DELETE,
+      entity: 'Customer',
+      entityId: id,
+      changes: { softDelete: false, firstName: existing.firstName },
+    });
+
+    return customer;
   }
 
   private async ensureCustomer(companyId: string, id: string) {

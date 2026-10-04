@@ -13,22 +13,24 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
   user: {
     id: string;
     email: string;
-    fullName: string;
+    fullName: string | null;
     roles: string[];
     companyId: string | null;
-    planCode: string | null;
-    subscriptionStatus: string | null;
+    companyStatus?: string | null;
+    planCode?: string | null;
+    subscriptionStatus?: string | null;
+    trialEndsAt?: string | null;
   };
+  expiresIn?: string;
 }
 
+export type AuthUser = AuthResponse['user'];
+
 export interface RefreshResponse {
-  accessToken: string;
-  refreshToken: string;
+  expiresIn?: string;
 }
 
 export class AuthApiError extends Error {
@@ -90,60 +92,33 @@ export async function logout(): Promise<void> {
   });
 }
 
-export async function getMe(): Promise<AuthResponse['user']> {
-  const token = getAccessToken();
-  if (!token) throw new AuthApiError('No autenticado', 401);
-
+export async function getMe(): Promise<AuthUser> {
   const response = await fetch(`${API_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
     credentials: 'include',
   });
 
-  return handleResponse<AuthResponse['user']>(response);
+  return handleResponse<AuthUser>(response);
 }
 
 export async function refreshToken(): Promise<RefreshResponse> {
-  const refreshTokenValue = getRefreshToken();
-  if (!refreshTokenValue) throw new AuthApiError('No hay refresh token', 401);
-
   const response = await fetch(`${API_URL}/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: refreshTokenValue }),
+    body: JSON.stringify({}),
     credentials: 'include',
   });
 
   return handleResponse<RefreshResponse>(response);
 }
 
-export function setTokens(accessToken: string, refreshToken: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-    document.cookie = `accessToken=${accessToken}; path=/; max-age=900; SameSite=Lax`;
-    document.cookie = `refreshToken=${refreshToken}; path=/; max-age=604800; SameSite=Lax`;
-  }
+export function getAccessToken(): undefined {
+  return undefined;
 }
 
-export function getAccessToken(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
-  return localStorage.getItem('accessToken') ?? undefined;
-}
-
-export function getRefreshToken(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
-  return localStorage.getItem('refreshToken') ?? undefined;
-}
-
-export function clearTokens(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    document.cookie = 'accessToken=; path=/; max-age=0';
-    document.cookie = 'refreshToken=; path=/; max-age=0';
-  }
+export function getRefreshToken(): undefined {
+  return undefined;
 }
 
 export function isAuthenticated(): boolean {
-  return !!getAccessToken();
+  return false;
 }

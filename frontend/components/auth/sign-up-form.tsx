@@ -8,8 +8,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { register as apiRegister } from '@/lib/api/auth';
-import { setTokens } from '@/lib/api/auth';
+import { useAuthStore } from '@/stores/auth.store';
 
 const signUpSchema = z.object({
   fullName: z.string()
@@ -62,6 +61,7 @@ export function SignUpForm() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const registerUser = useAuthStore((state) => state.register);
 
   const form = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
@@ -92,14 +92,7 @@ export function SignUpForm() {
     setError(null);
 
     try {
-      const response = await apiRegister({
-        email: values.email,
-        password: values.password,
-        fullName: values.fullName,
-        companyName: values.companyName,
-      });
-
-      setTokens(response.accessToken, response.refreshToken);
+      await registerUser(values.email, values.password, values.fullName, values.companyName);
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar usuario');

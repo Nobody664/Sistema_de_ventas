@@ -1,10 +1,32 @@
-import { BadRequestException, ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import type { StringValue } from 'ms';
 import * as argon2 from 'argon2';
+import { randomBytes, createHash } from 'crypto';
+import { RefreshTokenType, type Prisma } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { UsersService } from '@/modules/users/users.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
+
+const DEFAULT_REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
+
+interface SessionClaims {
+  sub: string;
+  email: string;
+  companyId?: string | null;
+  roles: string[];
+  planCode?: string | null;
+  subscriptionStatus?: string;
+  fullName?: string | null;
+}
 
 @Injectable()
 export class AuthService {
@@ -16,6 +38,33 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private generateOpaqueToken(): string {
+    return randomBytes(64).toString('hex');
+  }
+
+  private getRefreshTtlMs(): number {
+    const configured = this.configService.get<string>('JWT_REFRESH_TTL');
+    if (!configured) {
+      return DEFAULT_REFRESH_TTL_MS;
+    }
+
+    const match = /^(\d+)\s*([smhd])?$/.exec(configured.trim());
+    if (!match) {
+      this.logger.warn(`JWT_REFRESH_TTL invalido: ${configured}. Usando 7d.`);
+      return DEFAULT_REFRESH_TTL_MS;
+    }
+
+    const value = Number(match[1]);
+    const unit = match[2] ?? 's';
+    const multiplier = unit === 's' ? 1000 : unit === 'm' ? 60_000 : unit === 'h' ? 3_600_000 : 86_400_000;
+
+    return value * multiplier;
+  }
 
   async register(input: RegisterDto) {
     try {
@@ -136,60 +185,209 @@ export class AuthService {
     });
   }
 
-  async refresh(refreshToken: string) {
-    try {
-      const payload = await this.jwtService.verifyAsync<{
-        sub: string;
-        email: string;
-        fullName: string;
-        companyId?: string | null;
-        roles: string[];
-      }>(refreshToken, {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      });
+  async refresh(rawToken?: string, ipAddress?: string, userAgent?: string) {
+    if (!rawToken) {
+      throw new UnauthorizedException('Refresh token is required.');
+    }
 
-      const user = await this.usersService.findById(payload.sub);
-      if (!user) {
-        throw new UnauthorizedException('User not found.');
-      }
+    const tokenHash = this.hashToken(rawToken);
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+    });
 
-      return this.createSession({
-        sub: user.id,
-        email: user.email,
-        companyId: payload.companyId ?? null,
-        roles: payload.roles,
-        fullName: user.fullName,
-      });
-    } catch {
+    if (!stored || stored.type !== RefreshTokenType.SESSION) {
       throw new UnauthorizedException('Invalid refresh token.');
+    }
+
+    if (stored.revokedAt) {
+      await this.prisma.refreshToken.updateMany({
+        where: { familyId: stored.familyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      this.logger.warn(`Reuse of revoked refresh token detected for user ${stored.userId}`);
+      throw new UnauthorizedException('Invalid refresh token.');
+    }
+
+    if (stored.expiresAt < new Date()) {
+      await this.prisma.refreshToken.update({
+        where: { id: stored.id },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException('Invalid refresh token.');
+    }
+
+    const user = await this.usersService.findById(stored.userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found.');
+    }
+
+    const membership = stored.companyId
+      ? await this.prisma.membership.findFirst({
+          where: { userId: user.id, companyId: stored.companyId, isActive: true },
+          orderBy: { createdAt: 'asc' },
+        })
+      : await this.prisma.membership.findFirst({
+          where: { userId: user.id, isActive: true },
+          orderBy: { createdAt: 'asc' },
+        });
+
+    let planCode: string | undefined;
+    let subscriptionStatus: string | undefined;
+
+    if (membership?.companyId) {
+      const subscription = await this.prisma.subscription.findFirst({
+        where: { companyId: membership.companyId },
+        include: { plan: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (subscription) {
+        subscriptionStatus = subscription.status;
+        planCode = subscription.plan.code;
+      }
+    }
+
+    const claims: SessionClaims = {
+      sub: user.id,
+      email: user.email,
+      companyId: membership?.companyId ?? stored.companyId ?? null,
+      roles: membership ? [user.globalRole, membership.role] : [user.globalRole],
+      planCode,
+      subscriptionStatus,
+    };
+
+    const { accessToken } = await this.signAccessToken(claims);
+    const newRefreshToken = this.generateOpaqueToken();
+    const newRefreshHash = this.hashToken(newRefreshToken);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.refreshToken.create({
+        data: {
+          userId: user.id,
+          companyId: claims.companyId ?? null,
+          tokenHash: newRefreshHash,
+          familyId: stored.familyId,
+          type: RefreshTokenType.SESSION,
+          ipAddress: ipAddress ?? null,
+          userAgent: userAgent ?? null,
+          expiresAt: new Date(Date.now() + this.getRefreshTtlMs()),
+        },
+      });
+
+      await tx.refreshToken.update({
+        where: { id: stored.id },
+        data: { revokedAt: new Date(), replacedBy: newRefreshHash },
+      });
+    });
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+      expiresIn: this.configService.get<string>('JWT_ACCESS_TTL') ?? '15m',
+    };
+  }
+
+  async logout(rawToken?: string, userId?: string) {
+    if (rawToken) {
+      const tokenHash = this.hashToken(rawToken);
+      const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
+
+      if (stored && stored.type === RefreshTokenType.SESSION) {
+        await this.prisma.refreshToken.updateMany({
+          where: { familyId: stored.familyId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+    } else if (userId) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId, type: RefreshTokenType.SESSION, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
     }
   }
 
   async forgotPassword(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return {
+        status: 'queued',
+        message: 'If an account exists with that email, a password reset link will be sent.',
+      };
+    }
+
+    const token = this.generateOpaqueToken();
+    const tokenHash = this.hashToken(token);
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        familyId: `reset:${randomBytes(8).toString('hex')}`,
+        type: RefreshTokenType.RESET,
+        expiresAt,
+        ipAddress: null,
+        userAgent: null,
+      },
+    });
+
     return {
-      email,
       status: 'queued',
-      message: 'Password reset workflow should enqueue an email job through BullMQ.',
+      message: 'If an account exists with that email, a password reset link will be sent.',
+      ...(process.env.NODE_ENV === 'development' ? { devToken: token } : {}),
     };
   }
 
-  private async createSession(input: {
-    sub: string;
-    email: string;
-    fullName: string;
-    companyId?: string | null;
-    roles: string[];
-    planCode?: string | null;
-    subscriptionStatus?: string;
-  }) {
-    const accessTtl = this.configService.getOrThrow<string>('JWT_ACCESS_TTL') as never;
-    const refreshTtl = this.configService.getOrThrow<string>('JWT_REFRESH_TTL') as never;
+  async resetPassword(token: string, password: string) {
+    const tokenHash = this.hashToken(token);
+    const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
 
+    if (!stored || stored.type !== RefreshTokenType.RESET || stored.revokedAt || stored.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired password reset token.');
+    }
+
+    const passwordHash = await argon2.hash(password);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: stored.userId }, data: { passwordHash } });
+      await tx.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+      await tx.refreshToken.updateMany({
+        where: { userId: stored.userId, type: RefreshTokenType.SESSION, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    });
+
+    return { message: 'Password updated successfully.' };
+  }
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found.');
+    }
+
+    const valid = await argon2.verify(user.passwordHash, oldPassword);
+    if (!valid) {
+      throw new UnauthorizedException('Current password is incorrect.');
+    }
+
+    const passwordHash = await argon2.hash(newPassword);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, type: RefreshTokenType.SESSION, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { message: 'Password changed successfully.' };
+  }
+
+  private async signAccessToken(claims: SessionClaims) {
     let companyStatus: string | undefined;
     let trialEndsAt: string | null | undefined;
-    if (input.companyId) {
+
+    if (claims.companyId) {
       const company = await this.prisma.company.findUnique({
-        where: { id: input.companyId },
+        where: { id: claims.companyId },
         select: { status: true, trialEndsAt: true },
       });
       companyStatus = company?.status;
@@ -198,43 +396,46 @@ export class AuthService {
 
     const accessToken = await this.jwtService.signAsync(
       {
-        sub: input.sub,
-        email: input.email,
-        fullName: input.fullName,
-        companyId: input.companyId,
-        roles: input.roles,
+        sub: claims.sub,
+        email: claims.email,
+        companyId: claims.companyId,
+        roles: claims.roles,
         companyStatus,
         trialEndsAt,
       },
       {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        expiresIn: accessTtl,
+        expiresIn: this.configService.getOrThrow<string>('JWT_ACCESS_TTL') as StringValue,
       },
     );
 
-    const refreshToken = await this.jwtService.signAsync(
-      {
-        sub: input.sub,
-        email: input.email,
-        fullName: input.fullName,
-        companyId: input.companyId,
-        roles: input.roles,
-        companyStatus,
-        trialEndsAt,
+    return { accessToken, companyStatus, trialEndsAt };
+  }
+
+  private async createSession(input: SessionClaims) {
+    const { accessToken, companyStatus, trialEndsAt } = await this.signAccessToken(input);
+
+    const refreshTokenPlain = this.generateOpaqueToken();
+    const refreshTokenHash = this.hashToken(refreshTokenPlain);
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: input.sub,
+        companyId: input.companyId ?? null,
+        tokenHash: refreshTokenHash,
+        familyId: randomBytes(16).toString('hex'),
+        type: RefreshTokenType.SESSION,
+        expiresAt: new Date(Date.now() + this.getRefreshTtlMs()),
       },
-      {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: refreshTtl,
-      },
-    );
+    });
 
     return {
       accessToken,
-      refreshToken,
+      refreshToken: refreshTokenPlain,
       user: {
         id: input.sub,
         email: input.email,
-        fullName: input.fullName,
+        fullName: input.fullName ?? null,
         companyId: input.companyId,
         roles: input.roles,
         companyStatus,
@@ -242,7 +443,7 @@ export class AuthService {
         subscriptionStatus: input.subscriptionStatus,
         trialEndsAt,
       },
-      expiresIn: this.configService.getOrThrow<string>('JWT_ACCESS_TTL'),
+      expiresIn: this.configService.get<string>('JWT_ACCESS_TTL') ?? '15m',
     };
   }
 }

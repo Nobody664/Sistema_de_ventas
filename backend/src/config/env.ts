@@ -28,6 +28,9 @@ export const envSchema = z.object({
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().optional(),
   SMTP_ENABLED: z.string().default('false'),
+  CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001'),
+  DB_SSL: z.coerce.boolean().default(false),
+  DB_SSL_REJECT_UNAUTHORIZED: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof envSchema>;

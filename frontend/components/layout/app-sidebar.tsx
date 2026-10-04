@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { BarChart3, Bell, Building2, CreditCard, LayoutDashboard, Package, ShoppingCart, Users, Activity, UserCog, FolderTree, UserPlus, ArrowUpCircle, FileText, Warehouse } from 'lucide-react';
 
 const mainItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
 ];
 
 const superAdminItems = [
@@ -28,7 +28,7 @@ const companyItems = [
 ];
 
 const adminItems = [
-  { label: 'Audit Log', href: '/audit', icon: Activity, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
+  { label: 'Audit Log', href: '/audit', icon: Activity, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
   { label: 'Notificaciones', href: '/notifications', icon: Bell, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
 ];
 

@@ -10,10 +10,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       throw new Error('DATABASE_URL must be configured.');
     }
 
+    const dbSsl = process.env.DB_SSL === 'true';
+    const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
+
     super({
       adapter: new PrismaPg({
         connectionString,
-        ssl: { rejectUnauthorized: false },
+        ssl: dbSsl ? { rejectUnauthorized } : false,
       }),
     });
   }

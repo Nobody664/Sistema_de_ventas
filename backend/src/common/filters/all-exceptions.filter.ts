@@ -8,10 +8,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Error interno del servidor';
     let details: Record<string, unknown> | undefined;
+    let errorCode: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -19,13 +21,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
       if (typeof res === 'string') {
         message = res;
-      } else if (typeof res === 'object') {
+      } else if (typeof res === 'object' && res !== null) {
         const resObj = res as Record<string, unknown>;
         message = (resObj.message as string) || message;
         details = resObj.details as Record<string, unknown> | undefined;
+        errorCode = (resObj.code as string | undefined) || (resObj.error as string | undefined);
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      message = process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : exception.message;
     }
 
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
@@ -35,10 +38,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
-    response.status(status).json({
+    const responseBody: Record<string, unknown> = {
       statusCode: status,
       message,
-      ...(details ? { details } : {}),
-    });
+      timestamp: new Date().toISOString(),
+      path: request?.url,
+    };
+
+    if (details) responseBody.details = details;
+    if (errorCode) responseBody.code = errorCode;
+
+    response.status(status).json(responseBody);
   }
 }

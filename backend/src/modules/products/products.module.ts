@@ -5,6 +5,7 @@ import { SubscriptionLimitService } from '@/common/guards/subscription-limit.ser
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { PrismaModule } from '@/database/prisma/prisma.module';
 
+
 @Module({
   imports: [PrismaModule, NotificationsModule],
   controllers: [ProductsController],

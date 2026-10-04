@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -11,6 +11,8 @@ import { CacheModule } from './cache/cache.module';
 import { validateEnv } from './config/env';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { AuditCommonModule } from './common/services/audit.module';
+import { AuditContextInterceptor } from './common/interceptors/audit-context.interceptor';
 
 // modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -74,12 +76,25 @@ import { CompanyProfileModule } from './modules/company-profile/company-profile.
         ttl: 60_000,
         limit: 60,
       },
+      {
+        ttl: 60_000,
+        limit: 5,
+      },
+      {
+        ttl: 5 * 60_000,
+        limit: 3,
+      },
     ]),
 
     // =========================
     // DATABASE
     // =========================
     PrismaModule,
+
+    // =========================
+    // AUDIT (global)
+    // =========================
+    AuditCommonModule,
 
     // =========================
     // FEATURES
@@ -122,6 +137,10 @@ import { CompanyProfileModule } from './modules/company-profile/company-profile.
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditContextInterceptor,
     },
   ],
 })

@@ -24,7 +24,25 @@ async function bootstrap() {
   // =========================
   // SECURITY
   // =========================
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          'default-src': ["'self'"],
+          'img-src': ["'self'", 'data:', 'https:'],
+          'script-src': ["'self'", "'unsafe-inline'"],
+          'style-src': ["'self'", "'unsafe-inline'"],
+          'connect-src': ["'self'"],
+          'font-src': ["'self'", 'data:', 'https:'],
+          'frame-ancestors': ["'none'"],
+          'form-action': ["'self'"],
+          'object-src': ["'none'"],
+          'base-uri': ["'self'"],
+        },
+      },
+    }),
+  );
   app.use(json({ limit: '2mb' }));
   app.use(urlencoded({ extended: true, limit: '2mb' }));
   app.use(cookieParser());
@@ -43,9 +61,13 @@ async function bootstrap() {
   // =========================
   // CORS - Allow frontend origins
   // =========================
+  const corsOrigins = (config.get<string>('CORS_ORIGINS') || 'http://localhost:3000,http://localhost:3001')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
+    ...corsOrigins,
     'https://sistema-de-ventas-frontend-seven.vercel.app',
     /\.vercel\.app$/,
   ];

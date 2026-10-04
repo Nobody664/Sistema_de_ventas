@@ -3,17 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { 
-  ArrowLeft, Save, Printer, FileText, Ticket, Receipt, 
-  Building2, User, CreditCard, Package, Eye, Palette
-} from 'lucide-react';
+import { ArrowLeft, Save, FileText, Ticket, Receipt } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
-import { useAuthStore } from '@/stores/auth.store';
 
 interface InvoiceTemplate {
   id: string;
@@ -86,13 +82,11 @@ const sampleItems = [
 ];
 
 export function TemplateEditor({ template, preset }: TemplateEditorProps) {
-  const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const queryClient = useQueryClient();
   const addToast = useUiStore((state) => state.addToast);
   
   const [formData, setFormData] = useState<Omit<InvoiceTemplate, 'id'>>(defaultTemplate);
-  const [activeTab, setActiveTab] = useState<'config' | 'preview'>('config');
 
   useEffect(() => {
     if (template) {
@@ -182,20 +176,10 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const getTypeConfig = () => {
-    const configs: Record<string, { icon: typeof FileText; label: string; color: string }> = {
-      BOLETA: { icon: FileText, label: 'Boleta', color: 'from-blue-500 to-indigo-600' },
-      TICKET: { icon: Ticket, label: 'Ticket', color: 'from-orange-500 to-amber-600' },
-      FACTURA: { icon: Receipt, label: 'Factura', color: 'from-emerald-500 to-teal-600' },
-    };
-    return configs[formData.type] || configs.BOLETA;
-  };
-
-  const typeConfig = getTypeConfig();
-  const TypeIcon = typeConfig.icon;
+  const isTicket = formData.type === 'TICKET';
 
   const renderPreview = () => {
-    const isThermal = formData.paperSize === 'thermal';
+    const isThermal = isTicket || formData.paperSize === 'thermal';
     
     if (isThermal) {
       return <ThermalPreview formData={formData} />;
@@ -205,63 +189,46 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f7f4]">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="mb-6 flex items-center gap-4">
           <Button 
             variant="ghost" 
             onClick={() => router.push('/invoices/templates')}
-            className="text-slate-600 hover:text-slate-900"
+            className="text-foreground hover:text-foreground"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver
           </Button>
-          <div className="h-6 w-px bg-slate-300" />
-          <h1 className="text-2xl font-bold text-slate-900">
+          <div className="h-6 w-px bg-border" />
+          <h1 className="text-2xl font-bold text-foreground">
             {template ? `Editar: ${template.name}` : 'Nueva Plantilla'}
           </h1>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-6">
-            <Card className="overflow-hidden rounded-2xl border-0 shadow-xl">
-              <div className="flex border-b border-slate-200">
-                <button
-                  onClick={() => setActiveTab('config')}
-                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-                    activeTab === 'config'
-                      ? 'bg-white text-slate-900 border-b-2 border-blue-500'
-                      : 'bg-slate-50 text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <Palette className="mr-2 inline h-4 w-4" />
-                  Configuración
-                </button>
-                <button
-                  onClick={() => setActiveTab('preview')}
-                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-                    activeTab === 'preview'
-                      ? 'bg-white text-slate-900 border-b-2 border-blue-500'
-                      : 'bg-slate-50 text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <Eye className="mr-2 inline h-4 w-4" />
-                  Vista Previa
-                </button>
-              </div>
-
-              {activeTab === 'config' && (
+        <div className={`grid gap-6 ${isTicket ? 'items-start lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]' : 'grid-cols-1'}`}>
+            <Card className="min-w-0 overflow-hidden rounded-2xl shadow-xl">
                 <form onSubmit={handleSubmit} className="space-y-6 p-6">
                   <div className="grid grid-cols-3 gap-3">
                     {(['BOLETA', 'TICKET', 'FACTURA'] as const).map((type) => (
                       <button
                         key={type}
                         type="button"
-                        onClick={() => updateField('type', type)}
+                        onClick={() => {
+                          setFormData((current) => ({
+                            ...current,
+                            type,
+                            paperSize: type === 'TICKET'
+                              ? 'thermal'
+                              : current.paperSize === 'thermal'
+                                ? 'A4'
+                                : current.paperSize,
+                          }));
+                        }}
                         className={`rounded-xl border-2 p-4 text-center transition-all ${
                           formData.type === type
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-slate-200 hover:border-slate-300'
+                            ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300'
+                            : 'border-border text-card-foreground hover:border-foreground/30'
                         }`}
                       >
                         {type === 'BOLETA' && <FileText className="mx-auto h-6 w-6 text-blue-500" />}
@@ -305,7 +272,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                           id="paperSize"
                           value={formData.paperSize}
                           onChange={(e) => updateField('paperSize', e.target.value)}
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
                         >
                           <option value="A4">A4 (210×297mm)</option>
                           <option value="A5">A5 (148×210mm)</option>
@@ -318,7 +285,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                           id="fontFamily"
                           value={formData.fontFamily}
                           onChange={(e) => updateField('fontFamily', e.target.value)}
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
                         >
                           <option value="Arial">Arial</option>
                           <option value="Helvetica">Helvetica</option>
@@ -421,24 +388,18 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                     </Button>
                   </div>
                 </form>
-              )}
+            </Card>
 
-              {activeTab === 'preview' && (
-                <div className="p-6">
+            <Card className={`min-w-0 overflow-hidden rounded-2xl shadow-xl ${isTicket ? 'lg:sticky lg:top-6' : ''}`}>
+              <div className="p-4 sm:p-6">
+                <h2 className="mb-4 text-lg font-semibold text-card-foreground">
+                  Vista previa · {formData.type === 'TICKET' ? 'Ticket' : formData.type === 'FACTURA' ? 'Factura' : 'Boleta'}
+                </h2>
+                <div className="overflow-x-auto rounded-xl border border-border bg-muted p-2 sm:p-4">
                   {renderPreview()}
                 </div>
-              )}
-            </Card>
-          </div>
-
-          <div className="hidden lg:block">
-            <div className="sticky top-6">
-              <h3 className="mb-4 text-sm font-semibold text-slate-900">Vista Previa en Tiempo Real</h3>
-              <div className="overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                {renderPreview()}
               </div>
-            </div>
-          </div>
+            </Card>
         </div>
       </div>
     </div>

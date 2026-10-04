@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import {
   CreateCategoryDto,
@@ -9,6 +10,7 @@ import {
 } from './dto/product.dto';
 import { SubscriptionLimitService } from '@/common/guards/subscription-limit.service';
 import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
+import { AuditService } from '@/common/services/audit.service';
 
 @Injectable()
 export class ProductsService {
@@ -16,6 +18,7 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly limitService: SubscriptionLimitService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   async getLimitsInfo(companyId: string) {
@@ -93,7 +96,7 @@ export class ProductsService {
       throw new ConflictException(`Ya existe una categoría con el nombre "${input.name}".`);
     }
 
-    return this.prisma.category.create({
+    const category = await this.prisma.category.create({
       data: {
         companyId,
         name: input.name,
@@ -101,25 +104,48 @@ export class ProductsService {
         slug,
       },
     });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.CREATE,
+      entity: 'Category',
+      entityId: category.id,
+      changes: { name: category.name, slug: category.slug },
+    });
+
+    return category;
   }
 
   async updateCategory(companyId: string, id: string, input: UpdateCategoryDto) {
-    await this.ensureCategory(companyId, id);
+    const existing = await this.ensureCategory(companyId, id);
     const slug = input.name
       ? input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-')
       : undefined;
 
-    return this.prisma.category.update({
+    const category = await this.prisma.category.update({
       where: { id },
       data: {
         ...input,
         ...(slug ? { slug } : {}),
       },
     });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.UPDATE,
+      entity: 'Category',
+      entityId: category.id,
+      changes: {
+        before: { name: existing.name, slug: existing.slug },
+        after: input,
+      },
+    });
+
+    return category;
   }
 
   async removeCategory(companyId: string, id: string) {
-    await this.ensureCategory(companyId, id);
+    const existing = await this.ensureCategory(companyId, id);
     
     const productsCount = await this.prisma.product.count({
       where: { categoryId: id, companyId },
@@ -131,7 +157,17 @@ export class ProductsService {
       );
     }
 
-    return this.prisma.category.delete({ where: { id } });
+    const category = await this.prisma.category.delete({ where: { id } });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.DELETE,
+      entity: 'Category',
+      entityId: id,
+      changes: { name: existing.name, slug: existing.slug },
+    });
+
+    return category;
   }
 
   async createProduct(companyId: string, input: CreateProductDto) {
@@ -172,6 +208,21 @@ export class ProductsService {
       await this.sendLowStockNotification(companyId, product);
     }
 
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.CREATE,
+      entity: 'Product',
+      entityId: product.id,
+      changes: {
+        name: product.name,
+        sku: product.sku,
+        barcode: product.barcode,
+        salePrice: Number(product.salePrice),
+        costPrice: product.costPrice === null ? null : Number(product.costPrice),
+        stockQuantity: product.stockQuantity,
+      },
+    });
+
     return product;
   }
 
@@ -193,6 +244,23 @@ export class ProductsService {
     ) {
       await this.sendLowStockNotification(companyId, product);
     }
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.UPDATE,
+      entity: 'Product',
+      entityId: product.id,
+      changes: {
+        before: {
+          name: existing.name,
+          sku: existing.sku,
+          salePrice: Number(existing.salePrice),
+          stockQuantity: existing.stockQuantity,
+          isActive: existing.isActive,
+        },
+        after: input,
+      },
+    });
 
     return product;
   }
@@ -218,8 +286,61 @@ export class ProductsService {
   }
 
   async removeProduct(companyId: string, id: string) {
-    await this.ensureProduct(companyId, id);
-    return this.prisma.product.delete({ where: { id } });
+    const existing = await this.ensureProduct(companyId, id);
+
+    const saleItemsCount = await this.prisma.saleItem.count({
+      where: { productId: id },
+    });
+
+    if (saleItemsCount > 0) {
+      const product = await this.prisma.product.update({
+        where: { id },
+        data: { deletedAt: new Date(), isActive: false },
+      });
+
+      await this.auditService.log({
+        companyId,
+        action: AuditAction.DELETE,
+        entity: 'Product',
+        entityId: id,
+        changes: { softDelete: true, saleItemsCount, name: existing.name },
+      });
+
+      return product;
+    }
+
+    const movementsCount = await this.prisma.inventoryMovement.count({
+      where: { productId: id },
+    });
+
+    if (movementsCount > 0) {
+      const product = await this.prisma.product.update({
+        where: { id },
+        data: { deletedAt: new Date(), isActive: false },
+      });
+
+      await this.auditService.log({
+        companyId,
+        action: AuditAction.DELETE,
+        entity: 'Product',
+        entityId: id,
+        changes: { softDelete: true, movementsCount, name: existing.name },
+      });
+
+      return product;
+    }
+
+    const product = await this.prisma.product.delete({ where: { id } });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.DELETE,
+      entity: 'Product',
+      entityId: id,
+      changes: { softDelete: false, name: existing.name, sku: existing.sku },
+    });
+
+    return product;
   }
 
   private async ensureProduct(companyId: string, id: string) {

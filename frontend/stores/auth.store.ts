@@ -4,32 +4,21 @@ import {
   register as apiRegister,
   logout as apiLogout,
   getMe,
-  setTokens,
-  clearTokens,
-  getAccessToken,
-  type AuthResponse,
+  refreshToken as apiRefreshToken,
+  type AuthUser,
 } from '@/lib/api/auth';
 
-interface User {
-  id: string;
-  email: string;
-  fullName: string;
-  roles: string[];
-  companyId: string | null;
-  planCode: string | null;
-  subscriptionStatus: string | null;
-}
-
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  
+
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string, companyName: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  refreshSession: () => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -42,8 +31,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response: AuthResponse = await apiLogin({ email, password });
-      setTokens(response.accessToken, response.refreshToken);
+      const response = await apiLogin({ email, password });
       set({
         user: response.user,
         isAuthenticated: true,
@@ -52,6 +40,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
     } catch (error) {
       set({
+        user: null,
         isAuthenticated: false,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Error de login',
@@ -63,8 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (email: string, password: string, fullName: string, companyName: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response: AuthResponse = await apiRegister({ email, password, fullName, companyName });
-      setTokens(response.accessToken, response.refreshToken);
+      const response = await apiRegister({ email, password, fullName, companyName });
       set({
         user: response.user,
         isAuthenticated: true,
@@ -73,6 +61,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
     } catch (error) {
       set({
+        user: null,
         isAuthenticated: false,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Error de registro',
@@ -88,7 +77,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // Ignore logout errors
     } finally {
-      clearTokens();
       set({
         user: null,
         isAuthenticated: false,
@@ -99,19 +87,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: async () => {
-    const token = getAccessToken();
-    if (!token) {
-      set({ isLoading: false, isAuthenticated: false });
-      return;
-    }
-
     set({ isLoading: true });
     try {
       const user = await getMe();
       set({ user, isAuthenticated: true, isLoading: false, error: null });
     } catch {
-      clearTokens();
       set({ user: null, isAuthenticated: false, isLoading: false, error: null });
+    }
+  },
+
+  refreshSession: async () => {
+    try {
+      await apiRefreshToken();
+      const user = await getMe();
+      set({ user, isAuthenticated: true, error: null });
+      return true;
+    } catch {
+      set({ user: null, isAuthenticated: false });
+      return false;
     }
   },
 

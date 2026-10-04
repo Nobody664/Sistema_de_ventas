@@ -74,6 +74,7 @@ export class SubscriptionsService {
       subscription: {
         id: sub.id,
         status: sub.status as 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED',
+        provider: sub.provider,
         billingCycle: sub.billingCycle as 'MONTHLY' | 'YEARLY',
         startDate: sub.startDate,
         endDate: sub.endDate,

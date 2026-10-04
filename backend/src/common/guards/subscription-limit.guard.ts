@@ -14,7 +14,7 @@ export class SubscriptionLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const companyId = request.headers['x-company-id'] || request.user?.companyId;
+    const companyId = request.user?.companyId;
 
     if (!companyId) {
       return true;

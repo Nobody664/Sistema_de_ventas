@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { AuditService } from '@/common/services/audit.service';
 import { CreateInventoryAdjustmentDto } from './dto/inventory.dto';
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   findLowStock(companyId: string) {
     return this.prisma.product.findMany({
@@ -37,7 +42,13 @@ export class InventoryService {
       throw new NotFoundException('Product not found.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    if (product.stockQuantity + input.quantity < 0) {
+      throw new BadRequestException(
+        `Stock insuficiente. Disponible: ${product.stockQuantity}, ajuste: ${input.quantity}.`,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
       const updatedProduct = await tx.product.update({
         where: { id: input.productId },
         data: {
@@ -59,5 +70,23 @@ export class InventoryService {
 
       return { updatedProduct, movement };
     });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.UPDATE,
+      entity: 'InventoryMovement',
+      entityId: result.movement.id,
+      changes: {
+        productId: input.productId,
+        productName: product.name,
+        type: 'ADJUSTMENT',
+        quantity: input.quantity,
+        reason: result.movement.reason,
+        stockBefore: product.stockQuantity,
+        stockAfter: result.updatedProduct.stockQuantity,
+      },
+    });
+
+    return result;
   }
 }

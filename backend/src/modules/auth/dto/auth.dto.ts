@@ -39,8 +39,9 @@ export class LoginDto {
 }
 
 export class RefreshTokenDto {
+  @IsOptional()
   @IsString()
-  refreshToken!: string;
+  refreshToken?: string;
 }
 
 export class ForgotPasswordDto {
@@ -55,6 +56,15 @@ export class ResetPasswordDto {
   @IsString()
   @MinLength(8)
   password!: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  oldPassword!: string;
+
+  @IsString()
+  @MinLength(8)
+  newPassword!: string;
 }
 
 export class AuthSessionDto {

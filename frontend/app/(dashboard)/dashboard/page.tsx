@@ -74,8 +74,19 @@ type Subscription = {
   company?: { name: string };
 };
 
+type SubscriberResponse = {
+  name: string;
+  subscription?: {
+    id: string;
+    status: string;
+    provider: string;
+    billingCycle: string;
+    plan?: { name: string; priceMonthly: string };
+  } | null;
+};
+
 type PaginatedSubscriptions = {
-  data: Subscription[];
+  data: SubscriberResponse[];
   total: number;
   page: number;
   limit: number;
@@ -104,7 +115,18 @@ async function DashboardDataLoader() {
     ]);
     globalMetrics = globals;
     auditLogs = logs;
-    recentSubscriptions = subsResponse?.data ?? null;
+    recentSubscriptions = (subsResponse?.data ?? []).flatMap((subscriber): Subscription[] => {
+      if (!subscriber.subscription) return [];
+
+      return [{
+        id: subscriber.subscription.id,
+        status: subscriber.subscription.status,
+        provider: subscriber.subscription.provider,
+        billingCycle: subscriber.subscription.billingCycle,
+        plan: subscriber.subscription.plan,
+        company: { name: subscriber.name },
+      }];
+    });
   }
 
   return (
