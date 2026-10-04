@@ -25,10 +25,22 @@ function getSeedPassword(): string {
   if (!password) {
     throw new Error('SEED_DEFAULT_PASSWORD must be set before running the seed.');
   }
+
+  if (/^\$2[aby]\$/.test(password)) {
+    throw new Error(
+      'SEED_DEFAULT_PASSWORD parece ser un hash argon2. Debe ser la contraseña en texto plano: el seed aplica argon2.hash() sobre ella.',
+    );
+  }
+
+  if (password.length < 8) {
+    throw new Error('SEED_DEFAULT_PASSWORD must be at least 8 characters long.');
+  }
+
   return password;
 }
 
 const seedPassword = getSeedPassword();
+const shouldResetPasswords = process.env.SEED_RESET_PASSWORDS === 'true';
 
 async function upsertUser(input: {
   email: string;
@@ -43,6 +55,7 @@ async function upsertUser(input: {
       fullName: input.fullName,
       globalRole: input.globalRole ?? 'USER',
       isActive: true,
+      ...(shouldResetPasswords ? { passwordHash } : {}),
     },
     create: {
       email: input.email,
@@ -336,7 +349,11 @@ async function main() {
   console.log('Seeded successfully!');
   console.log('Demo users created; new accounts use the password configured in SEED_DEFAULT_PASSWORD.');
   console.log(`Super admin: ${superAdmin.email}`);
-  console.log('Existing account passwords are not changed by this seed.');
+  console.log(
+    shouldResetPasswords
+      ? 'SEED_RESET_PASSWORDS=true: se reseteo el password de las cuentas existentes.'
+      : 'Existing account passwords are not changed by this seed (set SEED_RESET_PASSWORDS=true to force it).',
+  );
 }
 
 main()

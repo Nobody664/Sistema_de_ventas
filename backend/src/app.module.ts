@@ -70,21 +70,20 @@ import { CompanyProfileModule } from './modules/company-profile/company-profile.
 
     // =========================
     // THROTTLER (rate limiting)
+    // Un unico limite global named "default". Los limites por ruta se
+    // sobrescriben con @Throttle({ default: { limit, ttl } }) en el controller.
+    // No agregar mas entradas sin `name`: sin name explicito todas se
+    // llaman "default", comparten contador y los limites se pisan entre si.
     // =========================
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60_000,
-        limit: 60,
-      },
-      {
-        ttl: 60_000,
-        limit: 5,
-      },
-      {
-        ttl: 5 * 60_000,
-        limit: 3,
-      },
-    ]),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          name: 'default',
+          ttl: 60_000,
+          limit: 60,
+        },
+      ],
+    }),
 
     // =========================
     // DATABASE

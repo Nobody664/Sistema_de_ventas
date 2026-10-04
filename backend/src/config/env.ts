@@ -1,5 +1,20 @@
 import { z } from 'zod';
 
+const booleanFromEnv = (defaultValue: boolean) =>
+  z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .transform((value) => {
+      if (value === undefined || value === '') return defaultValue;
+      if (typeof value === 'boolean') return value;
+
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+      if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+
+      return defaultValue;
+    });
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(4000),
@@ -27,10 +42,10 @@ export const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().optional(),
-  SMTP_ENABLED: z.string().default('false'),
+  SMTP_ENABLED: booleanFromEnv(false),
   CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001'),
-  DB_SSL: z.coerce.boolean().default(false),
-  DB_SSL_REJECT_UNAUTHORIZED: z.coerce.boolean().default(true),
+  DB_SSL: booleanFromEnv(true),
+  DB_SSL_REJECT_UNAUTHORIZED: booleanFromEnv(false),
 });
 
 export type Env = z.infer<typeof envSchema>;
