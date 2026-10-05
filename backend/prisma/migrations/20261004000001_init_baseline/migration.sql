@@ -1,3 +1,10 @@
+-- Baseline migration: snapshot completo de prisma/schema.prisma.
+-- Generada con: prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script
+-- Reemplaza a 20260929020715_init_back (squash). No borra datos: solo crea el esquema inicial.
+
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "CompanyStatus" AS ENUM ('ACTIVE', 'SUSPENDED', 'TRIAL', 'PAST_DUE', 'INACTIVE');
 
@@ -44,10 +51,13 @@ CREATE TYPE "InventoryMovementType" AS ENUM ('IN', 'OUT', 'ADJUSTMENT', 'RETURN'
 CREATE TYPE "InventoryCostMethod" AS ENUM ('FIFO', 'WEIGHTED_AVERAGE');
 
 -- CreateEnum
+CREATE TYPE "RefreshTokenType" AS ENUM ('SESSION', 'RESET');
+
+-- CreateEnum
 CREATE TYPE "ProofStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateTable
-CREATE TABLE "users" (
+CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password_hash" TEXT NOT NULL,
@@ -57,7 +67,7 @@ CREATE TABLE "users" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -143,6 +153,7 @@ CREATE TABLE "customers" (
     "address" TEXT,
     "notes" TEXT,
     "paid_at" TIMESTAMP(3),
+    "deleted_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -156,6 +167,7 @@ CREATE TABLE "categories" (
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "description" TEXT,
+    "deleted_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -181,6 +193,7 @@ CREATE TABLE "products" (
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "image_url" TEXT,
     "barcode" TEXT,
+    "deleted_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -234,6 +247,7 @@ CREATE TABLE "employees" (
     "dni" TEXT,
     "role" "MembershipRole" NOT NULL DEFAULT 'CASHIER',
     "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "deleted_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -484,8 +498,26 @@ CREATE TABLE "payment_proofs" (
     CONSTRAINT "payment_proofs_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "refresh_tokens" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "company_id" TEXT,
+    "token_hash" TEXT NOT NULL,
+    "family_id" TEXT NOT NULL,
+    "type" "RefreshTokenType" NOT NULL DEFAULT 'SESSION',
+    "ip_address" TEXT,
+    "user_agent" TEXT,
+    "expires_at" TIMESTAMP(3) NOT NULL,
+    "revoked_at" TIMESTAMP(3),
+    "replaced_by" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "refresh_tokens_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "companies_slug_key" ON "companies"("slug");
@@ -494,10 +526,19 @@ CREATE UNIQUE INDEX "companies_slug_key" ON "companies"("slug");
 CREATE UNIQUE INDEX "plans_code_key" ON "plans"("code");
 
 -- CreateIndex
+CREATE INDEX "subscriptions_plan_id_idx" ON "subscriptions"("plan_id");
+
+-- CreateIndex
 CREATE INDEX "subscriptions_status_end_date_idx" ON "subscriptions"("status", "end_date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_company_id_key" ON "subscriptions"("company_id");
+
+-- CreateIndex
+CREATE INDEX "memberships_user_id_idx" ON "memberships"("user_id");
+
+-- CreateIndex
+CREATE INDEX "memberships_company_id_idx" ON "memberships"("company_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "memberships_user_id_company_id_key" ON "memberships"("user_id", "company_id");
@@ -506,25 +547,49 @@ CREATE UNIQUE INDEX "memberships_user_id_company_id_key" ON "memberships"("user_
 CREATE INDEX "customers_company_id_idx" ON "customers"("company_id");
 
 -- CreateIndex
+CREATE INDEX "customers_company_id_deleted_at_idx" ON "customers"("company_id", "deleted_at");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "customers_company_id_email_key" ON "customers"("company_id", "email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "customers_company_id_document_value_key" ON "customers"("company_id", "document_value");
+
+-- CreateIndex
+CREATE INDEX "categories_company_id_deleted_at_idx" ON "categories"("company_id", "deleted_at");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "categories_company_id_slug_key" ON "categories"("company_id", "slug");
-
--- CreateIndex
-CREATE UNIQUE INDEX "products_sku_key" ON "products"("sku");
-
--- CreateIndex
-CREATE UNIQUE INDEX "products_barcode_key" ON "products"("barcode");
 
 -- CreateIndex
 CREATE INDEX "products_company_id_is_active_idx" ON "products"("company_id", "is_active");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "sales_sale_number_key" ON "sales"("sale_number");
+CREATE INDEX "products_company_id_deleted_at_idx" ON "products"("company_id", "deleted_at");
+
+-- CreateIndex
+CREATE INDEX "products_category_id_idx" ON "products"("category_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "products_company_id_sku_key" ON "products"("company_id", "sku");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "products_company_id_barcode_key" ON "products"("company_id", "barcode");
 
 -- CreateIndex
 CREATE INDEX "sales_company_id_created_at_idx" ON "sales"("company_id", "created_at");
 
 -- CreateIndex
 CREATE INDEX "sales_company_id_status_idx" ON "sales"("company_id", "status");
+
+-- CreateIndex
+CREATE INDEX "sales_customer_id_idx" ON "sales"("customer_id");
+
+-- CreateIndex
+CREATE INDEX "sales_employee_id_idx" ON "sales"("employee_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "sales_company_id_sale_number_key" ON "sales"("company_id", "sale_number");
 
 -- CreateIndex
 CREATE INDEX "sale_items_sale_id_idx" ON "sale_items"("sale_id");
@@ -539,7 +604,13 @@ CREATE UNIQUE INDEX "sale_items_sale_id_product_id_key" ON "sale_items"("sale_id
 CREATE UNIQUE INDEX "employees_user_id_key" ON "employees"("user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "employees_dni_key" ON "employees"("dni");
+CREATE INDEX "employees_company_id_idx" ON "employees"("company_id");
+
+-- CreateIndex
+CREATE INDEX "employees_company_id_deleted_at_idx" ON "employees"("company_id", "deleted_at");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "employees_company_id_dni_key" ON "employees"("company_id", "dni");
 
 -- CreateIndex
 CREATE INDEX "branches_company_id_idx" ON "branches"("company_id");
@@ -551,10 +622,19 @@ CREATE INDEX "product_batches_company_id_product_id_idx" ON "product_batches"("c
 CREATE INDEX "product_batches_expiration_date_idx" ON "product_batches"("expiration_date");
 
 -- CreateIndex
+CREATE INDEX "product_batches_product_id_idx" ON "product_batches"("product_id");
+
+-- CreateIndex
+CREATE INDEX "product_batches_branch_id_idx" ON "product_batches"("branch_id");
+
+-- CreateIndex
 CREATE INDEX "inventory_kardex_company_id_product_id_movement_date_idx" ON "inventory_kardex"("company_id", "product_id", "movement_date");
 
 -- CreateIndex
 CREATE INDEX "inventory_kardex_company_id_movement_date_idx" ON "inventory_kardex"("company_id", "movement_date");
+
+-- CreateIndex
+CREATE INDEX "inventory_kardex_product_id_idx" ON "inventory_kardex"("product_id");
 
 -- CreateIndex
 CREATE INDEX "inventory_movements_company_id_product_id_idx" ON "inventory_movements"("company_id", "product_id");
@@ -563,10 +643,56 @@ CREATE INDEX "inventory_movements_company_id_product_id_idx" ON "inventory_movem
 CREATE INDEX "inventory_movements_company_id_branch_id_idx" ON "inventory_movements"("company_id", "branch_id");
 
 -- CreateIndex
+CREATE INDEX "inventory_movements_product_id_type_idx" ON "inventory_movements"("product_id", "type");
+
+-- CreateIndex
+CREATE INDEX "inventory_movements_branch_id_type_idx" ON "inventory_movements"("branch_id", "type");
+
+-- CreateIndex
 CREATE INDEX "payments_subscription_id_status_idx" ON "payments"("subscription_id", "status");
+
+-- CreateIndex
+CREATE INDEX "plan_upgrade_requests_company_id_idx" ON "plan_upgrade_requests"("company_id");
+
+-- CreateIndex
+CREATE INDEX "plan_upgrade_requests_plan_id_idx" ON "plan_upgrade_requests"("plan_id");
+
+-- CreateIndex
+CREATE INDEX "invoice_templates_company_id_idx" ON "invoice_templates"("company_id");
 
 -- CreateIndex
 CREATE INDEX "notifications_user_id_is_read_idx" ON "notifications"("user_id", "is_read");
 
 -- CreateIndex
+CREATE INDEX "notifications_company_id_idx" ON "notifications"("company_id");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_company_id_idx" ON "audit_logs"("company_id");
+
+-- CreateIndex
+CREATE INDEX "audit_logs_user_id_idx" ON "audit_logs"("user_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "payment_settings_provider_key" ON "payment_settings"("provider");
+
+-- CreateIndex
+CREATE INDEX "checkout_requests_company_id_idx" ON "checkout_requests"("company_id");
+
+-- CreateIndex
+CREATE INDEX "checkout_requests_plan_id_idx" ON "checkout_requests"("plan_id");
+
+-- CreateIndex
+CREATE INDEX "payment_proofs_subscription_id_idx" ON "payment_proofs"("subscription_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "refresh_tokens_token_hash_key" ON "refresh_tokens"("token_hash");
+
+-- CreateIndex
+CREATE INDEX "refresh_tokens_user_id_idx" ON "refresh_tokens"("user_id");
+
+-- CreateIndex
+CREATE INDEX "refresh_tokens_company_id_idx" ON "refresh_tokens"("company_id");
+
+-- CreateIndex
+CREATE INDEX "refresh_tokens_expires_at_idx" ON "refresh_tokens"("expires_at");
+

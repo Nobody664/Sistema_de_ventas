@@ -19,8 +19,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
 "db:seed":  "prisma db seed",
-    "db:reset": "ts-node -r tsconfig-paths/register -r dotenv/config prisma/reset-demo.ts --confirm",
-    "db:reset:seed": "npm run db:reset && npm run db:seed",
+    "db:seed:demo": "ts-node -r tsconfig-paths/register -r dotenv/config prisma/seed-demo.ts",
+    "db:reset:demo": "ts-node -r tsconfig-paths/register -r dotenv/config prisma/reset-demo.ts --confirm",
+    "db:reset:all": "ts-node -r tsconfig-paths/register -r dotenv/config prisma/reset-demo.ts --confirm --all",
     "clean":  "rm -rf dist"
   },
   "dependencies": {

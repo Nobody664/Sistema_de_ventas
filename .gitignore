@@ -11,6 +11,14 @@ backend/prisma/dev.db-journal
 frontend/.next/
 *.log
 
+# TypeScript incremental build cache (artefacto, no fuente)
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Prisma artifacts generados
+backend/node_modules/.prisma/
+backend/generated/
+
 frontend/package-lock.json
 
 .agents/

@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
@@ -29,6 +39,7 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(body);
@@ -38,6 +49,7 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
   @Post('refresh')
   async refresh(
     @Body() body: RefreshTokenDto,
@@ -55,12 +67,14 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 3, ttl: 5 * 60_000 } })
+  @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
   forgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.forgotPassword(body.email);
   }
 
   @Public()
+  @HttpCode(HttpStatus.OK)
   @Post('test-public')
   testPublic() {
     return { message: 'Test public works!' };
@@ -73,6 +87,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Post('change-password')
   changePassword(@CurrentUser() user: any, @Body() body: ChangePasswordDto) {
     return this.authService.changePassword(user.sub, body.oldPassword, body.newPassword);
@@ -80,6 +95,7 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 3, ttl: 5 * 60_000 } })
+  @HttpCode(HttpStatus.OK)
   @Post('reset-password')
   resetPassword(@Body() body: ResetPasswordDto) {
     return this.authService.resetPassword(body.token, body.password);
@@ -87,6 +103,7 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
   @Post('logout')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(this.readCookie(req, 'refresh_token'));

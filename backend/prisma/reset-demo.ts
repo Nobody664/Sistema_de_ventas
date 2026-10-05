@@ -45,6 +45,11 @@ type DelegateName =
   | 'user'
   | 'plan';
 
+type Table = {
+  count(args?: { where?: unknown }): Promise<number>;
+  deleteMany(args: { where?: unknown }): Promise<{ count: number }>;
+};
+
 /**
  * Orden derivado de prisma/schema.prisma: los hijos se borran antes que los
  * padres. SaleItem.productId es Restrict, por eso los items de venta deben
@@ -77,62 +82,134 @@ const TABLES: { name: DelegateName; label: string }[] = [
   { name: 'plan', label: 'plans' },
 ];
 
-type Table = { count(): Promise<number>; deleteMany(args: unknown): Promise<{ count: number }> };
+/** Tablas que sescopean por userId en vez de companyId. */
+const USER_SCOPED: DelegateName[] = ['refreshToken', 'notification'];
+
+/** Tablas que se alcanzan via subscriptionId (no tienen companyId directo). */
+const SUBSCRIPTION_SCOPED: DelegateName[] = ['payment', 'paymentProof'];
+const SALE_ITEM_SCOPED: DelegateName[] = ['saleItem'];
+
+const DEMO_SLUGS = ['acme', 'nova'];
+const DEMO_EMAILS = [
+  'superadmin@ventas-saas.local',
+  'support@ventas-saas.local',
+  'admin@acme.local',
+  'manager@acme.local',
+  'cajero@acme.local',
+];
 
 function db(): Record<DelegateName, Table> {
   return prisma as unknown as Record<DelegateName, Table>;
 }
 
-async function countOf(name: DelegateName): Promise<number> {
-  return db()[name].count();
-}
+async function main(): Promise<void> {
+  const argv = process.argv;
+  const fullWipe = argv.includes('--all');
+  const demoOnly = !fullWipe;
 
-async function deleteOf(name: DelegateName): Promise<number> {
-  const result = await db()[name].deleteMany({});
-  return result.count;
-}
+  const confirmed =
+    argv.includes('--confirm') || process.env.SEED_RESET_CONFIRM === 'true';
 
-async function reset(): Promise<void> {
-  console.log('=== Estado antes del reset ===');
+  if (!confirmed) {
+    console.error('ABORTADO: el reset borra datos. Nada se modifico.');
+    console.error('  npm run db:reset:demo   -> solo borra los tenants demo (acme, nova)');
+    console.error('  npm run db:reset:all    -> borra TODAS las tablas, incluido el catalogo');
+    throw new Error('Falta --confirm.');
+  }
+
+  // Prisma no admite filtros de relacion en count/deleteMany, asi que se
+  // resuelven los IDs primero y se filtran por columnas escalares.
+  const companies = demoOnly
+    ? await db().company.findMany({
+        where: { slug: { in: DEMO_SLUGS } },
+        select: { id: true },
+      })
+    : [];
+  const companyIds = companies.map((c) => c.id);
+
+  const users = demoOnly
+    ? await db().user.findMany({
+        where: { email: { in: DEMO_EMAILS } },
+        select: { id: true },
+      })
+    : [];
+  const userIds = users.map((u) => u.id);
+
+  const subscriptionIds = demoOnly
+    ? (
+        await db().subscription.findMany({
+          where: { companyId: { in: companyIds } },
+          select: { id: true },
+        })
+      ).map((s) => s.id)
+    : [];
+
+  const saleIds = demoOnly
+    ? (
+        await db().sale.findMany({
+          where: { companyId: { in: companyIds } },
+          select: { id: true },
+        })
+      ).map((s) => s.id)
+    : [];
+
+  const whereFor = (name: DelegateName): Record<string, unknown> => {
+    if (!demoOnly) return {};
+    if (name === 'plan') return { id: '__none__' };
+    if (name === 'user') return { id: { in: userIds } };
+    if (name === 'company') return { id: { in: companyIds } };
+    if (USER_SCOPED.includes(name)) return { userId: { in: userIds } };
+    if (SUBSCRIPTION_SCOPED.includes(name)) return { subscriptionId: { in: subscriptionIds } };
+    if (SALE_ITEM_SCOPED.includes(name)) return { saleId: { in: saleIds } };
+    return { companyId: { in: companyIds } };
+  };
+
+  const scopeLabel = demoOnly
+    ? `solo tenants demo (${DEMO_SLUGS.join(', ')}) y usuarios ${DEMO_EMAILS.length} de prueba`
+    : 'TODAS las tablas (incluye catalogo de planes y cualquier empresa real)';
+
+  console.log(`Alcance: ${scopeLabel}\n`);
+
+  console.log('=== Estado antes ===');
   for (const { name, label } of TABLES) {
-    console.log(`${label.padEnd(24)} ${await countOf(name)}`);
+    console.log(`${label.padEnd(24)} ${await db()[name].count({ where: whereFor(name) })}`);
   }
 
   console.log('\n=== Borrando (orden de dependencias) ===');
   for (const { name, label } of TABLES) {
-    const deleted = await deleteOf(name);
-    if (deleted > 0) {
-      console.log(`${label.padEnd(24)} -${deleted}`);
+    const deleted = await db()[name].deleteMany({ where: whereFor(name) });
+    if (deleted.count > 0) {
+      console.log(`${label.padEnd(24)} -${deleted.count}`);
     }
   }
 
   console.log('\n=== Verificacion ===');
   let remaining = 0;
   for (const { name, label } of TABLES) {
-    const count = await countOf(name);
+    const count = await db()[name].count({ where: whereFor(name) });
     if (count !== 0) {
       console.log(`PENDIENTE ${label} = ${count}`);
       remaining += count;
     }
   }
 
-  console.log(remaining === 0 ? 'Base de datos limpia. Ya puedes correr el seed.' : `Quedan ${remaining} filas.`);
+  if (demoOnly) {
+    const plans = await db().plan.count({});
+    console.log(`planes del catalogo intactos: ${plans}`);
+  }
+
+  console.log(
+    remaining === 0
+      ? 'Limpio. Corre: npm run db:seed:demo'
+      : `Quedan ${remaining} filas en el alcance.`,
+  );
 }
 
-const confirmed = process.argv.includes('--confirm') || process.env.SEED_RESET_CONFIRM === 'true';
-
-if (!confirmed) {
-  console.error('ABORTADO: el reset borra todos los datos de la base de datos.');
-  console.error('Reejecuta con:  npm run db:reset');
-  console.error('o con:         SEED_RESET_CONFIRM=true ts-node prisma/reset-demo.ts');
-  process.exitCode = 1;
-} else {
-  reset()
-    .catch((error: unknown) => {
-      console.error(error);
-      process.exitCode = 1;
-    })
-    .finally(async () => {
-      await prisma.$disconnect();
-    });
-}
+main()
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
