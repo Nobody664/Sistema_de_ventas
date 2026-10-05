@@ -20,7 +20,8 @@ function readCompanyStatus(accessToken: string): string | undefined {
   if (parts.length < 2) return undefined;
 
   try {
-    const payload = JSON.parse(atob(parts[1]));
+    // JWT usa base64url: atob() no acepta '-' ni '_' y falla en silencio.
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
     return typeof payload.companyStatus === 'string' ? payload.companyStatus : undefined;
   } catch {
     return undefined;

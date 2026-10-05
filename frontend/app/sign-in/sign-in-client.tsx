@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { SignInForm } from '@/components/auth/sign-in-form';
 import { AnimatedSection } from '@/components/ui/animations';
 
@@ -19,7 +20,9 @@ export function SignInPageClient() {
                 <h1 className="font-display text-3xl text-white">Bienvenido de nuevo</h1>
                 <p className="mt-2 text-white/50">Ingresa a tu cuenta para continuar</p>
               </div>
-              <SignInForm />
+              <Suspense fallback={<div className="h-64" />}>
+                <SignInForm />
+              </Suspense>
             </div>
           </AnimatedSection>
         </div>

@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -17,8 +17,17 @@ const signInSchema = z.object({
 
 type SignInValues = z.infer<typeof signInSchema>;
 
+function safeRedirect(raw: string | null): string {
+  if (!raw) return '/dashboard';
+  if (!raw.startsWith('/')) return '/dashboard';
+  if (raw.startsWith('//')) return '/dashboard';
+  if (raw.startsWith('/sign-in')) return '/dashboard';
+  return raw;
+}
+
 export function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useAuthStore((state) => state.login);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -38,7 +47,8 @@ export function SignInForm() {
 
     try {
       await login(values.email, values.password);
-      router.push('/dashboard');
+      router.replace(safeRedirect(searchParams.get('redirect')));
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Credenciales incorrectas');
     } finally {

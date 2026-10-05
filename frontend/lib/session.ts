@@ -21,10 +21,13 @@ export interface ServerSession {
   refreshToken: string | undefined;
 }
 
+const ACCESS_COOKIE = 'access_token';
+const REFRESH_COOKIE = 'refresh_token';
+
 export const getServerSession = cache(async (): Promise<ServerSession | null> => {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get('accessToken')?.value;
-  
+  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
+
   if (!accessToken) {
     return null;
   }
@@ -45,7 +48,7 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
     return {
       user,
       accessToken,
-      refreshToken: cookieStore.get('refreshToken')?.value,
+      refreshToken: cookieStore.get(REFRESH_COOKIE)?.value,
     };
   } catch {
     return null;

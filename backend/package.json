@@ -18,8 +18,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "db:seed": "prisma db seed",
-    "clean": "rm -rf dist"
+"db:seed":  "prisma db seed",
+    "db:reset": "ts-node -r tsconfig-paths/register -r dotenv/config prisma/reset-demo.ts --confirm",
+    "db:reset:seed": "npm run db:reset && npm run db:seed",
+    "clean":  "rm -rf dist"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.0",
