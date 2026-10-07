@@ -88,6 +88,7 @@ export async function register(data: RegisterRequest): Promise<AuthResponse> {
 export async function logout(): Promise<void> {
   await fetch(`${API_URL}/auth/logout`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
   });
 }

@@ -22,12 +22,23 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
     });
 
       if (response?.html) {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(response.html);
-          printWindow.document.close();
-          printWindow.print();
-        }
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        printFrame.setAttribute('sandbox', 'allow-modals');
+        printFrame.srcdoc = response.html;
+        document.body.appendChild(printFrame);
+        printFrame.onload = () => {
+          try {
+            printFrame.contentWindow?.print();
+          } finally {
+            document.body.removeChild(printFrame);
+          }
+        };
       }
     } catch (error) {
       console.error('Error generating invoice:', error);
