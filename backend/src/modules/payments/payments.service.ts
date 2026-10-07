@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHmac, timingSafeEqual } from 'crypto';
+import { IncomingHttpHeaders } from 'http';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
 import { EmailService } from '@/modules/email/email.service';
-
-const MERCADOPAGO_TEST_TOKEN = 'TEST-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 
 @Injectable()
 export class PaymentsService {
@@ -183,27 +184,38 @@ export class PaymentsService {
 
   async markAsPaid(id: string, companyId: string, paymentDate?: string) {
     const payment = await this.findOne(id, companyId);
-    
+
     if (payment.status !== 'PENDING') {
       throw new BadRequestException('Este pago ya fue procesado');
     }
 
     const now = new Date();
-    const updated = await this.prisma.payment.update({
-      where: { id },
+    const providerPaymentId = paymentDate ? `manual-${id}` : `paid-${id}`;
+    const updated = await this.prisma.payment.updateMany({
+      where: { id, subscription: { companyId } },
       data: {
         status: 'SUCCEEDED',
         paidAt: now,
-        providerPaymentId: paymentDate ? `manual-${Date.now()}` : `paid-${Date.now()}`,
+        providerPaymentId,
       },
+    });
+    if (updated.count === 0) {
+      throw new NotFoundException('Pago no encontrado');
+    }
+
+    const updatedPayment = await this.prisma.payment.findFirst({
+      where: { id, subscription: { companyId } },
       include: {
         subscription: {
           include: { plan: true, company: true },
         },
       },
     });
+    if (!updatedPayment) {
+      throw new NotFoundException('Pago no encontrado');
+    }
 
-    const subscription = updated.subscription;
+    const subscription = updatedPayment.subscription;
 
     const newEndDate = new Date();
     newEndDate.setMonth(newEndDate.getMonth() + (subscription.billingCycle === 'YEARLY' ? 12 : 1));
@@ -222,7 +234,7 @@ export class PaymentsService {
     });
 
     return {
-      ...updated,
+      ...updatedPayment,
       message: 'Pago marcado como completado',
     };
   }
@@ -328,8 +340,18 @@ export class PaymentsService {
   private async createMercadoPagoCheckout(companyId: string, plan: { id: string; code: string; name: string; priceMonthly: string }) {
     const Mercadopago = require('mercadopago');
     
-    const accessToken = this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN') || MERCADOPAGO_TEST_TOKEN;
-    
+    const accessToken = this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN');
+
+    if (!accessToken) {
+      return {
+        provider: 'mercadopago',
+        status: 'error',
+        error: 'MercadoPago access token not configured',
+        planCode: plan.code,
+        companyId,
+      };
+    }
+
     Mercadopago.configure({
       access_token: accessToken,
     });
@@ -369,24 +391,29 @@ export class PaymentsService {
       return {
         provider: 'mercadopago',
         status: 'error',
-        error: errorMessage,
+        error: 'No se pudo iniciar el pago con MercadoPago',
         planCode: plan.code,
         companyId,
       };
     }
   }
 
-  handleWebhook(provider: string, payload: unknown) {
-    console.log(`Webhook received from ${provider}:`, payload);
-
+  async handleWebhook(
+    provider: string,
+    payload: unknown,
+    headers: IncomingHttpHeaders,
+    query: Record<string, unknown>,
+  ) {
     if (provider === 'mercadopago') {
+      this.verifyMercadoPagoSignature(headers, query);
+
       const payment = payload as { status: string; external_reference?: string; id?: string };
-      
+
       if (payment.status === 'approved') {
         const [companyId, planCode] = (payment.external_reference || '').split('_');
-        
+
         if (companyId && planCode) {
-          this.activateSubscription(companyId, planCode, payment.id?.toString());
+          await this.activateSubscription(companyId, planCode, payment.id?.toString());
         }
       }
     }
@@ -398,7 +425,72 @@ export class PaymentsService {
     };
   }
 
+  private verifyMercadoPagoSignature(
+    headers: IncomingHttpHeaders,
+    query: Record<string, unknown>,
+  ): boolean {
+    const secret = this.configService.get<string>('MERCADOPAGO_WEBHOOK_SECRET');
+    if (!secret) {
+      throw new UnauthorizedException('Suscripciones por webhook no disponibles: secreto no configurado.');
+    }
+
+    const signatureHeader = headers['x-signature'];
+    if (typeof signatureHeader !== 'string') {
+      throw new UnauthorizedException('Firma de webhook ausente.');
+    }
+
+    const parts: Record<string, string> = {};
+    for (const pair of signatureHeader.split(',')) {
+      const index = pair.indexOf('=');
+      if (index === -1) continue;
+      parts[pair.slice(0, index).trim()] = pair.slice(index + 1).trim();
+    }
+
+    const ts = parts['ts'];
+    const v1 = parts['v1'];
+
+    const flatDataId = query?.['data.id'];
+    const nestedDataId =
+      query?.data && typeof query.data === 'object'
+        ? (query.data as Record<string, unknown>)['id']
+        : undefined;
+    const dataId = typeof flatDataId === 'string' ? flatDataId : nestedDataId;
+
+    if (!ts || !v1 || typeof dataId !== 'string' || dataId.length === 0) {
+      throw new UnauthorizedException('Firma de webhook inválida.');
+    }
+
+    const tsNumber = Number(ts);
+    const MAX_WEBHOOK_AGE_MS = 10 * 60 * 1000;
+    if (!Number.isFinite(tsNumber) || Math.abs(Date.now() - tsNumber * 1000) > MAX_WEBHOOK_AGE_MS) {
+      throw new UnauthorizedException('Firma de webhook expirada.');
+    }
+
+    const manifest = `${dataId}.${ts}`;
+    const digest = createHmac('sha256', secret).update(manifest).digest('hex');
+
+    const expected = Buffer.from(digest);
+    const received = Buffer.from(v1);
+
+    if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
+      throw new UnauthorizedException('Firma de webhook inválida.');
+    }
+
+    return true;
+  }
+
   private async activateSubscription(companyId: string, planCode: string, transactionId?: string) {
+    if (transactionId) {
+      const existingPayment = await this.prisma.payment.findFirst({
+        where: { providerPaymentId: transactionId },
+        select: { id: true },
+      });
+
+      if (existingPayment) {
+        return;
+      }
+    }
+
     const plan = await this.prisma.plan.findUnique({
       where: { code: planCode },
     });
@@ -443,18 +535,35 @@ export class PaymentsService {
         data: { status: 'ACTIVE' },
       });
 
-      await this.prisma.payment.create({
-        data: {
-          subscriptionId: subscription.id,
-          provider: 'MERCADOPAGO',
-          providerPaymentId: transactionId || `mp-${Date.now()}`,
-          amount: plan.priceMonthly,
-          currency: 'PEN',
-          status: 'SUCCEEDED',
-        },
-      });
+      const key = transactionId || `mp-${subscription.id}`;
 
-      if (adminUser) {
+      let created = false;
+      try {
+        await this.prisma.payment.create({
+          data: {
+            subscriptionId: subscription.id,
+            provider: 'MERCADOPAGO',
+            providerPaymentId: key,
+            amount: plan.priceMonthly,
+            currency: 'PEN',
+            status: 'SUCCEEDED',
+          },
+        });
+        created = true;
+      } catch (err) {
+        if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
+          const dup = await this.prisma.payment.findFirst({
+            where: { providerPaymentId: key },
+            select: { id: true },
+          });
+          if (dup) {
+            return;
+          }
+        }
+        throw err;
+      }
+
+      if (created && adminUser) {
         await this.notificationsService.create({
           userId: adminUser.id,
           companyId,

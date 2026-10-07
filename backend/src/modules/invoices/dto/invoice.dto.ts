@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, IsNumber, IsObject, IsDecimal, Min, Max } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsNumber, IsObject, IsDecimal, Min, Max, Matches } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateInvoiceTemplateDto {
@@ -122,6 +122,9 @@ export class CreateInvoiceTemplateDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Za-z0-9 ,'"]*$/, {
+    message: 'fontFamily solo puede contener letras, numeros y espacios',
+  })
   fontFamily?: string;
 
   @ApiPropertyOptional()

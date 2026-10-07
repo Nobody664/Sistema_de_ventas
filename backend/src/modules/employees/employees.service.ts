@@ -21,7 +21,9 @@ export class EmployeesService {
   findById(companyId: string, id: string) {
     return this.prisma.employee.findFirst({
       where: { id, companyId },
-      include: { user: true },
+      include: {
+        user: { select: { id: true, email: true, fullName: true, isActive: true } },
+      },
     });
   }
 
@@ -87,7 +89,9 @@ export class EmployeesService {
           role: input.role,
           isActive: input.isActive ?? true,
         },
-        include: { user: true },
+        include: {
+          user: { select: { id: true, email: true, fullName: true } },
+        },
       });
     });
 

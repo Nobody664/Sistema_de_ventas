@@ -9,6 +9,18 @@ import { AuditService } from '@/common/services/audit.service';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
 
+function escapeHtml(value: unknown): string {
+  const text = String(value ?? '');
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, (chr) => map[chr] as string);
+}
+
 @Injectable()
 export class SalesService {
   constructor(
@@ -20,29 +32,21 @@ export class SalesService {
   ) {}
 
   findRecentSales(companyId: string) {
-    try {
-      console.log('[SalesService] Finding sales for company:', companyId);
-      const sales = this.prisma.sale.findMany({
-        where: { companyId },
-        select: {
-          id: true,
-          saleNumber: true,
-          totalAmount: true,
-          paymentMethod: true,
-          status: true,
-          createdAt: true,
-          customer: { select: { firstName: true, lastName: true } },
-          employee: { select: { firstName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      });
-      console.log('[SalesService] Query constructed successfully');
-      return sales;
-    } catch (error) {
-      console.error('[SalesService] Error fetching sales:', error);
-      throw error;
-    }
+    return this.prisma.sale.findMany({
+      where: { companyId },
+      select: {
+        id: true,
+        saleNumber: true,
+        totalAmount: true,
+        paymentMethod: true,
+        status: true,
+        createdAt: true,
+        customer: { select: { firstName: true, lastName: true } },
+        employee: { select: { firstName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
   }
 
   findById(companyId: string, id: string) {
@@ -176,10 +180,10 @@ export class SalesService {
             <tbody>
               ${sales.map((s) => `
                 <tr>
-                  <td>${s.saleNumber}</td>
-                  <td>${s.customer ? `${s.customer.firstName} ${s.customer.lastName || ''}` : 'General'}</td>
+                  <td>${escapeHtml(s.saleNumber)}</td>
+                  <td>${s.customer ? escapeHtml(`${s.customer.firstName} ${s.customer.lastName || ''}`) : 'General'}</td>
                   <td>S/ ${Number(s.totalAmount).toFixed(2)}</td>
-                  <td>${s.paymentMethod}</td>
+                  <td>${escapeHtml(s.paymentMethod)}</td>
                   <td>${new Date(s.createdAt).toLocaleDateString()}</td>
                 </tr>
               `).join('')}

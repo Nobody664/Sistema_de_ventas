@@ -16,16 +16,10 @@ export class EmailProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailProcessor.name);
 
   async process(job: Job<EmailJobData>): Promise<void> {
-    const { to, subject, text } = job.data;
+    const { to } = job.data;
+    const recipientDomain = to.includes('@') ? to.split('@')[1] : to;
 
-    this.logger.log(`Processing email to: ${to}, subject: ${subject}`);
-
-    this.logger.log(`[DEMO] =========================================`);
-    this.logger.log(`[DEMO] Sending email`);
-    this.logger.log(`[DEMO] To: ${to}`);
-    this.logger.log(`[DEMO] Subject: ${subject}`);
-    this.logger.log(`[DEMO] Body: ${text}`);
-    this.logger.log(`[DEMO] =========================================`);
+    this.logger.log(`Processing email job ${job.name} to @${recipientDomain}`);
 
     await new Promise(resolve => setTimeout(resolve, 100));
   }

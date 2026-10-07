@@ -49,14 +49,24 @@ export class InventoryService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const updatedProduct = await tx.product.update({
-        where: { id: input.productId },
+      const productUpdate = await tx.product.updateMany({
+        where: { id: input.productId, companyId },
         data: {
           stockQuantity: {
             increment: input.quantity,
           },
         },
       });
+      if (productUpdate.count === 0) {
+        throw new NotFoundException('Product not found.');
+      }
+
+      const updatedProduct = await tx.product.findUnique({
+        where: { id: input.productId },
+      });
+      if (!updatedProduct) {
+        throw new NotFoundException('Product not found.');
+      }
 
       const movement = await tx.inventoryMovement.create({
         data: {

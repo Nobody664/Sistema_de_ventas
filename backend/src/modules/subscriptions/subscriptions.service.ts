@@ -281,13 +281,22 @@ export class SubscriptionsService {
       throw new NotFoundException('Subscription not found');
     }
 
-    return this.prisma.subscription.update({
-      where: { id: subscription.id },
-      data: { 
+    const updated = await this.prisma.subscription.updateMany({
+      where: { id: subscription.id, companyId },
+      data: {
         status: SubscriptionStatus.CANCELED,
         autoRenew: false,
       },
     });
+    if (updated.count === 0) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    return {
+      ...subscription,
+      status: SubscriptionStatus.CANCELED,
+      autoRenew: false,
+    };
   }
 
   async checkPlanLimits(companyId: string, resource: 'users' | 'products') {

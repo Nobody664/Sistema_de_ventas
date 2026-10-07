@@ -34,6 +34,7 @@ export const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().default(''),
   MERCADOPAGO_ACCESS_TOKEN: z.string().default(''),
+  MERCADOPAGO_WEBHOOK_SECRET: z.string().default(''),
   PAYPAL_CLIENT_ID: z.string().default(''),
   PAYPAL_CLIENT_SECRET: z.string().default(''),
   SMTP_HOST: z.string().optional(),

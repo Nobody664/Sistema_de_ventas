@@ -6,7 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError, PrismaClientValidationError } from '@prisma/client/runtime/client';
+import { PrismaClientInitializationError, PrismaClientKnownRequestError, PrismaClientValidationError } from '@prisma/client/runtime/client';
 import type { Request, Response } from 'express';
 
 type ErrorBody = {
@@ -77,6 +77,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
   } {
     if (exception instanceof PrismaClientKnownRequestError) {
       const mapped = PRISMA_KNOWN_ERRORS[exception.code];
+      if (exception.code === 'P2002') {
+        const target = exception.meta?.target;
+        const field = Array.isArray(target)
+          ? target.join(', ')
+          : typeof target === 'string'
+            ? target
+            : '';
+        const message = field
+          ? `Ya existe un registro con ese valor en ${field}.`
+          : PRISMA_KNOWN_ERRORS.P2002.message;
+        return { status: HttpStatus.CONFLICT, message, code: exception.code };
+      }
       return {
         status: mapped?.status ?? HttpStatus.INTERNAL_SERVER_ERROR,
         message: mapped?.message ?? 'Error de base de datos',
@@ -89,6 +101,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
         status: HttpStatus.BAD_REQUEST,
         message: 'La consulta enviada no es valida',
         code: 'PRISMA_VALIDATION',
+      };
+    }
+
+    if (exception instanceof PrismaClientInitializationError) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message: 'Servicio de datos no disponible',
+        code: 'PRISMA_INIT',
       };
     }
 

@@ -73,7 +73,6 @@ export class AuthController {
     return this.authService.forgotPassword(body.email);
   }
 
-  @Public()
   @HttpCode(HttpStatus.OK)
   @Post('test-public')
   testPublic() {

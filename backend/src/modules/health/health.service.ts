@@ -78,7 +78,7 @@ export class HealthService {
       return {
         status: 'error',
         latency: Date.now() - start,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Database unavailable',
       };
     }
   }
@@ -121,9 +121,7 @@ export class HealthService {
   async checkFull(): Promise<{
     status: string;
     timestamp: string;
-    environment: string;
     version: string;
-    routes: { total: number; public: number; protected: number };
     checks: {
       database: { status: string; latency: number };
       redis: { status: string; latency: number };
@@ -131,28 +129,18 @@ export class HealthService {
       uptime: number;
     };
   }> {
-    const { status, checks, ...rest } = await this.checkReady();
+    const { status, checks } = await this.checkReady();
 
     return {
       status,
       timestamp: new Date().toISOString(),
-      environment: this.config.get<string>('NODE_ENV') || 'development',
       version: process.env.npm_package_version || '1.0.0',
-      routes: this.getRouteStats(),
       checks: {
         database: { status: checks.database.status, latency: checks.database.latency },
         redis: { status: checks.redis.status, latency: checks.redis.latency },
         memory: { used: checks.memory.used, total: checks.memory.total },
         uptime: checks.uptime,
       },
-    };
-  }
-
-  private getRouteStats(): { total: number; public: number; protected: number } {
-    return {
-      total: 0,
-      public: 0,
-      protected: 0,
     };
   }
 }

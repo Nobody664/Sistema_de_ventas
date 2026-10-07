@@ -45,6 +45,7 @@ export class CheckoutRequestsController {
       companyName: body.companyName,
       email: body.email,
       password: body.password,
+      idempotencyKey: body.idempotencyKey,
     });
   }
 

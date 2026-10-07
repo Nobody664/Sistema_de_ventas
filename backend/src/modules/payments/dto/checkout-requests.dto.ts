@@ -1,5 +1,14 @@
 import { Transform, Type } from 'class-transformer';
-import { IsDate, IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsDate,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { PaymentProvider } from '@prisma/client';
 
 export enum CheckoutReviewStatus {
@@ -37,11 +46,22 @@ export class CreateCheckoutRequestDto {
   @IsOptional()
   @IsString()
   companyId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Matches(/^[A-Za-z0-9._-]+$/, {
+    message: 'idempotencyKey solo puede contener letras, numeros, punto, guion bajo y guion',
+  })
+  idempotencyKey?: string;
 }
 
 export class SubmitCheckoutProofDto {
   @IsString()
-  @MaxLength(500000)
+  @MaxLength(2_000_000)
+  @Matches(/^data:image\//, {
+    message: 'imageBase64 debe ser una imagen Base64 válida (data:image/...)',
+  })
   imageBase64!: string;
 
   @IsOptional()

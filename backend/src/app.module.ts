@@ -11,6 +11,8 @@ import { CacheModule } from './cache/cache.module';
 import { validateEnv } from './config/env';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+import { CsrfGuard } from './common/guards/csrf.guard';
 import { AuditCommonModule } from './common/services/audit.module';
 import { AuditContextInterceptor } from './common/interceptors/audit-context.interceptor';
 
@@ -131,11 +133,19 @@ import { CompanyProfileModule } from './modules/company-profile/company-profile.
     },
     {
       provide: APP_GUARD,
+      useClass: CsrfGuard,
+    },
+    {
+      provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
     {
       provide: APP_INTERCEPTOR,

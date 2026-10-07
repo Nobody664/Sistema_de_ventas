@@ -1,6 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Public } from '@/common/decorators/public.decorator';
 
 interface RouteInfo {
   method: string;
@@ -12,7 +11,6 @@ interface RouteInfo {
 @ApiTags('Debug')
 @Controller('debug')
 export class DebugController {
-  @Public()
   @Get('routes')
   @ApiOperation({ summary: 'List all registered routes' })
   @ApiResponse({ status: 200, description: 'All routes' })

@@ -1,4 +1,12 @@
-import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength, IsObject } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import { PaymentProvider } from '@prisma/client';
 import { Type } from 'class-transformer';
 
@@ -46,9 +54,22 @@ export class PaymentSettingsResponseDto {
   updatedAt!: Date;
 }
 
+export class PaymentSettingsPublicResponseDto {
+  id!: string;
+  provider!: PaymentProvider;
+  isEnabled!: boolean;
+  qrImageBase64?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+  instructions?: string | null;
+}
+
 export class UploadPaymentProofDto {
   @IsString()
   @MaxLength(2_000_000)
+  @Matches(/^data:image\//, {
+    message: 'imageBase64 debe ser una imagen Base64 válida (data:image/...)',
+  })
   imageBase64!: string;
 
   @IsString()

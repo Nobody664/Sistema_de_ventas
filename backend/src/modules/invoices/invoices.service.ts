@@ -2,6 +2,18 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { CreateInvoiceTemplateDto, UpdateInvoiceTemplateDto } from './dto/invoice.dto';
 
+function escapeHtml(value: unknown): string {
+  const text = String(value ?? '');
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, (chr) => map[chr] as string);
+}
+
 @Injectable()
 export class InvoicesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -237,16 +249,16 @@ export class InvoicesService {
 
   private buildInvoiceHtml(sale: any, template: any, companyId: string) {
     const isThermal = template.paperSize === 'thermal';
-    const docType = template.type || 'BOLETA';
+    const docType = escapeHtml(template.type || 'BOLETA');
     
-    const companyRuc = template.companyRuc || sale.company?.taxId || '';
-    const companyAddress = template.companyAddress || sale.company?.address || '';
-    const companyPhone = template.companyPhone || sale.company?.phone || '';
-    const companyName = sale.company?.name || 'Empresa';
+    const companyRuc = escapeHtml(template.companyRuc || sale.company?.taxId || '');
+    const companyAddress = escapeHtml(template.companyAddress || sale.company?.address || '');
+    const companyPhone = escapeHtml(template.companyPhone || sale.company?.phone || '');
+    const companyName = escapeHtml(sale.company?.name || 'Empresa');
     
     const items = sale.items.map((item: any) => `
       <tr>
-        <td style="padding: 4px 8px;">${item.product?.name || 'Producto'}</td>
+        <td style="padding: 4px 8px;">${escapeHtml(item.product?.name || 'Producto')}</td>
         <td style="padding: 4px 8px; text-align:center">${item.quantity}</td>
         <td style="padding: 4px 8px; text-align:right">${Number(item.unitPrice).toFixed(2)}</td>
         <td style="padding: 4px 8px; text-align:right">${Number(item.totalAmount).toFixed(2)}</td>
@@ -264,8 +276,8 @@ export class InvoicesService {
       minute: '2-digit',
     }) : '';
 
-    const customerName = sale.customer ? `${sale.customer.firstName} ${sale.customer.lastName || ''}`.trim() : 'Cliente General';
-    const customerDoc = sale.customer?.documentValue ? `${sale.customer.documentType || 'DNI'} ${sale.customer.documentValue}` : '';
+    const customerName = escapeHtml(sale.customer ? `${sale.customer.firstName} ${sale.customer.lastName || ''}`.trim() : 'Cliente General');
+    const customerDoc = escapeHtml(sale.customer?.documentValue ? `${sale.customer.documentType || 'DNI'} ${sale.customer.documentValue}` : '');
     
     const paymentMethodLabels: Record<string, string> = {
       CASH: 'Efectivo',
@@ -274,7 +286,7 @@ export class InvoicesService {
       YAPE: 'Yape',
       PLIN: 'Plin',
     };
-    const paymentMethod = paymentMethodLabels[sale.paymentMethod] || sale.paymentMethod || 'Efectivo';
+    const paymentMethod = escapeHtml(paymentMethodLabels[sale.paymentMethod] || sale.paymentMethod || 'Efectivo');
 
     const taxPercent = template.taxPercentage || 18;
 
@@ -301,12 +313,13 @@ export class InvoicesService {
     taxPercent: number,
     template: any
   ) {
+    const esc = escapeHtml;
     return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${docType} ${sale.saleNumber}</title>
+  <title>${docType} ${esc(sale.saleNumber)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
@@ -340,7 +353,7 @@ export class InvoicesService {
     
     <div class="border-top"></div>
     <div class="bold uppercase">${docType} DE VENTA</div>
-    <div>N° ${sale.saleNumber}</div>
+    <div>N° ${esc(sale.saleNumber)}</div>
     <div class="border-top"></div>
   </div>
 
@@ -383,8 +396,8 @@ export class InvoicesService {
 
   <div class="footer">
     <div class="border-top"></div>
-    <p>${template.footerText || 'Gracias por su preferencia'}</p>
-    <p class="uppercase">${docType} ${sale.saleNumber}</p>
+    <p>${esc(template.footerText || 'Gracias por su preferencia')}</p>
+    <p class="uppercase">${docType} ${esc(sale.saleNumber)}</p>
   </div>
 </body>
 </html>
@@ -407,16 +420,17 @@ export class InvoicesService {
     taxPercent: number,
     template: any
   ) {
+    const esc = escapeHtml;
     return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${docType} ${sale.saleNumber}</title>
+  <title>${docType} ${esc(sale.saleNumber)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
-      font-family: ${template.fontFamily || 'Arial'}; 
+      font-family: ${esc(template.fontFamily || 'Arial')}; 
       font-size: ${template.fontSize || 12}px; 
       margin: 20px;
       color: #333;
@@ -565,7 +579,7 @@ export class InvoicesService {
 <body>
   <div class="invoice-container">
     <div class="header">
-      ${template.showLogo && template.logoUrl ? `<img src="${template.logoUrl}" alt="Logo" style="max-height: 60px; margin-bottom: 10px;">` : ''}
+      ${template.showLogo && template.logoUrl ? `<img src="${esc(template.logoUrl)}" alt="Logo" style="max-height: 60px; margin-bottom: 10px;">` : ''}
       ${template.showCompany ? `
         <div class="company-name">${companyName}</div>
         <div class="company-info">
@@ -576,7 +590,7 @@ export class InvoicesService {
         </div>
       ` : ''}
       <div class="doc-type">${docType} DE VENTA</div>
-      <div class="sale-number">N° ${sale.saleNumber}</div>
+      <div class="sale-number">N° ${esc(sale.saleNumber)}</div>
     </div>
 
     ${template.showCustomer ? `
@@ -645,9 +659,9 @@ export class InvoicesService {
     ` : ''}
 
     <div class="footer">
-      <p class="footer-text">${template.footerText || 'Gracias por su preferencia'}</p>
+      <p class="footer-text">${esc(template.footerText || 'Gracias por su preferencia')}</p>
       <p class="footer-text" style="margin-top: 5px; font-size: 10px;">
-        ${docType} N° ${sale.saleNumber} - ${companyName}
+        ${docType} N° ${esc(sale.saleNumber)} - ${companyName}
       </p>
     </div>
   </div>

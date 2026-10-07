@@ -32,7 +32,7 @@ export class InvoicesController {
   @Roles('SUPER_ADMIN')
   @Post('templates')
   createTemplate(@Req() request: { tenantId: string }, @Body() body: CreateInvoiceTemplateDto) {
-    return this.invoicesService.create('', true, body);
+    return this.invoicesService.create(request.tenantId || '', false, body);
   }
 
   @Roles('SUPER_ADMIN')

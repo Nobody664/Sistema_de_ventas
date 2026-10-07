@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
+  NotFoundException,
   Param,
+  ParseEnumPipe,
   Patch,
   Post,
   Query,
@@ -13,6 +16,7 @@ import { PaymentSettingsService } from './payment-settings.service';
 import {
   UpdatePaymentSettingsDto,
   PaymentSettingsResponseDto,
+  PaymentSettingsPublicResponseDto,
   UploadPaymentProofDto,
   PaymentProofResponseDto,
   ReviewPaymentProofDto,
@@ -30,28 +34,26 @@ export class PaymentSettingsController {
 
   @Public()
   @Get()
-  async getAllSettings(): Promise<PaymentSettingsResponseDto[]> {
-    return this.paymentSettingsService.getAllSettings();
+  async getAllSettings(): Promise<PaymentSettingsPublicResponseDto[]> {
+    return this.paymentSettingsService.getPublicSettings();
   }
 
   @Public()
   @Get('provider/:provider')
   async getSettingsByProvider(
-    @Param('provider') provider: string,
-  ): Promise<PaymentSettingsResponseDto | null> {
-    const paymentProvider = provider.toUpperCase() as PaymentProvider;
-    return this.paymentSettingsService.getSettingsByProvider(paymentProvider);
+    @Param('provider', ParseEnumPipe) provider: PaymentProvider,
+  ): Promise<PaymentSettingsPublicResponseDto | null> {
+    return this.paymentSettingsService.getPublicSettingByProvider(provider);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(GlobalRole.SUPER_ADMIN)
   @Patch('provider/:provider')
   async updateSettings(
-    @Param('provider') provider: string,
+    @Param('provider', ParseEnumPipe) provider: PaymentProvider,
     @Body() data: UpdatePaymentSettingsDto,
   ): Promise<PaymentSettingsResponseDto> {
-    const paymentProvider = provider.toUpperCase() as PaymentProvider;
-    return this.paymentSettingsService.updateSettings(paymentProvider, data);
+    return this.paymentSettingsService.updateSettings(provider, data);
   }
 
   @Post('proof/:subscriptionId')
@@ -60,10 +62,13 @@ export class PaymentSettingsController {
     @Param('subscriptionId') subscriptionId: string,
     @Body() data: UploadPaymentProofDto,
   ): Promise<PaymentProofResponseDto> {
+    if (!user.companyId) {
+      throw new ForbiddenException('Tenant context is required for this resource.');
+    }
     return this.paymentSettingsService.uploadPaymentProof(
       subscriptionId,
       data,
-      user.companyId as string,
+      user.companyId,
     );
   }
 
@@ -72,9 +77,12 @@ export class PaymentSettingsController {
     @CurrentUser() user: AuthUser,
     @Param('subscriptionId') subscriptionId: string,
   ): Promise<PaymentProofResponseDto[]> {
+    if (!user.companyId) {
+      throw new ForbiddenException('Tenant context is required for this resource.');
+    }
     return this.paymentSettingsService.getProofsBySubscription(
       subscriptionId,
-      user.companyId as string,
+      user.companyId,
     );
   }
 
@@ -105,6 +113,9 @@ export class PaymentSettingsController {
     const isGlobalAdmin =
       user.roles.includes(GlobalRole.SUPER_ADMIN) ||
       user.roles.includes(GlobalRole.SUPPORT_ADMIN);
+    if (!isGlobalAdmin && !user.companyId) {
+      throw new NotFoundException(`Comprobante #${proofId} no encontrado`);
+    }
     return this.paymentSettingsService.getProofById(
       proofId,
       isGlobalAdmin ? undefined : (user.companyId ?? undefined),

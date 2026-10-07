@@ -12,6 +12,18 @@ import { SubscriptionLimitService } from '@/common/guards/subscription-limit.ser
 import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
 import { AuditService } from '@/common/services/audit.service';
 
+function escapeHtml(value: unknown): string {
+  const text = String(value ?? '');
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, (chr) => map[chr] as string);
+}
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -122,26 +134,36 @@ export class ProductsService {
       ? input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-')
       : undefined;
 
-    const category = await this.prisma.category.update({
-      where: { id },
+    const category = await this.prisma.category.updateMany({
+      where: { id, companyId },
       data: {
         ...input,
         ...(slug ? { slug } : {}),
       },
     });
+    if (category.count === 0) {
+      throw new NotFoundException('Category not found.');
+    }
+
+    const categoryRecord = await this.prisma.category.findFirst({
+      where: { id, companyId },
+    });
+    if (!categoryRecord) {
+      throw new NotFoundException('Category not found.');
+    }
 
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
       entity: 'Category',
-      entityId: category.id,
+      entityId: categoryRecord.id,
       changes: {
         before: { name: existing.name, slug: existing.slug },
         after: input,
       },
     });
 
-    return category;
+    return categoryRecord;
   }
 
   async removeCategory(companyId: string, id: string) {
@@ -157,7 +179,12 @@ export class ProductsService {
       );
     }
 
-    const category = await this.prisma.category.delete({ where: { id } });
+    const category = await this.prisma.category.deleteMany({
+      where: { id, companyId },
+    });
+    if (category.count === 0) {
+      throw new NotFoundException('Category not found.');
+    }
 
     await this.auditService.log({
       companyId,
@@ -167,7 +194,7 @@ export class ProductsService {
       changes: { name: existing.name, slug: existing.slug },
     });
 
-    return category;
+    return existing;
   }
 
   async createProduct(companyId: string, input: CreateProductDto) {
@@ -228,27 +255,37 @@ export class ProductsService {
       await this.ensureCategory(companyId, input.categoryId);
     }
 
-    const product = await this.prisma.product.update({
-      where: { id },
+    const product = await this.prisma.product.updateMany({
+      where: { id, companyId },
       data: {
         ...input,
         categoryId: input.categoryId ?? undefined,
       },
     });
+    if (product.count === 0) {
+      throw new NotFoundException('Product not found.');
+    }
+
+    const updatedProduct = await this.prisma.product.findFirst({
+      where: { id, companyId },
+    });
+    if (!updatedProduct) {
+      throw new NotFoundException('Product not found.');
+    }
 
     if (
       input.stockQuantity !== undefined &&
-      product.stockQuantity <= product.minStock &&
+      updatedProduct.stockQuantity <= updatedProduct.minStock &&
       existing.stockQuantity > existing.minStock
     ) {
-      await this.sendLowStockNotification(companyId, product);
+      await this.sendLowStockNotification(companyId, updatedProduct);
     }
 
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
       entity: 'Product',
-      entityId: product.id,
+      entityId: updatedProduct.id,
       changes: {
         before: {
           name: existing.name,
@@ -261,7 +298,7 @@ export class ProductsService {
       },
     });
 
-    return product;
+    return updatedProduct;
   }
 
   private async sendLowStockNotification(companyId: string, product: { id: string; name: string; stockQuantity: number; minStock: number }) {
@@ -292,10 +329,19 @@ export class ProductsService {
     });
 
     if (saleItemsCount > 0) {
-      const product = await this.prisma.product.update({
-        where: { id },
+      const productUpdate = await this.prisma.product.updateMany({
+        where: { id, companyId },
         data: { deletedAt: new Date(), isActive: false },
       });
+      if (productUpdate.count === 0) {
+        throw new NotFoundException('Product not found.');
+      }
+      const product = await this.prisma.product.findFirst({
+        where: { id, companyId },
+      });
+      if (!product) {
+        throw new NotFoundException('Product not found.');
+      }
 
       await this.auditService.log({
         companyId,
@@ -313,10 +359,19 @@ export class ProductsService {
     });
 
     if (movementsCount > 0) {
-      const product = await this.prisma.product.update({
-        where: { id },
+      const productUpdate = await this.prisma.product.updateMany({
+        where: { id, companyId },
         data: { deletedAt: new Date(), isActive: false },
       });
+      if (productUpdate.count === 0) {
+        throw new NotFoundException('Product not found.');
+      }
+      const product = await this.prisma.product.findFirst({
+        where: { id, companyId },
+      });
+      if (!product) {
+        throw new NotFoundException('Product not found.');
+      }
 
       await this.auditService.log({
         companyId,
@@ -329,7 +384,12 @@ export class ProductsService {
       return product;
     }
 
-    const product = await this.prisma.product.delete({ where: { id } });
+    const product = await this.prisma.product.deleteMany({
+      where: { id, companyId },
+    });
+    if (product.count === 0) {
+      throw new NotFoundException('Product not found.');
+    }
 
     await this.auditService.log({
       companyId,
@@ -339,7 +399,7 @@ export class ProductsService {
       changes: { softDelete: false, name: existing.name, sku: existing.sku },
     });
 
-    return product;
+    return existing;
   }
 
   private async ensureProduct(companyId: string, id: string) {
@@ -525,9 +585,9 @@ export class ProductsService {
             <tbody>
               ${products.map((p) => `
                 <tr>
-                  <td>${p.name}</td>
-                  <td>${p.sku}</td>
-                  <td>${p.category?.name || ''}</td>
+                  <td>${escapeHtml(p.name)}</td>
+                  <td>${escapeHtml(p.sku)}</td>
+                  <td>${escapeHtml(p.category?.name || '')}</td>
                   <td>S/ ${Number(p.salePrice).toFixed(2)}</td>
                   <td>${p.stockQuantity}</td>
                 </tr>

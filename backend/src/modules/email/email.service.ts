@@ -86,7 +86,7 @@ Equipo Ventas SaaS
     text: `
 Hemos recibido tu comprobante de pago para la empresa "{{companyName}}" (plan "{{planName}}").
 
-Nuestro equipo lo revisarÃ¡ y te notificaremos cuando tu cuenta estÃ© lista para ingresar.
+Nuestro equipo lo revisará y te notificaremos cuando tu cuenta esté lista para ingresar.
 
 Saludos,
 Equipo Ventas SaaS
@@ -129,14 +129,21 @@ export class EmailService {
 
   async sendEmail(job: SendEmailJob): Promise<void> {
     const template = EMAIL_TEMPLATES[job.template];
-    
+
     if (!template) {
       this.logger.warn(`Unknown email template: ${job.template}`);
       return;
     }
 
+    if (this.hasInvalidRecipient(job.to)) {
+      this.logger.warn(`Envío rechazado: destinatario inválido (posible inyección de headers)`);
+      return;
+    }
+
     const text = this.interpolateTemplate(template.text, job.data);
-    const subject = this.interpolateTemplate(template.subject, job.data);
+    const subject = job.subject
+      ? this.interpolateTemplate(job.subject, job.data)
+      : this.interpolateTemplate(template.subject, job.data);
 
     // Direct send (no queue)
     await this.transporter.sendMail({
@@ -146,30 +153,48 @@ export class EmailService {
       text,
     });
 
-    this.logger.log(`Email queued: ${job.template} to ${job.to}`);
+    this.logger.log(`Email queued: ${job.template} to @${this.recipientDomain(job.to)}`);
   }
 
   async sendEmailDirect(job: SendEmailJob): Promise<void> {
     const template = EMAIL_TEMPLATES[job.template];
-    
+
     if (!template) {
       this.logger.warn(`Unknown email template: ${job.template}`);
       return;
     }
 
-    const text = this.interpolateTemplate(template.text, job.data);
-    const subject = this.interpolateTemplate(template.subject, job.data);
+    if (this.hasInvalidRecipient(job.to)) {
+      this.logger.warn(`Envío rechazado: destinatario inválido (posible inyección de headers)`);
+      return;
+    }
 
-    this.logger.log(`[DEMO] Sending email to ${job.to}: ${subject}`);
-    this.logger.log(`[DEMO] Email content: ${text}`);
+    const text = this.interpolateTemplate(template.text, job.data);
+    const subject = job.subject
+      ? this.interpolateTemplate(job.subject, job.data)
+      : this.interpolateTemplate(template.subject, job.data);
+
+    this.logger.log(`[DEMO] Sending email: ${job.template} to @${this.recipientDomain(job.to)}`);
+  }
+
+  private recipientDomain(to: string): string {
+    return to.includes('@') ? to.split('@')[1] : to;
+  }
+
+  private hasInvalidRecipient(to: string): boolean {
+    return /[\r\n\u2028\u2029]/.test(to);
   }
 
   private interpolateTemplate(text: string, data: Record<string, unknown>): string {
     let result = text;
     for (const [key, value] of Object.entries(data)) {
-      result = result.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
+      const sanitized = String(value ?? '').replace(
+        /[\r\n\u2028\u2029\u0000-\u001f\u007f]/g,
+        ' ',
+      );
+      result = result.replace(new RegExp(`{{${key}}}`, 'g'), sanitized);
     }
-    return result;
+    return result.trim();
   }
 
   async sendSubscriptionPending(userEmail: string, companyName: string): Promise<void> {

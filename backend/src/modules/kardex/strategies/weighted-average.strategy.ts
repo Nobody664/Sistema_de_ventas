@@ -11,11 +11,11 @@ export class WeightedAverageStrategy implements CostingStrategy {
   async calculateOutCost(
     productId: string,
     quantity: number,
-    _companyId: string,
+    companyId: string,
     tx: PrismaTx,
   ): Promise<CostingResult> {
     const lastEntry = await tx.inventoryKardex.findFirst({
-      where: { productId },
+      where: { productId, companyId },
       orderBy: { movementDate: 'desc' },
     });
 

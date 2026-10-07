@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { PaymentProvider, ProofStatus } from '@prisma/client';
 import {
   UpdatePaymentSettingsDto,
   PaymentSettingsResponseDto,
+  PaymentSettingsPublicResponseDto,
   UploadPaymentProofDto,
   PaymentProofResponseDto,
   ReviewPaymentProofDto,
@@ -12,6 +13,38 @@ import {
 @Injectable()
 export class PaymentSettingsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getPublicSettings(): Promise<PaymentSettingsPublicResponseDto[]> {
+    return this.prisma.paymentSetting.findMany({
+      orderBy: { provider: 'asc' },
+      select: {
+        id: true,
+        provider: true,
+        isEnabled: true,
+        qrImageBase64: true,
+        accountNumber: true,
+        accountName: true,
+        instructions: true,
+      },
+    });
+  }
+
+  async getPublicSettingByProvider(
+    provider: PaymentProvider,
+  ): Promise<PaymentSettingsPublicResponseDto | null> {
+    return this.prisma.paymentSetting.findFirst({
+      where: { provider },
+      select: {
+        id: true,
+        provider: true,
+        isEnabled: true,
+        qrImageBase64: true,
+        accountNumber: true,
+        accountName: true,
+        instructions: true,
+      },
+    });
+  }
 
   async getAllSettings(): Promise<PaymentSettingsResponseDto[]> {
     return this.prisma.paymentSetting.findMany({
@@ -78,6 +111,15 @@ export class PaymentSettingsService {
       throw new NotFoundException(`Suscripción #${subscriptionId} no encontrada`);
     }
 
+    const existingPending = await this.prisma.paymentProof.findFirst({
+      where: { subscriptionId: subscription.id, status: ProofStatus.PENDING },
+      select: { id: true },
+    });
+
+    if (existingPending) {
+      throw new ConflictException('Ya existe un comprobante pendiente de revisión para esta suscripción');
+    }
+
     return this.prisma.paymentProof.create({
       data: {
         subscriptionId: subscription.id,
@@ -133,8 +175,8 @@ export class PaymentSettingsService {
       throw new NotFoundException('Comprobante no encontrado');
     }
 
-    const updated = await this.prisma.paymentProof.update({
-      where: { id: proofId },
+    const updated = await this.prisma.paymentProof.updateMany({
+      where: { id: proofId, status: ProofStatus.PENDING },
       data: {
         status: data.status,
         reviewedBy: reviewerId,
@@ -142,51 +184,72 @@ export class PaymentSettingsService {
         notes: data.notes,
       },
     });
+    if (updated.count === 0) {
+      throw new ConflictException('El comprobante ya fue revisado');
+    }
 
     if (data.status === 'APPROVED') {
-      const now = new Date();
+      await this.prisma.$transaction(async (tx) => {
+        const now = new Date();
 
-      const latestPending = await this.prisma.payment.findFirst({
-        where: {
-          subscriptionId: proof.subscriptionId,
-          status: 'PENDING',
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+        const latestPending = await tx.payment.findFirst({
+          where: {
+            subscriptionId: proof.subscriptionId,
+            status: 'PENDING',
+          },
+          orderBy: { createdAt: 'desc' },
+        });
 
-      if (latestPending) {
-        await this.prisma.payment.update({
-          where: { id: latestPending.id },
+        if (latestPending) {
+          await tx.payment.updateMany({
+            where: { id: latestPending.id, status: 'PENDING' },
+            data: {
+              status: 'SUCCEEDED',
+              paidAt: now,
+            },
+          });
+        }
+
+        const newEndDate = new Date();
+        newEndDate.setMonth(newEndDate.getMonth() + (proof.subscription.billingCycle === 'YEARLY' ? 12 : 1));
+
+        await tx.subscription.update({
+          where: { id: proof.subscriptionId },
           data: {
-            status: 'SUCCEEDED',
-            paidAt: now,
+            status: 'ACTIVE',
+            endDate: newEndDate,
           },
         });
-      }
 
-      const newEndDate = new Date();
-      newEndDate.setMonth(newEndDate.getMonth() + (proof.subscription.billingCycle === 'YEARLY' ? 12 : 1));
-
-      await this.prisma.subscription.update({
-        where: { id: proof.subscriptionId },
-        data: {
-          status: 'ACTIVE',
-          endDate: newEndDate,
-        },
-      });
-
-      await this.prisma.company.update({
-        where: { id: proof.subscription.companyId },
-        data: { status: 'ACTIVE' },
+        await tx.company.update({
+          where: { id: proof.subscription.companyId },
+          data: { status: 'ACTIVE' },
+        });
       });
     }
 
-    return updated as PaymentProofResponseDto;
+    const result: PaymentProofResponseDto = {
+      id: proof.id,
+      subscriptionId: proof.subscriptionId,
+      imageBase64: proof.imageBase64,
+      amount: proof.amount,
+      paymentDate: proof.paymentDate,
+      status: data.status,
+      reviewedBy: reviewerId,
+      reviewedAt: new Date(),
+      notes: data.notes,
+      createdAt: proof.createdAt,
+      updatedAt: new Date(),
+    };
+
+    return result;
   }
 
   async getProofById(proofId: string, companyId?: string): Promise<PaymentProofResponseDto> {
-    const proof = await this.prisma.paymentProof.findUnique({
-      where: { id: proofId },
+    const proof = await this.prisma.paymentProof.findFirst({
+      where: companyId
+        ? { id: proofId, subscription: { companyId } }
+        : { id: proofId },
       include: { subscription: { select: { companyId: true } } },
     });
 

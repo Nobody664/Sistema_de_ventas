@@ -1,6 +1,7 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { CompanyStatus, PaymentProvider, Prisma, SubscriptionStatus } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { EmailService } from '@/modules/email/email.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
@@ -19,6 +20,54 @@ export class CheckoutRequestsService {
     private readonly emailService: EmailService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  private buildCheckoutResponse(request: any, settings: any) {
+    return {
+      requestId: request.id,
+      status: request.status,
+      plan: {
+        code: request.plan.code,
+        name: request.plan.name,
+        billingCycle: request.plan.billingCycle,
+        amount: request.amount,
+      },
+      paymentMethod: request.provider,
+      paymentSetting: settings
+        ? {
+            provider: settings.provider,
+            qrImageBase64: settings.qrImageBase64,
+            accountNumber: settings.accountNumber,
+            accountName: settings.accountName,
+            instructions: settings.instructions,
+          }
+        : null,
+    };
+  }
+
+  private async createOrReuse(
+    create: () => Promise<any>,
+    idempotencyKey: string | undefined,
+    provider: PaymentProvider,
+    companyId?: string,
+  ) {
+    try {
+      return { request: await create() };
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002' && idempotencyKey) {
+        const existing = await this.prisma.checkoutRequest.findFirst({
+          where: { idempotencyKey, ...(companyId ? { companyId } : {}) },
+          include: { plan: true },
+        });
+        if (existing) {
+          const existingSettings = await this.prisma.paymentSetting.findFirst({
+            where: { provider: existing.provider },
+          });
+          return { request: existing, existingSettings };
+        }
+      }
+      throw err;
+    }
+  }
 
   async createRequest(input: CreateCheckoutRequestDto) {
     if (!OFFLINE_PROVIDERS.includes(input.paymentMethod)) {
@@ -47,24 +96,7 @@ export class CheckoutRequestsService {
         const settings = await this.prisma.paymentSetting.findFirst({
           where: { provider: existingPendingRequest.provider },
         });
-        return {
-          requestId: existingPendingRequest.id,
-          status: existingPendingRequest.status,
-          plan: {
-            code: existingPendingRequest.plan.code,
-            name: existingPendingRequest.plan.name,
-            billingCycle: existingPendingRequest.plan.billingCycle,
-            amount: existingPendingRequest.amount,
-          },
-          paymentMethod: existingPendingRequest.provider,
-          paymentSetting: settings ? {
-            provider: settings.provider,
-            qrImageBase64: settings.qrImageBase64,
-            accountNumber: settings.accountNumber,
-            accountName: settings.accountName,
-            instructions: settings.instructions,
-          } : null,
-        };
+        return this.buildCheckoutResponse(existingPendingRequest, settings);
       }
 
       const plan = await this.prisma.plan.findUnique({
@@ -81,40 +113,30 @@ export class CheckoutRequestsService {
         throw new ConflictException('Método de pago no disponible');
       }
 
-      const request = await this.prisma.checkoutRequest.create({
-        data: {
-          companyId: input.companyId,
-          fullName: company.name,
-          companyName: company.name,
-          email: '',
-          passwordHash: '',
-          planId: plan.id,
-          provider: input.paymentMethod,
-          amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
-          currency: 'PEN',
-          status: 'DRAFT',
-        },
-        include: { plan: true },
-      });
+      const { request, existingSettings } = await this.createOrReuse(
+        () =>
+          this.prisma.checkoutRequest.create({
+            data: {
+              companyId: input.companyId,
+              fullName: company.name,
+              companyName: company.name,
+              email: '',
+              passwordHash: '',
+              planId: plan.id,
+              provider: input.paymentMethod,
+              amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
+              currency: 'PEN',
+              status: 'DRAFT',
+              idempotencyKey: input.idempotencyKey ?? undefined,
+            },
+            include: { plan: true },
+          }),
+        input.idempotencyKey,
+        input.paymentMethod,
+        input.companyId,
+      );
 
-      return {
-        requestId: request.id,
-        status: request.status,
-        plan: {
-          code: request.plan.code,
-          name: request.plan.name,
-          billingCycle: request.plan.billingCycle,
-          amount: request.amount,
-        },
-        paymentMethod: request.provider,
-        paymentSetting: {
-          provider: settings.provider,
-          qrImageBase64: settings.qrImageBase64,
-          accountNumber: settings.accountNumber,
-          accountName: settings.accountName,
-          instructions: settings.instructions,
-        },
-      };
+      return this.buildCheckoutResponse(request, existingSettings ?? settings);
     }
 
     const existingUser = await this.prisma.user.findUnique({
@@ -141,36 +163,21 @@ export class CheckoutRequestsService {
         throw new ConflictException('Método de pago no disponible');
       }
 
-      if (existingOpenRequest.plan.code === input.planCode) return {
-        requestId: existingOpenRequest.id,
-        status: existingOpenRequest.status,
-        plan: {
-          code: existingOpenRequest.plan.code,
-          name: existingOpenRequest.plan.name,
-          billingCycle: existingOpenRequest.plan.billingCycle,
-          amount: existingOpenRequest.amount,
-        },
-        paymentMethod: existingOpenRequest.provider,
-        paymentSetting: {
-          provider: settings.provider,
-          qrImageBase64: settings.qrImageBase64,
-          accountNumber: settings.accountNumber,
-          accountName: settings.accountName,
-          instructions: settings.instructions,
-        },
-      };
+      if (existingOpenRequest.plan.code === input.planCode) {
+        return this.buildCheckoutResponse(existingOpenRequest, settings);
+      }
     }
 
     const plan = await this.prisma.plan.findUnique({
       where: { code: input.planCode },
     });
-      if (!plan?.isActive) {
+    if (!plan?.isActive) {
       throw new NotFoundException('Plan no encontrado');
     }
 
-const settings = await this.prisma.paymentSetting.findFirst({
-        where: { provider: input.paymentMethod },
-      });
+    const settings = await this.prisma.paymentSetting.findFirst({
+      where: { provider: input.paymentMethod },
+    });
     if (!settings?.isEnabled) {
       throw new ConflictException('Método de pago no disponible');
     }
@@ -179,63 +186,58 @@ const settings = await this.prisma.paymentSetting.findFirst({
       throw new BadRequestException('Para registro sin autenticación se requiere: fullName, companyName, email y password');
     }
 
-    const passwordHash = await argon2.hash(input.password);
-    const request = await this.prisma.checkoutRequest.create({
-      data: {
-        fullName: input.fullName,
-        companyName: input.companyName,
-        email: input.email,
-        passwordHash,
-        planId: plan.id,
-        provider: input.paymentMethod,
-        amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
-        currency: 'PEN',
-        status: 'DRAFT',
-      },
-      include: { plan: true },
-    });
-
-    return {
-      requestId: request.id,
-      status: request.status,
-      plan: {
-        code: request.plan.code,
-        name: request.plan.name,
-        billingCycle: request.plan.billingCycle,
-        amount: request.amount,
-      },
-      paymentMethod: request.provider,
-      paymentSetting: {
-        provider: settings.provider,
-        qrImageBase64: settings.qrImageBase64,
-        accountNumber: settings.accountNumber,
-        accountName: settings.accountName,
-        instructions: settings.instructions,
-      },
+    const { fullName, companyName, email } = input as {
+      fullName: string;
+      companyName: string;
+      email: string;
     };
+
+    const passwordHash = await argon2.hash(input.password);
+    const { request, existingSettings } = await this.createOrReuse(
+      () =>
+        this.prisma.checkoutRequest.create({
+          data: {
+            fullName,
+            companyName,
+            email,
+            passwordHash,
+            planId: plan.id,
+            provider: input.paymentMethod,
+            amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
+            currency: 'PEN',
+            status: 'DRAFT',
+            idempotencyKey: input.idempotencyKey ?? undefined,
+          },
+          include: { plan: true },
+        }),
+      input.idempotencyKey,
+      input.paymentMethod,
+    );
+
+    return this.buildCheckoutResponse(request, existingSettings ?? settings);
   }
 
   async submitProof(requestId: string, companyId: string | undefined, input: SubmitCheckoutProofDto) {
     if (!input.imageBase64.startsWith('data:image/')) {
-      throw new BadRequestException('Formato de comprobante invÃ¡lido');
+      throw new BadRequestException('Formato de comprobante inválido');
     }
 
-    const request = await this.prisma.checkoutRequest.findUnique({
-      where: { id: requestId },
+    const request = await this.prisma.checkoutRequest.findFirst({
+      where: { id: requestId, ...(companyId ? { companyId } : {}) },
       include: { plan: true },
     });
     if (!request) {
       throw new NotFoundException('Solicitud no encontrada');
     }
-    if (request.companyId && request.companyId !== companyId) {
-      throw new ForbiddenException('No tienes permiso para modificar esta solicitud');
+    if (request.companyId && !companyId) {
+      throw new NotFoundException('Solicitud no encontrada');
     }
     if (request.status !== 'DRAFT') {
       throw new ConflictException('La solicitud ya fue enviada o revisada');
     }
 
-    const updated = await this.prisma.checkoutRequest.update({
-      where: { id: requestId },
+    const updated = await this.prisma.checkoutRequest.updateMany({
+      where: { id: requestId, status: 'DRAFT', ...(companyId ? { companyId } : {}) },
       data: {
         proofImageBase64: input.imageBase64,
         paymentDate: input.paymentDate ?? new Date(),
@@ -243,6 +245,9 @@ const settings = await this.prisma.paymentSetting.findFirst({
         status: 'SUBMITTED',
       },
     });
+    if (updated.count === 0) {
+      throw new ConflictException('La solicitud ya fue enviada o revisada');
+    }
 
     await this.emailService.sendPaymentProofReceived(
       request.email,
@@ -251,8 +256,8 @@ const settings = await this.prisma.paymentSetting.findFirst({
     );
 
     return {
-      requestId: updated.id,
-      status: updated.status,
+      requestId: request.id,
+      status: 'SUBMITTED',
     };
   }
 
@@ -260,7 +265,25 @@ const settings = await this.prisma.paymentSetting.findFirst({
     return this.prisma.checkoutRequest.findMany({
       where: { status: 'SUBMITTED' },
       orderBy: { createdAt: 'asc' },
-      include: { plan: true },
+      select: {
+        id: true,
+        fullName: true,
+        companyName: true,
+        email: true,
+        provider: true,
+        amount: true,
+        currency: true,
+        status: true,
+        proofImageBase64: true,
+        reviewNotes: true,
+        reviewedBy: true,
+        reviewedAt: true,
+        createdAt: true,
+        submittedAt: true,
+        plan: {
+          select: { code: true, name: true },
+        },
+      },
     });
   }
 
@@ -277,8 +300,8 @@ const settings = await this.prisma.paymentSetting.findFirst({
     }
 
     if (input.status === CheckoutReviewStatus.REJECTED) {
-      const rejected = await this.prisma.checkoutRequest.update({
-        where: { id: requestId },
+      const rejected = await this.prisma.checkoutRequest.updateMany({
+        where: { id: requestId, status: 'SUBMITTED' },
         data: {
           status: 'REJECTED',
           reviewedBy: reviewerId,
@@ -286,12 +309,15 @@ const settings = await this.prisma.paymentSetting.findFirst({
           reviewNotes: input.reviewNotes,
         },
       });
+      if (rejected.count === 0) {
+        throw new ConflictException('La solicitud no está pendiente de revisión');
+      }
 
       await this.emailService.sendSubscriptionRejected(request.email, request.companyName || '');
 
       return {
-        requestId: rejected.id,
-        status: rejected.status,
+        requestId: requestId,
+        status: 'REJECTED',
       };
     }
 
@@ -311,6 +337,19 @@ const settings = await this.prisma.paymentSetting.findFirst({
     reviewNotes?: string,
   ) {
     const result = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.checkoutRequest.updateMany({
+        where: { id: requestId, status: 'SUBMITTED' },
+        data: {
+          status: 'REVIEWING',
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+          reviewNotes,
+        },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException('La solicitud no está pendiente de revisión');
+      }
+
       const existingSubscription = await tx.subscription.findUnique({
         where: { companyId: request.companyId },
       });
@@ -358,17 +397,12 @@ const settings = await this.prisma.paymentSetting.findFirst({
         },
       });
 
-      const approved = await tx.checkoutRequest.update({
+      await tx.checkoutRequest.updateMany({
         where: { id: requestId },
-        data: {
-          status: 'APPROVED',
-          reviewedBy: reviewerId,
-          reviewedAt: new Date(),
-          reviewNotes,
-        },
+        data: { status: 'APPROVED' },
       });
 
-      return { approved, subscription };
+      return { subscription };
     });
 
     const adminUsers = await this.prisma.user.findMany({
@@ -400,8 +434,8 @@ const settings = await this.prisma.paymentSetting.findFirst({
     );
 
     return {
-      requestId: result.approved.id,
-      status: result.approved.status,
+      requestId: requestId,
+      status: 'APPROVED',
       subscriptionId: result.subscription.id,
     };
   }
@@ -413,6 +447,19 @@ const settings = await this.prisma.paymentSetting.findFirst({
     reviewNotes?: string,
   ) {
     const result = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.checkoutRequest.updateMany({
+        where: { id: requestId, status: 'SUBMITTED' },
+        data: {
+          status: 'REVIEWING',
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+          reviewNotes,
+        },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException('La solicitud no está pendiente de revisión');
+      }
+
       const existingUser = await tx.user.findUnique({
         where: { email: request.email },
         select: { id: true },
@@ -483,28 +530,25 @@ const settings = await this.prisma.paymentSetting.findFirst({
         },
       });
 
-      const approved = await tx.checkoutRequest.update({
-        where: { id: request.id },
+      await tx.checkoutRequest.updateMany({
+        where: { id: requestId },
         data: {
           status: 'APPROVED',
-          reviewedBy: reviewerId,
-          reviewedAt: new Date(),
-          reviewNotes,
           companyId: company.id,
           userId: user.id,
           subscriptionId: subscription.id,
         },
       });
 
-      return { approved, company, user };
+      return { company, user };
     });
 
     await this.emailService.sendSubscriptionApproved(request.email, request.companyName);
 
     return {
-      requestId: result.approved.id,
-      status: result.approved.status,
-      companyId: result.approved.companyId,
+      requestId: requestId,
+      status: 'APPROVED',
+      companyId: result.company.id,
     };
   }
 }

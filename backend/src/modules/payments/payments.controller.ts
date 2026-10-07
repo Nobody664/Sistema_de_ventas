@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Patch, Query, Req, UseGuards, DefaultValuePipe, ParseIntPipe, BadRequestException } from '@nestjs/common';
+import { Request } from 'express';
 import { Public } from '@/common/decorators/public.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { TenantGuard } from '@/common/guards/tenant.guard';
@@ -68,7 +69,8 @@ export class PaymentsController {
     return this.paymentsService.generateReceipt(id, request.tenantId);
   }
 
-  @UseGuards(JwtAuthGuard, TenantGuard)
+  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
   @Patch(':id/mark-paid')
   markAsPaid(
     @Param('id') id: string,
@@ -111,8 +113,17 @@ export class PaymentsController {
 
   @Public()
   @Post('webhooks/:provider')
-  handleWebhook(@Param('provider') provider: string, @Body() payload: unknown) {
-    return this.paymentsService.handleWebhook(provider, payload);
+  async handleWebhook(
+    @Param('provider') provider: string,
+    @Body() payload: unknown,
+    @Req() req: Request,
+  ) {
+    return this.paymentsService.handleWebhook(
+      provider,
+      payload,
+      req.headers,
+      req.query as Record<string, unknown>,
+    );
   }
 }
 

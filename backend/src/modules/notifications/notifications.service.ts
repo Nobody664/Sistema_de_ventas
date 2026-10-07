@@ -97,8 +97,10 @@ export class NotificationsService {
     });
   }
 
-  async markAsRead(id: string) {
-    const notification = await this.prisma.notification.findUnique({ where: { id } });
+  async markAsRead(id: string, userId: string) {
+    const notification = await this.prisma.notification.findFirst({
+      where: { id, userId },
+    });
     if (!notification) {
       throw new NotFoundException('Notification not found');
     }
@@ -122,8 +124,10 @@ export class NotificationsService {
     });
   }
 
-  async delete(id: string) {
-    const notification = await this.prisma.notification.findUnique({ where: { id } });
+  async delete(id: string, userId: string) {
+    const notification = await this.prisma.notification.findFirst({
+      where: { id, userId },
+    });
     if (!notification) {
       throw new NotFoundException('Notification not found');
     }

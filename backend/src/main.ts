@@ -69,21 +69,11 @@ async function bootstrap() {
   const allowedOrigins = [
     ...corsOrigins,
     'https://sistema-de-ventas-frontend-seven.vercel.app',
-    /\.vercel\.app$/,
   ];
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
-      if (!origin) {
-        return callback(null, true);
-      }
-      
-      const isAllowed = allowedOrigins.some((allowed) => {
-        if (typeof allowed === 'string') {
-          return origin === allowed;
-        }
-        return allowed.test(origin);
-      });
+      const isAllowed = !origin || allowedOrigins.includes(origin);
       
       if (isAllowed) {
         return callback(null, true);
@@ -131,7 +121,6 @@ async function bootstrap() {
 
   logger.log(`🚀 Server running on port ${port}`);
   logger.log(`🌐 Health check: /${apiPrefix}/health/live`);
-  logger.log(`🔧 Debug routes: /${apiPrefix}/debug/routes`);
 }
 
 bootstrap().catch((err) => {

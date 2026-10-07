@@ -75,7 +75,7 @@ export class ReportsService {
 
     const productIds = topProducts.map(p => p.productId);
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: { companyId, id: { in: productIds } },
     });
     const productMap = new Map(products.map(p => [p.id, p.name]));
 

@@ -97,10 +97,11 @@ export class ProductBatchesService {
     });
   }
 
-  async findEarliestBatch(productId: string, quantity: number, tx?: PrismaTx) {
+  async findEarliestBatch(companyId: string, productId: string, quantity: number, tx?: PrismaTx) {
     const client = tx ?? this.prisma;
     const batch = await client.productBatch.findFirst({
       where: {
+        companyId,
         productId,
         quantityAvailable: { gte: quantity },
         expirationDate: { not: null },
@@ -112,6 +113,7 @@ export class ProductBatchesService {
 
     return client.productBatch.findFirst({
       where: {
+        companyId,
         productId,
         quantityAvailable: { gte: quantity },
         expirationDate: null,
