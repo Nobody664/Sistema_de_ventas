@@ -536,11 +536,11 @@ model Payment {
   amount            Decimal         @db.Decimal(10, 2)
   status            PaymentStatus   @default(PENDING)
   provider          PaymentProvider @default(CASH)
-  providerPaymentId String?         @map("provider_payment_id")
+  providerPaymentId String?         @unique @map("provider_payment_id")
   currency          String          @default("PEN")
   providerPayload   Json?
   paidAt            DateTime?       @map("paid_at")
-  transactionId     String?         @map("transaction_id")
+  transactionId     String?         @unique @map("transaction_id")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
 
@@ -553,6 +553,7 @@ model Payment {
 model PlanUpgradeRequest {
   id               String            @id @default(cuid())
   companyId        String            @map("company_id")
+  idempotencyKey   String?           @unique @map("idempotency_key")
   currentPlanId    String?           @map("current_plan_id")
   planId           String            @map("plan_id")
   provider         PaymentProvider?  @default(CASH)
@@ -682,6 +683,7 @@ model PaymentSetting {
 model CheckoutRequest {
   id               String                @id @default(cuid())
   companyId        String?               @map("company_id")
+  idempotencyKey   String?               @unique @map("idempotency_key")
   planId           String                @map("plan_id")
   fullName         String                @map("full_name")
   companyName      String?               @map("company_name")
