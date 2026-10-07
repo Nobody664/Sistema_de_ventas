@@ -1,39 +1,46 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards, BadRequestException } from '@nestjs/common';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthUser, CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Public } from '@/common/decorators/public.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '@/common/guards/optional-jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
-import { GlobalRole, PaymentProvider } from '@prisma/client';
+import { GlobalRole } from '@prisma/client';
 import { CheckoutRequestsService } from './checkout-requests.service';
-import { ReviewCheckoutRequestDto, SubmitCheckoutProofDto } from './dto/checkout-requests.dto';
+import {
+  CreateCheckoutRequestDto,
+  ReviewCheckoutRequestDto,
+  SubmitCheckoutProofDto,
+} from './dto/checkout-requests.dto';
 
 @Controller('payments/checkout')
 export class CheckoutRequestsController {
   constructor(private readonly checkoutRequestsService: CheckoutRequestsService) {}
 
-  @Get('test')
-  test() {
-    return { message: 'Test endpoint works!' };
-  }
-
-  @Post('test')
-  testPost() {
-    return { message: 'Test POST works!' };
-  }
-
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('requests')
-  create(@Body() body: any) {
-    const paymentMethod = body.paymentMethod?.toUpperCase();
-    if (!paymentMethod || !Object.values(PaymentProvider).includes(paymentMethod)) {
-      throw new BadRequestException('Método de pago inválido');
+  create(
+    @CurrentUser() user: AuthUser | null,
+    @Body() body: CreateCheckoutRequestDto,
+  ) {
+    if (body.companyId && !user?.companyId) {
+      throw new UnauthorizedException('Sesion invalida para realizar esta operacion.');
     }
-    
+
     return this.checkoutRequestsService.createRequest({
       planCode: body.planCode,
-      paymentMethod: paymentMethod as PaymentProvider,
-      companyId: body.companyId,
+      paymentMethod: body.paymentMethod,
+      companyId: user?.companyId ?? undefined,
       fullName: body.fullName,
       companyName: body.companyName,
       email: body.email,
@@ -42,12 +49,18 @@ export class CheckoutRequestsController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('requests/:requestId/proof')
   submitProof(
+    @CurrentUser() user: AuthUser | null,
     @Param('requestId') requestId: string,
     @Body() body: SubmitCheckoutProofDto,
   ) {
-    return this.checkoutRequestsService.submitProof(requestId, body.companyId, body);
+    return this.checkoutRequestsService.submitProof(
+      requestId,
+      user?.companyId ?? undefined,
+      body,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -62,9 +75,9 @@ export class CheckoutRequestsController {
   @Patch('requests/:requestId/review')
   review(
     @Param('requestId') requestId: string,
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: AuthUser,
     @Body() body: ReviewCheckoutRequestDto,
   ) {
-    return this.checkoutRequestsService.review(requestId, user.id, body);
+    return this.checkoutRequestsService.review(requestId, user.sub, body);
   }
 }

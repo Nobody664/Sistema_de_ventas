@@ -30,6 +30,10 @@
     "skipLibCheck": true,
     "incremental": false
   },
+
+  "ts-node": {
+    "transpileOnly": true
+  },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
 }

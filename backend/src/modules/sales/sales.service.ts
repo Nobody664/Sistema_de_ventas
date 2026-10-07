@@ -248,6 +248,24 @@ export class SalesService {
     const changeAmount = 0;
     const saleNumber = `SALE-${Date.now()}`;
 
+    if (input.customerId) {
+      const customer = await this.prisma.customer.findFirst({
+        where: { id: input.customerId, companyId },
+      });
+      if (!customer) {
+        throw new NotFoundException('Customer not found.');
+      }
+    }
+
+    if (input.employeeId) {
+      const employee = await this.prisma.employee.findFirst({
+        where: { id: input.employeeId, companyId },
+      });
+      if (!employee) {
+        throw new NotFoundException('Employee not found.');
+      }
+    }
+
     const sale = await this.prisma.$transaction(async (tx) => {
       const created = await tx.sale.create({
         data: {
@@ -300,7 +318,7 @@ export class SalesService {
               productId: item.productId,
               type: 'OUT' as const,
               quantity: item.quantity * -1,
-              notes: `Sale ${sale.saleNumber}`,
+              notes: `Sale ${saleNumber}`,
             },
           }),
         ),

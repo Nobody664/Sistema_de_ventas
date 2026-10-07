@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getAccessToken } from '@/lib/api';
 import { compressImage } from '@/lib/image-compression';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,6 +59,7 @@ export function PaymentProofUploader({ subscriptionId, amount, provider, onSucce
     try {
       await apiFetch(`/payment-settings/proof/${subscriptionId}`, {
         method: 'POST',
+        token: getAccessToken(),
         body: JSON.stringify({
           imageBase64: proofImage,
           amount: amount,

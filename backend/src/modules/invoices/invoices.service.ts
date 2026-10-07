@@ -215,8 +215,8 @@ export class InvoicesService {
       ? await this.findTemplateById(templateId, companyId)
       : await this.getDefaultTemplate(companyId);
 
-    const sale = await this.prisma.sale.findUnique({
-      where: { id: saleId },
+    const sale = await this.prisma.sale.findFirst({
+      where: { id: saleId, companyId },
       include: {
         company: true,
         customer: true,

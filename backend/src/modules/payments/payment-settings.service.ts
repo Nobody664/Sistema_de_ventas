@@ -67,10 +67,20 @@ export class PaymentSettingsService {
   async uploadPaymentProof(
     subscriptionId: string,
     data: UploadPaymentProofDto,
+    companyId: string,
   ): Promise<PaymentProofResponseDto> {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { id: subscriptionId, companyId },
+      select: { id: true },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(`Suscripción #${subscriptionId} no encontrada`);
+    }
+
     return this.prisma.paymentProof.create({
       data: {
-        subscriptionId,
+        subscriptionId: subscription.id,
         imageBase64: data.imageBase64,
         amount: data.amount,
         paymentDate: data.paymentDate || new Date(),
@@ -81,9 +91,19 @@ export class PaymentSettingsService {
 
   async getProofsBySubscription(
     subscriptionId: string,
+    companyId: string,
   ): Promise<PaymentProofResponseDto[]> {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { id: subscriptionId, companyId },
+      select: { id: true },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(`Suscripción #${subscriptionId} no encontrada`);
+    }
+
     return this.prisma.paymentProof.findMany({
-      where: { subscriptionId },
+      where: { subscriptionId: subscription.id },
       orderBy: { createdAt: 'desc' },
     }) as Promise<PaymentProofResponseDto[]>;
   }
@@ -164,15 +184,17 @@ export class PaymentSettingsService {
     return updated as PaymentProofResponseDto;
   }
 
-  async getProofById(proofId: string): Promise<PaymentProofResponseDto> {
+  async getProofById(proofId: string, companyId?: string): Promise<PaymentProofResponseDto> {
     const proof = await this.prisma.paymentProof.findUnique({
       where: { id: proofId },
+      include: { subscription: { select: { companyId: true } } },
     });
 
-    if (!proof) {
+    if (!proof || (companyId && proof.subscription.companyId !== companyId)) {
       throw new NotFoundException(`Comprobante #${proofId} no encontrado`);
     }
 
-    return proof as PaymentProofResponseDto;
+    const { subscription, ...rest } = proof;
+    return rest as PaymentProofResponseDto;
   }
 }

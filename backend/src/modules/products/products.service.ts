@@ -173,19 +173,14 @@ export class ProductsService {
   async createProduct(companyId: string, input: CreateProductDto) {
     await this.limitService.validateLimit(companyId, 'products');
 
-    // Get category for SKU generation
     let categoryCode: string | undefined;
     if (input.categoryId) {
-      const category = await this.prisma.category.findUnique({
-        where: { id: input.categoryId },
-      });
-      categoryCode = category?.name;
+      const category = await this.ensureCategory(companyId, input.categoryId);
+      categoryCode = category.name;
     }
 
-    // Auto-generate SKU if not provided
     const sku = input.sku ?? this.generateSku(input.name, categoryCode);
     
-    // Auto-generate barcode if not provided
     const barcode = input.barcode ?? this.generateBarcode();
 
     const product = await this.prisma.product.create({
@@ -228,6 +223,10 @@ export class ProductsService {
 
   async updateProduct(companyId: string, id: string, input: UpdateProductDto) {
     const existing = await this.ensureProduct(companyId, id);
+
+    if (input.categoryId) {
+      await this.ensureCategory(companyId, input.categoryId);
+    }
 
     const product = await this.prisma.product.update({
       where: { id },
@@ -382,8 +381,6 @@ export class ProductsService {
   }
 
   private generateBarcode(): string {
-    // Generate EAN-13 compatible barcode
-    // Format: 7700 + 8 digits + check digit
     const prefix = '7700';
     const randomDigits = Math.floor(10000000 + Math.random() * 90000000).toString();
     const base = prefix + randomDigits;

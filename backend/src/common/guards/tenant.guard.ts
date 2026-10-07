@@ -29,7 +29,13 @@ export class TenantGuard implements CanActivate {
       request.tenantId = user.companyId;
     }
 
-    if (user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('SUPPORT_ADMIN')) {
+    const isGlobalAdmin =
+      user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('SUPPORT_ADMIN');
+
+    if (isGlobalAdmin) {
+      if (!user?.companyId) {
+        throw new ForbiddenException('Tenant context is required for this resource.');
+      }
       return true;
     }
 

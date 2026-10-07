@@ -59,7 +59,6 @@ function CheckoutContent() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Registration form state (for unauthenticated users)
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
@@ -141,9 +140,7 @@ function CheckoutContent() {
         planCode,
         paymentMethod: selectedPayment,
       };
-      if (isAuthenticated) {
-        body.companyId = user?.companyId;
-      } else {
+      if (!isAuthenticated) {
         body.fullName = fullName;
         body.companyName = companyName;
         body.email = email;
@@ -159,9 +156,6 @@ function CheckoutContent() {
       const proofBody: Record<string, unknown> = {
         imageBase64: proofImage,
       };
-      if (isAuthenticated) {
-        proofBody.companyId = user?.companyId;
-      }
 
       await apiFetch(`/payments/checkout/requests/${response.requestId}/proof`, {
         method: 'POST',

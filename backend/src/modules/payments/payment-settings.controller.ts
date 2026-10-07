@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Public } from '@/common/decorators/public.decorator';
+import { AuthUser, CurrentUser } from '@/common/decorators/current-user.decorator';
 import { GlobalRole } from '@prisma/client';
 
 @Controller('payment-settings')
@@ -53,21 +54,28 @@ export class PaymentSettingsController {
     return this.paymentSettingsService.updateSettings(paymentProvider, data);
   }
 
-  @Public()
   @Post('proof/:subscriptionId')
   async uploadProof(
+    @CurrentUser() user: AuthUser,
     @Param('subscriptionId') subscriptionId: string,
     @Body() data: UploadPaymentProofDto,
   ): Promise<PaymentProofResponseDto> {
-    return this.paymentSettingsService.uploadPaymentProof(subscriptionId, data);
+    return this.paymentSettingsService.uploadPaymentProof(
+      subscriptionId,
+      data,
+      user.companyId as string,
+    );
   }
 
-  @Public()
   @Get('proof/subscription/:subscriptionId')
   async getProofsBySubscription(
+    @CurrentUser() user: AuthUser,
     @Param('subscriptionId') subscriptionId: string,
   ): Promise<PaymentProofResponseDto[]> {
-    return this.paymentSettingsService.getProofsBySubscription(subscriptionId);
+    return this.paymentSettingsService.getProofsBySubscription(
+      subscriptionId,
+      user.companyId as string,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -91,8 +99,15 @@ export class PaymentSettingsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('proof/:proofId')
   async getProofById(
+    @CurrentUser() user: AuthUser,
     @Param('proofId') proofId: string,
   ): Promise<PaymentProofResponseDto> {
-    return this.paymentSettingsService.getProofById(proofId);
+    const isGlobalAdmin =
+      user.roles.includes(GlobalRole.SUPER_ADMIN) ||
+      user.roles.includes(GlobalRole.SUPPORT_ADMIN);
+    return this.paymentSettingsService.getProofById(
+      proofId,
+      isGlobalAdmin ? undefined : (user.companyId ?? undefined),
+    );
   }
 }

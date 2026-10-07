@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsDate, IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { PaymentProvider } from '@prisma/client';
 
@@ -30,6 +30,7 @@ export class CreateCheckoutRequestDto {
   @IsString()
   planCode!: string;
 
+  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
   @IsEnum(PaymentProvider)
   paymentMethod!: PaymentProvider;
 
@@ -47,10 +48,6 @@ export class SubmitCheckoutProofDto {
   @Type(() => Date)
   @IsDate()
   paymentDate?: Date;
-
-  @IsOptional()
-  @IsString()
-  companyId?: string;
 }
 
 export class ReviewCheckoutRequestDto {
