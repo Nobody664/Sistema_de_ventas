@@ -18,6 +18,42 @@ Bitácora de errores relevantes del proyecto con causa y corrección.
 | Checkout: pago `paymentMethod` en minúsculas rechazado | La validación manual corría antes que el `toUpperCase()` | `@Transform` a mayúsculas en el DTO antes de `@IsEnum` |
 | `review` de checkout registraba `reviewerId` `undefined` | El controller pasaba `user.id`, pero el JWT expone `sub` | Pasar `user.sub` |
 
+### Auditoría de seguridad end-to-end (round 2)
+
+| Error | Causa | Corrección |
+|-------|-------|------------|
+| Webhook `POST /payments/webhooks/:provider` activaba suscripciones sin validar origen | `handleWebhook` confiaba en el payload (`status:'approved'`) y no verificaba firma; ni `await` | Validar `X-Signature` (HMAC-SHA256 sobre `<data.id>.<ts>`) con `MERCADOPAGO_WEBHOOK_SECRET`; sin secreto o firma inválida → 401. `activateSubscription` ahora `await`-ed e idempotente (rechaza `providerPaymentId` duplicado). Se eliminó `console.log(payload)` y el token MP hardcodeado |
+| `@Roles(...)` sin efecto en 11 controladores (RBAC ficticio) | `RolesGuard` solo se aplicaba donde se importaba; no era global | Registrar `RolesGuard` como `APP_GUARD` en `app.module.ts` → todos los `@Roles` se cumplen |
+| `plan-upgrade-requests`: `req.tenantId` siempre `undefined` (create/getMy rotos) y `submitProof` IDOR | El controller leía `req.tenantId` que solo setea `TenantGuard` (ausente) y no validaba pertenencia | Usar `@CurrentUser()` (`user.companyId`); `submitProof` compara `request.companyId` → 403 si no coincide; `review` usa `user.sub` |
+| XSS almacenado en facturas | `buildInvoiceHtml` interpelaba campos sin escapar; frontend imprimía con `document.write` (bypasa CSP) | `escapeHtml` en todas las interpolaciones (empresa, cliente, items, N°, footer, logo); impresión con `<iframe srcdoc sandbox="allow-modals">` sin scripts |
+| `PATCH /notifications/:id/read` marcaba notificaciones ajenas | El controller no recibía `@CurrentUser` | `markAsRead(id, userId)` con `findFirst({ id, userId })` → 404 si no es suya |
+| `GET /debug/routes` y `POST /auth/test-public` públicos | Decoradores `@Public()` innecesarios | Eliminados → requieren JWT (401 sin sesión) |
+
+### Round 3 — 5 mejoras del backlog
+
+| Error / riesgo | Causa | Corrección |
+|----------------|-------|------------|
+| POST/updates vulnerables a CSRF vía form-POST cross-origin | Cualquier mutación aceptaba bodies `urlencoded`/`text/plain` (sin preflight) con cookies SameSite=None | `CsrfGuard` global: mutaciones exigen `Content-Type: application/json` → 403 en otro caso. `logout()` del frontend ahora envía `Content-Type: application/json` |
+| `GET /payment-settings` público devolvía `config` (posibles secretos) y timestamps | El endpoint público usaba el mismo `getAllSettings()` del admin | Proyección pública `PaymentSettingsPublicResponseDto` (sin `config`/fechas); admin conserva la lectura completa autenticada |
+| Comprobante de pago gigante o con payload malformado llegaba al service | `SubmitCheckoutProofDto` limitaba a 500 KB y `SubmitUpgradeProofDto` no limitaba | `@MaxLength(2_000_000)` + `@Matches(/^data:image\//)` en los 3 DTOs de proofs (corte temprano) |
+| Inyección de headers vía email (CR/LF en companyName/planName) y mails de prueba con subject equivocado | `interpolateTemplate` insertaba el valor crudo; `sendEmail`/`sendEmailDirect` ignoraban el `subject` custom (`job.subject`), usando siempre `template.subject`; plantilla con mojibake | Saneo de valores interpolados (se eliminan CR/LF y controles); destinatario con CR/LF rechazado; se respeta `job.subject` (fallback al de la plantilla); corregida codificación en `PAYMENT_PROOF_RECEIVED` |
+| `npm test` completo parecía colgado (>180 s) | El runner `node --test` con 11 specs de ts-node tarda 1-5 min en esta máquina (tuve que subir el timeout) | Usar timeout ≥600 s; si un suite no imprime, correr ese archivo solo (p. ej. `checkout-requests.controller.spec.ts` ~42 s) |
+| Smoke E2E en vivo no arranca en este sandbox | Sin red a Redis/Supabase: Prisma `$connect` + Cache/BullMQ cuelgan el boot | Ejecutar el smoke con infra alcanzable (Redis + DB); aquí queda el checklist en la guía de pruebas §12 |
+
+### Round 4 — idempotencia, llaves únicas y XSS
+
+| Error / riesgo | Causa | Corrección |
+|----------------|-------|------------|
+| Doble submit creaba 2 solicitudes de checkout/upgrade | `CheckoutRequest` y `PlanUpgradeRequest` sin clave única de idempotencia | `idempotencyKey String? @unique` (migración aditiva) + creates `createOrReuse`: ante P2002 con key, devuelven la solicitud existente |
+| Revisión doble activaba 2 suscripciones/pagos | `review`/`submitProof` hacían `update`/`create` sin verificar la transición de estado | Transiciones atómicas con `updateMany({ where: { id, status } })` + `count===0 → 409`; aprobación de comprobante dentro de `$transaction` |
+| Escritos cruzando tenant por `id` (update/delete de producto, categoría, stock, cancelación de suscripción) | Queries por `id` sin `companyId`; el 404 solo se garantizaba en la lectura previa (TOCTOU) | `updateMany`/`deleteMany` con `{ id, companyId }` + chequeo de `count` en `products`, `inventory.adjustStock`, `subscriptions.cancelSubscription`; `reports` agrega `companyId` |
+| XSS en el `fontFamily` de facturas dentro de `<style>` | `invoices.service` interpelaba `template.fontFamily` sin escapar | `esc(fontFamily)` en el `<style>` (escapa `<`, `>` y comillas) + `@Matches(/^[A-Za-z0-9 ,'"]*$/)` en el DTO |
+| Export HTML de ventas/productos con XSS | CSV/HTML interpelaban `saleNumber`, cliente, método, nombre, SKU, categoría sin escapar | Helper `escapeHtml` en `sales.service` y `products.service` para todas las interpolaciones |
+| `POST /invoices/templates` (no-global) creaba plantilla global | El controller pasaba `('', true, body)` (mismo que la ruta `templates/global`) | La ruta no-global pasa `(request.tenantId, false, body)` → plantilla de empresa |
+| P2002 como 409 genérico sin decir qué campo | El filtro usaba `meta.target` solo para el código | P2002 → 409 con el campo en el mensaje si `meta.target` existe |
+| Webhook MP duplicado podía insertar 2 pagos (carrera antes de la dedupe) | `activateSubscription` hacía `findFirst` y luego `create` sin atómico | `providerPaymentId`/`transactionId` con `@unique` + `create` tolerante a P2002 (si el pago ya existe, retorna sin duplicar ni re-notificar) |
+| `markAsPaid` escribía por `id` y con `providerPaymentId` estilo `paid-${Date.now()}` (colisión en el mismo ms) | Actualización por `id` sin scope y sufijo no único | `updateMany({ id, subscription.companyId })` + ids únicos por pago (`paid-<id>`/`manual-<id>`); fallback webhook `mp-<subscription.id>` |
+
 ### Errores HTTP por código (filtro global)
 
 | Código | Escenario típico |

@@ -322,6 +322,65 @@ curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/payment-settings/proof/sub-test
   -d ('{"imageBase64":'+'"data:image/png;base64,AAAA"'+',"amount":"49.00"}')
 ```
 
+### 6.2 Webhook de pagos exige firma (R1)
+
+```powershell
+# Sin MERCADOPAGO_WEBHOOK_SECRET configurado el webhook NO procesa (antes activaba plan)
+curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/payments/webhooks/mercadopago" `
+  -H "Content-Type: application/json" `
+  -d '{"status":"approved","external_reference":"ACME_ID_AQUI_START","id":"pay-falso"}'
+# esperado: 401  (secreto ausente o firma inválida)
+
+# Con secreto configurado y firma HMAC-SHA256 valida sobre "<data.id>.<ts>" (header
+# X-Signature: ts=...,v1=...), un pago "approved" activa la suscripción. Firma
+# incorrecta -> 401 y NO se activa nada.
+```
+
+> El e2e real requiere un secreto: `MERCADOPAGO_WEBHOOK_SECRET` (ver `.env.example` y `render.yaml`). Mientras no exista, el webhook devuelve 401 por diseño.
+
+### 6.3 RBAC es global ahora (R2)
+
+Con `RolesGuard` como `APP_GUARD`, los `@Roles` de todos los controladores se cumplen:
+
+```powershell
+# cualquier usuario autenticado sin rol SUPER_ADMIN intenta crear un plan -> 403
+curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/plans" -H "Content-Type: application/json" `
+  -b $ACME -c $ACME -d '{"name":"HACK","code":"HACK","priceMonthly":1,"priceYearly":10,"billingCycle":"MONTHLY"}'
+# esperado: 403  (antes: 201, el @Roles no se aplicaba)
+
+# superadmin -> 201/400 segun validacion, nunca 403
+curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/plans" -H "Content-Type: application/json" `
+  -b $SUPER -c $SUPER -d '{"name":"Plan X","code":"PLANX","priceMonthly":1,"priceYearly":10,"billingCycle":"MONTHLY"}'
+```
+
+### 6.4 Superficies públicas reducidas (R4)
+
+```powershell
+curl.exe -s -o - -w "`n%{http_code}" "$B/debug/routes"       # esperado: 401 (antes público)
+curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/auth/test-public" -H "Content-Type: application/json" -d '{}'   # esperado: 401
+```
+
+### 6.5 Notificaciones: `markAsRead` solo propias (R4)
+
+```powershell
+# marcar una notificacion de otro usuario -> 404
+curl.exe -s -o - -w "`n%{http_code}" -X PATCH "$B/notifications/NOTIF_AJENA/read" -b $ACME -c $ACME
+# esperado: 404  (antes: 200, cualquier sesion marcaba la notificacion como leida)
+```
+
+### 6.6 Upgrade requests scoped (R2)
+
+```powershell
+# adjuntar comprobante a la solicitud de otra empresa -> 403
+curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/subscriptions/upgrade-requests/<REQ_NOVA>/proof" `
+  -b $ACME -c $ACME -H "Content-Type: application/json" -d ('{"imageBase64":'+'"data:image/png;base64,AAAA"'+'}')
+# esperado: 403  (antes: 200 si se conocia el UUID)
+
+# revisar solicitudes globales requiere SUPER_ADMIN -> 403 para COMPANY_ADMIN
+curl.exe -s -o - -w "`n%{http_code}" "$B/subscriptions/upgrade-requests/pending" -b $ACME -c $ACME
+# esperado: 403
+```
+
 ---
 
 ## 7. Errores HTTP y filtro global
@@ -411,7 +470,7 @@ La suite usa el runner nativo de Node 22 (`node:test`) + `ts-node`; **no instala
 
 ```powershell
 cd E:\Sistema_de_ventas-main\backend
-npm test                # esperado: 23 tests, 0 failures
+npm test                # esperado: 46 tests, 0 failures (tarda 1-5 min; usa timeout de npx/node >300 s)
 ```
 
 Cubre (mocks manuales, sin BD):
@@ -425,6 +484,69 @@ Cubre (mocks manuales, sin BD):
 | `PaymentSettingsService` | `getProofById`/`uploadPaymentProof` con suscripción ajena → 404 |
 | `CheckoutRequestsController` | Spoof de `companyId` sin sesión → 401; `companyId` de sesión inyectado; `review` usa `user.sub` |
 | `SalesService.createSale` | Regresión TDZ; producto de otra empresa → not found |
+| `RolesGuard` | Sin `@Roles` → permite; rol faltante → 403; SUPER_ADMIN siempre permite |
+| `PaymentsService` (webhook) | 401 sin secreto / firma mala; `pending` ignora; `approved` con firma válida activa; `data.id` anidado OK |
+| `NotificationsService.markAsRead` | Notificación ajena → 404; propia → actualiza |
+| `CsrfGuard` (round 3) | GET/HEAD/OPTIONS → permite; POST con `application/json` (incl. charset) → permite; POST `urlencoded` o sin `Content-Type` → 403 |
+
+---
+
+## 12. Round 3 — validación de las 5 mejoras del backlog
+
+Verificación local ya realizada:
+
+```powershell
+cd E:\Sistema_de_ventas-main\backend
+npm test                # 46/46 verdes
+npm run lint            # tsc --noEmit OK
+npm run build           # OK
+cd E:\Sistema_de_ventas-main\frontend
+npm run lint            # OK
+npm run build           # OK (Next.js 16.2.6, 43 páginas, ~3.7 min)
+```
+
+Checklist manual (requiere el server corriendo con DB/Redis alcanzables):
+
+- [ ] `POST /api/auth/login` **sin** `Content-Type` → **403** (guard CSRF)
+- [ ] `POST /api/auth/login` con `Content-Type: application/json` y credenciales inválidas → **401** (el guard deja pasar el JSON)
+- [ ] `POST /api/auth/logout` desde el frontend → 200 (ahora envía `Content-Type: application/json`)
+- [ ] `GET /api/payment-settings` (anon) → 200 y **ningún elemento con `config`**; `GET /api/payment-settings/provider/:provider` igual
+- [ ] Subir `imageBase64` >2 MB o sin prefijo `data:image/` en proof de checkout/upgrade/proof upload → **400** (DTO)
+- [ ] `GET /api/health/live` → 200
+- [ ] `POST /api/payments/webhooks/mercadopago` sin firma → **401**
+- [ ] Smoke de prueba expirando (`sendTrialExpiringSoon`) → subject propio (antes "Bienvenido a Ventas SaaS")
+
+---
+
+## 13. Round 4 — idempotencia, llaves y XSS
+
+Verificación local ya realizada:
+
+```powershell
+cd E:\Sistema_de_ventas-main\backend
+npm test                # 46/46 verdes
+npm run lint            # tsc --noEmit OK
+npm run build           # OK
+```
+
+Checklist manual (requiere el server corriendo con DB/Redis alcanzables):
+
+- [ ] `prisma migrate deploy` → aplica `20261007000000_add_idempotency_keys` y `20261007000001_add_payment_unique_keys`; `prisma migrate status` → up to date
+- [ ] Doble webhook de MercadoPago con el mismo `data.id` → 200 en ambos, **un solo pago** (sin doble notificación/email) y segundo no duplica
+- [ ] `markAsPaid` de un pago ya PENDING y otra empresa → **404**
+- [ ] Doble `POST /api/payments/checkout/requests` con el mismo `idempotencyKey` → **200/201 y mismo `requestId`** en ambos (no duplica)
+- [ ] Doble `POST .../plan-upgrade/requests` con el mismo `idempotencyKey` → mismo `requestId`
+- [ ] `idempotencyKey` con caracteres inválidos (espacios, `<>`) → **400** (DTO)
+- [ ] Doble `POST .../proof` de la misma solicitud → el segundo da **409** (transición atómica DRAFT→SUBMITTED)
+- [ ] Doble `review` de la misma solicitud de checkout/upgrade → el segundo da **409** (no crea doble pago/suscripción)
+- [ ] Doble `reviewProof` del mismo comprobante → segundo da **409**
+- [ ] `uploadPaymentProof` con un comprobante ya `PENDING` de la misma suscripción → **409**
+- [ ] `PUT/DELETE /api/categories/:id` de categoría ajena → **404** (antes por `id` solo)
+- [ ] `DELETE /api/products/:id` de producto ajeno → **404**
+- [ ] `PATCH /api/inventory/:id/adjust` de producto ajeno → **404**
+- [ ] `GET /api/invoices/templates` (no-global) creando plantilla → **company-scoped**, no aparece en globales
+- [ ] Plantilla de factura con `fontFamily` `<script>...` → el HTML resultante lo escapa (`&lt;script&gt;`) y no ejecuta
+- [ ] Export HTML de ventas y productos con datos que contengan `<b>` → escapados en el HTML
 
 ---
 
@@ -445,6 +567,13 @@ Cubre (mocks manuales, sin BD):
 - [ ] proof de empresa ajena → 404
 - [ ] `GET /payment-settings/proof/subscription/:id` sin token → 401
 - [ ] `/api/sales/test` → 401
-- [ ] `npm test` (backend) → 23/23
+- [ ] `/api/debug/routes` → 401 (antes público)
+- [ ] `POST /auth/test-public` → 401 (antes público)
+- [ ] `POST /payments/webhooks/mercadopago` sin firma/secreto → 401
+- [ ] `POST /plans` con usuario sin SUPER_ADMIN → 403 (Rol en guard global)
+- [ ] `POST /subscriptions/upgrade-requests/:id/proof` de empresa ajena → 403
+- [ ] `PATCH /notifications/:id/read` de otro usuario → 404
+- [ ] `npm test` (backend) → 46/46
 - [ ] `npm run lint` (frontend) → 0
 - [ ] `tsc --noEmit` + `npm run build` (backend) → 0
+- [ ] `npm run build` (frontend) → 0 (verificado round 3)

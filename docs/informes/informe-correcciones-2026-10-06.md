@@ -22,20 +22,7 @@
 
 - Rama `main` sincronizada con `origin/main`.
 - **Ya commiteado y pusheado** (`fc59ddf`): migraciones baseline + FKs, seeds separados, filtro de excepciones, `@HttpCode`, `.gitignore`/tsbuildinfo, `start.sh`.
-- **Pendiente de commitear** (correcciones de seguridad de esta sesión):
-
-```
-M backend/src/modules/invoices/invoices.service.ts
-M backend/src/modules/payments/checkout-requests.controller.ts
-M backend/src/modules/payments/dto/checkout-requests.dto.ts
-M backend/src/modules/payments/payment-settings.controller.ts
-M backend/src/modules/payments/payment-settings.service.ts
-M backend/src/modules/products/products.service.ts
-M backend/src/modules/sales/sales.controller.ts
-M backend/src/modules/sales/sales.service.ts
-M frontend/app/checkout/page.tsx
-?? backend/src/common/guards/optional-jwt-auth.guard.ts   (nuevo)
-```
+- **Pendiente de commitear** (R1-R4 + 5 mejoras del round 3): ver `git status` (≈26 archivos entre modificados y nuevos).
 
 ---
 
@@ -129,14 +116,34 @@ Usuarios demo (contraseña `Admin123!!`): `superadmin@ventas-saas.local`, `suppo
 | P8 | Falta `shadowDatabaseUrl` | `prisma.config.ts` agrega `shadowDatabaseUrl` condicionalmente si `SHADOW_DATABASE_URL` existe. `prisma migrate status` sigue **up to date** |
 | P3 | No había suite de tests | Suite unitaria con el runner nativo de Node 22 (`node:test`) + ts-node, **sin dependencias nuevas** (jest/supertest no estaban instalados). 23 tests verdes. Script `npm test`. `tsconfig.json` gana opción `ts-node.transpileOnly` |
 
+### Resuelto en esta sesión (round 2 — auditoría de seguridad end-to-end)
+
+| # | Hallazgo | Qué se hizo |
+|---|----------|-------------|
+| R1 | **Webhook MP sin firma (CRÍTICO)** | `POST /payments/webhooks/:provider` ahora valida `X-Signature` (HMAC-SHA256 sobre `data.id.ts`) y `MERCADOPAGO_WEBHOOK_SECRET`. Sin secreto o firma inválida → **401** (nunca procesa). `activateSubscription` ahora es `await`-ed e **idempotente** (rechaza `providerPaymentId` duplicado). Se eliminó el `console.log(payload)` y el token MP hardcodeado (`MERCADOPAGO_TEST_TOKEN` → `MERCADOPAGO_ACCESS_TOKEN` desde env) |
+| R2 | **RBAC `@Roles` sin `RolesGuard` (ALTO)** | `RolesGuard` pasa a ser **`APP_GUARD` global** (`app.module.ts`) ⇒ los `@Roles` de los 11 controladores que no lo incluían (products, plans, employees, branches, sales, inventory, kardex, customers, product-batches, replenishment, plan-upgrade-requests) ahora se cumplen. Además `plan-upgrade-requests` usaba `req.tenantId` (nunca seteado) → ahora usa `@CurrentUser()` (`user.companyId`); `submitProof` valida pertenencia de la solicitud (IDOR → **403**); `review` pasaba `req.user.id` → ahora `user.sub` |
+| R3 | **XSS almacenado en facturas (ALTO)** | `invoices.service.buildInvoiceHtml` escapa todas las interpolaciones (empresa, cliente, items, `saleNumber`, footer, `logoUrl`) con `escapeHtml`. Frontend: se elimina `document.write`; la impresión usa un `<iframe srcdoc sandbox="allow-modals">` (sin scripts, sin acceso al opener) |
+| R4 | **`markAsRead` cross-user + `@Public` sobrantes** | `PATCH /notifications/:id/read` ahora exige la notificación del usuario (`findFirst { id, userId }` → 404 si es ajena). `GET /debug/routes` y `POST /auth/test-public` dejan de ser `@Public()` (requieren JWT) |
+| R5 | Env/render | `MERCADOPAGO_WEBHOOK_SECRET` y `MERCADOPAGO_ACCESS_TOKEN` agregados a `.env.example`, `env.ts` (zod) y `render.yaml` (`sync:false`) |
+
+### Resuelto en esta sesión (round 3 — 5 mejoras del backlog)
+
+| # | Mejora | Qué se hizo |
+|---|--------|-------------|
+| M1 | **Protección CSRF** | Nuevo `CsrfGuard` global (`APP_GUARD`): toda mutación (POST/PUT/PATCH/DELETE) exige `Content-Type: application/json` → **403** si falta o viene como `urlencoded`/`text/plain` (bloquea el form-POST cross-origin sin tocar el CORS, que ya fuerza preflight). `logout()` del frontend ahora envía `Content-Type: application/json` (antes solo `credentials` → habría recibido 403). Spec con 6 casos |
+| M2 | **`payment-settings` públicos** | `GET /payment-settings` y `/provider/:provider` (públicos por diseño para checkout/admin) ya no exponen `config` ni timestamps: nueva proyección `PaymentSettingsPublicResponseDto` (`id, provider, isEnabled, qrImageBase64, accountNumber, accountName, instructions`). El SUPER_ADMIN conserva `getAllSettings()`/`updateSettings` completos (autenticados). UI verificada: admin/checkout no usan `config` |
+| M3 | **Límite de tamaño de `imageBase64`** | Comprobantes (`SubmitCheckoutProofDto`, `SubmitUpgradeProofDto`, `UploadPaymentProofDto`): `@MaxLength(2_000_000)` (acorde al body limit de `main.ts`, 2 MB) + `@Matches(/^data:image\//)` → corte temprano en el DTO además de la validación del service |
+| M4 | **Email: header injection + sanity** | `email.service`: los valores interpolados se sanean (se eliminan CR/LF y controles → evitar inyección de headers por `subject`/cuerpo); destinatario con CR/LF se rechaza sin enviar; se respeta el `subject` custom (antes los mails de prueba expiraban con subject "Bienvenido"); corregida codificación mojibake en `PAYMENT_PROOF_RECEIVED` |
+| M5 | **Build frontend verificado + smoke** | `npm run build` (Next.js 16.2.6 / Turbopack): **OK**, 43 páginas + TS verificado (~3.7 min). Smoke E2E en vivo **no ejecutable en este sandbox**: el server se cuelga al arrancar (sin red a Redis/Supabase; Prisma `$connect` + Cache/BullMQ). Correrlo con infra accesible (ver checklist)
+
 ### Prioridad alta
 
 | # | Pendiente | Detalle |
 |---|-----------|---------|
-| 1 | **Commitear y pushear** las correcciones de seguridad | 9 archivos modificados + 1 guard nuevo + 7 specs + 2 docs |
-| 2 | **Redeploy en Render** | Tras el push; `start.sh` ya corre `migrate deploy` |
-| 3 | **Rotar secretos JWT de producción** | Siguen los valores de desarrollo |
-| 4 | **Build de frontend sin verificar** | `npm run build` local superó los 10 min; confirmar en CI/Vercel |
+| 1 | **Commitear y pushear** las correcciones | 26 archivos entre modificados y nuevos (R1-R4 + round 3 + specs + docs) |
+| 2 | **Redeploy en Render** | Tras el push; `start.sh` ya corre `migrate deploy`. Definir en Render: `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET`, `CORS_ORIGINS`, y **rotar** `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` |
+| 3 | **Validar RBAC global en producción** | El `RolesGuard` global puede bloquear flujos antes permisivos (MANAGER en rutas `COMPANY_ADMIN`, CASHIER creando productos) |
+| 4 | **Smoke E2E en vivo** | Bloqueado en este sandbox (sin red a Redis/Supabase); ejecutar con infra accesible: health, login 401, CSRF 403 sin `application/json`, `GET /payment-settings` sin `config`, webhook 401 sin firma |
 
 ### Prioridad media
 
@@ -175,7 +182,7 @@ Usuarios demo (contraseña `Admin123!!`): `superadmin@ventas-saas.local`, `suppo
 | `GET /api/health/live` | 200 | **200** ✅ |
 | `prisma migrate status` | up to date | **up to date** ✅ |
 
-### Verificación unitaria (`npm test` — 23 tests, todos verdes)
+### Verificación unitaria (`npm test` — 43 tests, todos verdes)
 
 | Suite | Cubre |
 |-------|-------|
@@ -186,6 +193,12 @@ Usuarios demo (contraseña `Admin123!!`): `superadmin@ventas-saas.local`, `suppo
 | `PaymentSettingsService` | `getProofById`/`uploadPaymentProof` con suscripción ajena → 404; propias OK y sin exponer `subscription` |
 | `CheckoutRequestsController` | Spoof de `companyId` sin sesión → 401; inyección del `companyId` de sesión; proof scoped; `review` usa `user.sub` |
 | `SalesService.createSale` | Regresión TDZ (venta 201 sin `Cannot access 'sale'`); producto de otra empresa → "not found" |
+| `RolesGuard` | Sin `@Roles` → permite; rol coincidente → permite; rol faltante → 403; SUPER_ADMIN siempre permite |
+| `PaymentsService` (webhook) | Sin secreto → 401; firma manipulada/ausente/mal `data.id` → 401; firma válida + `pending` → procesado; firma válida + `approved` → activa; `data.id` anidado por Express → válido |
+| `NotificationsService.markAsRead` | Notificación de otro usuario → 404; propia → actualiza `isRead` |
+| `CsrfGuard` | GET/HEAD/OPTIONS → permite; POST con `application/json` → permite (incl. charset); POST `urlencoded` o sin `Content-Type` → 403 |
+
+> **Round 3 — verificación adicional:** `frontend npm run build` → **OK** (43 páginas, TS verificado). `backend npm test` → **43/43**. `npm run lint` (frontend) y `tsc --noEmit` + `build` (backend) → **0 errores**. El smoke en vivo quedó documentado en las prioridades (requiere infra con red a Redis/Supabase).
 
 > **Nota importante:** durante las pruebas un proceso con `dist` desactualizado respondió en el puerto 4000 y simuló fallos. Si un resultado no coincide con el código fuente, **matar todos los `node dist\main.js` y reconstruir** antes de concluir.
 
@@ -201,3 +214,31 @@ git push
 ```
 
 Rotar después en Render: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (y regenerar sesiones).
+
+---
+
+## 6. Round 4 — idempotencia, llaves únicas y seguridad XSS
+
+Pedido: manejar correctamente la idempotencia en consultas/CRUD, asegurar con las "llaves" necesarias (scope de tenant) y blindar contra XSS.
+
+### Implementado
+
+| Área | Cambio |
+|------|--------|
+| **Payment protegido** | `providerPaymentId` y `transactionId` ahora `@unique` (migración `20261007000001_add_payment_unique_keys` con dedupe previo de duplicados históricos). Webhook tolerante a la carrera: si el `create` de pago falla con P2002, confirma que el pago ya existe y retorna sin duplicar (ni re-notificar). `markAsPaid` con `updateMany({ id, subscription.companyId })` + ids sintéticos únicos por pago (`paid-<id>`/`manual-<id>`), antes `paid-${Date.now()}` (colisión posible en el mismo ms); fallback del webhook `mp-${subscription.id}` (antes `mp-${Date.now()}`) |
+| Idempotencia | `idempotencyKey String? @unique` en `CheckoutRequest` y `PlanUpgradeRequest` (migración aditiva `20261007000000_add_idempotency_keys`; se aplica sola en deploy con `migrate deploy`). DTOs con `@MaxLength(100)` + `@Matches(/^[A-Za-z0-9._-]+$/)`. Creates `createOrReuse`: si el `create` falla con P2002 y hay key, devuelven la solicitud existente (bloquea duplicados por doble submit) |
+| Transiciones atómicas | `submitProof` y `review` (checkout + plan-upgrade) usan `updateMany({ where: { id, status } })` + chequeo de `count` → un solo request pasa DRAFT→SUBMITTED→REVIEWING/APPROVED/REJECTED; una revisión doble no crea doble suscripción/pago. `reviewProof` (payment-proofs): `updateMany` sobre `PENDING` + efectos de aprobación dentro de `$transaction` |
+| Scope de tenant | Escritos por `id` → `updateMany`/`deleteMany` con `{ id, companyId }` + count en `products.service` (update/soft/hard delete de product y category), `inventory.adjustStock`, `subscriptions.cancelSubscription`; `reports` añade `companyId` al `findMany`. Flujos de sistema/SUPER_ADMIN (review, webhook, cron) quedan sin scope por diseño |
+| XSS | `fontFamily` escapado dentro del `<style>` de facturas (`invoices.service`) + `@Matches` en DTO; export HTML de ventas y productos escapan `saleNumber`, cliente, método, nombre, SKU, categoría; `POST /invoices/templates` (no-global) ya respeta `tenantId` y no crea plantilla global |
+| Errores | `AllExceptionsFilter` P2002 → 409 con el campo duplicado en el mensaje (`Ya existe un registro con ese valor en <campo>.`) |
+
+### Verificación
+
+- `npm test` (backend) → **46/46** (+ `all-exceptions.filter.spec`: P2002 con target, P2002 genérico → 409, P2025 → 404)
+- `tsc --noEmit` + `npm run build` → 0 errores
+- `prisma generate` OK (client v7.10.0 incluye `idempotencyKey`)
+- `npm run format` (prettier) sigue fallando en 140 archivos del repo (deuda preexistente, no introduce violaciones nuevas)
+
+### Pendiente para deploy
+
+- Las migraciones `20261007000000_add_idempotency_keys` y `20261007000001_add_payment_unique_keys` se aplican con `prisma migrate deploy` (requiere red a la DB; aquí no disponible). Son aditivas (columnas nuevas / dedupe previo a índices únicos) → sin riesgo de conflictos.
