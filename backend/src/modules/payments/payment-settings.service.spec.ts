@@ -8,7 +8,7 @@ describe('PaymentSettingsService proof scoping', () => {
   it('404s when the proof belongs to another company', async () => {
     const prisma = {
       paymentProof: {
-        findUnique: async () => ({
+        findFirst: async () => ({
           id: 'proof-1',
           subscription: { companyId: 'com-other' },
         }),
@@ -25,7 +25,7 @@ describe('PaymentSettingsService proof scoping', () => {
   it('returns the proof without subscription info when it belongs to the company', async () => {
     const prisma = {
       paymentProof: {
-        findUnique: async () => ({
+        findFirst: async () => ({
           id: 'proof-1',
           amount: 99,
           subscription: { companyId: 'com-a' },
@@ -65,6 +65,7 @@ describe('PaymentSettingsService proof scoping', () => {
             : null,
       },
       paymentProof: {
+        findFirst: async () => null,
         create: async (args: any) => {
           createData.push(args);
           return { id: 'proof-new', ...args.data };
