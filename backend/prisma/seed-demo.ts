@@ -20,34 +20,39 @@ const prisma = new PrismaClient({
   }),
 });
 
-function getSeedPassword(): string {
-  const password = process.env.SEED_DEFAULT_PASSWORD;
+function readPlainPassword(envVar: string, required: boolean): string | undefined {
+  const password = process.env[envVar];
   if (!password) {
-    throw new Error('SEED_DEFAULT_PASSWORD must be set before running the demo seed.');
+    if (required) {
+      throw new Error(`${envVar} must be set before running the demo seed.`);
+    }
+    return undefined;
   }
 
   if (/^\$2[aby]\$/.test(password)) {
     throw new Error(
-      'SEED_DEFAULT_PASSWORD parece ser un hash argon2. Debe ser la contraseña en texto plano: el seed aplica argon2.hash() sobre ella.',
+      `${envVar} parece ser un hash argon2/bcrypt. Debe ser la contraseña en texto plano: el seed aplica argon2.hash() sobre ella.`,
     );
   }
 
   if (password.length < 8) {
-    throw new Error('SEED_DEFAULT_PASSWORD must be at least 8 characters long.');
+    throw new Error(`${envVar} must be at least 8 characters long.`);
   }
 
   return password;
 }
 
-const seedPassword = getSeedPassword();
+const seedPassword = readPlainPassword('SEED_DEFAULT_PASSWORD', true) as string;
+const superAdminPassword = readPlainPassword('SEED_SUPERADMIN_PASSWORD', false) ?? seedPassword;
 const shouldResetPasswords = process.env.SEED_RESET_PASSWORDS === 'true';
 
 async function upsertUser(input: {
   email: string;
   fullName: string;
   globalRole?: GlobalRole;
+  password?: string;
 }) {
-  const passwordHash = await argon2.hash(seedPassword);
+  const passwordHash = await argon2.hash(input.password ?? seedPassword);
 
   return prisma.user.upsert({
     where: { email: input.email },
@@ -73,7 +78,12 @@ async function main() {
   }
 
   const [superAdmin, , acmeAdminUser, acmeManagerUser, acmeCashierUser] = await Promise.all([
-    upsertUser({ email: 'superadmin@ventas-saas.local', fullName: 'Super Admin', globalRole: 'SUPER_ADMIN' }),
+    upsertUser({
+      email: 'superadmin@ventas-saas.local',
+      fullName: 'Super Admin',
+      globalRole: 'SUPER_ADMIN',
+      password: superAdminPassword,
+    }),
     upsertUser({ email: 'support@ventas-saas.local', fullName: 'Support Team', globalRole: 'SUPPORT_ADMIN' }),
     upsertUser({ email: 'admin@acme.local', fullName: 'Admin Acme' }),
     upsertUser({ email: 'manager@acme.local', fullName: 'Manager Acme' }),
@@ -297,6 +307,11 @@ async function main() {
   console.log('Seed demo OK.');
   console.log(`  usuarios=${users} empresas=${companies} productos=${products}`);
   console.log(`  Super admin: ${superAdmin.email}`);
+  console.log(
+    superAdminPassword === seedPassword
+      ? '  Contraseña del superadmin: la misma de SEED_DEFAULT_PASSWORD.'
+      : '  Contraseña del superadmin: SEED_SUPERADMIN_PASSWORD (independiente de SEED_DEFAULT_PASSWORD).',
+  );
   console.log(
     shouldResetPasswords
       ? '  SEED_RESET_PASSWORDS=true: se reseteo el password de las cuentas existentes.'

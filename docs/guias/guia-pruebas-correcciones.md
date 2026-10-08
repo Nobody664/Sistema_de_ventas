@@ -28,9 +28,10 @@ curl.exe -s -o - -w "`n%{http_code}" http://localhost:4000/api/health/live   # e
 
 ### Datos
 
-- Empresas: `acme` y `nova`. Usuarios demo (contraseña `Admin123!!`):
-  `superadmin@ventas-saas.local`, `support@ventas-saas.local`,
-  `admin@acme.local`, `manager@acme.local`, `cajero@acme.local`.
+- Empresas: `acme` y `nova`. Usuarios demo (contraseña `Demo1234`):
+  `support@ventas-saas.local`, `admin@acme.local`, `manager@acme.local`,
+  `cajero@acme.local`. El superadmin usa su propia contraseña
+  `SuperAdmin$$julio123` (`superadmin@ventas-saas.local`).
 - **No existe usuario de NOVA** en el seed demo, así que el paso 1 crea fixtures.
 
 ---
@@ -76,7 +77,7 @@ async function main() {
     },
   });
 
-  const hash = await argon2.hash("Admin123!!");
+  const hash = await argon2.hash("Demo1234");
   const user = await p.user.upsert({
     where: { email: "nova-test@temp.local" },
     update: { isActive: true },
@@ -116,10 +117,10 @@ $NOVA = Join-Path $env:TEMP "s-nova.txt"
 Remove-Item $ACME,$NOVA -ErrorAction SilentlyContinue
 
 curl.exe -s -o - -X POST "$B/auth/login" -H "Content-Type: application/json" `
-  -d '{"email":"admin@acme.local","password":"Admin123!!"}' -c $ACME -b $ACME    # 200
+  -d '{"email":"admin@acme.local","password":"Demo1234"}' -c $ACME -b $ACME    # 200
 
 curl.exe -s -o - -X POST "$B/auth/login" -H "Content-Type: application/json" `
-  -d '{"email":"nova-test@temp.local","password":"Admin123!!"}' -c $NOVA -b $NOVA # 200
+  -d '{"email":"nova-test@temp.local","password":"Demo1234"}' -c $NOVA -b $NOVA # 200
 ```
 
 ---
@@ -388,7 +389,7 @@ curl.exe -s -o - -w "`n%{http_code}" "$B/subscriptions/upgrade-requests/pending"
 ```powershell
 # login -> 200 (antes 201)
 curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/auth/login" -H "Content-Type: application/json" `
-  -d '{"email":"admin@acme.local","password":"Admin123!!"}' -c $ACME
+  -d '{"email":"admin@acme.local","password":"Demo1234"}' -c $ACME
 
 # registro duplicado -> 409 (P2002) en vez de 500
 # entidad inexistente -> 404 (P2025)

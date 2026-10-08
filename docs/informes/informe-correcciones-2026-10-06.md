@@ -100,7 +100,7 @@ companies=2 users=5 memberships=3 products=2 categories=2
 customers=2 sales=0 subs=0 proofs=0 checkout=0 plans=4 employees=3
 ```
 
-Usuarios demo (contraseña `Admin123!!`): `superadmin@ventas-saas.local`, `support@ventas-saas.local`, `admin@acme.local`, `manager@acme.local`, `cajero@acme.local`.
+Usuarios demo: `superadmin@ventas-saas.local` (contraseña `SuperAdmin$$julio123`); `support@ventas-saas.local`, `admin@acme.local`, `manager@acme.local`, `cajero@acme.local` (contraseña `Demo1234`).
 
 ---
 
