@@ -41,7 +41,7 @@ export class PaymentSettingsController {
   @Public()
   @Get('provider/:provider')
   async getSettingsByProvider(
-    @Param('provider', ParseEnumPipe) provider: PaymentProvider,
+    @Param('provider', new ParseEnumPipe(PaymentProvider)) provider: PaymentProvider,
   ): Promise<PaymentSettingsPublicResponseDto | null> {
     return this.paymentSettingsService.getPublicSettingByProvider(provider);
   }
@@ -50,7 +50,7 @@ export class PaymentSettingsController {
   @Roles(GlobalRole.SUPER_ADMIN)
   @Patch('provider/:provider')
   async updateSettings(
-    @Param('provider', ParseEnumPipe) provider: PaymentProvider,
+    @Param('provider', new ParseEnumPipe(PaymentProvider)) provider: PaymentProvider,
     @Body() data: UpdatePaymentSettingsDto,
   ): Promise<PaymentSettingsResponseDto> {
     return this.paymentSettingsService.updateSettings(provider, data);
