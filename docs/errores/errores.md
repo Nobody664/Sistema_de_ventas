@@ -4,16 +4,17 @@ Bitácora de errores relevantes del proyecto con causa y corrección.
 
 ---
 
-## 2026-10-08 — Deploy Render: sin puerto expuesto y pooler transaccional (en diagnóstico)
+## 2026-10-08 — Deploy Render: sin puerto expuesto, pooler transaccional y `ParseEnumPipe`
 
 > Primer deploy tras las migraciones de round 4 (`idempotency_key`, únicos en `payments`).
-> Estado: **en diagnóstico** — ver `start.sh`/logs de la app para confirmar la corrección.
+> Estado: **resuelto** — deploy `612fced` quedó **live** en Render; `/api/health/ready` responde 200.
 
-| Error / síntoma | Causa probable | Corrección / verificación |
-|-----------------|----------------|---------------------------|
-| `No open ports detected... Port scan timeout reached` repetido después de `Running 'bash ./start.sh'` | El proceso de Node no llegó a `app.listen` (crasheo en runtime o boot colgado: Prisma/BullMQ). El scan de Render no encuentra el puerto y el deploy queda sin health | Abrir **Logs** del deploy en Render: las primeras líneas tras `Running 'bash ./start.sh'` muestran la excepción real. Debería aparecer `Server running on port 10000`; si no, el boot abortó |
-| `Datasource "db": PostgreSQL ... at "aws-0-sa-east-1.pooler.supabase.com:6543"` en el `migrate deploy` | `DATABASE_URL`/`DIRECT_URL` apuntan al pooler **transaccional (6543)**. Los driver adapters de Prisma usan prepared statements, incompatibles con pgbouncer en modo transaccional → fallos en runtime | Configurar `DATABASE_URL`/`DIRECT_URL` con el pooler de **sesión (5432)**, tal como advierte `render.yaml`. Verificar ambas env vars en Render |
-| Los logs del deploy se cortan antes de `Server running` | El arranque no completó dentro de la ventana de scan de Render | Confirma en logs de la app qué componente cuelga (Prisma `$connect`, Redis/BullMQ o MercadoPago). Aquí no se puede reproducir: sin red a Supabase/Redis |
+| Error / síntoma | Causa | Corrección / verificación |
+|-----------------|-------|---------------------------|
+| `No open ports detected... Port scan timeout reached` repetido tras `Running 'bash ./start.sh'` | El proceso de Node no llegaba a `app.listen` porque el boot abortaba por un pipe mal registrado: `Nest can't resolve dependencies of the ParseEnumPipe (?, Object)` | Los logs de la app mostraban la excepción real. Corregido instanciando el pipe: `@Param('provider', new ParseEnumPipe(PaymentProvider))` en `payment-settings.controller.ts` (líneas 44 y 53). Verificado: `npm run lint` OK y deploy `live` con `Server running on port 10000` |
+| `Datasource "db": PostgreSQL ... at "aws-0-sa-east-1.pooler.supabase.com:6543"` en el `migrate deploy` | `DATABASE_URL`/`DIRECT_URL` apuntaban al pooler **transaccional (6543)**. Los driver adapters de Prisma usan prepared statements, incompatibles con pgbouncer en modo transaccional → fallos en runtime | Configurar ambas env vars en Render con el pooler de **sesión (5432)**, tal como advierte `render.yaml`. Verificado: el deploy posterior conectó a `5432` y aplicó las migraciones sin error |
+| `ParseEnumPipe` no podía instanciarse en bootstrap | Se usaba la referencia de clase (`ParseEnumPipe`) en el decorador de parámetro. A diferencia de `ParseIntPipe` (con `@Optional()` en sus opciones), `ParseEnumPipe` exige el `enumType` en el constructor y Nest intentaba inyectarlo vía DI | `new ParseEnumPipe(PaymentProvider)`. Ejemplo canónico que NO se puede emular como referencia de clase |
+| Los logs del deploy se cortaban antes de `Server running` | El arranque abortaba en la fase de validación de dependencias de Nest (no era un cuelgue de infra) | Confirmado el arranque completo en logs: rutas mapeadas, `CacheService` con fallback local y `Server running on port 10000` |
 
 **Log crudo del deploy (pegado tal cual):**
 
