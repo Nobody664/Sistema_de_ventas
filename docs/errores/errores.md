@@ -4,6 +4,77 @@ Bitácora de errores relevantes del proyecto con causa y corrección.
 
 ---
 
+## 2026-10-08 — Deploy Render: sin puerto expuesto y pooler transaccional (en diagnóstico)
+
+> Primer deploy tras las migraciones de round 4 (`idempotency_key`, únicos en `payments`).
+> Estado: **en diagnóstico** — ver `start.sh`/logs de la app para confirmar la corrección.
+
+| Error / síntoma | Causa probable | Corrección / verificación |
+|-----------------|----------------|---------------------------|
+| `No open ports detected... Port scan timeout reached` repetido después de `Running 'bash ./start.sh'` | El proceso de Node no llegó a `app.listen` (crasheo en runtime o boot colgado: Prisma/BullMQ). El scan de Render no encuentra el puerto y el deploy queda sin health | Abrir **Logs** del deploy en Render: las primeras líneas tras `Running 'bash ./start.sh'` muestran la excepción real. Debería aparecer `Server running on port 10000`; si no, el boot abortó |
+| `Datasource "db": PostgreSQL ... at "aws-0-sa-east-1.pooler.supabase.com:6543"` en el `migrate deploy` | `DATABASE_URL`/`DIRECT_URL` apuntan al pooler **transaccional (6543)**. Los driver adapters de Prisma usan prepared statements, incompatibles con pgbouncer en modo transaccional → fallos en runtime | Configurar `DATABASE_URL`/`DIRECT_URL` con el pooler de **sesión (5432)**, tal como advierte `render.yaml`. Verificar ambas env vars en Render |
+| Los logs del deploy se cortan antes de `Server running` | El arranque no completó dentro de la ventana de scan de Render | Confirma en logs de la app qué componente cuelga (Prisma `$connect`, Redis/BullMQ o MercadoPago). Aquí no se puede reproducir: sin red a Supabase/Redis |
+
+**Log crudo del deploy (pegado tal cual):**
+
+```
+12:48:38 AM
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+12:48:38 AM
+==> Port scan timeout reached, no open ports detected. Bind your service to at least one port. If you don't need to receive traffic on any port, create a background worker instead.
+12:48:23 AM
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+12:48:23 AM
+==> No open ports detected, continuing to scan...
+12:47:22 AM
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+12:47:22 AM
+==> No open ports detected, continuing to scan...
+Menu
+12:46:21 AM
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+12:46:21 AM
+==> No open ports detected, continuing to scan...
+12:45:20 AM
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+12:45:20 AM
+==> No open ports detected, continuing to scan...
+12:44:19 AM
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+12:44:19 AM
+==> No open ports detected, continuing to scan...
+12:43:53 AM
+Datasource "db": PostgreSQL database "postgres", schema "public" at "aws-0-sa-east-1.pooler.supabase.com:6543"
+12:43:53 AM
+Prisma schema loaded from prisma/schema.prisma.
+12:43:52 AM
+12:43:52 AM
+Loaded Prisma config from prisma.config.ts.
+12:43:39 AM
+=== Applying pending migrations (baseline) ===
+12:43:39 AM
+==> Running 'bash ./start.sh'
+12:43:16 AM
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+12:43:16 AM
+==> Deploying...
+12:43:15 AM
+==> Build successful 🎉
+12:43:15 AM
+==> Uploaded in 5.1s. Compression took 3.0s
+12:43:07 AM
+==> Uploading build...
+12:43:06 AM
+=== Build complete ===
+12:43:02 AM
+12:43:02 AM
+> tsc && tsc-alias
+12:43:02 AM
+> backend@0.1.0 build
+```
+
+---
+
 ## 2026-10-06 — Correcciones de seguridad y aislamiento de tenant
 
 | Error | Causa | Corrección |
