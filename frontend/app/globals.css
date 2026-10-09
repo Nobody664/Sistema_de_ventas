@@ -388,7 +388,7 @@ html:not(.dark) .text-gray-400 {
 .dark [data-app] :is(.text-violet-500, .text-violet-600, .text-violet-700) {
   color: #a78bfa;
 }
-.dark [data-app] :is(.text-amber-500, .text-amber-600, .text-amber-700) {
+.dark [data-app] :is(.text-amber-500, .text-amber-600, .text-amber-700, .text-amber-800) {
   color: #fbbf24;
 }
 .dark [data-app] :is(.text-orange-400, .text-orange-500, .text-orange-600, .text-orange-700) {
@@ -404,16 +404,26 @@ html:not(.dark) .text-gray-400 {
   color: #22d3ee;
 }
 
-/* Invoice "paper" previews stay light */
+/* Invoice "paper" previews stay light (opt out of every dark override) */
 .dark [data-app] [data-paper] {
   background-color: #ffffff;
   color: #0f172a;
+  color-scheme: light;
 }
-.dark [data-app] [data-paper] .bg-white {
+.dark [data-app] [data-paper] :is(.bg-white, .bg-slate-50, .bg-slate-50\/50) {
   background-color: #ffffff;
 }
-.dark [data-app] [data-paper] :is(.border-slate-200, .border-slate-300) {
+.dark [data-app] [data-paper] .bg-slate-100 {
+  background-color: #f1f5f9;
+}
+.dark [data-app] [data-paper] .bg-blue-50 {
+  background-color: #eff6ff;
+}
+.dark [data-app] [data-paper] :is(.border-slate-100, .border-slate-200, .border-slate-300) {
   border-color: #cbd5e1;
+}
+.dark [data-app] [data-paper] .border-slate-100 {
+  border-color: #f1f5f9;
 }
 .dark [data-app] [data-paper] .text-slate-400 {
   color: #94a3b8;

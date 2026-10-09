@@ -4,14 +4,12 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotificationsStore } from '@/store/notifications-store';
 import { useAuthStore } from '@/stores/auth.store';
-import { getAccessToken } from '@/lib/api';
 import { Bell, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function NotificationBell() {
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
-  const accessToken = user ? getAccessToken() : undefined;
   
   const { 
     unreadCount, 
@@ -23,16 +21,15 @@ export function NotificationBell() {
   } = useNotificationsStore();
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
-      fetchUnreadCount(token);
-      connectToStream(token);
+    if (user) {
+      fetchUnreadCount();
+      connectToStream();
     }
 
     return () => {
       disconnectFromStream();
     };
-  }, [accessToken, fetchUnreadCount, connectToStream, disconnectFromStream]);
+  }, [user, fetchUnreadCount, connectToStream, disconnectFromStream]);
 
   if (!user) {
     return null;

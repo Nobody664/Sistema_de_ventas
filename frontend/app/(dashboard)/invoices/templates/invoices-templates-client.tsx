@@ -150,12 +150,12 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Plantillas de Documentos</h1>
-            <p className="mt-1 text-slate-500">Crea y gestiona las plantillas para tus boletas, tickets y facturas</p>
+            <h1 className="text-3xl font-bold text-foreground">Plantillas de Documentos</h1>
+            <p className="mt-1 text-muted-foreground">Crea y gestiona las plantillas para tus boletas, tickets y facturas</p>
           </div>
           <Button 
             onClick={() => router.push('/invoices/templates/new')} 
@@ -182,17 +182,17 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                     <div className={`rounded-2xl bg-gradient-to-br ${preset.color} p-3 shadow-lg`}>
                       <Icon className="h-6 w-6 text-white" />
                     </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                       {count} {count === 1 ? 'plantilla' : 'plantillas'}
                     </span>
                   </div>
                   
-                  <h3 className="mt-4 text-lg font-semibold text-slate-900">{preset.name}</h3>
-                  <p className="mt-1 text-sm text-slate-500">{preset.description}</p>
+                  <h3 className="mt-4 text-lg font-semibold text-foreground">{preset.name}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{preset.description}</p>
                   
                   <Button
                     variant="ghost"
-                    className="mt-4 w-full justify-between text-slate-600 hover:text-slate-900"
+                    className="mt-4 w-full justify-between text-muted-foreground hover:text-foreground"
                     onClick={() => router.push('/invoices/templates/new?type=' + preset.type)}
                   >
                     Crear {preset.type.toLowerCase()}
@@ -216,7 +216,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                     <div className={`rounded-lg bg-gradient-to-br ${typeInfo.color} p-2`}>
                       <TypeIcon className="h-5 w-5 text-white" />
                     </div>
-                    <h2 className="text-lg font-semibold text-slate-900">
+                    <h2 className="text-lg font-semibold text-foreground">
                       {typeInfo.label} ({typeTemplates.length})
                     </h2>
                   </div>
@@ -228,7 +228,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                       return (
                         <Card 
                           key={template.id} 
-                          className="group relative overflow-hidden border border-slate-200 transition-all hover:border-blue-300 hover:shadow-lg"
+                          className="group relative overflow-hidden border border-border transition-all hover:border-blue-300 hover:shadow-lg dark:hover:border-blue-500/40"
                         >
                           <div className={`absolute inset-0 bg-gradient-to-br ${typeConfig.color} opacity-0 transition-opacity group-hover:opacity-5`} />
                           <div className="relative p-5">
@@ -238,14 +238,14 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                                   <TemplateIcon className="h-5 w-5 text-white" />
                                 </div>
                                 <div>
-                                  <h3 className="font-semibold text-slate-900">{template.name}</h3>
-                                  <p className="text-xs text-slate-500">
+                                  <h3 className="font-semibold text-foreground">{template.name}</h3>
+                                  <p className="text-xs text-muted-foreground">
                                     {getPaperSizeLabel(template.paperSize)}
                                   </p>
                                 </div>
                               </div>
                               {template.isDefault && (
-                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-500/15 dark:text-green-300">
                                   <CheckCircle className="mr-1 inline h-3 w-3" />
                                   Default
                                 </span>
@@ -253,35 +253,35 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                             </div>
                             
                             {template.description && (
-                              <p className="mt-3 text-sm text-slate-500">{template.description}</p>
+                              <p className="mt-3 text-sm text-muted-foreground">{template.description}</p>
                             )}
 
                             <div className="mt-4 flex flex-wrap gap-1">
                               {template.showCompany && (
-                                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                                <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                                   <Building2 className="mr-1 inline h-3 w-3" />
                                   Empresa
                                 </span>
                               )}
                               {template.showCustomer && (
-                                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                                <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                                   <User className="mr-1 inline h-3 w-3" />
                                   Cliente
                                 </span>
                               )}
                               {template.showItems && (
-                                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                                <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                                   <Package className="mr-1 inline h-3 w-3" />
                                   Items
                                 </span>
                               )}
                               {template.showTax && (
-                                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                                <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                                   IGV {template.taxPercentage}%
                                 </span>
                               )}
                               {template.showPaymentMethod && (
-                                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                                <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                                   <CreditCard className="mr-1 inline h-3 w-3" />
                                   Método
                                 </span>
@@ -292,7 +292,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="flex-1 border-slate-200 hover:border-blue-300 hover:bg-blue-50"
+                                className="flex-1 border-border hover:border-blue-300 hover:bg-blue-50 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/15"
                                 onClick={() => router.push(`/invoices/templates/${template.id}`)}
                               >
                                 <Pencil className="mr-1 h-3 w-3" />
@@ -301,7 +301,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-red-600 hover:bg-red-50"
+                                className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/15"
                                 onClick={() => {
                                   if (confirm('¿Estás seguro de eliminar esta plantilla?')) {
                                     deleteMutation.mutate(template.id);
@@ -323,12 +323,12 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
         )}
 
         {(!templates || templates.length === 0) && (
-          <Card className="border-dashed border-2 border-slate-300 bg-white/50 p-12 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-              <Sparkles className="h-8 w-8 text-slate-400" />
+          <Card className="border-dashed border-2 border-border bg-muted/40 p-12 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <Sparkles className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900">Sin plantillas aún</h3>
-            <p className="mt-1 text-slate-500">Crea tu primera plantilla para comenzar a emitir documentos</p>
+            <h3 className="text-lg font-semibold text-foreground">Sin plantillas aún</h3>
+            <p className="mt-1 text-muted-foreground">Crea tu primera plantilla para comenzar a emitir documentos</p>
             <Button 
               onClick={() => router.push('/invoices/templates/new')} 
               className="mt-6 bg-blue-600 hover:bg-blue-700"

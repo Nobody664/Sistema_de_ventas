@@ -240,7 +240,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-900">Información General</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Información General</h3>
                     <div className="grid gap-4">
                       <div>
                         <Label htmlFor="name">Nombre de la plantilla *</Label>
@@ -264,7 +264,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-900">Formato</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Formato</h3>
                     <div className="grid grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="paperSize">Tamaño de papel</Label>
@@ -306,7 +306,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-900">Impuestos</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Impuestos</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="taxPercentage">IGV (%)</Label>
@@ -331,7 +331,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-900">Campos a mostrar</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Campos a mostrar</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {[
                         { key: 'showLogo', label: 'Logo' },
@@ -352,9 +352,9 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                             type="checkbox"
                             checked={formData[field.key as keyof typeof formData] as boolean}
                             onChange={(e) => updateField(field.key, e.target.checked)}
-                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            className="h-4 w-4 rounded border-input text-blue-600 focus:ring-blue-500"
                           />
-                          <span className="text-sm text-slate-700">{field.label}</span>
+                          <span className="text-sm text-foreground/80">{field.label}</span>
                         </label>
                       ))}
                     </div>
@@ -365,9 +365,9 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                       type="checkbox"
                       checked={formData.isDefault}
                       onChange={(e) => updateField('isDefault', e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 rounded border-input text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="text-sm font-medium text-slate-700">Establecer como plantilla por defecto</span>
+                    <span className="text-sm font-medium text-foreground/80">Establecer como plantilla por defecto</span>
                   </label>
 
                   <div className="flex justify-end gap-3 pt-4">

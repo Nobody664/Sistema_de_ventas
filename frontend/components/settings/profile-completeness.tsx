@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, ChevronRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { apiFetch, getAccessToken } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 type CompletenessData = {
   score: number;
@@ -17,10 +17,7 @@ export function ProfileCompletenessIndicator() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) return;
-
-    apiFetch<CompletenessData>('/company-profile/completeness', { token })
+    apiFetch<CompletenessData>('/company-profile/completeness')
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));

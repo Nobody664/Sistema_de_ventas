@@ -172,7 +172,7 @@ export default async function SettingsPage() {
           action: 'payment',
         },
       ],
-      link: '/payment-settings',
+      link: '/settings/payment',
       isPayment: true,
     }] : isCompanyAdmin ? [{
       title: 'Suscripción',

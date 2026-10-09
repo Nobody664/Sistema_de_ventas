@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch, getAccessToken } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -33,25 +33,6 @@ export default function CompanySettingsPage() {
   const userRoles = user?.roles ?? [];
   const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
 
-  if (!isCompanyAdmin) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-            <Building2 className="w-8 h-8 text-red-500" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900">Acceso restringido</h2>
-          <p className="text-slate-500 max-w-md">
-            Solo el administrador de la empresa puede editar la información de la organización.
-          </p>
-          <Button onClick={() => router.push('/dashboard')} variant="outline" className="rounded-xl">
-            Volver al inicio
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const [formData, setFormData] = useState({
     name: '',
     legalName: '',
@@ -65,8 +46,8 @@ export default function CompanySettingsPage() {
 
   const { data: company, isLoading } = useQuery({
     queryKey: ['company-current'],
-    queryFn: () => apiFetch<CompanyData>('/companies/current', { token: getAccessToken() }),
-    enabled: !!getAccessToken(),
+    queryFn: () => apiFetch<CompanyData>('/companies/current'),
+    enabled: isCompanyAdmin,
   });
 
   useEffect(() => {
@@ -87,7 +68,6 @@ export default function CompanySettingsPage() {
     mutationFn: (data: Partial<CompanyData>) =>
       apiFetch<CompanyData>('/companies/current', {
         method: 'PATCH',
-        token: getAccessToken(),
         body: JSON.stringify(data),
       }),
     onSuccess: (data) => {
@@ -125,6 +105,25 @@ export default function CompanySettingsPage() {
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  if (!isCompanyAdmin) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+            <Building2 className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Acceso restringido</h2>
+          <p className="text-slate-500 max-w-md">
+            Solo el administrador de la empresa puede editar la información de la organización.
+          </p>
+          <Button onClick={() => router.push('/dashboard')} variant="outline" className="rounded-xl">
+            Volver al inicio
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !company) {
     return (
@@ -189,7 +188,7 @@ export default function CompanySettingsPage() {
         <form onSubmit={handleSubmit} className="p-8 space-y-10">
           <div className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-500/20 dark:to-indigo-500/5">
                 <Building2 className="h-5 w-5 text-indigo-600" />
               </div>
               <h3 className="text-base font-semibold text-slate-900">Información Principal</h3>
@@ -231,7 +230,7 @@ export default function CompanySettingsPage() {
 
           <div className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-500/20 dark:to-amber-500/5">
                 <Hash className="h-5 w-5 text-amber-600" />
               </div>
               <h3 className="text-base font-semibold text-slate-900">Identificación Fiscal</h3>
@@ -260,7 +259,7 @@ export default function CompanySettingsPage() {
 
           <div className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-500/20 dark:to-rose-500/5">
                 <MapPin className="h-5 w-5 text-rose-600" />
               </div>
               <h3 className="text-base font-semibold text-slate-900">Ubicación</h3>
@@ -287,7 +286,7 @@ export default function CompanySettingsPage() {
 
           <div className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 dark:from-cyan-500/20 dark:to-cyan-500/5">
                 <Phone className="h-5 w-5 text-cyan-600" />
               </div>
               <h3 className="text-base font-semibold text-slate-900">Contacto</h3>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { apiFetch, getAccessToken } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { compressImage } from '@/lib/image-compression';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,17 +35,13 @@ export function PaymentSettingsManager() {
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const token = getAccessToken();
-
   useEffect(() => {
-    if (token) {
-      fetchSettings();
-    }
-  }, [token]);
+    fetchSettings();
+  }, []);
 
   const fetchSettings = async () => {
     try {
-      const data = await apiFetch<PaymentSettings[]>('/payment-settings', { token });
+      const data = await apiFetch<PaymentSettings[]>('/payment-settings');
       setSettings(data || []);
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -67,13 +63,11 @@ export function PaymentSettingsManager() {
   };
 
   const handleToggleEnabled = async (provider: string, enabled: boolean) => {
-    if (!token) return;
     setSaving(true);
     try {
       await apiFetch(`/payment-settings/provider/${provider}`, {
         method: 'PATCH',
         body: JSON.stringify({ isEnabled: enabled }),
-        token,
       });
       
       setSettings(prev => {
@@ -100,13 +94,11 @@ export function PaymentSettingsManager() {
   };
 
   const handleSaveSettings = async (provider: string, data: Partial<PaymentSettings>) => {
-    if (!token) return;
     setSaving(true);
     try {
       const updated = await apiFetch<PaymentSettings>(`/payment-settings/provider/${provider}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
-        token,
       });
       
       setSettings(prev => {
@@ -169,9 +161,9 @@ export function PaymentSettingsManager() {
               className={`rounded-[30px] p-6 transition-all ${
                 isEnabled 
                   ? isEditing 
-                    ? 'bg-white border-2 border-violet-300 shadow-lg' 
-                    : 'bg-white border-2 border-violet-200'
-                  : 'bg-gray-50'
+                    ? 'border-2 border-violet-300 bg-white shadow-lg dark:border-violet-500/50 dark:bg-card' 
+                    : 'border-2 border-violet-200 bg-white dark:border-violet-500/30 dark:bg-card'
+                  : 'bg-gray-50 dark:bg-muted'
               }`}
             >
               <div className="flex items-center justify-between mb-4">

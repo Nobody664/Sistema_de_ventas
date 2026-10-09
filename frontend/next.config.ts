@@ -17,6 +17,16 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  async redirects() {
+    return [
+      {
+        source: '/payment-settings',
+        destination: '/settings/payment',
+        permanent: false,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
