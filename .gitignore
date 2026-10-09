@@ -30,4 +30,7 @@ skills/
 nul
 Nul
 
+# Secretos locales (tokens). No versionar.
+docs/token_supabase.md
+
 img/
