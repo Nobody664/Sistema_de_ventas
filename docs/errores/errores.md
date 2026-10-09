@@ -4,6 +4,16 @@ Bitácora de errores relevantes del proyecto con causa y corrección.
 
 ---
 
+## 2026-10-08 — Registro no iniciaba sesión (route handler local sombreaba el rewrite)
+
+> Detectado al verificar el flujo E2E de registro con una empresa nueva. Estado: **resuelto** — commit `d41ff18`; registro vía Vercel responde `201` con cookies y `/auth/me` → 200.
+
+| Error / síntoma | Causa | Corrección / verificación |
+|-----------------|-------|---------------------------|
+| Tras `POST /api/auth/register` no quedaba sesión: `/auth/me` y `/dashboard/tenant` → 401, aunque la empresa y el usuario sí se creaban | Existía un route handler BFF en `frontend/app/api/auth/register/route.ts` que llamaba al backend pero **no reenviaba `Set-Cookie`** y siempre devolvía `200`. Next prioriza rutas locales sobre `rewrites`, así que el registro no usaba el proxy `/api/:path*` (a diferencia de login/refresh/logout que sí funcionaban) | Eliminado el route handler: `/api/auth/register` pasa por el rewrite → backend, que setea `access_token`/`refresh_token`. Verificado por Vercel: `201` + 2 cookies, `me` 200, `dashboard/tenant` 200. `npm run lint` y `next build` OK |
+
+---
+
 ## 2026-10-08 — Deploy Render: sin puerto expuesto, pooler transaccional y `ParseEnumPipe`
 
 > Primer deploy tras las migraciones de round 4 (`idempotency_key`, únicos en `payments`).
