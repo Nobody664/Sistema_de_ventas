@@ -11,7 +11,7 @@ type AuditLog = {
   entityId: string;
   userId: string;
   companyId: string;
-  metadata: Record<string, unknown>;
+  changes: Record<string, unknown>;
   createdAt: string;
   user?: { email: string; fullName: string };
   company?: { name: string };
@@ -35,7 +35,8 @@ export default async function AuditPage() {
     );
   }
 
-  const auditLogs = await serverApiFetch<AuditLog[]>('/audit/global', accessToken);
+  const auditResponse = await serverApiFetch<{ items: AuditLog[] }>('/audit/global', accessToken);
+  const auditLogs = auditResponse?.items ?? [];
 
   const entityIcons: Record<string, typeof Building2> = {
     Company: Building2,
@@ -105,9 +106,9 @@ export default async function AuditPage() {
                         <span className="text-xs text-foreground/40 font-mono">{log.entityId.slice(0, 8)}...</span>
                       )}
                     </div>
-                    {log.metadata && Object.keys(log.metadata).length > 0 && (
+                    {log.changes && Object.keys(log.changes).length > 0 && (
                       <div className="mt-2 rounded-lg bg-foreground/[0.02] p-2 text-xs font-mono text-foreground/60">
-                        {JSON.stringify(log.metadata, null, 0).slice(0, 200)}
+                        {JSON.stringify(log.changes, null, 0).slice(0, 200)}
                       </div>
                     )}
                     <div className="mt-2 flex items-center gap-4 text-sm text-foreground/50">

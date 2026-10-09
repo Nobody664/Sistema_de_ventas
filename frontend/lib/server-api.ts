@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
+const API_URL = process.env.BACKEND_URL
+  ? `${process.env.BACKEND_URL.replace(/\/$/, '')}/api`
+  : process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 
 export async function serverApiFetch<T>(path: string, accessToken?: string): Promise<T | null> {
   if (!accessToken) return null;

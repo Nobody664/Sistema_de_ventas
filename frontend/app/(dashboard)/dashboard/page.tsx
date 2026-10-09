@@ -110,11 +110,11 @@ async function DashboardDataLoader() {
   if (isSuperAdmin) {
     const [globals, logs, subsResponse] = await Promise.all([
       serverApiFetch<GlobalMetrics | null>('/dashboard/global', accessToken ?? undefined),
-      serverApiFetch<AuditLog[] | null>('/audit/global', accessToken ?? undefined),
+      serverApiFetch<{ items: AuditLog[] } | null>('/audit/global', accessToken ?? undefined),
       serverApiFetch<PaginatedSubscriptions | null>('/subscriptions/subscribers', accessToken ?? undefined),
     ]);
     globalMetrics = globals;
-    auditLogs = logs;
+    auditLogs = logs?.items ?? null;
     recentSubscriptions = (subsResponse?.data ?? []).flatMap((subscriber): Subscription[] => {
       if (!subscriber.subscription) return [];
 

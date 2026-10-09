@@ -414,6 +414,7 @@ function ThermalPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> })
   return (
     <div className="bg-slate-100 p-4" style={{ fontFamily: 'Courier New, monospace', fontSize: '10px' }}>
       <div 
+        data-paper
         className="mx-auto bg-white p-3 shadow-lg"
         style={{ width: '200px', minHeight: '400px' }}
       >
@@ -506,6 +507,7 @@ function StandardPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> }
   return (
     <div className="bg-slate-100 p-4 overflow-auto">
       <div 
+        data-paper
         className="mx-auto bg-white shadow-lg"
         style={{ width: paperWidth, minHeight: '700px', fontFamily: formData.fontFamily }}
       >

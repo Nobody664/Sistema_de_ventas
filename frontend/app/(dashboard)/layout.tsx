@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
+import { AppScope } from '@/components/layout/app-scope';
 import { TrialBanner } from '@/components/layout/trial-banner';
 
 export default async function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -22,7 +23,8 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div data-app className="min-h-screen bg-background">
+      <AppScope />
       <TrialBanner
         companyStatus={companyStatus ?? ''}
         trialEndsAt={session.user.trialEndsAt ?? null}

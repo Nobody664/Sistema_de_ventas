@@ -287,6 +287,141 @@ html:not(.dark) .text-gray-400 {
   color: hsl(var(--muted-foreground)) !important;
 }
 
+/* ============================================================
+   Dark theme overrides for the authenticated app area.
+   Scoped to [data-app] so auth/marketing keep their own styling.
+   Invoice "paper" previews opt out via [data-paper].
+   ============================================================ */
+
+/* Neutral surfaces */
+.dark [data-app] :is(.bg-white, .bg-white\/50, .bg-white\/60, .bg-white\/80, .bg-white\/85, .bg-white\/90) {
+  background-color: hsl(var(--card));
+}
+
+.dark [data-app] :is(.bg-slate-50, .bg-slate-50\/50, .bg-slate-100, .bg-gray-50, .bg-gray-100) {
+  background-color: hsl(var(--muted));
+}
+
+.dark [data-app] :is(.bg-slate-200, .bg-gray-200) {
+  background-color: hsl(var(--secondary));
+}
+
+/* Neutral borders */
+.dark [data-app] :is(.border-slate-100, .border-slate-200, .border-slate-300, .border-gray-100, .border-gray-200, .border-gray-300) {
+  border-color: hsl(var(--border));
+}
+
+/* Neutral text */
+.dark [data-app] :is(.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800) {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark [data-app] :is(.text-slate-900, .text-gray-900) {
+  color: hsl(var(--foreground));
+}
+
+/* Accent surfaces */
+.dark [data-app] :is(.bg-green-50, .bg-green-100) {
+  background-color: rgb(34 197 94 / 0.14);
+}
+.dark [data-app] :is(.bg-emerald-50, .bg-emerald-100) {
+  background-color: rgb(16 185 129 / 0.14);
+}
+.dark [data-app] :is(.bg-blue-50, .bg-blue-100) {
+  background-color: rgb(59 130 246 / 0.14);
+}
+.dark [data-app] :is(.bg-indigo-100) {
+  background-color: rgb(99 102 241 / 0.14);
+}
+.dark [data-app] :is(.bg-violet-50, .bg-violet-100) {
+  background-color: rgb(139 92 246 / 0.14);
+}
+.dark [data-app] :is(.bg-amber-50, .bg-amber-100) {
+  background-color: rgb(245 158 11 / 0.14);
+}
+.dark [data-app] :is(.bg-orange-50, .bg-orange-100) {
+  background-color: rgb(249 115 22 / 0.14);
+}
+.dark [data-app] :is(.bg-red-50, .bg-red-100) {
+  background-color: rgb(239 68 68 / 0.14);
+}
+.dark [data-app] :is(.bg-rose-100) {
+  background-color: rgb(244 63 94 / 0.14);
+}
+.dark [data-app] :is(.bg-cyan-100) {
+  background-color: rgb(6 182 212 / 0.14);
+}
+
+/* Accent borders */
+.dark [data-app] :is(.border-green-100, .border-green-200) {
+  border-color: rgb(34 197 94 / 0.3);
+}
+.dark [data-app] :is(.border-emerald-200) {
+  border-color: rgb(16 185 129 / 0.3);
+}
+.dark [data-app] :is(.border-blue-200) {
+  border-color: rgb(59 130 246 / 0.3);
+}
+.dark [data-app] :is(.border-violet-200) {
+  border-color: rgb(139 92 246 / 0.3);
+}
+.dark [data-app] :is(.border-amber-200) {
+  border-color: rgb(245 158 11 / 0.3);
+}
+.dark [data-app] :is(.border-red-100, .border-red-200) {
+  border-color: rgb(239 68 68 / 0.3);
+}
+
+/* Accent text */
+.dark [data-app] :is(.text-green-600, .text-green-700, .text-green-800) {
+  color: #4ade80;
+}
+.dark [data-app] :is(.text-emerald-600, .text-emerald-700) {
+  color: #34d399;
+}
+.dark [data-app] :is(.text-blue-600, .text-blue-700) {
+  color: #60a5fa;
+}
+.dark [data-app] :is(.text-indigo-600) {
+  color: #818cf8;
+}
+.dark [data-app] :is(.text-violet-500, .text-violet-600, .text-violet-700) {
+  color: #a78bfa;
+}
+.dark [data-app] :is(.text-amber-500, .text-amber-600, .text-amber-700) {
+  color: #fbbf24;
+}
+.dark [data-app] :is(.text-orange-400, .text-orange-500, .text-orange-600, .text-orange-700) {
+  color: #fb923c;
+}
+.dark [data-app] :is(.text-red-600, .text-red-700) {
+  color: #f87171;
+}
+.dark [data-app] :is(.text-rose-600, .text-rose-700) {
+  color: #fb7185;
+}
+.dark [data-app] :is(.text-cyan-600, .text-cyan-700) {
+  color: #22d3ee;
+}
+
+/* Invoice "paper" previews stay light */
+.dark [data-app] [data-paper] {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+.dark [data-app] [data-paper] .bg-white {
+  background-color: #ffffff;
+}
+.dark [data-app] [data-paper] :is(.border-slate-200, .border-slate-300) {
+  border-color: #cbd5e1;
+}
+.dark [data-app] [data-paper] .text-slate-400 {
+  color: #94a3b8;
+}
+.dark [data-app] [data-paper] :is(.text-slate-500, .text-slate-600) {
+  color: #64748b;
+}
+
 /* Staggered animation delays */
 .delay-75 {
   animation-delay: 75ms;
