@@ -294,15 +294,15 @@ html:not(.dark) .text-gray-400 {
    ============================================================ */
 
 /* Neutral surfaces */
-.dark [data-app] :is(.bg-white, .bg-white\/50, .bg-white\/60, .bg-white\/80, .bg-white\/85, .bg-white\/90) {
+.dark [data-app] :is(.bg-white, .bg-white\/40, .bg-white\/50, .bg-white\/60, .bg-white\/70, .bg-white\/75, .bg-white\/80, .bg-white\/85, .bg-white\/90) {
   background-color: hsl(var(--card));
 }
 
-.dark [data-app] :is(.bg-slate-50, .bg-slate-50\/50, .bg-slate-100, .bg-gray-50, .bg-gray-100) {
+.dark [data-app] :is(.bg-slate-50, .bg-slate-50\/40, .bg-slate-50\/50, .bg-slate-50\/70, .bg-slate-100, .bg-slate-100\/50, .bg-slate-100\/80, .bg-gray-50, .bg-gray-100) {
   background-color: hsl(var(--muted));
 }
 
-.dark [data-app] :is(.bg-slate-200, .bg-gray-200) {
+.dark [data-app] :is(.bg-slate-200, .bg-slate-200\/50, .bg-slate-300, .bg-gray-200) {
   background-color: hsl(var(--secondary));
 }
 
@@ -333,7 +333,7 @@ html:not(.dark) .text-gray-400 {
 .dark [data-app] :is(.bg-indigo-100) {
   background-color: rgb(99 102 241 / 0.14);
 }
-.dark [data-app] :is(.bg-violet-50, .bg-violet-100) {
+.dark [data-app] :is(.bg-violet-50, .bg-violet-100, .bg-purple-50, .bg-purple-100) {
   background-color: rgb(139 92 246 / 0.14);
 }
 .dark [data-app] :is(.bg-amber-50, .bg-amber-100) {
@@ -373,10 +373,10 @@ html:not(.dark) .text-gray-400 {
 }
 
 /* Accent text */
-.dark [data-app] :is(.text-green-600, .text-green-700, .text-green-800) {
+.dark [data-app] :is(.text-green-600, .text-green-700, .text-green-800, .text-green-900) {
   color: #4ade80;
 }
-.dark [data-app] :is(.text-emerald-600, .text-emerald-700) {
+.dark [data-app] :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900) {
   color: #34d399;
 }
 .dark [data-app] :is(.text-blue-600, .text-blue-700) {
@@ -388,7 +388,7 @@ html:not(.dark) .text-gray-400 {
 .dark [data-app] :is(.text-violet-500, .text-violet-600, .text-violet-700) {
   color: #a78bfa;
 }
-.dark [data-app] :is(.text-amber-500, .text-amber-600, .text-amber-700, .text-amber-800) {
+.dark [data-app] :is(.text-amber-500, .text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900) {
   color: #fbbf24;
 }
 .dark [data-app] :is(.text-orange-400, .text-orange-500, .text-orange-600, .text-orange-700) {

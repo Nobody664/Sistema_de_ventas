@@ -6,6 +6,7 @@ import { BarChart3, Bell, Building2, CreditCard, LayoutDashboard, Package, Shopp
 
 const mainItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
+  { label: 'Notificaciones', href: '/notifications', icon: Bell, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
 ];
 
 const superAdminItems = [
@@ -18,7 +19,7 @@ const superAdminItems = [
 
 const companyItems = [
   { label: 'Inventario', href: '/inventory', icon: Warehouse, roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Productos', href: '/products', icon: Package, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
+  { label: 'Productos', href: '/products', icon: Package, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
   { label: 'Categorías', href: '/categories', icon: FolderTree, roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Ventas', href: '/sales', icon: ShoppingCart, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
   { label: 'Clientes', href: '/customers', icon: Users, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
@@ -28,8 +29,7 @@ const companyItems = [
 ];
 
 const adminItems = [
-  { label: 'Audit Log', href: '/audit', icon: Activity, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
-  { label: 'Notificaciones', href: '/notifications', icon: Bell, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
+  { label: 'Audit Log', href: '/audit', icon: Activity, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
 ];
 
 type AppSidebarProps = {

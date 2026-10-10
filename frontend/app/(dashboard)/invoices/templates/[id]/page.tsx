@@ -43,7 +43,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
   }
 
   const roles: string[] = session?.user?.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
+  const isSuperAdmin = roles.includes('SUPER_ADMIN');
   
   if (!isSuperAdmin) {
     redirect('/dashboard');

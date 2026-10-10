@@ -23,7 +23,7 @@ type SettingsSection = {
 export default async function SettingsPage() {
   const session = await getServerSession();
   const roles: string[] = session?.user?.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
+  const isPaymentAdmin = roles.includes('SUPER_ADMIN');
   const isCompanyAdmin = roles.includes('COMPANY_ADMIN');
 
   const settingsSections: SettingsSection[] = [
@@ -161,7 +161,7 @@ export default async function SettingsPage() {
         },
       ],
     },
-    ...(isSuperAdmin ? [{
+    ...(isPaymentAdmin ? [{
       title: 'Pagos',
       icon: CreditCard,
       items: [

@@ -271,7 +271,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
       )}
 
       {result && !selectedCustomer && (
-        <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4">
+        <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-500/15 dark:to-teal-500/10 border border-emerald-200 p-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
@@ -305,7 +305,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
       )}
 
       {selectedCustomer && (
-        <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-4">
+        <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-500/15 dark:to-indigo-500/10 border border-blue-200 p-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
               <User className="h-6 w-6 text-white" />

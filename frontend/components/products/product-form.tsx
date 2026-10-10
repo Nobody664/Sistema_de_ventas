@@ -158,7 +158,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-8">
             {/* Left Column - Image */}
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 p-6 md:p-8 rounded-2xl border border-slate-200">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-muted dark:to-muted/50 p-6 md:p-8 rounded-2xl border border-slate-200">
               <div className="sticky top-8">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 block">
                   Imagen del producto

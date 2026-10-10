@@ -46,7 +46,7 @@ export default async function NewTemplatePage({ searchParams }: NewTemplatePageP
   }
 
   const roles: string[] = session?.user?.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
+  const isSuperAdmin = roles.includes('SUPER_ADMIN');
   
   if (!isSuperAdmin) {
     redirect('/dashboard');

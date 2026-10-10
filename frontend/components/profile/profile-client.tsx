@@ -265,7 +265,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
         <div className="space-y-6">
           {/* User Info Card */}
           <Card className="rounded-3xl bg-white border-0 p-0 overflow-hidden group">
-            <div className="relative p-6 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+            <div className="relative p-6 bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-indigo-500/15 dark:via-transparent dark:to-purple-500/15">
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptLTItNHYyaC0ydi0yaDJ6bTQtOGgydjJoLTJ2LTJ6bS04LTR2MmgtMnYtMmgydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-40"></div>
               <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
               
@@ -278,7 +278,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
             <div className="grid gap-3 sm:grid-cols-2 p-6 pt-0">
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-500/20 dark:to-blue-500/5">
                     <User className="w-5 h-5 text-blue-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Nombre</span>
@@ -288,7 +288,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
 
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-500/20 dark:to-rose-500/5">
                     <Mail className="w-5 h-5 text-rose-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Correo</span>
@@ -300,7 +300,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
 
           {/* Company Info Card */}
           <Card className="rounded-3xl bg-white border-0 p-0 overflow-hidden group">
-            <div className="relative p-6 bg-gradient-to-br from-slate-50 to-slate-100/50">
+            <div className="relative p-6 bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-muted dark:to-muted/50">
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptLTItNHYyaC0ydi0yaDJ6bTQtOGgydjJoLTJ2LTJ6bS04LTR2MmgtMnYtMmgydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-40"></div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
               
@@ -329,7 +329,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
             <div className="grid gap-3 sm:grid-cols-2 p-6">
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-500/20 dark:to-indigo-500/5">
                     <Building2 className="w-5 h-5 text-indigo-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Empresa</span>
@@ -340,7 +340,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
 
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-500/20 dark:to-emerald-500/5">
                     <Calendar className="w-5 h-5 text-emerald-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Creado</span>
@@ -356,7 +356,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
 
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-500/20 dark:to-amber-500/5">
                     <Mail className="w-5 h-5 text-amber-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Email</span>
@@ -366,7 +366,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
 
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-500/20 dark:to-rose-500/5">
                     <Phone className="w-5 h-5 text-rose-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Teléfono</span>
@@ -376,7 +376,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
 
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-violet-100 to-violet-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-500/20 dark:to-violet-500/5">
                     <Globe className="w-5 h-5 text-violet-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Zona Horaria</span>
@@ -386,7 +386,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
 
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 dark:from-cyan-500/20 dark:to-cyan-500/5">
                     <FileText className="w-5 h-5 text-cyan-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">RUC</span>
@@ -396,7 +396,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
 
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow sm:col-span-2">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-500/20 dark:to-orange-500/5">
                     <MapPin className="w-5 h-5 text-orange-600" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Dirección</span>

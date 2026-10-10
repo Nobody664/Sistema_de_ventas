@@ -398,7 +398,7 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
                           defaultChecked={employee?.isActive ?? true}
                           className="sr-only"
                         />
-                        <div className={`h-8 w-14 rounded-full transition-colors ${employee?.isActive !== false ? 'bg-purple-500' : 'bg-slate-300'}`}>
+                        <div className={`h-8 w-14 rounded-full transition-colors ${employee?.isActive !== false ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
                           <div className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow-md transition-transform ${employee?.isActive !== false ? 'translate-x-7' : 'translate-x-1'}`} />
                         </div>
                       </div>

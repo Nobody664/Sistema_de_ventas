@@ -141,7 +141,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'customer:create',
     'customer:update',
     'employee:list',
-    'employee:create',
     'sale:list',
     'sale:create',
     'sale:view_detail',
