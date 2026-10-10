@@ -258,7 +258,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Empresas</p>
                 <h2 className="mt-2 font-display text-2xl">Estado de empresas</h2>
               </div>
-              <a href="/companies" className="text-sm text-violet-600 hover:underline">
+              <a href="/platform/companies" className="text-sm text-violet-600 hover:underline">
                 Ver todas →
               </a>
             </div>

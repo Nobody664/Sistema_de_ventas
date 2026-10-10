@@ -21,7 +21,47 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/payment-settings',
-        destination: '/settings/payment',
+        destination: '/platform/settings/payment',
+        permanent: false,
+      },
+      {
+        source: '/settings/payment',
+        destination: '/platform/settings/payment',
+        permanent: false,
+      },
+      {
+        source: '/companies',
+        destination: '/platform/companies',
+        permanent: false,
+      },
+      {
+        source: '/subscribers',
+        destination: '/platform/subscribers',
+        permanent: false,
+      },
+      {
+        source: '/upgrade-requests',
+        destination: '/platform/upgrade-requests',
+        permanent: false,
+      },
+      {
+        source: '/subscriptions',
+        destination: '/platform/plans',
+        permanent: false,
+      },
+      {
+        source: '/audit',
+        destination: '/platform/audit',
+        permanent: false,
+      },
+      {
+        source: '/invoices/templates',
+        destination: '/platform/templates',
+        permanent: false,
+      },
+      {
+        source: '/invoices/templates/:path*',
+        destination: '/platform/templates/:path*',
         permanent: false,
       },
     ];

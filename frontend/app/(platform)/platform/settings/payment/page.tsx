@@ -18,7 +18,7 @@ export default async function PaymentSettingsPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link 
-          href="/settings"
+          href="/platform"
           className="flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />

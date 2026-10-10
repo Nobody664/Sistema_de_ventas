@@ -44,10 +44,10 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
 
   const menuItems = [
     { label: 'Dashboard', icon: Activity, href: '/dashboard', active: true },
-    { label: 'Empresas', icon: Building2, href: '/companies' },
-    { label: 'Planes', icon: CreditCard, href: '/subscriptions' },
-    { label: 'Usuarios', icon: Users, href: '/subscribers' },
-    { label: 'Configuración', icon: Settings, href: '/settings' },
+    { label: 'Empresas', icon: Building2, href: '/platform/companies' },
+    { label: 'Planes', icon: CreditCard, href: '/platform/plans' },
+    { label: 'Usuarios', icon: Users, href: '/platform/subscribers' },
+    { label: 'Configuración', icon: Settings, href: '/platform' },
   ];
 
   const getStatusBadge = (status: string) => {
@@ -173,7 +173,7 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
                 <p className="text-sm text-slate-500 mt-1">Últimas empresas registradas en el sistema</p>
               </div>
               <Link
-                href="/companies"
+                href="/platform/companies"
                 className="text-sm font-medium text-purple-600 hover:text-purple-700"
               >
                 Ver todas →

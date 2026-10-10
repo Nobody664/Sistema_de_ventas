@@ -39,10 +39,10 @@ const typeConfig: Record<string, { icon: typeof Info; color: string; bg: string;
 };
 
 const notificationRoutes: Record<string, string> = {
-  NEW_COMPANY_REGISTRATION: '/companies',
-  CHECKOUT_REQUEST_PENDING: '/upgrade-requests',
-  PLAN_UPGRADE_REQUEST: '/upgrade-requests',
-  PAYMENT_PROOF_PENDING: '/upgrade-requests',
+  NEW_COMPANY_REGISTRATION: '/platform/companies',
+  CHECKOUT_REQUEST_PENDING: '/platform/upgrade-requests',
+  PLAN_UPGRADE_REQUEST: '/platform/upgrade-requests',
+  PAYMENT_PROOF_PENDING: '/platform/upgrade-requests',
   PAYMENT_RECEIVED: '/subscription',
   PAYMENT_FAILED: '/subscription',
   ACCOUNT_APPROVED: '/dashboard',

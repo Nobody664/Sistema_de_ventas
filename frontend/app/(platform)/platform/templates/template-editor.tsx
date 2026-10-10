@@ -133,7 +133,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoice-templates'] });
       addToast('Plantilla creada correctamente', 'success');
-      router.push('/invoices/templates');
+      router.push('/platform/templates');
     },
     onError: (error: Error) => {
       addToast(error.message, 'error');
@@ -150,7 +150,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoice-templates'] });
       addToast('Plantilla actualizada correctamente', 'success');
-      router.push('/invoices/templates');
+      router.push('/platform/templates');
     },
     onError: (error: Error) => {
       addToast(error.message, 'error');
@@ -194,7 +194,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
         <div className="mb-6 flex items-center gap-4">
           <Button 
             variant="ghost" 
-            onClick={() => router.push('/invoices/templates')}
+            onClick={() => router.push('/platform/templates')}
             className="text-foreground hover:text-foreground"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -374,7 +374,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => router.push('/invoices/templates')}
+                      onClick={() => router.push('/platform/templates')}
                     >
                       Cancelar
                     </Button>

@@ -158,7 +158,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
             <p className="mt-1 text-muted-foreground">Crea y gestiona las plantillas para tus boletas, tickets y facturas</p>
           </div>
           <Button 
-            onClick={() => router.push('/invoices/templates/new')} 
+            onClick={() => router.push('/platform/templates/new')} 
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25"
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -193,7 +193,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                   <Button
                     variant="ghost"
                     className="mt-4 w-full justify-between text-muted-foreground hover:text-foreground"
-                    onClick={() => router.push('/invoices/templates/new?type=' + preset.type)}
+                    onClick={() => router.push('/platform/templates/new?type=' + preset.type)}
                   >
                     Crear {preset.type.toLowerCase()}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -293,7 +293,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                                 variant="outline"
                                 size="sm"
                                 className="flex-1 border-border hover:border-blue-300 hover:bg-blue-50 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/15"
-                                onClick={() => router.push(`/invoices/templates/${template.id}`)}
+                                onClick={() => router.push(`/platform/templates/${template.id}`)}
                               >
                                 <Pencil className="mr-1 h-3 w-3" />
                                 Editar
@@ -330,7 +330,7 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
             <h3 className="text-lg font-semibold text-foreground">Sin plantillas aún</h3>
             <p className="mt-1 text-muted-foreground">Crea tu primera plantilla para comenzar a emitir documentos</p>
             <Button 
-              onClick={() => router.push('/invoices/templates/new')} 
+              onClick={() => router.push('/platform/templates/new')} 
               className="mt-6 bg-blue-600 hover:bg-blue-700"
             >
               <Plus className="mr-2 h-4 w-4" />

@@ -2,19 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Bell, Building2, CreditCard, LayoutDashboard, Package, ShoppingCart, Users, Activity, UserCog, FolderTree, UserPlus, ArrowUpCircle, FileText, Warehouse } from 'lucide-react';
+import { BarChart3, Bell, CreditCard, LayoutDashboard, Package, ShoppingCart, Users, UserCog, FolderTree, Warehouse } from 'lucide-react';
 
 const mainItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
   { label: 'Notificaciones', href: '/notifications', icon: Bell, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
-];
-
-const superAdminItems = [
-  { label: 'Empresas', href: '/companies', icon: Building2, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
-  { label: 'Suscriptores', href: '/subscribers', icon: UserPlus, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
-  { label: 'Solicitudes', href: '/upgrade-requests', icon: ArrowUpCircle, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
-  { label: 'Planes', href: '/subscriptions', icon: CreditCard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
-  { label: 'Plantillas de Boletas', href: '/invoices/templates', icon: FileText, roles: ['SUPER_ADMIN'] },
 ];
 
 const companyItems = [
@@ -28,9 +20,7 @@ const companyItems = [
   { label: 'Reportes', href: '/reports', icon: BarChart3, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
 ];
 
-const adminItems = [
-  { label: 'Audit Log', href: '/audit', icon: Activity, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
-];
+const adminItems: typeof mainItems = [];
 
 type AppSidebarProps = {
   roles: string[];
@@ -39,11 +29,10 @@ type AppSidebarProps = {
 export function AppSidebar({ roles }: AppSidebarProps) {
   const pathname = usePathname();
   
-  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
+  const isPlatformAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
   const isCompanyAdmin = roles.includes('COMPANY_ADMIN');
 
   const visibleMainItems = mainItems.filter((item) => item.roles.some((role) => roles.includes(role)));
-  const visibleSuperAdminItems = superAdminItems.filter((item) => item.roles.some((role) => roles.includes(role)));
   const visibleCompanyItems = companyItems.filter((item) => item.roles.some((role) => roles.includes(role)));
   const visibleAdminItems = adminItems.filter((item) => item.roles.some((role) => roles.includes(role)));
 
@@ -103,31 +92,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
           </nav>
         )}
 
-        {isSuperAdmin && visibleSuperAdminItems.length > 0 && (
-          <nav className="space-y-1 overflow-y-auto py-1">
-            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">Plataforma</p>
-            {visibleSuperAdminItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                    active 
-                      ? 'bg-orange-500/15 text-orange-400' 
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
-                  }`}
-                >
-                  <Icon className={`size-4 ${active ? 'text-orange-400' : ''}`} />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-
-        {isSuperAdmin && visibleAdminItems.length > 0 && (
+        {visibleAdminItems.length > 0 && (
           <nav className="space-y-1 overflow-y-auto py-1">
             <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">Sistema</p>
             {visibleAdminItems.map((item) => {
@@ -152,10 +117,15 @@ export function AppSidebar({ roles }: AppSidebarProps) {
         )}
       </div>
 
-      <div className="rounded-xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
-        <p className="text-xs text-sidebar-foreground/40">¿Necesitas ayuda?</p>
-        <p className="mt-1 text-sm text-sidebar-foreground/60">Consulta la documentación</p>
-      </div>
+      {isPlatformAdmin && (
+        <div className="rounded-xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
+          <Link href="/platform" className="flex items-center gap-2 text-sm font-medium text-violet-400 hover:text-violet-300">
+            <LayoutDashboard className="size-4" />
+            Ir a Plataforma
+          </Link>
+          <p className="mt-1 text-xs text-sidebar-foreground/50">Panel global del sistema</p>
+        </div>
+      )}
     </aside>
   );
 }
