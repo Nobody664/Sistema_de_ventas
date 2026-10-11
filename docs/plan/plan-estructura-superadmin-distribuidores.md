@@ -1,6 +1,6 @@
 # Plan de desarrollo — Estructura de plataforma (SUPER_ADMIN) separada + Distribuidores
 
-> Estado: **Fases 0–3 completadas, desplegadas y validadas (2026-10-11)** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
+> Estado: **Fases 0–3 completadas, desplegadas y validadas; Fase 4 frontend (ítems 1–3) desplegada y validada, ítem 4 (canal Distribuidor) pendiente (2026-10-11)** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
 
 ---
 
@@ -312,11 +312,12 @@ frontend/app/
 4. ✅ Tests: `distributors.service.spec.ts` (+6 tests; total 56/56, 16 suites); `npm run lint` + `npm run build` limpios.
 5. ✅ Validado en prod (tenant demo acme): CRUD (201/200), transfer 20 (stock 100→80, `startingQuantity`+20, `InventoryMovement TRANSFER -20`, Kardex OUT balance 80), venta 5 (`Sale channel=DISTRIBUTOR`, `debtAmount` 75, balance 15, stock empresa intacto), liquidación 30 (`debtAmount` 45), devolución 3 (`returnedQuantity` 3, balance 12, stock 80→83), cierre y soft-delete (404 tras borrar).
 
-### Fase 4 — Frontend
-1. `(platform)`: páginas de plataforma + sidebar + guard.
-2. Quitar de `(dashboard)` las páginas de plataforma y sus enlaces.
-3. `(dashboard)/distributors`: lista, detalle, despachos, ventas, liquidación (cliente `distributors-client.tsx`, tokens de tema ya unificados).
-4. Integrar "Canal: Distribuidor" en POS/ventas y filtros en reportes.
+### Fase 4 — Frontend ✔ *(ítems 1–3 completados, desplegados y validados en prod; ítem 4 pendiente)*
+1. ✅ `(platform)`: páginas de plataforma + sidebar + guard *(hecho en Fase 0)*.
+2. ✅ Quitar de `(dashboard)` las páginas de plataforma y sus enlaces *(hecho en Fase 0)*.
+3. ✅ `(dashboard)/distributors`: lista (`/distributors` con KPIs de stock en consigna y deuda total), alta (`/distributors/new`), detalle (`/distributors/[id]`: balance, panel de operaciones e historial de ventas/despachos) y edición (`/distributors/[id]/edit`). Componentes `distributor-form.tsx`, `distributor-actions.tsx` y `distributor-operations.tsx` (transferir/devolver stock, registrar venta multi-ítem, liquidar deuda, crear despacho). Tipos en `types/distributors.ts`; enlace "Distribuidores" en el sidebar (`COMPANY_ADMIN`/`MANAGER`); `DeleteDialog` extendido con la entidad `distributor`. `lint` (tsc) + `build` en verde.
+   - **Validado en prod (Vercel)**: `/distributors` sin sesión → 307 a `/sign-in`; con sesión de `admin@acme.local` → 200 renderizando "Canal distribuidores", KPIs y estado vacío (tras limpieza de datos de prueba); `/distributors/new` → 200 con el formulario de alta.
+4. ⏳ Integrar "Canal: Distribuidor" en POS/ventas y filtros en reportes. **Requiere backend**: `POST /sales` no expone `channel`/`distributorId` y `reports/overview` no filtra por canal.
 
 ### Fase 5 — Endurecimiento
 1. Tests e2e (Supertest) por dominio: acceso cross-domain debe dar 403.
