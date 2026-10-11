@@ -293,10 +293,10 @@ frontend/app/
 1. ✅ Esquema Prisma: enums `DistributorType/DistributorStatus/SaleChannel`, modelos `Distributor`, `DistributorBalance`, `DistributorDelivery`; columnas `InventoryMovement.distributorId`, `Sale.distributorId/channel`; `MembershipRole.DISTRIBUTOR`; tablas `PlatformSetting`, `PlatformAuditLog`.
 2. ✅ Columnas de gate de perfil (sección 4.4): `Company.profileComplete/profileCompletedAt` + `CheckoutRequest.taxId/legalName/address/phone`.
 3. ✅ Migración single `20261011000001_phase1_platform_distribuidores_perfil` aditiva (sin DROPs) aplicada con `migrate deploy` + backfill de `profile_complete` + `prisma generate`.
-2. ✅ Seed: distribuidor demo por empresa (`DIST-001`) + `PlatformSetting` inicial.
-3. ✅ Permisos `platform:*` y `distributor:*` en `permissions.constant.ts` + `frontend/types/permissions.ts` (sin drift).
-4. ✅ Enforcement del gate (helper `profile-completeness.helper.ts`) en `PlanUpgradeRequestsService` y `CheckoutRequestsService` (crear + revisar) + `CompaniesService` sincroniza `profileComplete`; `CreateCheckoutRequestDto` con `taxId/legalName/address/phone`.
-5. ✅ Frontend: `/subscription` bloquea CTAs de pago y muestra CTA a `/settings/company` cuando falta perfil; `/checkout` captura datos de empresa para plan de pago en registro nuevo.
+4. ✅ Seed: distribuidor demo por empresa (`DIST-001`) + `PlatformSetting` inicial.
+5. ✅ Permisos `platform:*` y `distributor:*` en `permissions.constant.ts` + `frontend/types/permissions.ts` (sin drift).
+6. ✅ Enforcement del gate (helper `profile-completeness.helper.ts`) en `PlanUpgradeRequestsService` y `CheckoutRequestsService` (crear + revisar) + `CompaniesService` sincroniza `profileComplete`; `CreateCheckoutRequestDto` con `taxId/legalName/address/phone`.
+7. ✅ Frontend: `/subscription` bloquea CTAs de pago y muestra CTA a `/settings/company` cuando falta perfil; `/checkout` captura datos de empresa para plan de pago en registro nuevo.
 
 ### Fase 2 — Backend plataforma
 1. Módulo `platform` completo (companies, plans, settings, metrics, audit, admins).
