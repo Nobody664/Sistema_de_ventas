@@ -1,6 +1,6 @@
 # Plan de desarrollo — Estructura de plataforma (SUPER_ADMIN) separada + Distribuidores
 
-> Estado: **Fases 0–2 completadas, desplegadas y validadas (2026-10-11)** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
+> Estado: **Fases 0–3 completadas, desplegadas y validadas (2026-10-11)** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
 
 ---
 
@@ -305,10 +305,12 @@ frontend/app/
 4. ✅ Alias deprecado: los controladores globales previos (`companies`, `plans`, `subscriptions`, `audit`, `payments/checkout`, `subscriptions/upgrade-requests`) siguen activos sin cambios; el frontend los migrará en Fase 4.
 5. ✅ Tests: `PlatformGuard` rechaza contexto tenant y peticiones sin sesión; `TenantGuard` sigue rechazando contexto de plataforma sin `companyId`. `npm run lint` + `npm test` (50 tests) + `npm run build` limpios.
 
-### Fase 3 — Backend distribuidores
-1. Módulo `distributors` (CRUD + transfers/returns + ventas + liquidación).
-2. Integración de inventario con `$transaction` y Kardex (`TRANSFER/RETURN/SALE`).
-3. Permisos `distributor:*` y `@Roles`/`@Permissions` en controladores.
+### Fase 3 — Backend distribuidores ✅ *(completada, desplegada y validada en prod)*
+1. ✅ Módulo `distributors` bajo `/api/distributors` con CRUD, `GET/POST :id/balance`, `transfers`, `returns`, `sales`, `deliveries` y `settlements`; soft delete bloquado si `balanceQuantity>0` o `debtAmount>0`.
+2. ✅ Integración de inventario con `$transaction` + Kardex: transfer decrementa stock de empresa + `InventoryMovement` `TRANSFER` (qty negativa) + Kardex OUT; devolución incrementa stock + `RETURN` (qty positiva) + Kardex IN con `costPrice`; venta distribuidor crea `Sale` con `channel=DISTRIBUTOR` y `distributorId`, actualiza balance (`soldQuantity`/`balanceQuantity`/`debtAmount`) sin tocar stock ni Kardex de empresa; liquidación reduce `debtAmount`.
+3. ✅ Permisos `distributor:*` con `@Permissions` y `@Roles('COMPANY_ADMIN','MANAGER')`; settlements solo `COMPANY_ADMIN`. `DistributorsModule` registrado en `app.module.ts`.
+4. ✅ Tests: `distributors.service.spec.ts` (+6 tests; total 56/56, 16 suites); `npm run lint` + `npm run build` limpios.
+5. ✅ Validado en prod (tenant demo acme): CRUD (201/200), transfer 20 (stock 100→80, `startingQuantity`+20, `InventoryMovement TRANSFER -20`, Kardex OUT balance 80), venta 5 (`Sale channel=DISTRIBUTOR`, `debtAmount` 75, balance 15, stock empresa intacto), liquidación 30 (`debtAmount` 45), devolución 3 (`returnedQuantity` 3, balance 12, stock 80→83), cierre y soft-delete (404 tras borrar).
 
 ### Fase 4 — Frontend
 1. `(platform)`: páginas de plataforma + sidebar + guard.
