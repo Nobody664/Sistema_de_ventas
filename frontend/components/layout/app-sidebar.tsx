@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Bell, CreditCard, LayoutDashboard, Package, ShoppingCart, Users, UserCog, FolderTree, Warehouse } from 'lucide-react';
+import { BarChart3, Bell, CreditCard, Handshake, LayoutDashboard, Package, ShoppingCart, Users, UserCog, FolderTree, Warehouse } from 'lucide-react';
 
 const mainItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
@@ -15,6 +15,7 @@ const companyItems = [
   { label: 'Categorías', href: '/categories', icon: FolderTree, roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Ventas', href: '/sales', icon: ShoppingCart, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
   { label: 'Clientes', href: '/customers', icon: Users, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
+  { label: 'Distribuidores', href: '/distributors', icon: Handshake, roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Empleados', href: '/employees', icon: UserCog, roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Pagos', href: '/payments', icon: CreditCard, roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Reportes', href: '/reports', icon: BarChart3, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },

@@ -19,7 +19,7 @@ import { useAuthStore } from '@/stores/auth.store';
 
 interface DeleteDialogProps {
   id: string;
-  entity: 'product' | 'customer' | 'employee' | 'sale' | 'category';
+  entity: 'product' | 'customer' | 'employee' | 'sale' | 'category' | 'distributor';
   title?: string;
   description?: string;
   onSuccess?: () => void;
@@ -31,6 +31,7 @@ const QUERY_KEYS: Record<string, string[]> = {
   employee: ['employees'],
   sale: ['sales'],
   category: ['categories'],
+  distributor: ['distributors'],
 };
 
 export function DeleteDialog({ id, entity, title, description, onSuccess }: DeleteDialogProps) {
@@ -48,6 +49,7 @@ export function DeleteDialog({ id, entity, title, description, onSuccess }: Dele
     employee: 'el empleado',
     sale: 'la venta',
     category: 'la categoria',
+    distributor: 'el distribuidor',
   };
 
   const entityLabels = {
@@ -56,6 +58,7 @@ export function DeleteDialog({ id, entity, title, description, onSuccess }: Dele
     employee: 'Empleado',
     sale: 'Venta',
     category: 'Categoría',
+    distributor: 'Distribuidor',
   };
 
   const endpoints = {
@@ -64,6 +67,7 @@ export function DeleteDialog({ id, entity, title, description, onSuccess }: Dele
     employee: `/employees/${id}`,
     sale: `/sales/${id}`,
     category: `/products/categories/${id}`,
+    distributor: `/distributors/${id}`,
   };
 
   const handleDelete = async () => {
