@@ -43,6 +43,7 @@ import { HealthModule } from './modules/health/health.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CompanyProfileModule } from './modules/company-profile/company-profile.module';
 import { PlatformModule } from './modules/platform/platform.module';
+import { DistributorsModule } from './modules/distributors/distributors.module';
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ import { PlatformModule } from './modules/platform/platform.module';
     BillingModule,
     CompanyProfileModule,
     PlatformModule,
+    DistributorsModule,
   ],
   providers: [
     {
