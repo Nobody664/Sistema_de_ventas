@@ -116,6 +116,25 @@ async function main() {
     },
   });
 
+  await prisma.distributor.upsert({
+    where: { companyId_code: { companyId: acmeCompany.id, code: 'DIST-001' } },
+    update: {},
+    create: {
+      companyId: acmeCompany.id,
+      code: 'DIST-001',
+      name: 'Distribuidor Demo',
+      documentType: 'DNI',
+      documentValue: '12345678',
+      email: 'distribuidor@acme.local',
+      phone: '999888777',
+      address: 'Av. Demo 123, Lima',
+      type: 'INDIVIDUAL',
+      status: 'ACTIVE',
+      commissionRate: '10.00',
+      balances: { create: {} },
+    },
+  });
+
   await Promise.all([
     prisma.membership.upsert({
       where: { userId_companyId: { userId: acmeAdminUser.id, companyId: acmeCompany.id } },

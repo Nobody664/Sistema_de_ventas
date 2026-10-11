@@ -3,21 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { NotificationChannel } from '@/modules/notifications/notifications.service';
-
-interface ProfileField {
-  key: string;
-  label: string;
-  weight: number;
-  validate: (value: string | null) => boolean;
-}
-
-const PROFILE_FIELDS: ProfileField[] = [
-  { key: 'taxId',     label: 'RUC',           weight: 30, validate: (v) => !!v && /^\d{11}$/.test(v) },
-  { key: 'legalName', label: 'Razón Social',  weight: 25, validate: (v) => !!v && v.length >= 3 },
-  { key: 'address',   label: 'Dirección',     weight: 20, validate: (v) => !!v && v.length >= 10 },
-  { key: 'phone',     label: 'Teléfono',      weight: 15, validate: (v) => !!v },
-  { key: 'email',     label: 'Email',         weight: 10, validate: (v) => !!v && /@/.test(v) },
-];
+import { PROFILE_FIELDS, ProfileField, evaluateProfile } from '@/common/helpers/profile-completeness.helper';
 
 const FIELD_MESSAGES: Record<string, { title: string; message: string }> = {
   taxId: {
@@ -64,29 +50,16 @@ export class CompanyProfileService {
     });
 
     if (!company) {
-      return { score: 0, totalFields: PROFILE_FIELDS.length, completedFields: 0, missingFields: PROFILE_FIELDS.map(f => f.label) };
+      return {
+        score: 0,
+        totalFields: PROFILE_FIELDS.length,
+        completedFields: 0,
+        missingFields: PROFILE_FIELDS.map((f) => f.label),
+        complete: false,
+      };
     }
 
-    let score = 0;
-    let completedFields = 0;
-    const missingFields: string[] = [];
-
-    for (const field of PROFILE_FIELDS) {
-      const value = company[field.key as keyof typeof company] as string | null;
-      if (field.validate(value)) {
-        score += field.weight;
-        completedFields++;
-      } else {
-        missingFields.push(field.label);
-      }
-    }
-
-    return {
-      score,
-      totalFields: PROFILE_FIELDS.length,
-      completedFields,
-      missingFields,
-    };
+    return evaluateProfile(company);
   }
 
   async getMissingFields(companyId: string): Promise<ProfileField[]> {

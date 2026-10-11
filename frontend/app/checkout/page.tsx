@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Check, Loader2, Smartphone, Building2, Upload, Home, ArrowLeft, CreditCard, Lock, Eye, EyeOff, User, Building, Mail } from 'lucide-react';
+import { Check, Loader2, Smartphone, Building2, Upload, Home, ArrowLeft, CreditCard, Lock, Eye, EyeOff, User, Building, Mail, MapPin, Phone } from 'lucide-react';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/stores/auth.store';
@@ -42,6 +42,7 @@ function CheckoutContent() {
   const [plansError, setPlansError] = useState<string | null>(null);
   const plan = plans.find((availablePlan) => availablePlan.code === planCode && availablePlan.isActive);
   const billingCycle = plan?.billingCycle ?? 'MONTHLY';
+  const isPaidPlan = plan?.code !== 'FREE';
   const planPrice = plan
     ? Number(billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly)
     : 0;
@@ -64,6 +65,10 @@ function CheckoutContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [taxId, setTaxId] = useState('');
+  const [legalName, setLegalName] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
 
   useEffect(() => {
     fetchPaymentSettings();
@@ -113,6 +118,26 @@ function CheckoutContent() {
       setError('Selecciona un método de pago');
       return;
     }
+
+    if (!isAuthenticated && isPaidPlan) {
+      if (!/^\d{11}$/.test(taxId.trim())) {
+        setError('Ingresa el RUC de tu empresa (11 dígitos)');
+        return;
+      }
+      if (legalName.trim().length < 3) {
+        setError('Ingresa la Razón Social de tu empresa');
+        return;
+      }
+      if (address.trim().length < 10) {
+        setError('Ingresa la dirección completa de tu empresa');
+        return;
+      }
+      if (!phone.trim()) {
+        setError('Ingresa un teléfono de contacto');
+        return;
+      }
+    }
+
     setError(null);
     setStep('payment');
   };
@@ -145,6 +170,12 @@ function CheckoutContent() {
         body.companyName = companyName;
         body.email = email;
         body.password = password;
+        if (isPaidPlan) {
+          body.taxId = taxId.trim();
+          body.legalName = legalName.trim();
+          body.address = address.trim();
+          body.phone = phone.trim();
+        }
       }
 
       const response = await apiFetch<{ requestId: string; status: string }>('/payments/checkout/requests', {
@@ -476,6 +507,75 @@ function CheckoutContent() {
                   </div>
                 </div>
               </div>
+
+              {isPaidPlan && (
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-display text-lg">Datos de tu empresa</h4>
+                    <p className="text-xs text-foreground/60">
+                      Necesarios para contratar un plan de pago
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="taxId">RUC (11 dígitos)</Label>
+                    <div className="relative mt-1">
+                      <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+                      <Input
+                        id="taxId"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="20123456789"
+                        maxLength={11}
+                        className="pl-9"
+                        value={taxId}
+                        onChange={(e) => setTaxId(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="legalName">Razón Social</Label>
+                    <div className="relative mt-1">
+                      <Building className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+                      <Input
+                        id="legalName"
+                        type="text"
+                        placeholder="Razón social de tu empresa"
+                        className="pl-9"
+                        value={legalName}
+                        onChange={(e) => setLegalName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="address">Dirección</Label>
+                    <div className="relative mt-1">
+                      <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+                      <Input
+                        id="address"
+                        type="text"
+                        placeholder="Av., Jr., Calle ..."
+                        className="pl-9"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="phone">Teléfono</Label>
+                    <div className="relative mt-1">
+                      <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/40" />
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="987654321"
+                        className="pl-9"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

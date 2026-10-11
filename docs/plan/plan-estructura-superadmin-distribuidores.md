@@ -1,6 +1,6 @@
 # Plan de desarrollo — Estructura de plataforma (SUPER_ADMIN) separada + Distribuidores
 
-> Estado: **por ejecutar** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
+> Estado: **Fases 0–1 completadas y desplegadas (2026-10-11)** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
 
 ---
 
@@ -158,6 +158,27 @@ Se **reutilizan** `InventoryMovement` y `Sale` en lugar de duplicar tablas de in
 - `RETURN` = devolución a almacén → restaura disponibilidad.
 - Todo dentro de `$transaction` (Prisma 7: usar `$transaction(async (tx) => …)`).
 
+### 4.4 Regla de negocio: perfil de empresa completo antes de planes de pago
+
+**Regla:** para contratar (empresa nueva) o cambiar a un plan de pago (`START`/`GROWTH`/`SCALE`, mensual o anual), la empresa debe tener su perfil **100 % completo**: `RUC` (11 dígitos), `Razón Social` (≥3), `Dirección` (≥10), `Teléfono` y `Email`. Si el perfil está incompleto, la empresa **solo permanece en FREE**. Es un gate de seguridad de negocio: `plan pago ⇒ perfil completo`.
+
+**Puntos de enforcement (mismo criterio en todos):**
+
+| Punto | Comportamiento |
+|---|---|
+| `PlanUpgradeRequestsService.createRequest` | Bloquea el upgrade (`BadRequestException` + lista de campos faltantes) si `plan.code != FREE` y perfil incompleto |
+| `CheckoutRequestsService.createRequest` (empresa existente) | Ídem: bloquea checkout de plan pago si perfil incompleto |
+| `CheckoutRequestsService.createRequest` (empresa nueva) | Exige capturar RUC, razón social, dirección y teléfono en el formulario de checkout para planes de pago; la empresa nace con `profileComplete = true` |
+| `PlanUpgradeRequestsService.review` / `CheckoutRequestsService.review` (SUPER_ADMIN) | Re-valida el perfil antes de aprobar un plan de pago (defensa en profundidad) |
+| `GET /api/company-profile/completeness` | Devuelve `complete: boolean` + `missingFields` para la UI (bloqueo/CTA en `/subscription` y checkout) |
+| Frontend `/settings/company`, `/subscription`, `/checkout` | Muestran CTA "Completa tu perfil" y bloquean los CTAs de planes pagos si `complete === false` |
+
+**Persistencia:**
+- `companies`: `profile_complete Boolean` (default `false`) y `profile_completed_at DateTime?`. Se sincronizan desde el score del perfil (`profile-completeness.helper.ts`) en cada actualización de la empresa (`PATCH /companies/current`) y en la cron de `CompanyProfileService`.
+- `checkout_requests`: `tax_id`, `legal_name`, `address`, `phone` (nullable) para el registro de nueva empresa con plan pago; se copian a la `Company` al aprobar.
+
+**Backfill:** los planes de pago ya activos se conservan (sin degradar); el gate aplica hacia delante. `profile_complete` se inicializa según el score actual de cada empresa.
+
 ---
 
 ## 5. Cambios de backend (NestJS)
@@ -261,18 +282,21 @@ frontend/app/
 
 ## 7. Fases de ejecución
 
-### Fase 0 — Fundación de separación (sin cambio de datos) ✅ *(hacer primero, bajo riesgo)*
-1. Crear `PlatformGuard` + prefijo `/platform` con 1 controlador migrado (`payment-settings`).
-2. Migrar sidebar de plataforma: dividir `app-sidebar.tsx` en `sidebar-platform.tsx` / `sidebar-tenant.tsx`.
-3. Crear ruta group `(platform)` con layout `data-platform` y mover `/settings/payment` → `/platform/settings/payment`.
-4. Ampliar `proxy.ts` con guard por rol de rutas (`/platform/*` vs tenant).
-5. `npm run lint` + `npm run build` en frontend; `npm run lint` backend.
+### Fase 0 — Fundación de separación (sin cambio de datos) ✅ *(completada y desplegada)*
+1. ✅ `PlatformGuard` + controlador `platform` (migrado `payment-settings`) bajo `/api/platform`.
+2. ✅ Sidebar de plataforma separado (`platform-sidebar.tsx`); `app-sidebar.tsx` queda solo tenant con "Ir a Plataforma".
+3. ✅ Route group `(platform)` con layout propio y páginas en `/platform/*` (settings/payment incluida) + redirects de rutas viejas.
+4. ✅ `proxy.ts` con guard por rol: `/platform/*` exige SUPER_ADMIN/SUPPORT_ADMIN; tenant conserva `companyStatus`.
+5. ✅ Verificado: `tsc --noEmit` + `next build` frontend, `tsc --noEmit` backend; prod: `/api/platform/context` 401→200 y página `/platform` OK.
 
-### Fase 1 — Modelo de datos
-1. Esquema Prisma: enums `DistributorType/DistributorStatus/SaleChannel`, modelos `Distributor`, `DistributorBalance`, `DistributorDelivery`; columnas `InventoryMovement.distributorId`, `Sale.distributorId/channel`; `MembershipRole.DISTRIBUTOR`; tablas `PlatformSetting`, `PlatformAuditLog`.
-2. Migración (`npm run prisma:migrate`) sin pérdida de datos.
-3. Seed: cuenta SUPER_ADMIN platform-admin, ejemplo de distribuidor por empresa demo.
-4. Actualizar `permissions.constant.ts` + `frontend/types/permissions.ts`.
+### Fase 1 — Modelo de datos (+ gate de perfil) ✅ *(completada, migración aplicada en prod)*
+1. ✅ Esquema Prisma: enums `DistributorType/DistributorStatus/SaleChannel`, modelos `Distributor`, `DistributorBalance`, `DistributorDelivery`; columnas `InventoryMovement.distributorId`, `Sale.distributorId/channel`; `MembershipRole.DISTRIBUTOR`; tablas `PlatformSetting`, `PlatformAuditLog`.
+2. ✅ Columnas de gate de perfil (sección 4.4): `Company.profileComplete/profileCompletedAt` + `CheckoutRequest.taxId/legalName/address/phone`.
+3. ✅ Migración single `20261011000001_phase1_platform_distribuidores_perfil` aditiva (sin DROPs) aplicada con `migrate deploy` + backfill de `profile_complete` + `prisma generate`.
+2. ✅ Seed: distribuidor demo por empresa (`DIST-001`) + `PlatformSetting` inicial.
+3. ✅ Permisos `platform:*` y `distributor:*` en `permissions.constant.ts` + `frontend/types/permissions.ts` (sin drift).
+4. ✅ Enforcement del gate (helper `profile-completeness.helper.ts`) en `PlanUpgradeRequestsService` y `CheckoutRequestsService` (crear + revisar) + `CompaniesService` sincroniza `profileComplete`; `CreateCheckoutRequestDto` con `taxId/legalName/address/phone`.
+5. ✅ Frontend: `/subscription` bloquea CTAs de pago y muestra CTA a `/settings/company` cuando falta perfil; `/checkout` captura datos de empresa para plan de pago en registro nuevo.
 
 ### Fase 2 — Backend plataforma
 1. Módulo `platform` completo (companies, plans, settings, metrics, audit, admins).
@@ -308,6 +332,8 @@ frontend/app/
 - [ ] Un distribuidor existe en cada empresa, recibe mercadería (`TRANSFER`), reporta ventas y genera Kardex; el stock global es consistente (`$transaction`).
 - [ ] `npm run lint` y `npm run build` limpios en frontend y backend; migración aplicada sin pérdida.
 - [ ] Permisos frontend ↔ backend sin drift (verificado por test/CI).
+- [ ] Una empresa con perfil incompleto no puede solicitar ni mantener-upgrade a un plan pago: el backend responde `400` con los campos faltantes y su plan permanece FREE.
+- [ ] El registro de empresa nueva con plan pago captura RUC/razón social/dirección/teléfono y crea la empresa con `profileComplete = true`.
 
 ---
 

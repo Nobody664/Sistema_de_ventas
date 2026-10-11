@@ -36,6 +36,27 @@ export class CreateCheckoutRequestDto {
   @MinLength(8)
   password?: string;
 
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{11}$/, {
+    message: 'taxId debe ser un RUC de 11 dígitos',
+  })
+  taxId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  legalName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(10)
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
   @IsString()
   planCode!: string;
 

@@ -40,7 +40,21 @@ export type Permission =
   | 'subscription:manage'
   | 'user:manage'
   | 'settings:read'
-  | 'settings:update';
+  | 'settings:update'
+  | 'platform:view'
+  | 'platform:companies_manage'
+  | 'platform:plans_manage'
+  | 'platform:settings_manage'
+  | 'platform:admins_manage'
+  | 'platform:audit_view'
+  | 'distributor:list'
+  | 'distributor:create'
+  | 'distributor:update'
+  | 'distributor:delete'
+  | 'distributor:view'
+  | 'distributor:transfer'
+  | 'distributor:deliver'
+  | 'distributor:settle';
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: [
@@ -86,6 +100,20 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'user:manage',
     'settings:read',
     'settings:update',
+    'platform:view',
+    'platform:companies_manage',
+    'platform:plans_manage',
+    'platform:settings_manage',
+    'platform:admins_manage',
+    'platform:audit_view',
+    'distributor:list',
+    'distributor:create',
+    'distributor:update',
+    'distributor:delete',
+    'distributor:view',
+    'distributor:transfer',
+    'distributor:deliver',
+    'distributor:settle',
   ],
 
   COMPANY_ADMIN: [
@@ -126,6 +154,14 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'subscription:view',
     'settings:read',
     'settings:update',
+    'distributor:list',
+    'distributor:create',
+    'distributor:update',
+    'distributor:delete',
+    'distributor:view',
+    'distributor:transfer',
+    'distributor:deliver',
+    'distributor:settle',
   ],
 
   MANAGER: [
@@ -157,6 +193,12 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'company:view',
     'subscription:view',
     'settings:read',
+    'distributor:list',
+    'distributor:create',
+    'distributor:update',
+    'distributor:view',
+    'distributor:transfer',
+    'distributor:deliver',
   ],
 
   CASHIER: [
@@ -192,5 +234,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'subscription:view',
     'subscription:manage',
     'user:manage',
+    'platform:view',
+    'platform:audit_view',
   ],
 };

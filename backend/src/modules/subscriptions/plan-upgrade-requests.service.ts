@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { PaymentProvider, PlanUpgradeStatus, SubscriptionStatus } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { evaluateProfile } from '@/common/helpers/profile-completeness.helper';
 import { EmailService } from '@/modules/email/email.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
 import { CreatePlanUpgradeRequestDto, SubmitUpgradeProofDto, ReviewPlanUpgradeDto } from './dto/plan-upgrade.dto';
@@ -98,6 +99,21 @@ export class PlanUpgradeRequestsService {
 
     if (newPlan.id === currentSubscription.planId) {
       throw new ConflictException('Ya tienes ese plan activo');
+    }
+
+    if (newPlan.code !== 'FREE') {
+      const profile = evaluateProfile({
+        taxId: company.taxId,
+        legalName: company.legalName,
+        address: company.address,
+        phone: company.phone,
+        email: company.email,
+      });
+      if (!profile.complete) {
+        throw new BadRequestException(
+          `Para contratar un plan de pago tu empresa debe tener el perfil completo (RUC, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(', ')}.`,
+        );
+      }
     }
 
     const settings = await this.prisma.paymentSetting.findFirst({
@@ -298,6 +314,21 @@ export class PlanUpgradeRequestsService {
       });
       if (claimed.count === 0) {
         throw new ConflictException('La solicitud no está pendiente de revisión');
+      }
+
+      if (request.plan.code !== 'FREE') {
+        const profile = evaluateProfile({
+          taxId: request.company.taxId,
+          legalName: request.company.legalName,
+          address: request.company.address,
+          phone: request.company.phone,
+          email: request.company.email,
+        });
+        if (!profile.complete) {
+          throw new BadRequestException(
+            `No se puede aprobar: la empresa no tiene el perfil completo (pendientes: ${profile.missingFields.join(', ')}).`,
+          );
+        }
       }
 
       const currentSubscription = await tx.subscription.findUnique({

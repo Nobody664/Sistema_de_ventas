@@ -12,6 +12,14 @@ interface PlanUpgradeRequest {
   newPlan: { code: string; name: string };
 }
 
+interface ProfileCompleteness {
+  score: number;
+  totalFields: number;
+  completedFields: number;
+  missingFields: string[];
+  complete: boolean;
+}
+
 export default async function SubscriptionPage() {
   const session = await getServerSession();
 
@@ -26,10 +34,11 @@ export default async function SubscriptionPage() {
 
   const accessToken = session?.accessToken;
 
-  const [subscription, plans, pendingRequest] = await Promise.all([
+  const [subscription, plans, pendingRequest, completeness] = await Promise.all([
     serverApiFetch<Subscription>(`/subscriptions/current`, accessToken),
     serverApiFetch<Plan[]>('/plans', accessToken),
     serverApiFetch<PlanUpgradeRequest | null>('/subscriptions/upgrade-requests/my/pending', accessToken),
+    serverApiFetch<ProfileCompleteness>('/company-profile/completeness', accessToken),
   ]);
 
   return (
@@ -37,6 +46,7 @@ export default async function SubscriptionPage() {
       initialSubscription={subscription} 
       initialPlans={plans ?? []}
       pendingUpgrade={pendingRequest}
+      initialCompleteness={completeness?.complete ? { complete: true, missingFields: [] } : { complete: false, missingFields: completeness?.missingFields ?? [] }}
     />
   );
 }

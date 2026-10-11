@@ -3,6 +3,7 @@ import * as argon2 from 'argon2';
 import { CompanyStatus, PaymentProvider, Prisma, SubscriptionStatus } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { evaluateProfile } from '@/common/helpers/profile-completeness.helper';
 import { EmailService } from '@/modules/email/email.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
 import { CheckoutReviewStatus, CreateCheckoutRequestDto, SubmitCheckoutProofDto } from './dto/checkout-requests.dto';
@@ -106,6 +107,15 @@ export class CheckoutRequestsService {
         throw new NotFoundException('Plan no encontrado');
       }
 
+      if (plan.code !== 'FREE') {
+        const profile = evaluateProfile(company);
+        if (!profile.complete) {
+          throw new BadRequestException(
+            `Para contratar un plan de pago tu empresa debe tener el perfil completo (RUC, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(', ')}.`,
+          );
+        }
+      }
+
       const settings = await this.prisma.paymentSetting.findFirst({
         where: { provider: input.paymentMethod },
       });
@@ -192,6 +202,22 @@ export class CheckoutRequestsService {
       email: string;
     };
 
+    if (plan.code !== 'FREE') {
+      const profile = evaluateProfile({
+        taxId: input.taxId ?? null,
+        legalName: input.legalName ?? null,
+        address: input.address ?? null,
+        phone: input.phone ?? null,
+        email,
+      });
+      if (!profile.complete) {
+        throw new BadRequestException(
+          `Para contratar un plan de pago debes completar el perfil de tu empresa (
+RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(', ')}.`,
+        );
+      }
+    }
+
     const passwordHash = await argon2.hash(input.password);
     const { request, existingSettings } = await this.createOrReuse(
       () =>
@@ -202,6 +228,10 @@ export class CheckoutRequestsService {
             email,
             passwordHash,
             planId: plan.id,
+            taxId: input.taxId,
+            legalName: input.legalName,
+            address: input.address,
+            phone: input.phone,
             provider: input.paymentMethod,
             amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
             currency: 'PEN',
@@ -336,6 +366,18 @@ export class CheckoutRequestsService {
     request: any,
     reviewNotes?: string,
   ) {
+    if (request.plan.code !== 'FREE') {
+      const company = await this.prisma.company.findUnique({
+        where: { id: request.companyId },
+      });
+      const profile = evaluateProfile(company ?? {});
+      if (!profile.complete) {
+        throw new BadRequestException(
+          `No se puede aprobar: la empresa no tiene el perfil completo (pendientes: ${profile.missingFields.join(', ')}).`,
+        );
+      }
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.checkoutRequest.updateMany({
         where: { id: requestId, status: 'SUBMITTED' },
@@ -474,10 +516,30 @@ export class CheckoutRequestsService {
         .trim()
         .replace(/\s+/g, '-');
 
+      const companyProfile = evaluateProfile({
+        taxId: request.taxId ?? null,
+        legalName: request.legalName ?? null,
+        address: request.address ?? null,
+        phone: request.phone ?? null,
+        email: request.email,
+      });
+      if (request.plan.code !== 'FREE' && !companyProfile.complete) {
+        throw new BadRequestException(
+          `No se puede aprobar: el perfil de la empresa está incompleto (pendientes: ${companyProfile.missingFields.join(', ')}).`,
+        );
+      }
+
       const company = await tx.company.create({
         data: {
           name: request.companyName,
           slug: `${slugBase}-${Date.now().toString().slice(-6)}`,
+          email: request.email,
+          legalName: request.legalName,
+          taxId: request.taxId,
+          address: request.address,
+          phone: request.phone,
+          profileComplete: companyProfile.complete,
+          profileCompletedAt: companyProfile.complete ? new Date() : null,
           status: 'ACTIVE',
         },
       });

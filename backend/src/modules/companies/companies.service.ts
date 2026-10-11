@@ -1,10 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { isProfileComplete } from '@/common/helpers/profile-completeness.helper';
 import { CreateCompanyDto, UpdateCompanyDto, UpdateCompanyStatusDto } from './dto/company.dto';
+
+interface ProfileFieldsInput {
+  taxId?: string | null;
+  legalName?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
 
 @Injectable()
 export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private profileSync(input: ProfileFieldsInput) {
+    const complete = isProfileComplete(input);
+    return {
+      profileComplete: complete,
+      ...(complete ? { profileCompletedAt: new Date() } : {}),
+    };
+  }
 
   async findAll(page = 1, limit = 20) {
     const skip = (page - 1) * limit;
@@ -59,6 +76,7 @@ export class CompaniesService {
         currency: input.currency ?? 'PEN',
         status: 'TRIAL',
         trialEndsAt,
+        ...this.profileSync(input),
         subscriptions: freePlan ? {
           create: {
             planId: freePlan.id,
@@ -90,6 +108,7 @@ export class CompaniesService {
         timezone: input.timezone ?? 'America/Lima',
         currency: input.currency ?? 'PEN',
         status: 'TRIAL',
+        ...this.profileSync(input),
         subscriptions: {
           create: {
             planId: input.planId,
@@ -187,7 +206,10 @@ export class CompaniesService {
 
     return this.prisma.company.update({
       where: { id: companyId },
-      data: input,
+      data: {
+        ...input,
+        ...this.profileSync(input),
+      },
     });
   }
 
@@ -196,7 +218,10 @@ export class CompaniesService {
 
     return this.prisma.company.update({
       where: { id: companyId },
-      data: input,
+      data: {
+        ...input,
+        ...this.profileSync(input),
+      },
     });
   }
 

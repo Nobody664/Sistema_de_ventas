@@ -74,6 +74,24 @@ export enum Permission {
 
   // Branches
   BRANCH_MANAGE = 'branch:manage',
+
+  // Platform (SUPER_ADMIN / SUPPORT_ADMIN)
+  PLATFORM_VIEW = 'platform:view',
+  PLATFORM_MANAGE_COMPANIES = 'platform:companies_manage',
+  PLATFORM_MANAGE_PLANS = 'platform:plans_manage',
+  PLATFORM_MANAGE_SETTINGS = 'platform:settings_manage',
+  PLATFORM_MANAGE_ADMINS = 'platform:admins_manage',
+  PLATFORM_VIEW_AUDIT = 'platform:audit_view',
+
+  // Distributors
+  DISTRIBUTOR_LIST = 'distributor:list',
+  DISTRIBUTOR_CREATE = 'distributor:create',
+  DISTRIBUTOR_UPDATE = 'distributor:update',
+  DISTRIBUTOR_DELETE = 'distributor:delete',
+  DISTRIBUTOR_VIEW = 'distributor:view',
+  DISTRIBUTOR_TRANSFER = 'distributor:transfer',
+  DISTRIBUTOR_DELIVERY = 'distributor:deliver',
+  DISTRIBUTOR_SETTLE = 'distributor:settle',
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -129,6 +147,15 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.KARDEX_EXPORT,
     Permission.REPLENISHMENT_VIEW,
     Permission.FORECAST_VIEW,
+
+    Permission.DISTRIBUTOR_LIST,
+    Permission.DISTRIBUTOR_CREATE,
+    Permission.DISTRIBUTOR_UPDATE,
+    Permission.DISTRIBUTOR_DELETE,
+    Permission.DISTRIBUTOR_VIEW,
+    Permission.DISTRIBUTOR_TRANSFER,
+    Permission.DISTRIBUTOR_DELIVERY,
+    Permission.DISTRIBUTOR_SETTLE,
   ],
 
   MANAGER: [
@@ -172,6 +199,12 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 
     Permission.KARDEX_VIEW,
     Permission.REPLENISHMENT_VIEW,
+    Permission.DISTRIBUTOR_LIST,
+    Permission.DISTRIBUTOR_CREATE,
+    Permission.DISTRIBUTOR_UPDATE,
+    Permission.DISTRIBUTOR_VIEW,
+    Permission.DISTRIBUTOR_TRANSFER,
+    Permission.DISTRIBUTOR_DELIVERY,
   ],
 
   CASHIER: [
@@ -206,5 +239,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.SUBSCRIPTION_VIEW,
     Permission.SUBSCRIPTION_MANAGE,
     Permission.USER_MANAGE,
+    Permission.PLATFORM_VIEW,
+    Permission.PLATFORM_VIEW_AUDIT,
   ],
 };

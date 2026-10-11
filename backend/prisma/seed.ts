@@ -89,6 +89,18 @@ async function main() {
 
   const total = await prisma.plan.count();
 
+  const platformSettings = [
+    { key: 'platform.maintenance_mode', value: false, description: 'Modo mantenimiento de toda la plataforma' },
+    { key: 'platform.support_email', value: 'soporte@ventas-saas.local', description: 'Correo de soporte visible a los tenants' },
+  ];
+  for (const setting of platformSettings) {
+    await prisma.platformSetting.upsert({
+      where: { key: setting.key },
+      update: {},
+      create: { key: setting.key, value: setting.value, description: setting.description },
+    });
+  }
+
   console.log(`Seed base OK: ${PLANS.length} planes del catalogo (${total} en total).`);
   console.log('Este seed no crea usuarios ni empresas y no borra datos.');
   console.log('Para datos de prueba: npm run db:seed:demo');

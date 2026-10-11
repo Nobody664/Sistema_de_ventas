@@ -20,14 +20,18 @@ interface SubscriptionPageClientProps {
   initialSubscription?: Subscription | null | undefined;
   initialPlans: Plan[];
   pendingUpgrade?: PlanUpgradeRequest | null;
+  initialCompleteness?: { complete: boolean; missingFields: string[] };
 }
 
-export function SubscriptionPageClient({ initialSubscription, initialPlans, pendingUpgrade }: SubscriptionPageClientProps) {
+export function SubscriptionPageClient({ initialSubscription, initialPlans, pendingUpgrade, initialCompleteness }: SubscriptionPageClientProps) {
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(initialSubscription ?? null);
   const [plans] = useState<Plan[]>(initialPlans);
+
+  const profileComplete = initialCompleteness?.complete ?? true;
+  const missingProfileFields = initialCompleteness?.missingFields ?? [];
 
   const isTrialing = subscription?.status === 'TRIALING';
   const isActive = subscription?.status === 'ACTIVE';
@@ -201,6 +205,28 @@ export function SubscriptionPageClient({ initialSubscription, initialPlans, pend
               <h2 className="font-display text-xl">Mejora tu Plan</h2>
               <p className="mt-1 text-foreground/60">Desbloquea más funciones</p>
 
+              {!profileComplete && (
+                <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+                    <div>
+                      <p className="font-medium text-amber-800">Completa el perfil de tu empresa</p>
+                      <p className="mt-1 text-sm text-amber-700">
+                        Para contratar o cambiar a un plan de pago, tu empresa debe tener el perfil completo.
+                        Campos pendientes: {missingProfileFields.length > 0 ? missingProfileFields.join(', ') : 'RUC, Razón Social, Dirección, Teléfono y Email'}.
+                      </p>
+                      <Button
+                        onClick={() => router.push('/settings/company')}
+                        className="mt-3"
+                        variant="default"
+                      >
+                        Completar mi perfil
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-6 space-y-4">
                 {availablePlans.map((plan) => {
                   const isCurrentPlan = plan.code === currentPlanCode;
@@ -265,10 +291,12 @@ export function SubscriptionPageClient({ initialSubscription, initialPlans, pend
                       onClick={() => handleUpgrade(plan.code)}
                       className="mt-4 w-full"
                       variant={isCurrentPlan ? 'outline' : 'default'}
-                      disabled={loading}
+                      disabled={loading || (price > 0 && !profileComplete)}
                     >
                       {loading ? (
                         <Loader2 className="size-4 animate-spin" />
+                      ) : price > 0 && !profileComplete ? (
+                        'Completa tu perfil para mejorar'
                       ) : price === 0 ? (
                         'Cambiar a Gratis'
                       ) : (

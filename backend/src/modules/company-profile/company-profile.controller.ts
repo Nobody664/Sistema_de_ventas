@@ -11,7 +11,7 @@ export class CompanyProfileController {
   @Get('completeness')
   async getCompleteness(@Req() request: { tenantId?: string }) {
     if (!request.tenantId) {
-      return { score: 100, totalFields: 0, completedFields: 0, missingFields: [] };
+      return { score: 100, totalFields: 0, completedFields: 0, missingFields: [], complete: true };
     }
     return this.profileService.getProfileCompleteness(request.tenantId);
   }
