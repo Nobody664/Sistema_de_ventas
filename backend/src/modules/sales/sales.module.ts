@@ -4,10 +4,11 @@ import { SalesService } from './sales.service';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { KardexModule } from '@/modules/kardex/kardex.module';
 import { ProductBatchesModule } from '@/modules/product-batches/product-batches.module';
+import { DistributorsModule } from '@/modules/distributors/distributors.module';
 import { PrismaModule } from '@/database/prisma/prisma.module';
 
 @Module({
-  imports: [NotificationsModule, KardexModule, ProductBatchesModule, PrismaModule],
+  imports: [NotificationsModule, KardexModule, ProductBatchesModule, DistributorsModule, PrismaModule],
   controllers: [SalesController],
   providers: [SalesService],
   exports: [SalesService],

@@ -5,6 +5,7 @@ import { CreateSaleDto, ExportSalesQueryDto } from './dto/sale.dto';
 import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
 import { KardexService } from '@/modules/kardex/kardex.service';
 import { ProductBatchesService } from '@/modules/product-batches/product-batches.service';
+import { DistributorsService } from '@/modules/distributors/distributors.service';
 import { AuditService } from '@/common/services/audit.service';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
@@ -29,6 +30,7 @@ export class SalesService {
     private readonly kardexService: KardexService,
     private readonly productBatchesService: ProductBatchesService,
     private readonly auditService: AuditService,
+    private readonly distributorsService: DistributorsService,
   ) {}
 
   findRecentSales(companyId: string) {
@@ -40,6 +42,7 @@ export class SalesService {
         totalAmount: true,
         paymentMethod: true,
         status: true,
+        channel: true,
         createdAt: true,
         customer: { select: { firstName: true, lastName: true } },
         employee: { select: { firstName: true } },
@@ -80,6 +83,9 @@ export class SalesService {
     }
     if (query.customerId) {
       where.customerId = query.customerId;
+    }
+    if (query.channel) {
+      where.channel = query.channel;
     }
 
     const sales = await this.prisma.sale.findMany({
@@ -203,6 +209,19 @@ export class SalesService {
   }
 
   async createSale(companyId: string, input: CreateSaleDto) {
+    if (input.channel === 'DISTRIBUTOR') {
+      if (!input.distributorId) {
+        throw new BadRequestException('Debe seleccionar un distribuidor para el canal Distribuidor.');
+      }
+      return this.distributorsService.registerSale(companyId, input.distributorId, {
+        items: input.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        paymentMethod: input.paymentMethod,
+        taxAmount: input.taxAmount,
+        discountAmount: input.discountAmount,
+        customerId: input.customerId,
+      });
+    }
+
     const quantityByProduct = new Map<string, number>();
     for (const item of input.items) {
       quantityByProduct.set(
@@ -276,6 +295,7 @@ export class SalesService {
           companyId,
           customerId: input.customerId,
           employeeId: input.employeeId,
+          channel: input.channel ?? 'POS',
           saleNumber,
           subtotal,
           taxAmount,

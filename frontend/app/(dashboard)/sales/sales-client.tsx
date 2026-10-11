@@ -48,6 +48,12 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
     TRANSFER: { icon: Banknote, label: 'Transferencia' },
   };
 
+  const channelLabels: Record<string, { label: string; className: string }> = {
+    POS: { label: 'Tienda', className: 'bg-orange-500/15 text-orange-700' },
+    ONLINE: { label: 'Online', className: 'bg-blue-500/15 text-blue-700' },
+    DISTRIBUTOR: { label: 'Distribuidor', className: 'bg-violet-500/15 text-violet-700' },
+  };
+
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     try {
       const params = new URLSearchParams({ format });
@@ -199,7 +205,17 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                       <PaymentIcon className={`size-5 ${isToday ? 'text-orange-600' : 'text-slate-600'}`} />
                     </div>
                     <div>
-                      <p className="font-medium">{sale.saleNumber}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{sale.saleNumber}</p>
+                        {(() => {
+                          const info = channelLabels[(sale as { channel?: string }).channel ?? 'POS'] ?? channelLabels.POS;
+                          return (
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${info.className}`}>
+                              {info.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       <p className="text-sm text-foreground/50">
                         {sale.customer && sale.customer.firstName 
                           ? `${sale.customer.firstName} ${sale.customer.lastName || ''}`

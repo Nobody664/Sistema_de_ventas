@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, Search, ArrowLeft, Banknote, CreditCard, Building2, Check, Receipt, Package } from 'lucide-react';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, Search, ArrowLeft, Banknote, CreditCard, Building2, Check, Receipt, Package, Store, Globe, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import { useBarcodeScanner } from '@/components/scanner/hooks/useBarcodeScanner'
 import { ScannerStatus } from '@/components/scanner/components/scanner-status';
 import { playScanBeep, playErrorBeep } from '@/components/scanner/services/sound';
 import type { Product, Customer } from '@/types/api';
+import type { Distributor } from '@/types/distributors';
 
 interface SaleItem {
   productId: string;
@@ -36,12 +37,15 @@ interface SelectedCustomer {
   phone?: string;
 }
 
+type SaleChannelOption = 'POS' | 'ONLINE' | 'DISTRIBUTOR';
+
 interface SaleFormProps {
   products: Product[];
   customers: Customer[];
+  distributors?: Distributor[];
 }
 
-export function SaleForm({ products, customers }: SaleFormProps) {
+export function SaleForm({ products, customers, distributors = [] }: SaleFormProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -51,6 +55,8 @@ export function SaleForm({ products, customers }: SaleFormProps) {
   const [searchProduct, setSearchProduct] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER'>('CASH');
+  const [channel, setChannel] = useState<SaleChannelOption>('POS');
+  const [distributorId, setDistributorId] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [items, setItems] = useState<SaleItem[]>([]);
   const [saleCompleted, setSaleCompleted] = useState(false);
@@ -135,27 +141,51 @@ export function SaleForm({ products, customers }: SaleFormProps) {
       return;
     }
 
+    if (channel === 'DISTRIBUTOR' && !distributorId) {
+      addToast('Selecciona un distribuidor para el canal Distribuidor', 'error');
+      return;
+    }
+
     setLoading(true);
 
-    const data = {
-      customerId: selectedCustomer?.id || undefined,
-      paymentMethod,
-      items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
-      discountAmount,
-    };
+    const saleItems = items.map(i => ({ productId: i.productId, quantity: i.quantity }));
 
     try {
-      const result = await apiFetch<{ saleNumber: string }>('/sales', {
-        method: 'POST',
-        token: getAccessToken(),
-        body: JSON.stringify(data),
-      });
+      let saleNumber: string;
+
+      if (channel === 'DISTRIBUTOR') {
+        const result = await apiFetch<{ saleNumber: string }>(`/distributors/${distributorId}/sales`, {
+          method: 'POST',
+          token: getAccessToken(),
+          body: JSON.stringify({
+            customerId: selectedCustomer?.id || undefined,
+            paymentMethod,
+            items: saleItems,
+            discountAmount,
+          }),
+        });
+        saleNumber = result.saleNumber;
+        queryClient.invalidateQueries({ queryKey: ['distributors'] });
+      } else {
+        const result = await apiFetch<{ saleNumber: string }>('/sales', {
+          method: 'POST',
+          token: getAccessToken(),
+          body: JSON.stringify({
+            customerId: selectedCustomer?.id || undefined,
+            paymentMethod,
+            channel,
+            items: saleItems,
+            discountAmount,
+          }),
+        });
+        saleNumber = result.saleNumber;
+      }
 
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
 
-      setLastSaleNumber(result.saleNumber);
+      setLastSaleNumber(saleNumber);
       setSaleCompleted(true);
       addToast('Venta registrada correctamente', 'success');
     } catch (err) {
@@ -169,6 +199,8 @@ export function SaleForm({ products, customers }: SaleFormProps) {
     setItems([]);
     setSelectedCustomer(null);
     setPaymentMethod('CASH');
+    setChannel('POS');
+    setDistributorId('');
     setDiscountPercent(0);
     setSaleCompleted(false);
     setLastSaleNumber('');
@@ -401,6 +433,62 @@ export function SaleForm({ products, customers }: SaleFormProps) {
                       </div>
                     </div>
                   ))
+                )}
+              </div>
+
+              {/* Channel */}
+              <div className="px-5 pb-4">
+                <Label className="text-sm font-semibold text-foreground mb-2 block">Canal de venta</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    ['POS', Store, 'Tienda'],
+                    ['ONLINE', Globe, 'Online'],
+                    ['DISTRIBUTOR', Truck, 'Distribuidor'],
+                  ] as const).map(([value, Icon, label]) => {
+                    const isActive = channel === value;
+                    const isDisabled = value === 'DISTRIBUTOR' && distributors.length === 0;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => setChannel(value)}
+                        className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1.5 transition-colors ${
+                          isDisabled
+                            ? 'cursor-not-allowed border-border opacity-40'
+                            : isActive
+                              ? 'cursor-pointer border-accent bg-accent/5'
+                              : 'cursor-pointer border-border hover:border-muted-foreground/30'
+                        }`}
+                      >
+                        <Icon className={`h-5 w-5 ${isActive ? 'text-accent' : 'text-muted-foreground'}`} />
+                        <span className={`text-xs font-medium ${isActive ? 'text-accent' : 'text-muted-foreground'}`}>
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {channel === 'DISTRIBUTOR' && (
+                  <div className="mt-3 space-y-2">
+                    <Label className="text-sm font-semibold text-foreground">Distribuidor</Label>
+                    <select
+                      value={distributorId}
+                      onChange={(e) => setDistributorId(e.target.value)}
+                      className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                    >
+                      <option value="">Selecciona un distribuidor...</option>
+                      {distributors.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} ({d.code}) &mdash; stock {d.balance?.balanceQuantity ?? 0}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      La venta se registra contra la mercader&iacute;a en consigna del distribuidor y suma a su deuda.
+                    </p>
+                  </div>
                 )}
               </div>
 

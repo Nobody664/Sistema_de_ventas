@@ -23,6 +23,14 @@ export class CreateSaleDto {
   @IsString()
   employeeId?: string;
 
+  @IsOptional()
+  @IsIn(['POS', 'DISTRIBUTOR', 'ONLINE'])
+  channel?: 'POS' | 'DISTRIBUTOR' | 'ONLINE';
+
+  @IsOptional()
+  @IsString()
+  distributorId?: string;
+
   @IsIn(['CASH', 'CARD', 'TRANSFER'])
   paymentMethod!: 'CASH' | 'CARD' | 'TRANSFER';
 
@@ -63,5 +71,9 @@ export class ExportSalesQueryDto {
   @IsOptional()
   @IsString()
   customerId?: string;
+
+  @IsOptional()
+  @IsIn(['POS', 'DISTRIBUTOR', 'ONLINE'])
+  channel?: 'POS' | 'DISTRIBUTOR' | 'ONLINE';
 }
 
