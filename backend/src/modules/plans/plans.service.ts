@@ -13,6 +13,12 @@ export class PlansService {
     });
   }
 
+  findAllAdmin() {
+    return this.prisma.plan.findMany({
+      orderBy: { priceMonthly: 'asc' },
+    });
+  }
+
   create(input: CreatePlanDto) {
     return this.prisma.plan.create({
       data: {

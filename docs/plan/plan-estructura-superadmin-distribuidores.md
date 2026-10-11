@@ -1,6 +1,6 @@
 # Plan de desarrollo — Estructura de plataforma (SUPER_ADMIN) separada + Distribuidores
 
-> Estado: **Fases 0–1 completadas y desplegadas (2026-10-11)** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
+> Estado: **Fases 0–1 completadas y desplegadas; Fase 2 completada (pendiente despliegue) (2026-10-11)** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
 
 ---
 
@@ -298,10 +298,12 @@ frontend/app/
 6. ✅ Enforcement del gate (helper `profile-completeness.helper.ts`) en `PlanUpgradeRequestsService` y `CheckoutRequestsService` (crear + revisar) + `CompaniesService` sincroniza `profileComplete`; `CreateCheckoutRequestDto` con `taxId/legalName/address/phone`.
 7. ✅ Frontend: `/subscription` bloquea CTAs de pago y muestra CTA a `/settings/company` cuando falta perfil; `/checkout` captura datos de empresa para plan de pago en registro nuevo.
 
-### Fase 2 — Backend plataforma
-1. Módulo `platform` completo (companies, plans, settings, metrics, audit, admins).
-2. Reubucar endpoints globales bajo `/platform`; mantener alias deprecado.
-3. Tests: `PlatformGuard` niega tenant-context; `TenantGuard` no ve `/platform`.
+### Fase 2 — Backend plataforma ✅ *(completada, pendiente despliegue/validación en prod)*
+1. ✅ Controladores de plataforma reutilizando los servicios existentes: `platform/companies`, `platform/plans` (listado admin incl. inactivos), `platform/subscriptions` (subscribers/stats), `platform/checkout-requests`, `platform/upgrade-requests`, `platform/audit`; `platform/settings/payment` ya existía (Fase 0).
+2. ✅ Nuevos `platform/metrics` (KPIs globales: empresas por estado, usuarios, suscripciones por plan, ingresos del mes, solicitudes pendientes) y `platform/admins` (listado + alta/baja de `SUPPORT_ADMIN`) con `PlatformMetricsService`/`PlatformAdminsService`.
+3. ✅ Guard por dominio en todos los controladores: `@UseGuards(JwtAuthGuard, PlatformGuard, PermissionsGuard)` con permisos `platform:*`.
+4. ✅ Alias deprecado: los controladores globales previos (`companies`, `plans`, `subscriptions`, `audit`, `payments/checkout`, `subscriptions/upgrade-requests`) siguen activos sin cambios; el frontend los migrará en Fase 4.
+5. ✅ Tests: `PlatformGuard` rechaza contexto tenant y peticiones sin sesión; `TenantGuard` sigue rechazando contexto de plataforma sin `companyId`. `npm run lint` + `npm test` (50 tests) + `npm run build` limpios.
 
 ### Fase 3 — Backend distribuidores
 1. Módulo `distributors` (CRUD + transfers/returns + ventas + liquidación).

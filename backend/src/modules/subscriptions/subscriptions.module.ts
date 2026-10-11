@@ -11,7 +11,7 @@ import { PrismaModule } from '@/database/prisma/prisma.module';
   imports: [PrismaModule, NotificationsModule, EmailModule],
   controllers: [SubscriptionsController, PlanUpgradeRequestsController],
   providers: [SubscriptionsService, PlanUpgradeRequestsService],
-  exports: [SubscriptionsService],
+  exports: [SubscriptionsService, PlanUpgradeRequestsService],
 })
 export class SubscriptionsModule {}
 
