@@ -154,7 +154,7 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             {errors.general && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{errors.general}</div>}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Nombres *</Label>
                 <Input 
@@ -179,7 +179,7 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
                 {errors.lastName && <p className="text-xs text-red-500">{errors.lastName}</p>}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input 
@@ -221,7 +221,7 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
               </select>
             </div>
             {!isEdit && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="password">Contraseña *</Label>
                   <Input

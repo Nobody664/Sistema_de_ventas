@@ -14,7 +14,7 @@ const data = [
 
 export function RevenueChart() {
   return (
-    <div className="h-[320px]">
+    <div className="h-64 sm:h-[320px]">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
           <defs>

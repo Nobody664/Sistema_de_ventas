@@ -593,7 +593,7 @@ function CheckoutContent() {
 
             <div>
               <Label className="mb-3 block">Método de pago</Label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {paymentMethods.map((method) => {
                   const Icon = method.icon;
                   const isEnabled = enabledPayments.includes(method.id);
@@ -606,7 +606,7 @@ function CheckoutContent() {
                       disabled={!isEnabled}
                       onClick={() => setSelectedPayment(method.id)}
                       className={`
-                        flex flex-col items-center justify-center rounded-xl border-2 p-4 transition
+                        flex flex-col items-center justify-center rounded-xl border-2 p-3 transition sm:p-4
                         ${isSelected 
                           ? 'border-violet-500 bg-violet-50' 
                           : isEnabled 
@@ -618,7 +618,7 @@ function CheckoutContent() {
                       <div className={`rounded-full p-2 ${method.color}`}>
                         <Icon className="h-5 w-5 text-white" />
                       </div>
-                      <span className="mt-2 text-sm font-medium">{method.name}</span>
+                      <span className="mt-2 text-xs font-medium sm:text-sm">{method.name}</span>
                       {!isEnabled && <span className="text-xs text-red-500 mt-1">No disponible</span>}
                     </button>
                   );

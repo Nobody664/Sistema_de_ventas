@@ -113,11 +113,11 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
   return (
     <div className="space-y-6">
       <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-        <Card className="rounded-[34px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white animate-fade-in-up">
+        <Card className="rounded-[34px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 text-white animate-fade-in-up">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.18em] text-white/50">Panel de control</p>
-              <h1 className="mt-4 font-display text-5xl leading-none">
+              <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
                 Consola {isSuperAdmin ? 'Super Admin' : 'Operativa'}
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">

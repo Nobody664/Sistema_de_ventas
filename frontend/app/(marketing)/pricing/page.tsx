@@ -70,7 +70,7 @@ export default function PricingPage() {
     <main className="container py-14">
       <div className="text-center max-w-3xl mx-auto mb-12">
         <span className="eyebrow">Planes y Precios</span>
-        <h1 className="mt-5 font-display text-5xl md:text-6xl">Elige el plan ideal para tu negocio</h1>
+        <h1 className="mt-5 font-display text-4xl sm:text-5xl md:text-6xl">Elige el plan ideal para tu negocio</h1>
         <p className="mt-5 text-lg leading-8 text-foreground/68">
           Comienza gratis y escala cuando tu negocio lo necesite. 
           Sin compromisos, sin sorpresas.
@@ -189,7 +189,7 @@ export default function PricingPage() {
         <h2 className="font-display text-3xl text-center mb-8">Compara los planes</h2>
         
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-foreground/10">
                 <th className="text-left py-4 px-4 font-medium text-foreground/70">Característica</th>

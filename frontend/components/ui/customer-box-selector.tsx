@@ -51,7 +51,7 @@ export function CustomerBoxSelector({ customers, selectedId, onSelect }: Custome
         />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[280px] overflow-y-auto pr-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[45vh] overflow-y-auto pr-1">
         {filtered.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-8 text-muted-foreground">
             <Users className="size-8 mb-2 opacity-40" />

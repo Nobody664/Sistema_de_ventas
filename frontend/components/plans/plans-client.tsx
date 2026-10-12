@@ -200,11 +200,11 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[34px] bg-gradient-to-br from-violet-600 to-indigo-700 p-8 text-white">
+      <Card className="rounded-[34px] bg-gradient-to-br from-violet-600 to-indigo-700 p-6 sm:p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Administración</p>
-            <h1 className="mt-4 font-display text-5xl leading-none">Planes</h1>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Planes</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Configura los planes de suscripción disponibles en la plataforma. 
               Define precios, características y límites para cada plan.
@@ -361,7 +361,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
           </DialogHeader>
           
           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="code">Código</Label>
                 <Input
@@ -407,7 +407,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="priceMonthly">Precio mensual (S/)</Label>
                 <Input
@@ -432,7 +432,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="maxUsers">Máximo usuarios</Label>
                 <Input

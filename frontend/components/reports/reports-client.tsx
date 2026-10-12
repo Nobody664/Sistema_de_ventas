@@ -83,11 +83,11 @@ export function ReportsClient({ initial }: { initial: ReportOverview }) {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[34px] bg-gradient-to-br from-slate-700 to-slate-900 p-8 text-white">
+      <Card className="rounded-[34px] bg-gradient-to-br from-slate-700 to-slate-900 p-6 sm:p-8 text-white">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Inteligencia de negocio</p>
-            <h1 className="mt-4 font-display text-5xl leading-none">Reportes y analytics</h1>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Reportes y analytics</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Analiza el rendimiento por canal de venta y rango de fechas.
             </p>
@@ -139,7 +139,7 @@ export function ReportsClient({ initial }: { initial: ReportOverview }) {
       </Card>
 
       {hasFilters && (
-        <div className="flex items-center gap-2 text-sm text-foreground/60">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-foreground/60">
           <Filter className="size-4" />
           Filtrando por
           {channel && <span className="rounded-full bg-foreground/5 px-2 py-0.5 font-medium">{CHANNEL_META[channel].label}</span>}

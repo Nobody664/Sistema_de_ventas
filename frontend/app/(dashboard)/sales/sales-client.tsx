@@ -74,11 +74,11 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[34px] bg-gradient-to-br from-orange-500 to-rose-600 p-8 text-white animate-fade-in-up">
+      <Card className="rounded-[34px] bg-gradient-to-br from-orange-500 to-rose-600 p-6 sm:p-8 text-white animate-fade-in-up">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Punto de venta</p>
-            <h1 className="mt-4 font-display text-5xl leading-none">Gestion de ventas</h1>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Gestion de ventas</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Registra nuevas ventas, consulta el historial y gestiona transacciones.
             </p>

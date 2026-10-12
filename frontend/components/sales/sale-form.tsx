@@ -439,7 +439,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
               {/* Channel */}
               <div className="px-5 pb-4">
                 <Label className="text-sm font-semibold text-foreground mb-2 block">Canal de venta</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {([
                     ['POS', Store, 'Tienda'],
                     ['ONLINE', Globe, 'Online'],
@@ -495,7 +495,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
               {/* Payment method */}
               <div className="px-5 pb-4">
                 <Label className="text-sm font-semibold text-foreground mb-2 block">M&eacute;todo de pago</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {([['CASH', Banknote, 'Efectivo'], ['CARD', CreditCard, 'Tarjeta'], ['TRANSFER', Building2, 'Transferencia']] as const).map(([method, Icon, label]) => {
                     const isActive = paymentMethod === method;
                     return (

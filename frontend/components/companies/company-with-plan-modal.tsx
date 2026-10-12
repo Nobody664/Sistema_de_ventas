@@ -80,7 +80,7 @@ export function CompanyWithPlanModal({ plans, children }: CompanyWithPlanModalPr
               <Label htmlFor="name">Nombre de la empresa *</Label>
               <Input id="name" name="name" required placeholder="Mi Empresa SAC" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" name="email" type="email" placeholder="contacto@empresa.com" />

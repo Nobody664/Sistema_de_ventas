@@ -85,7 +85,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-black py-28">
+      <section className="relative overflow-hidden bg-black py-16 md:py-28">
         {/* Animated background */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-black to-black" />
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[120px] animate-pulse" />
@@ -97,12 +97,12 @@ export default function HomePage() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 font-bold text-white">
                 V
               </div>
-              <span className="text-lg font-medium text-white">Ventas SaaS</span>
+              <span className="hidden text-lg font-medium text-white sm:inline">Ventas SaaS</span>
             </Link>
             <nav className="flex items-center gap-2">
               <Link
                 href="/sign-in"
-                className="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white sm:px-4"
               >
                 Iniciar sesión
               </Link>
@@ -120,7 +120,7 @@ export default function HomePage() {
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Nueva versión disponible
               </div>
-              <h1 className="font-display text-5xl font-medium leading-tight text-white md:text-7xl">
+              <h1 className="font-display text-4xl font-medium leading-tight text-white sm:text-5xl md:text-7xl">
                 Gestiona tu negocio{' '}
                 <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
                   sin complicaciones
@@ -156,8 +156,8 @@ export default function HomePage() {
                   <div className="size-3 rounded-full bg-yellow-500" />
                   <div className="size-3 rounded-full bg-green-500" />
                 </div>
-                <div className="grid grid-cols-4 gap-0">
-                  <div className="col-span-1 border-r border-white/5 bg-white/5 p-4">
+                <div className="grid grid-cols-1 gap-0 sm:grid-cols-4">
+                  <div className="col-span-1 hidden border-r border-white/5 bg-white/5 p-4 sm:block">
                     <div className="h-4 w-24 rounded bg-white/10" />
                     <div className="mt-6 space-y-3">
                       {[1, 2, 3, 4, 5].map((i) => (
@@ -165,8 +165,8 @@ export default function HomePage() {
                       ))}
                     </div>
                   </div>
-                  <div className="col-span-3 p-6">
-                    <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-1 p-6 sm:col-span-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                       {[
                         ['Ventas hoy', 'S/ 12,450'],
                         ['Tickets', '156'],
@@ -202,7 +202,7 @@ export default function HomePage() {
       </section>
 
       {/* Benefits Section */}
-      <section className="bg-white py-28 relative overflow-hidden">
+      <section className="bg-white py-16 md:py-28 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-white to-white" />
         <div className="absolute top-20 left-0 w-96 h-96 bg-violet-100 rounded-full blur-3xl opacity-50" />
         <div className="absolute bottom-20 right-0 w-96 h-96 bg-blue-100 rounded-full blur-3xl opacity-50" />
@@ -241,7 +241,7 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="bg-slate-50 py-28">
+      <section className="bg-slate-50 py-16 md:py-28">
         <div className="container">
           <AnimatedSection>
             <div className="mx-auto max-w-2xl text-center">
@@ -278,7 +278,7 @@ export default function HomePage() {
       </section>
 
       {/* Pricing Section */}
-      <section className="bg-black py-28 relative overflow-hidden">
+      <section className="bg-black py-16 md:py-28 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-slate-900 via-black to-black" />
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[80px]" />

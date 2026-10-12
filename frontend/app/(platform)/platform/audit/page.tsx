@@ -96,8 +96,8 @@ export default async function AuditPage() {
                   <div className="rounded-xl bg-slate-100 p-3">
                     <EntityIcon className="size-5 text-slate-600" />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${actionColor}`}>
                         {log.action}
                       </span>
@@ -107,11 +107,11 @@ export default async function AuditPage() {
                       )}
                     </div>
                     {log.changes && Object.keys(log.changes).length > 0 && (
-                      <div className="mt-2 rounded-lg bg-foreground/[0.02] p-2 text-xs font-mono text-foreground/60">
+                      <div className="mt-2 break-all rounded-lg bg-foreground/[0.02] p-2 text-xs font-mono text-foreground/60">
                         {JSON.stringify(log.changes, null, 0).slice(0, 200)}
                       </div>
                     )}
-                    <div className="mt-2 flex items-center gap-4 text-sm text-foreground/50">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground/50">
                       <span className="flex items-center gap-1">
                         <User className="size-3" />
                         {log.user?.fullName || log.user?.email || 'Sistema'}

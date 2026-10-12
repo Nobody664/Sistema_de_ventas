@@ -152,9 +152,9 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Plantillas de Documentos</h1>
+            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Plantillas de Documentos</h1>
             <p className="mt-1 text-muted-foreground">Crea y gestiona las plantillas para tus boletas, tickets y facturas</p>
           </div>
           <Button 

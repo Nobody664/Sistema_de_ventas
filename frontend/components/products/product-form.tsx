@@ -262,7 +262,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="sku" className="text-sm font-semibold text-slate-700">SKU</Label>
                         <div className="relative">
@@ -337,7 +337,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                     <Banknote className="h-4 w-4" />
                     Precios y costos
                   </p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="costPrice" className="text-sm font-semibold text-slate-700">Precio de costo</Label>
                       <div className="relative">
@@ -383,7 +383,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                     <Boxes className="h-4 w-4" />
                     Inventario
                   </p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="stockQuantity" className="text-sm font-semibold text-slate-700">Stock inicial</Label>
                       <Input 

@@ -57,11 +57,11 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
   return (
     <>
       <div className="space-y-6">
-        <Card className="rounded-[34px] bg-gradient-to-br from-emerald-500 to-teal-700 p-8 text-white animate-fade-in-up">
+        <Card className="rounded-[34px] bg-gradient-to-br from-emerald-500 to-teal-700 p-6 sm:p-8 text-white animate-fade-in-up">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.18em] text-white/60">Catalogo de productos</p>
-              <h1 className="mt-4 font-display text-5xl leading-none">Gestion de inventario</h1>
+              <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Gestion de inventario</h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
                 Administra tu catalogo de productos, controla el stock y mantien actualizado tu inventario.
               </p>
@@ -139,12 +139,12 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                   </option>
                 ))}
               </select>
-              <div className="relative group">
-                <button className="flex items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5">
+              <details className="relative">
+                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5 [&::-webkit-details-marker]:hidden">
                   <Download className="size-4" />
                   Exportar
-                </button>
-                <div className="absolute right-0 top-full z-10 mt-1 hidden min-w-[140px] rounded-xl border border-foreground/10 bg-white py-1 shadow-lg group-hover:block">
+                </summary>
+                <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-xl border border-foreground/10 bg-white py-1 shadow-lg">
                   <button
                     onClick={() => handleExport('csv')}
                     className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
@@ -164,7 +164,7 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                     PDF
                   </button>
                 </div>
-              </div>
+              </details>
               <div className="lg:hidden">
                 <NewProductButton />
               </div>

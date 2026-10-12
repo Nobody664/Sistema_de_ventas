@@ -58,11 +58,11 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[34px] bg-gradient-to-br from-violet-600 to-indigo-700 p-8 text-white">
+      <Card className="rounded-[34px] bg-gradient-to-br from-violet-600 to-indigo-700 p-6 sm:p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Gestión de empresas</p>
-            <h1 className="mt-4 font-display text-5xl leading-none">Suscripciones</h1>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Suscripciones</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Administra las empresas registradas y sus planes de suscripción. Aprueba o rechaza solicitudes.
             </p>

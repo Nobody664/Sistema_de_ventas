@@ -26,11 +26,11 @@ export default async function EmployeesPage() {
   return (
     <div className="space-y-6">
       {/* Header Card */}
-      <Card className="rounded-[34px] bg-gradient-to-br from-purple-500 to-violet-600 p-8 text-white animate-fade-in-up">
+      <Card className="rounded-[34px] bg-gradient-to-br from-purple-500 to-violet-600 p-6 sm:p-8 text-white animate-fade-in-up">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">RRHH</p>
-            <h1 className="mt-4 font-display text-5xl leading-none">Gestión de empleados</h1>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Gestión de empleados</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Administra los usuarios y roles de tu empresa. Controla el acceso y permisos de tu equipo.
             </p>

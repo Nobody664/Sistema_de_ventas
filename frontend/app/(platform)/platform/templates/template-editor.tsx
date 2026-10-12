@@ -195,13 +195,13 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
           <Button 
             variant="ghost" 
             onClick={() => router.push('/platform/templates')}
-            className="text-foreground hover:text-foreground"
+            className="shrink-0 text-foreground hover:text-foreground"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver
           </Button>
           <div className="h-6 w-px bg-border" />
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="min-w-0 truncate text-2xl font-bold text-foreground">
             {template ? `Editar: ${template.name}` : 'Nueva Plantilla'}
           </h1>
         </div>
@@ -209,7 +209,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
         <div className={`grid gap-6 ${isTicket ? 'items-start lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]' : 'grid-cols-1'}`}>
             <Card className="min-w-0 overflow-hidden rounded-2xl shadow-xl">
                 <form onSubmit={handleSubmit} className="space-y-6 p-6">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     {(['BOLETA', 'TICKET', 'FACTURA'] as const).map((type) => (
                       <button
                         key={type}
@@ -225,7 +225,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
                                 : current.paperSize,
                           }));
                         }}
-                        className={`rounded-xl border-2 p-4 text-center transition-all ${
+                        className={`rounded-xl border-2 p-3 text-center transition-all sm:p-4 ${
                           formData.type === type
                             ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300'
                             : 'border-border text-card-foreground hover:border-foreground/30'
@@ -265,7 +265,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
 
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-foreground">Formato</h3>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <div>
                         <Label htmlFor="paperSize">Tamaño de papel</Label>
                         <select
@@ -307,7 +307,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
 
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-foreground">Impuestos</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <Label htmlFor="taxPercentage">IGV (%)</Label>
                         <Input
@@ -332,7 +332,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
 
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-foreground">Campos a mostrar</h3>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
                       {[
                         { key: 'showLogo', label: 'Logo' },
                         { key: 'showCompany', label: 'Datos de empresa' },

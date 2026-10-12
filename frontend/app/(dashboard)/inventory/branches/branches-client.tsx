@@ -50,11 +50,11 @@ export function BranchesPageClient({ initialBranches }: BranchesPageClientProps)
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[34px] bg-gradient-to-br from-amber-500 to-orange-700 p-8 text-white animate-fade-in-up">
+      <Card className="rounded-[34px] bg-gradient-to-br from-amber-500 to-orange-700 p-6 sm:p-8 text-white animate-fade-in-up">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Inventario</p>
-            <h1 className="mt-4 font-display text-5xl leading-none">Sucursales</h1>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Sucursales</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Administra múltiples sucursales y almacenes para tu negocio.
             </p>

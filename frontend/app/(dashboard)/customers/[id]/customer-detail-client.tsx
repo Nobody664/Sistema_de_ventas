@@ -42,8 +42,8 @@ export function CustomerDetailClient({ customer, purchasesData }: CustomerDetail
             Volver a clientes
           </Link>
           
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-4">
               <div className="rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-4 shadow-lg">
                 <User className="h-8 w-8 text-white" />
               </div>

@@ -297,8 +297,8 @@ export function PaymentHistoryClient({ billingStatus, isSuperAdmin }: PaymentHis
         <div className="mt-6 space-y-3">
           {recentPayments.length > 0 ? (
             recentPayments.map((payment) => (
-              <div key={payment.id} className="flex items-center justify-between rounded-2xl border border-foreground/10 p-4">
-                <div className="flex items-center gap-4">
+              <div key={payment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-foreground/10 p-4">
+                <div className="flex min-w-0 items-center gap-4">
                   <div className={`rounded-xl p-2 ${
                     payment.status === 'SUCCEEDED' ? 'bg-green-100' :
                     payment.status === 'PENDING' ? 'bg-amber-100' : 'bg-red-100'

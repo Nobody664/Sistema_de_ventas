@@ -16,11 +16,11 @@ export default async function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[34px] bg-gradient-to-br from-indigo-500 to-purple-600 p-8 text-white">
+      <Card className="rounded-[34px] bg-gradient-to-br from-indigo-500 to-purple-600 p-6 sm:p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Gestion de categorias</p>
-            <h1 className="mt-4 font-display text-5xl leading-none">Categorias</h1>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Categorias</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Organiza tus productos en categorias para una mejor navegacion y gestion del inventario.
             </p>

@@ -29,20 +29,20 @@ export function TrialBanner({ companyStatus, trialEndsAt, roles }: TrialBannerPr
   return (
     <div className={`${isUrgent ? 'bg-red-600' : 'bg-amber-600'} text-white`}>
       <div className="mx-auto flex max-w-[1600px] items-center justify-between px-5 py-2.5 md:px-8">
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
           {isUrgent ? (
             <AlertTriangle className="size-4 shrink-0" />
           ) : (
             <Clock className="size-4 shrink-0" />
           )}
-          <span>
+          <span className="truncate">
             {isUrgent
               ? `Tu prueba gratis termina en ${hoursLeft <= 1 ? 'menos de 1 hora' : `${hoursLeft} hora(s)`}.`
               : `Te quedan ${daysLeft} día(s) de prueba gratis.`}
           </span>
           <Link
             href="/subscription"
-            className={`ml-2 rounded-full px-3 py-0.5 text-xs font-semibold ${
+            className={`ml-2 shrink-0 rounded-full px-3 py-0.5 text-xs font-semibold ${
               isUrgent
                 ? 'bg-white text-red-700 hover:bg-white/90'
                 : 'bg-white/20 text-white hover:bg-white/30'
