@@ -6,12 +6,13 @@ Bitácora de errores relevantes del proyecto con causa y corrección.
 
 ## 2026-10-12 — 404 en el flujo de inicio de sesión (páginas de recuperación inexistentes) y landing oculta
 
-> Detectado al probar el inicio de sesión por web. Estado: **resuelto** — commit `3338197`; verificado en Vercel prod.
+> Detectado al probar el inicio de sesión por web. Estado: **resuelto** — commits `3338197`, `2f6785b`, `c4f802d`; verificado en Vercel prod.
 
 | Error / síntoma | Causa | Corrección / verificación |
 |-----------------|-------|---------------------------|
 | Al usar el inicio de sesión, `/forgot-password` (enlace "¿Olvidaste tu contraseña?") y `/reset-password` devolvían **404** | El backend ya exponía `POST /api/auth/forgot-password` y `POST /api/auth/reset-password`, y `proxy.ts` los listaba como públicos, pero **las páginas del frontend nunca se crearon** | Creadas `/forgot-password` y `/reset-password` (clientes + formularios) conectadas a los endpoints del backend. Verificado en prod: ambas → **200**; `POST /api/auth/forgot-password` → **200** con mensaje genérico |
 | La landing (`app/page.tsx`) solo se veía con sesión: `/` sin sesión redirigía (307) a `/sign-in` | `proxy.ts` no consideraba `/` como ruta pública y `PUBLIC_ROUTES.some(r => pathname.startsWith(r))` no podía incluir `'/'` (habría hecho públicas todas las rutas) | Añadida excepción explícita `pathname === '/'` para la landing, y nav con "Iniciar sesión" en `app/page.tsx`. Verificado: `/` → **200** (landing + enlace), mientras `/dashboard`, `/platform` y rutas desconocidas siguen → **307** a `/sign-in` |
+| El correo de recuperación **nunca se enviaba** en producción (el endpoint respondía 200 pero el usuario no recibía nada) | `AuthService.forgotPassword` generaba el token pero no llamaba a ningún envío; además todo `EmailService` era un stub: `sendEmailDirect` solo hacía `logger.log('[DEMO] ...')`, `SMTP_ENABLED` no se leía y el `sendEmail` real nunca se invocaba. Tampoco existía config de URL del frontend | Añadida plantilla `PASSWORD_RESET` + `EmailService.sendPasswordReset`; `sendEmailDirect` ahora **envía de verdad** cuando `SMTP_ENABLED=true` (si no, sigue en modo demo); `forgotPassword` arma el enlace con `FRONTEND_URL` y envía (con try/catch, sin filtrar errores). `FRONTEND_URL` añadido al schema de env y configurado en Render. **Pendiente del usuario**: cargar credenciales SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`) y `SMTP_ENABLED=true` en Render para activar el envío real |
 
 ---
 
