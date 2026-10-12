@@ -13,6 +13,7 @@ import { randomBytes, createHash } from 'crypto';
 import { RefreshTokenType, type Prisma } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { UsersService } from '@/modules/users/users.service';
+import { EmailService } from '@/modules/email/email.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 
 const DEFAULT_REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -37,6 +38,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   private hashToken(token: string): string {
@@ -331,6 +333,17 @@ export class AuthService {
         userAgent: null,
       },
     });
+
+    const frontendUrl = (this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000').replace(/\/+$/, '');
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+    try {
+      await this.emailService.sendPasswordReset(user.email, resetUrl);
+    } catch (error) {
+      this.logger.error(
+        `No se pudo enviar el correo de recuperación a ${user.email}: ${(error as Error).message}`,
+      );
+    }
 
     return {
       status: 'queued',

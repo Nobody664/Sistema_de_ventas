@@ -16,6 +16,7 @@ export enum EmailTemplate {
   ACCOUNT_ACTIVATED = 'account-activated',
   PAYMENT_RECEIVED = 'payment-received',
   PAYMENT_PROOF_RECEIVED = 'payment-proof-received',
+  PASSWORD_RESET = 'password-reset',
   WELCOME = 'welcome',
 }
 
@@ -92,6 +93,21 @@ Saludos,
 Equipo Ventas SaaS
     `.trim(),
   },
+  [EmailTemplate.PASSWORD_RESET]: {
+    subject: 'Restablece tu contraseña',
+    text: `
+Recibimos una solicitud para restablecer la contraseña de tu cuenta.
+
+Usa el siguiente enlace para crear una nueva contraseña (válido por 15 minutos):
+
+{{resetUrl}}
+
+Si no solicitaste este cambio, puedes ignorar este correo.
+
+Saludos,
+Equipo Ventas SaaS
+    `.trim(),
+  },
   [EmailTemplate.WELCOME]: {
     subject: 'Bienvenido a Ventas SaaS',
     text: `
@@ -112,9 +128,11 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly transporter;
   private readonly fromEmail: string;
+  private readonly smtpEnabled: boolean;
 
   constructor(private readonly configService: ConfigService) {
     this.fromEmail = this.configService.get<string>('SMTP_FROM_EMAIL') || 'noreply@ventassaas.com';
+    this.smtpEnabled = this.configService.get<boolean>('SMTP_ENABLED') ?? false;
     
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST') || 'smtp.gmail.com',
@@ -174,7 +192,23 @@ export class EmailService {
       ? this.interpolateTemplate(job.subject, job.data)
       : this.interpolateTemplate(template.subject, job.data);
 
-    this.logger.log(`[DEMO] Sending email: ${job.template} to @${this.recipientDomain(job.to)}`);
+    if (!this.smtpEnabled) {
+      this.logger.log(`[DEMO] Email omitido (SMTP deshabilitado): ${job.template} to @${this.recipientDomain(job.to)}`);
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: this.fromEmail,
+        to: job.to,
+        subject,
+        text,
+      });
+      this.logger.log(`Email enviado: ${job.template} to @${this.recipientDomain(job.to)}`);
+    } catch (error) {
+      this.logger.error(`Error enviando email ${job.template}: ${(error as Error).message}`);
+      throw error;
+    }
   }
 
   private recipientDomain(to: string): string {
@@ -233,8 +267,16 @@ export class EmailService {
     });
   }
 
-  async sendPaymentProofReceived(userEmail: string, companyName: string, planName: string): Promise<void> {
+  async sendPasswordReset(userEmail: string, resetUrl: string): Promise<void> {
     await this.sendEmailDirect({
+      to: userEmail,
+      subject: '',
+      template: EmailTemplate.PASSWORD_RESET,
+      data: { resetUrl },
+    });
+  }
+
+  async sendPaymentProofReceived(userEmail: string, companyName: string, planName: string): Promise<void> {    await this.sendEmailDirect({
       to: userEmail,
       subject: '',
       template: EmailTemplate.PAYMENT_PROOF_RECEIVED,

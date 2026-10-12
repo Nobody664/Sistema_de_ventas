@@ -44,6 +44,7 @@ export const envSchema = z.object({
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().optional(),
   SMTP_ENABLED: booleanFromEnv(false),
+  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
   CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001'),
   DB_SSL: booleanFromEnv(true),
   DB_SSL_REJECT_UNAUTHORIZED: booleanFromEnv(false),
