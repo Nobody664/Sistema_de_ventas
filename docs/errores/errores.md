@@ -4,6 +4,16 @@ Bitácora de errores relevantes del proyecto con causa y corrección.
 
 ---
 
+## 2026-10-11 — Tema dark incorrecto en páginas de alta/edición (fondo claro hardcodeado)
+
+> Detectado al revisar páginas de alta/edición (producto, cliente, categoría, empleado) y de detalle con el tema dark activo. Estado: **resuelto** — commit `06dc5e0`; verificado en Vercel prod.
+
+| Error / síntoma | Causa | Corrección / verificación |
+|-----------------|-------|---------------------------|
+| En tema dark las páginas de alta/edición y de detalle mostraban un fondo crema claro con texto claro (ilegible) | El contenedor raíz de cada página usaba el color fijo `bg-[#fbf6ef]` dentro del área `[data-app]` del dashboard; las reglas `.dark [data-app]` de `globals.css` no cubren clases de valor arbitrario, así que el fondo quedaba claro mientras los textos sí seguían el tema | Reemplazado por el token del tema `bg-background` en `product-form.tsx`, `customer-form.tsx`, `category-form.tsx`, `employee-form.tsx`, `customer-detail-client.tsx`, `sale-detail-client.tsx` y `forbidden/page.tsx`. Verificado en Vercel prod: el CSS ya no contiene `#fbf6ef` y sí la regla `bg-background`; `npm run lint` y `next build` OK |
+
+---
+
 ## 2026-10-08 — Registro no iniciaba sesión (route handler local sombreaba el rewrite)
 
 > Detectado al verificar el flujo E2E de registro con una empresa nueva. Estado: **resuelto** — commit `d41ff18`; registro vía Vercel responde `201` con cookies y `/auth/me` → 200.
