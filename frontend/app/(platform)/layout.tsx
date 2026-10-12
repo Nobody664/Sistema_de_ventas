@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { getServerSession } from '@/lib/session';
 import { AppScope } from '@/components/layout/app-scope';
-import { PlatformSidebar } from '@/components/layout/platform-sidebar';
+import { PlatformSidebar, PlatformMobileNav } from '@/components/layout/platform-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 
 export default async function PlatformLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -30,6 +30,7 @@ export default async function PlatformLayout({ children }: Readonly<{ children: 
             fullName={session.user.fullName}
             roles={roles}
             email={session.user.email ?? ''}
+            nav={<PlatformMobileNav roles={roles} />}
           />
           <main className="flex-1 p-5 md:p-8">{children}</main>
         </div>

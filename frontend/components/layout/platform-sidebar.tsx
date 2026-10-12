@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   Activity,
   ArrowUpCircle,
@@ -9,9 +10,11 @@ import {
   CreditCard,
   FileText,
   LayoutDashboard,
+  Menu,
   ShieldCheck,
   UserPlus,
 } from 'lucide-react';
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 const platformMainItems = [
   { label: 'Resumen', href: '/platform', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] },
@@ -31,7 +34,12 @@ type PlatformSidebarProps = {
   roles: string[];
 };
 
-export function PlatformSidebar({ roles }: PlatformSidebarProps) {
+type PlatformSidebarContentProps = {
+  roles: string[];
+  onNavigate?: () => void;
+};
+
+function PlatformSidebarContent({ roles, onNavigate }: PlatformSidebarContentProps) {
   const pathname = usePathname();
 
   const visibleMain = platformMainItems.filter((item) => item.roles.some((role) => roles.includes(role)));
@@ -40,7 +48,7 @@ export function PlatformSidebar({ roles }: PlatformSidebarProps) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
   return (
-    <aside className="sticky top-0 hidden h-screen flex-col justify-between border-r border-sidebar-muted/50 bg-sidebar px-4 py-6 lg:flex lg:w-64 shrink-0">
+    <>
       <div className="flex min-h-0 flex-col gap-6 overflow-hidden">
         <div className="rounded-2xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
           <p className="text-[10px] uppercase tracking-[0.25em] text-sidebar-foreground/40">Ventas SaaS</p>
@@ -57,6 +65,7 @@ export function PlatformSidebar({ roles }: PlatformSidebarProps) {
               <Link
                 key={item.label}
                 href={item.href}
+                onClick={onNavigate}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                   active
                     ? 'bg-violet-500/15 text-violet-400'
@@ -80,6 +89,7 @@ export function PlatformSidebar({ roles }: PlatformSidebarProps) {
                 <Link
                   key={item.label}
                   href={item.href}
+                  onClick={onNavigate}
                   className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                     active
                       ? 'bg-violet-500/15 text-violet-400'
@@ -102,6 +112,44 @@ export function PlatformSidebar({ roles }: PlatformSidebarProps) {
         </p>
         <p className="mt-1 text-sm text-sidebar-foreground/60">Tu sesión tiene permisos de plataforma</p>
       </div>
+    </>
+  );
+}
+
+export function PlatformSidebar({ roles }: PlatformSidebarProps) {
+  return (
+    <aside className="sticky top-0 hidden h-screen flex-col justify-between border-r border-sidebar-muted/50 bg-sidebar px-4 py-6 lg:flex lg:w-64 shrink-0">
+      <PlatformSidebarContent roles={roles} />
     </aside>
+  );
+}
+
+export function PlatformMobileNav({ roles }: PlatformSidebarProps) {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <button
+          type="button"
+          aria-label="Abrir menú de navegación"
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-foreground/10 bg-card text-foreground/70 transition hover:bg-muted hover:text-foreground lg:hidden"
+        >
+          <Menu className="size-5" />
+        </button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-72 gap-0 p-0">
+        <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
+        <SheetDescription className="sr-only">Accesos de la plataforma</SheetDescription>
+        <div className="flex h-full min-h-0 flex-1 flex-col justify-between gap-6 overflow-y-auto p-6">
+          <PlatformSidebarContent roles={roles} onNavigate={() => setOpen(false)} />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

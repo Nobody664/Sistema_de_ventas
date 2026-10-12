@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Bell, CreditCard, Handshake, LayoutDashboard, Package, ShoppingCart, Users, UserCog, FolderTree, Warehouse } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BarChart3, Bell, CreditCard, Handshake, LayoutDashboard, Menu, Package, ShoppingCart, Users, UserCog, FolderTree, Warehouse } from 'lucide-react';
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 const mainItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
@@ -27,11 +29,15 @@ type AppSidebarProps = {
   roles: string[];
 };
 
-export function AppSidebar({ roles }: AppSidebarProps) {
+type SidebarContentProps = {
+  roles: string[];
+  onNavigate?: () => void;
+};
+
+function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
   const pathname = usePathname();
-  
+
   const isPlatformAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
-  const isCompanyAdmin = roles.includes('COMPANY_ADMIN');
 
   const visibleMainItems = mainItems.filter((item) => item.roles.some((role) => roles.includes(role)));
   const visibleCompanyItems = companyItems.filter((item) => item.roles.some((role) => roles.includes(role)));
@@ -40,7 +46,7 @@ export function AppSidebar({ roles }: AppSidebarProps) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
   return (
-    <aside className="sticky top-0 hidden h-screen flex-col justify-between border-r border-sidebar-muted/50 bg-sidebar px-4 py-6 lg:flex lg:w-64 shrink-0">
+    <>
       <div className="flex min-h-0 flex-col gap-6 overflow-hidden">
         <div className="rounded-2xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
           <p className="text-[10px] uppercase tracking-[0.25em] text-sidebar-foreground/40">Ventas SaaS</p>
@@ -56,9 +62,10 @@ export function AppSidebar({ roles }: AppSidebarProps) {
               <Link
                 key={item.label}
                 href={item.href}
+                onClick={onNavigate}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                  active 
-                    ? 'bg-orange-500/15 text-orange-400' 
+                  active
+                    ? 'bg-orange-500/15 text-orange-400'
                     : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
                 }`}
               >
@@ -79,9 +86,10 @@ export function AppSidebar({ roles }: AppSidebarProps) {
                 <Link
                   key={item.label}
                   href={item.href}
+                  onClick={onNavigate}
                   className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                    active 
-                      ? 'bg-orange-500/15 text-orange-400' 
+                    active
+                      ? 'bg-orange-500/15 text-orange-400'
                       : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
                   }`}
                 >
@@ -103,9 +111,10 @@ export function AppSidebar({ roles }: AppSidebarProps) {
                 <Link
                   key={item.label}
                   href={item.href}
+                  onClick={onNavigate}
                   className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                    active 
-                      ? 'bg-orange-500/15 text-orange-400' 
+                    active
+                      ? 'bg-orange-500/15 text-orange-400'
                       : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
                   }`}
                 >
@@ -120,13 +129,51 @@ export function AppSidebar({ roles }: AppSidebarProps) {
 
       {isPlatformAdmin && (
         <div className="rounded-xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
-          <Link href="/platform" className="flex items-center gap-2 text-sm font-medium text-violet-400 hover:text-violet-300">
+          <Link href="/platform" onClick={onNavigate} className="flex items-center gap-2 text-sm font-medium text-violet-400 hover:text-violet-300">
             <LayoutDashboard className="size-4" />
             Ir a Plataforma
           </Link>
           <p className="mt-1 text-xs text-sidebar-foreground/50">Panel global del sistema</p>
         </div>
       )}
+    </>
+  );
+}
+
+export function AppSidebar({ roles }: AppSidebarProps) {
+  return (
+    <aside className="sticky top-0 hidden h-screen flex-col justify-between border-r border-sidebar-muted/50 bg-sidebar px-4 py-6 lg:flex lg:w-64 shrink-0">
+      <SidebarContent roles={roles} />
     </aside>
+  );
+}
+
+export function AppMobileNav({ roles }: AppSidebarProps) {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <button
+          type="button"
+          aria-label="Abrir menú de navegación"
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-foreground/10 bg-card text-foreground/70 transition hover:bg-muted hover:text-foreground lg:hidden"
+        >
+          <Menu className="size-5" />
+        </button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-72 max-w-[85%] gap-0 p-0">
+        <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
+        <SheetDescription className="sr-only">Accesos del sistema</SheetDescription>
+        <div className="flex min-h-0 flex-1 flex-col justify-between gap-6 overflow-y-auto px-4 py-6">
+          <SidebarContent roles={roles} onNavigate={() => setOpen(false)} />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

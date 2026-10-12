@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/session';
 import { AppHeader } from '@/components/layout/app-header';
-import { AppSidebar } from '@/components/layout/app-sidebar';
+import { AppSidebar, AppMobileNav } from '@/components/layout/app-sidebar';
 import { AppScope } from '@/components/layout/app-scope';
 import { TrialBanner } from '@/components/layout/trial-banner';
 
@@ -38,6 +38,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
             fullName={session.user.fullName}
             roles={session.user.roles}
             email={session.user.email ?? ''}
+            nav={<AppMobileNav roles={session.user.roles} />}
           />
           <main className="flex-1 p-5 md:p-8">{children}</main>
         </div>
