@@ -4,6 +4,17 @@ Bitácora de errores relevantes del proyecto con causa y corrección.
 
 ---
 
+## 2026-10-12 — 404 en el flujo de inicio de sesión (páginas de recuperación inexistentes) y landing oculta
+
+> Detectado al probar el inicio de sesión por web. Estado: **resuelto** — commit `3338197`; verificado en Vercel prod.
+
+| Error / síntoma | Causa | Corrección / verificación |
+|-----------------|-------|---------------------------|
+| Al usar el inicio de sesión, `/forgot-password` (enlace "¿Olvidaste tu contraseña?") y `/reset-password` devolvían **404** | El backend ya exponía `POST /api/auth/forgot-password` y `POST /api/auth/reset-password`, y `proxy.ts` los listaba como públicos, pero **las páginas del frontend nunca se crearon** | Creadas `/forgot-password` y `/reset-password` (clientes + formularios) conectadas a los endpoints del backend. Verificado en prod: ambas → **200**; `POST /api/auth/forgot-password` → **200** con mensaje genérico |
+| La landing (`app/page.tsx`) solo se veía con sesión: `/` sin sesión redirigía (307) a `/sign-in` | `proxy.ts` no consideraba `/` como ruta pública y `PUBLIC_ROUTES.some(r => pathname.startsWith(r))` no podía incluir `'/'` (habría hecho públicas todas las rutas) | Añadida excepción explícita `pathname === '/'` para la landing, y nav con "Iniciar sesión" en `app/page.tsx`. Verificado: `/` → **200** (landing + enlace), mientras `/dashboard`, `/platform` y rutas desconocidas siguen → **307** a `/sign-in` |
+
+---
+
 ## 2026-10-11 — Tema dark incorrecto en páginas de alta/edición (fondo claro hardcodeado)
 
 > Detectado al revisar páginas de alta/edición (producto, cliente, categoría, empleado) y de detalle con el tema dark activo. Estado: **resuelto** — commit `06dc5e0`; verificado en Vercel prod.
