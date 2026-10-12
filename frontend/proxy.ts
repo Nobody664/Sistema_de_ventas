@@ -44,7 +44,8 @@ function readCompanyStatus(accessToken: string): string | undefined {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
+  const isPublicRoute =
+    pathname === '/' || PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
   if (isPublicRoute) return NextResponse.next();
 
   const accessToken = request.cookies.get('access_token')?.value;

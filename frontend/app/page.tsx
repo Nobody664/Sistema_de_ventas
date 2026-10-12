@@ -90,7 +90,29 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-black to-black" />
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
-        
+
+        <header className="absolute inset-x-0 top-0 z-20">
+          <div className="container flex items-center justify-between py-6">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 font-bold text-white">
+                V
+              </div>
+              <span className="text-lg font-medium text-white">Ventas SaaS</span>
+            </Link>
+            <nav className="flex items-center gap-2">
+              <Link
+                href="/sign-in"
+                className="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white"
+              >
+                Iniciar sesión
+              </Link>
+              <Button asChild size="sm" className="rounded-xl bg-white text-violet-600 hover:bg-white/90">
+                <Link href="/sign-up">Comenzar</Link>
+              </Button>
+            </nav>
+          </div>
+        </header>
+
         <div className="container relative z-10">
           <AnimatedSection>
             <div className="mx-auto max-w-4xl text-center">
