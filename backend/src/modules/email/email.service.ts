@@ -133,11 +133,13 @@ export class EmailService {
   constructor(private readonly configService: ConfigService) {
     this.fromEmail = this.configService.get<string>('SMTP_FROM_EMAIL') || 'noreply@ventassaas.com';
     this.smtpEnabled = this.configService.get<boolean>('SMTP_ENABLED') ?? false;
-    
+
+    const smtpPort = parseInt(this.configService.get<string>('SMTP_PORT') || '587', 10);
+
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST') || 'smtp.gmail.com',
-      port: parseInt(this.configService.get<string>('SMTP_PORT') || '587', 10),
-      secure: this.configService.get<boolean>('SMTP_USE_TLS') ?? true,
+      port: smtpPort,
+      secure: smtpPort === 465,
       auth: {
         user: this.configService.get<string>('SMTP_USER'),
         pass: this.configService.get<string>('SMTP_PASSWORD'),
