@@ -52,7 +52,7 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbf6ef]">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-5 py-8 md:px-8">
         <div className="mb-8">
           <Link

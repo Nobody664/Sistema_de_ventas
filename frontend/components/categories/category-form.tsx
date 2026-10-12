@@ -80,7 +80,7 @@ export function CategoryForm({ category }: CategoryFormProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#fbf6ef]">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl px-5 py-8 md:px-8">
         {/* Header */}
         <div className="mb-8">

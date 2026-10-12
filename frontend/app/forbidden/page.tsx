@@ -3,7 +3,7 @@ import { ShieldAlert } from 'lucide-react';
 
 export default function ForbiddenPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fbf6ef]">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center max-w-md px-6">
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
           <ShieldAlert className="size-10 text-red-500" />

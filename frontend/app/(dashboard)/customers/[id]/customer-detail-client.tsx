@@ -31,7 +31,7 @@ export function CustomerDetailClient({ customer, purchasesData }: CustomerDetail
   };
 
   return (
-    <div className="min-h-screen bg-[#fbf6ef]">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-6xl px-5 py-8">
         <div className="mb-8">
           <Link
