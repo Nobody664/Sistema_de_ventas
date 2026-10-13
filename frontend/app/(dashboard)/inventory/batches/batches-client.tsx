@@ -28,7 +28,7 @@ export function BatchesPageClient({ initialBatches, products, branches, expiring
   }, [batches, productFilter, showExpiring, expiringBatches]);
 
   const totalBatches = batches.length;
-  const totalUnits = batches.reduce((s, b) => s + (b.quantityAvailable as number ?? 0), 0);
+  const totalUnits = batches.reduce((s, b) => s + (b.quantityAvailable != null ? Number(b.quantityAvailable) : 0), 0);
   const totalExpiring = expiringBatches.length;
 
   const productMap = new Map(products.map((p) => [p.id, p.name]));
@@ -146,8 +146,8 @@ export function BatchesPageClient({ initialBatches, products, branches, expiring
                       <td className="py-3 pl-4 text-sm font-medium">{productName}</td>
                       <td className="py-3 text-sm font-mono">{batch.batchNumber as string}</td>
                       <td className="py-3 text-sm text-foreground/60">{branchName}</td>
-                      <td className="py-3 text-right text-sm">{batch.quantityReceived as number}</td>
-                      <td className="py-3 text-right text-sm font-medium">{batch.quantityAvailable as number}</td>
+                      <td className="py-3 text-right text-sm">{Number(batch.quantityReceived)}</td>
+                      <td className="py-3 text-right text-sm font-medium">{Number(batch.quantityAvailable)}</td>
                       <td className="py-3 text-right text-sm">S/ {Number(batch.purchasePrice).toFixed(2)}</td>
                       <td className="py-3 text-right text-sm">
                         {expDate ? (

@@ -17,13 +17,28 @@ import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Product, Customer } from '@/types/api';
+import type { ProductPresentation } from '@/types/generated';
+
+const UNIT_SHORT: Record<string, string> = {
+  UNIT: 'und',
+  KG: 'kg',
+  LT: 'lt',
+  MT: 'mt',
+};
 
 interface SaleItem {
   productId: string;
   productName: string;
+  basePrice: number;
+  presentations: ProductPresentation[];
+  baseUnit: string;
+  presentationId?: string;
+  presentationName?: string;
+  factor: number;
   unitPrice: number;
   quantity: number;
   total: number;
+  stock: number;
 }
 
 interface NewSaleModalProps {
@@ -60,12 +75,17 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
   const taxAmount = (subtotal - discountAmount) * 0.18;
   const total = subtotal - discountAmount + taxAmount;
 
+  const maxQuantityFor = (item: SaleItem) => {
+    if (item.factor <= 0) return Math.floor(item.stock);
+    return Math.floor(item.stock / item.factor);
+  };
+
   const addItem = (product: Product) => {
     const existing = items.find(i => i.productId === product.id);
     if (existing) {
-      if (existing.quantity < Number(product.stockQuantity)) {
-        setItems(items.map(i => 
-          i.productId === product.id 
+      if (existing.quantity + 1 <= maxQuantityFor(existing)) {
+        setItems(items.map(i =>
+          i.productId === product.id
             ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
             : i
         ));
@@ -76,9 +96,16 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
         {
           productId: product.id,
           productName: product.name,
+          basePrice: Number(product.salePrice),
+          presentations: product.presentations ?? [],
+          baseUnit: product.baseUnit ?? 'UNIT',
+          presentationId: undefined,
+          presentationName: undefined,
+          factor: 1,
           unitPrice: Number(product.salePrice),
           quantity: 1,
           total: Number(product.salePrice),
+          stock: Number(product.stockQuantity),
         },
       ]);
     }
@@ -86,15 +113,40 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
     setShowProductSearch(false);
   };
 
+  const changeItemPresentation = (productId: string, presentationId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.productId !== productId) return item;
+        const presentation = item.presentations.find((p) => p.id === presentationId);
+        const factor = presentation ? Number(presentation.factor) : 1;
+        const unitPrice = presentation
+          ? presentation.price
+            ? Number(presentation.price)
+            : item.basePrice * factor
+          : item.basePrice;
+        const max = factor > 0 ? Math.floor(item.stock / factor) : item.stock;
+        const quantity = Math.max(1, Math.min(item.quantity, max));
+        return {
+          ...item,
+          presentationId: presentation?.id,
+          presentationName: presentation?.name,
+          factor,
+          unitPrice,
+          quantity,
+          total: quantity * unitPrice,
+        };
+      }),
+    );
+  };
+
   const updateQuantity = (productId: string, delta: number) => {
     const item = items.find(i => i.productId === productId);
-    const product = products.find(p => p.id === productId);
-    if (!item || !product) return;
+    if (!item) return;
 
     const newQty = item.quantity + delta;
     if (newQty <= 0) {
       setItems(items.filter(i => i.productId !== productId));
-    } else if (newQty <= Number(product.stockQuantity)) {
+    } else if (newQty <= maxQuantityFor(item)) {
       setItems(items.map(i => 
         i.productId === productId 
           ? { ...i, quantity: newQty, total: newQty * i.unitPrice }
@@ -123,6 +175,7 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
       items: items.map(item => ({
         productId: item.productId,
         quantity: item.quantity,
+        presentationId: item.presentationId,
       })),
     };
 
@@ -212,7 +265,7 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-orange-600">S/ {product.salePrice}</p>
-                          <p className="text-sm text-slate-500">Stock: {product.stockQuantity}</p>
+                          <p className="text-sm text-slate-500">Stock: {Number(product.stockQuantity)} {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}</p>
                         </div>
                       </button>
                     ))
@@ -282,35 +335,57 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
                 items.map(item => (
                   <div
                     key={item.productId}
-                    className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-3"
+                    className="rounded-lg border border-slate-100 bg-slate-50 p-3"
                   >
-                    <div className="flex-1">
-                      <p className="font-semibold text-slate-900">{item.productName}</p>
-                      <p className="text-sm text-slate-500">S/ {item.unitPrice.toFixed(2)} c/u</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateQuantity(item.productId, -1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-100"
-                      >
-                        <Minus className="size-4 text-slate-600" />
-                      </button>
-                      <span className="w-8 text-center font-bold text-slate-900">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.productId, 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-100"
-                      >
-                        <Plus className="size-4 text-slate-600" />
-                      </button>
-                    </div>
-                    <div className="ml-3 w-20 text-right">
-                      <p className="font-bold text-slate-900">S/ {item.total.toFixed(2)}</p>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-900">{item.productName}</p>
+                        <p className="text-sm text-slate-500">
+                          S/ {item.unitPrice.toFixed(2)} / {item.presentationName ?? UNIT_SHORT[item.baseUnit] ?? item.baseUnit}
+                        </p>
+                      </div>
                       <button
                         onClick={() => removeItem(item.productId)}
-                        className="text-red-500 hover:text-red-700"
+                        className="ml-2 text-red-500 hover:text-red-700"
                       >
                         <Trash2 className="size-4" />
                       </button>
+                    </div>
+
+                    {item.presentations.length > 0 && (
+                      <select
+                        value={item.presentationId ?? ''}
+                        onChange={(e) => changeItemPresentation(item.productId, e.target.value)}
+                        className="mt-2 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700"
+                      >
+                        <option value="">
+                          Unidad base ({UNIT_SHORT[item.baseUnit] ?? item.baseUnit})
+                        </option>
+                        {item.presentations.map((presentation) => (
+                          <option key={presentation.id} value={presentation.id}>
+                            {presentation.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateQuantity(item.productId, -1)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-100"
+                        >
+                          <Minus className="size-4 text-slate-600" />
+                        </button>
+                        <span className="w-8 text-center font-bold text-slate-900">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.productId, 1)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-100"
+                        >
+                          <Plus className="size-4 text-slate-600" />
+                        </button>
+                      </div>
+                      <p className="font-bold text-slate-900">S/ {item.total.toFixed(2)}</p>
                     </div>
                   </div>
                 ))

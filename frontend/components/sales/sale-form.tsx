@@ -16,11 +16,25 @@ import { useBarcodeScanner } from '@/components/scanner/hooks/useBarcodeScanner'
 import { ScannerStatus } from '@/components/scanner/components/scanner-status';
 import { playScanBeep, playErrorBeep } from '@/components/scanner/services/sound';
 import type { Product, Customer } from '@/types/api';
+import type { ProductPresentation } from '@/types/generated';
 import type { Distributor } from '@/types/distributors';
+
+const UNIT_SHORT: Record<string, string> = {
+  UNIT: 'und',
+  KG: 'kg',
+  LT: 'lt',
+  MT: 'mt',
+};
 
 interface SaleItem {
   productId: string;
   productName: string;
+  basePrice: number;
+  presentations: ProductPresentation[];
+  baseUnit: string;
+  presentationId?: string;
+  presentationName?: string;
+  factor: number;
   unitPrice: number;
   quantity: number;
   total: number;
@@ -98,19 +112,24 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
   const total = subtotal - discountAmount;
 
   const addItem = (product: Product) => {
-    const existingItem = items.find(i => i.productId === product.id);
+    const existingItem = items.find((i) => i.productId === product.id);
     if (existingItem) {
-      if (existingItem.quantity < Number(product.stockQuantity)) {
-        setItems(items.map(i =>
-          i.productId === product.id
-            ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
-            : i
-        ));
-      }
+      if (existingItem.quantity + 1 > maxQuantityFor(existingItem)) return;
+      setItems(items.map(i =>
+        i.productId === product.id
+          ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
+          : i
+      ));
     } else {
       setItems([...items, {
         productId: product.id,
         productName: product.name,
+        basePrice: Number(product.salePrice),
+        presentations: product.presentations ?? [],
+        baseUnit: product.baseUnit ?? 'UNIT',
+        presentationId: undefined,
+        presentationName: undefined,
+        factor: 1,
         unitPrice: Number(product.salePrice),
         quantity: 1,
         total: Number(product.salePrice),
@@ -119,12 +138,43 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
     }
   };
 
+  const maxQuantityFor = (item: SaleItem) => {
+    if (item.factor <= 0) return Math.floor(item.stock);
+    return Math.floor(item.stock / item.factor);
+  };
+
+  const changeItemPresentation = (productId: string, presentationId: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.productId !== productId) return item;
+        const presentation = item.presentations.find((p) => p.id === presentationId);
+        const factor = presentation ? Number(presentation.factor) : 1;
+        const unitPrice = presentation
+          ? presentation.price
+            ? Number(presentation.price)
+            : item.basePrice * factor
+          : item.basePrice;
+        const max = factor > 0 ? Math.floor(item.stock / factor) : item.stock;
+        const quantity = Math.max(1, Math.min(item.quantity, max));
+        return {
+          ...item,
+          presentationId: presentation?.id,
+          presentationName: presentation?.name,
+          factor,
+          unitPrice,
+          quantity,
+          total: quantity * unitPrice,
+        };
+      }),
+    );
+  };
+
   const updateQuantity = (productId: string, delta: number) => {
     setItems(items.map(item => {
       if (item.productId === productId) {
         const newQty = item.quantity + delta;
         if (newQty < 1) return item;
-        if (newQty > item.stock) return item;
+        if (newQty > maxQuantityFor(item)) return item;
         return { ...item, quantity: newQty, total: newQty * item.unitPrice };
       }
       return item;
@@ -148,7 +198,11 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
 
     setLoading(true);
 
-    const saleItems = items.map(i => ({ productId: i.productId, quantity: i.quantity }));
+    const saleItems = items.map(i => ({
+      productId: i.productId,
+      quantity: i.quantity,
+      presentationId: i.presentationId,
+    }));
 
     try {
       let saleNumber: string;
@@ -364,7 +418,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                                 : 'bg-red-500'
                           }`} />
                           <span className="text-xs text-muted-foreground">
-                            Stock: {product.stockQuantity}
+                            Stock: {Number(product.stockQuantity)} {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
                           </span>
                         </div>
                       </div>
@@ -402,7 +456,9 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0 mr-2">
                           <p className="font-medium text-sm text-foreground truncate">{item.productName}</p>
-                          <p className="text-xs text-muted-foreground">S/ {item.unitPrice.toFixed(2)} c/u</p>
+                          <p className="text-xs text-muted-foreground">
+                            S/ {item.unitPrice.toFixed(2)} / {item.presentationName ?? UNIT_SHORT[item.baseUnit] ?? item.baseUnit}
+                          </p>
                         </div>
                         <button
                           onClick={() => removeItem(item.productId)}
@@ -411,6 +467,24 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
+
+                      {item.presentations.length > 0 && (
+                        <select
+                          value={item.presentationId ?? ''}
+                          onChange={(e) => changeItemPresentation(item.productId, e.target.value)}
+                          className="mb-2 h-9 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+                        >
+                          <option value="">
+                            Unidad base ({UNIT_SHORT[item.baseUnit] ?? item.baseUnit})
+                          </option>
+                          {item.presentations.map((presentation) => (
+                            <option key={presentation.id} value={presentation.id}>
+                              {presentation.name} (&times; {Number(presentation.factor)})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <button
@@ -424,13 +498,19 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                           <button
                             onClick={() => updateQuantity(item.productId, 1)}
                             className="h-8 w-8 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-30"
-                            disabled={item.quantity >= item.stock}
+                            disabled={item.quantity >= maxQuantityFor(item)}
                           >
                             <Plus className="h-3.5 w-3.5" />
                           </button>
                         </div>
                         <p className="font-bold text-foreground">S/ {item.total.toFixed(2)}</p>
                       </div>
+
+                      {item.factor > 1 && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          = {(item.quantity * item.factor).toFixed(3)} {UNIT_SHORT[item.baseUnit] ?? item.baseUnit} de stock
+                        </p>
+                      )}
                     </div>
                   ))
                 )}

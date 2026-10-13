@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
-import { Package, History, Layers, Building2, Truck, AlertTriangle } from 'lucide-react';
+import { Package, History, Layers, Building2, Truck, AlertTriangle, PackagePlus } from 'lucide-react';
 
 interface InventoryPageClientProps {
   totalValue: string;
@@ -30,6 +30,15 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
       iconBg: 'bg-emerald-500/20',
       iconColor: 'text-emerald-600',
       badge: expiringCount > 0 ? `${expiringCount} por vencer` : undefined,
+    },
+    {
+      title: 'Entradas de stock',
+      description: 'Registra ingreso de mercadería por unidad o presentación',
+      href: '/inventory/entries',
+      icon: PackagePlus,
+      color: 'from-teal-500 to-emerald-700',
+      iconBg: 'bg-teal-500/20',
+      iconColor: 'text-teal-600',
     },
     {
       title: 'Sucursales',

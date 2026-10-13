@@ -30,10 +30,10 @@ export function KardexPageClient({ initialEntries, products }: KardexPageClientP
 
   const totalIn = entries
     .filter((e) => e.movementType === 'IN')
-    .reduce((s, e) => s + (e.qtyIn as number ?? 0), 0);
+    .reduce((s, e) => s + (e.qtyIn != null ? Number(e.qtyIn) : 0), 0);
   const totalOut = entries
     .filter((e) => e.movementType === 'OUT')
-    .reduce((s, e) => s + (e.qtyOut as number ?? 0), 0);
+    .reduce((s, e) => s + (e.qtyOut != null ? Number(e.qtyOut) : 0), 0);
 
   return (
     <div className="space-y-6">
@@ -158,13 +158,13 @@ export function KardexPageClient({ initialEntries, products }: KardexPageClientP
                           {entry.movementType as string}
                         </span>
                       </td>
-                      <td className="py-3 text-right text-sm">{entry.qtyIn as number > 0 ? entry.qtyIn as number : '—'}</td>
+                      <td className="py-3 text-right text-sm">{Number(entry.qtyIn) > 0 ? Number(entry.qtyIn) : '—'}</td>
                       <td className="py-3 text-right text-sm">{entry.unitCostIn ? `S/ ${Number(entry.unitCostIn).toFixed(2)}` : '—'}</td>
                       <td className="py-3 text-right text-sm">{entry.totalCostIn ? `S/ ${Number(entry.totalCostIn).toFixed(2)}` : '—'}</td>
-                      <td className="py-3 text-right text-sm">{entry.qtyOut as number > 0 ? entry.qtyOut as number : '—'}</td>
+                      <td className="py-3 text-right text-sm">{Number(entry.qtyOut) > 0 ? Number(entry.qtyOut) : '—'}</td>
                       <td className="py-3 text-right text-sm">{entry.unitCostOut ? `S/ ${Number(entry.unitCostOut).toFixed(2)}` : '—'}</td>
                       <td className="py-3 text-right text-sm">{entry.totalCostOut ? `S/ ${Number(entry.totalCostOut).toFixed(2)}` : '—'}</td>
-                      <td className="py-3 text-right text-sm font-medium">{entry.balanceQty as number}</td>
+                      <td className="py-3 text-right text-sm font-medium">{Number(entry.balanceQty)}</td>
                       <td className="py-3 pr-4 text-right text-sm font-medium">S/ {Number(entry.balanceTotalCost).toFixed(2)}</td>
                     </tr>
                   );

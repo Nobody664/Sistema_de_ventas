@@ -9,6 +9,13 @@ import { apiFetch, getAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Product, Category } from '@/types/api';
 
+const UNIT_SHORT: Record<string, string> = {
+  UNIT: 'und',
+  KG: 'kg',
+  LT: 'lt',
+  MT: 'mt',
+};
+
 interface ProductsPageClientProps {
   initialProducts: Product[];
   categories: Category[];
@@ -246,7 +253,7 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                               : 'text-foreground'
                           }`}
                         >
-                          {product.stockQuantity}
+                          {Number(product.stockQuantity)} {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
                         </span>
                         {Number(product.stockQuantity) <= Number(product.minStock ?? 10) && (
                           <AlertTriangle className="ml-1 inline-block size-3 text-amber-500" />
