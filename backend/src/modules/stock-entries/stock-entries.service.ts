@@ -94,7 +94,7 @@ export class StockEntriesService {
       };
     });
 
-    return this.prisma.$transaction(async (tx) => {
+    const entryId = await this.prisma.$transaction(async (tx) => {
       const entry = await tx.stockEntry.create({
         data: {
           companyId,
@@ -168,7 +168,9 @@ export class StockEntriesService {
         },
       });
 
-      return this.findById(companyId, entry.id);
+      return entry.id;
     });
+
+    return this.findById(companyId, entryId);
   }
 }
