@@ -170,7 +170,7 @@ export class DistributorsService {
 
     const balanceQuantity = distributor.balance?.balanceQuantity ?? 0;
     const debtAmount = distributor.balance?.debtAmount ?? new Prisma.Decimal(0);
-    if (balanceQuantity > 0 || debtAmount.gt(0)) {
+    if (Number(balanceQuantity) > 0 || debtAmount.gt(0)) {
       throw new BadRequestException(
         'No se puede eliminar un distribuidor con mercaderia o deuda pendiente.',
       );
@@ -228,7 +228,7 @@ export class DistributorsService {
       if (!product) {
         throw new NotFoundException(`Producto ${item.productId} no encontrado.`);
       }
-      if (product.stockQuantity < item.quantity) {
+      if (Number(product.stockQuantity) < item.quantity) {
         throw new BadRequestException(`Stock insuficiente para ${product.name}.`);
       }
     }
@@ -253,7 +253,7 @@ export class DistributorsService {
           await this.productBatchesService.reserveFromBatch(
             companyId,
             item.productId,
-            item.quantity,
+            new Prisma.Decimal(item.quantity),
             tx,
           );
         }
@@ -273,7 +273,7 @@ export class DistributorsService {
           await this.kardexService.recordOutMovement(
             companyId,
             item.productId,
-            item.quantity,
+            new Prisma.Decimal(item.quantity),
             movement.id,
             tx,
           );
@@ -326,7 +326,7 @@ export class DistributorsService {
 
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
     const balanceQuantity = distributor.balance?.balanceQuantity ?? 0;
-    if (balanceQuantity < totalQuantity) {
+    if (Number(balanceQuantity) < totalQuantity) {
       throw new BadRequestException(
         'El distribuidor no tiene mercaderia suficiente para devolver.',
       );
@@ -356,7 +356,7 @@ export class DistributorsService {
           await this.kardexService.recordInMovement(
             companyId,
             item.productId,
-            item.quantity,
+            new Prisma.Decimal(item.quantity),
             product.costPrice ?? new Prisma.Decimal(0),
             movement.id,
             tx,
@@ -427,7 +427,7 @@ export class DistributorsService {
     const totalQuantity = saleItems.reduce((sum, item) => sum + item.quantity, 0);
 
     const balanceQuantity = distributor.balance?.balanceQuantity ?? 0;
-    if (balanceQuantity < totalQuantity) {
+    if (Number(balanceQuantity) < totalQuantity) {
       throw new BadRequestException(
         'El distribuidor no tiene mercaderia suficiente para reportar esa venta.',
       );

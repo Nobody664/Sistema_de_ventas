@@ -5,10 +5,10 @@ export type DistributorStatus = 'ACTIVE' | 'SUSPENDED' | 'BLOCKED';
 export interface DistributorBalance {
   id: string;
   distributorId: string;
-  startingQuantity: number;
-  returnedQuantity: number;
-  soldQuantity: number;
-  balanceQuantity: number;
+  startingQuantity: string;
+  returnedQuantity: string;
+  soldQuantity: string;
+  balanceQuantity: string;
   debtAmount: string | null;
   createdAt: string;
   updatedAt: string;
@@ -39,7 +39,7 @@ export interface Distributor {
 export interface DistributorSaleItem {
   id: string;
   productId: string;
-  quantity: number;
+  quantity: string;
   unitPrice: string;
   totalPrice: string;
   product?: { name: string; sku: string | null } | null;
@@ -79,6 +79,6 @@ export interface DistributorProductOption {
   id: string;
   name: string;
   sku: string | null;
-  stockQuantity: number;
+  stockQuantity: string;
   salePrice: string;
 }

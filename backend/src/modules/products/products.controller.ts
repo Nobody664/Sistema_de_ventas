@@ -8,8 +8,10 @@ import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { SubscriptionLimitGuard, LimitResource } from '@/common/guards/subscription-limit.guard';
 import {
   CreateCategoryDto,
+  CreatePresentationDto,
   CreateProductDto,
   UpdateCategoryDto,
+  UpdatePresentationDto,
   UpdateProductDto,
   UploadProductImageDto,
   ExportProductsQueryDto,
@@ -105,6 +107,42 @@ export class ProductsController {
   @Get(':id')
   findProductById(@Req() request: { tenantId: string }, @Param('id') id: string) {
     return this.productsService.findProductById(request.tenantId, id);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Permissions(Permission.PRODUCT_LIST)
+  @Get(':id/presentations')
+  listPresentations(@Req() request: { tenantId: string }, @Param('id') id: string) {
+    return this.productsService.listPresentations(request.tenantId, id);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Post(':id/presentations')
+  createPresentation(
+    @Req() request: { tenantId: string },
+    @Param('id') id: string,
+    @Body() body: CreatePresentationDto,
+  ) {
+    return this.productsService.createPresentation(request.tenantId, id, body);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Patch('presentations/:id')
+  updatePresentation(
+    @Req() request: { tenantId: string },
+    @Param('id') id: string,
+    @Body() body: UpdatePresentationDto,
+  ) {
+    return this.productsService.updatePresentation(request.tenantId, id, body);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Delete('presentations/:id')
+  removePresentation(@Req() request: { tenantId: string }, @Param('id') id: string) {
+    return this.productsService.removePresentation(request.tenantId, id);
   }
 
   @Roles('COMPANY_ADMIN', 'MANAGER')

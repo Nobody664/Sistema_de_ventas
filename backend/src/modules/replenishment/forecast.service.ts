@@ -20,7 +20,7 @@ export class ForecastService {
       },
     });
 
-    const totalQty = sales.reduce((sum, s) => sum + s.quantity, 0);
+    const totalQty = sales.reduce((sum, s) => sum + Number(s.quantity), 0);
     const dailyAverage = days > 0 ? totalQty / days : 0;
 
     return {
@@ -50,7 +50,7 @@ export class ForecastService {
     const productQty = new Map<string, number>();
     for (const item of saleItems) {
       const current = productQty.get(item.productId) ?? 0;
-      productQty.set(item.productId, current + item.quantity);
+      productQty.set(item.productId, current + Number(item.quantity));
     }
 
     const products = await this.prisma.product.findMany({
@@ -63,7 +63,7 @@ export class ForecastService {
         const revenue = acc.revenue.get(item.productId) ?? new Prisma.Decimal(0);
         acc.revenue.set(item.productId, revenue.plus(item.totalPrice));
         const qty = acc.qty.get(item.productId) ?? 0;
-        acc.qty.set(item.productId, qty + item.quantity);
+        acc.qty.set(item.productId, qty + Number(item.quantity));
         return acc;
       },
       { revenue: new Map<string, Prisma.Decimal>(), qty: new Map<string, number>() },

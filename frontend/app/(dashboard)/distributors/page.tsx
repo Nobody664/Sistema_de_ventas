@@ -12,7 +12,7 @@ export default async function DistributorsPage() {
 
   const distributors = (await serverApiFetch<Distributor[]>('/distributors', accessToken)) ?? [];
 
-  const totalStock = distributors.reduce((acc, d) => acc + (d.balance?.balanceQuantity ?? 0), 0);
+  const totalStock = distributors.reduce((acc, d) => acc + Number(d.balance?.balanceQuantity ?? 0), 0);
   const totalDebt = distributors.reduce((acc, d) => acc + Number(d.balance?.debtAmount ?? 0), 0);
 
   return (

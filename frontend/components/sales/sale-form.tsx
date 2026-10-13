@@ -68,7 +68,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
     onScan: (barcode: string) => {
       const product = products.find((p) => p.barcode === barcode);
       if (product) {
-        if (product.stockQuantity > 0) {
+        if (Number(product.stockQuantity) > 0) {
           addItem(product);
           setFlashProductId(product.id);
           setTimeout(() => setFlashProductId(null), 400);
@@ -85,9 +85,9 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
   });
 
   const availableProducts = useMemo(() => {
-    if (!searchProduct) return products.filter(p => p.stockQuantity > 0);
+    if (!searchProduct) return products.filter(p => Number(p.stockQuantity) > 0);
     return products.filter(p =>
-      p.stockQuantity > 0 &&
+      Number(p.stockQuantity) > 0 &&
       (p.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
        p.sku?.toLowerCase().includes(searchProduct.toLowerCase()))
     );
@@ -100,7 +100,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
   const addItem = (product: Product) => {
     const existingItem = items.find(i => i.productId === product.id);
     if (existingItem) {
-      if (existingItem.quantity < product.stockQuantity) {
+      if (existingItem.quantity < Number(product.stockQuantity)) {
         setItems(items.map(i =>
           i.productId === product.id
             ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
@@ -114,7 +114,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
         unitPrice: Number(product.salePrice),
         quantity: 1,
         total: Number(product.salePrice),
-        stock: product.stockQuantity,
+        stock: Number(product.stockQuantity),
       }]);
     }
   };
@@ -312,7 +312,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Productos</h2>
                 <span className="text-sm text-muted-foreground">
-                  {products.filter(p => p.stockQuantity > 0).length} disponibles
+                  {products.filter(p => Number(p.stockQuantity) > 0).length} disponibles
                 </span>
               </div>
 
@@ -357,9 +357,9 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                         </p>
                         <div className="flex items-center gap-1.5">
                           <span className={`h-1.5 w-1.5 rounded-full ${
-                            product.stockQuantity > 10
+                            Number(product.stockQuantity) > 10
                               ? 'bg-emerald-500'
-                              : product.stockQuantity > 0
+                              : Number(product.stockQuantity) > 0
                                 ? 'bg-amber-500'
                                 : 'bg-red-500'
                           }`} />

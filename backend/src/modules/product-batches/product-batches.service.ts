@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { CreateProductBatchDto, UpdateProductBatchDto, ReserveBatchDto, QueryProductBatchDto } from './dto/product-batch.dto';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
@@ -74,7 +74,7 @@ export class ProductBatchesService {
   async remove(companyId: string, id: string) {
     const batch = await this.prisma.productBatch.findFirst({ where: { id, companyId } });
     if (!batch) throw new NotFoundException('Product batch not found');
-    if (batch.quantityAvailable > 0) {
+    if (batch.quantityAvailable.gt(0)) {
       throw new BadRequestException('Cannot delete a batch with available quantity');
     }
 
@@ -97,7 +97,7 @@ export class ProductBatchesService {
     });
   }
 
-  async findEarliestBatch(companyId: string, productId: string, quantity: number, tx?: PrismaTx) {
+  async findEarliestBatch(companyId: string, productId: string, quantity: Prisma.Decimal, tx?: PrismaTx) {
     const client = tx ?? this.prisma;
     const batch = await client.productBatch.findFirst({
       where: {
@@ -125,7 +125,7 @@ export class ProductBatchesService {
   async reserveFromBatch(
     companyId: string,
     productId: string,
-    quantity: number,
+    quantity: Prisma.Decimal,
     tx: PrismaTx,
   ) {
     const product = await tx.product.findFirst({
@@ -141,11 +141,14 @@ export class ProductBatchesService {
         { createdAt: 'asc' },
       ],
     });
-    const stockBeforeSale = product.stockQuantity + quantity;
-    const availableBatchStock = batches.reduce((total, batch) => total + batch.quantityAvailable, 0);
-    const untrackedStock = stockBeforeSale - availableBatchStock;
+    const stockBeforeSale = product.stockQuantity.plus(quantity);
+    const availableBatchStock = batches.reduce(
+      (total, batch) => total.plus(batch.quantityAvailable),
+      new Prisma.Decimal(0),
+    );
+    const untrackedStock = stockBeforeSale.minus(availableBatchStock);
 
-    if (untrackedStock > 0) {
+    if (untrackedStock.gt(0)) {
       const batchNumber = `OPENING-${productId}-${Date.now()}`;
       const openingBatch = await tx.productBatch.create({
         data: {
@@ -154,7 +157,7 @@ export class ProductBatchesService {
           batchNumber,
           quantityReceived: untrackedStock,
           quantityAvailable: untrackedStock,
-          purchasePrice: product.costPrice ?? 0,
+          purchasePrice: product.costPrice ?? new Prisma.Decimal(0),
         },
       });
       batches.push(openingBatch);
@@ -172,9 +175,9 @@ export class ProductBatchesService {
 
     let remaining = quantity;
     for (const batch of batches) {
-      if (remaining <= 0) break;
+      if (remaining.lte(0)) break;
 
-      const deduct = Math.min(batch.quantityAvailable, remaining);
+      const deduct = batch.quantityAvailable.lt(remaining) ? batch.quantityAvailable : remaining;
       const reservation = await tx.productBatch.updateMany({
         where: {
           id: batch.id,
@@ -184,12 +187,12 @@ export class ProductBatchesService {
         },
         data: { quantityAvailable: { decrement: deduct } },
       });
-      if (reservation.count === 1) remaining -= deduct;
+      if (reservation.count === 1) remaining = remaining.minus(deduct);
     }
 
-    if (remaining > 0) {
+    if (remaining.gt(0)) {
       throw new BadRequestException(
-        `Insufficient batch stock for product ${productId}. Needed ${quantity}, but only ${quantity - remaining} available across batches.`,
+        `Insufficient batch stock for product ${productId}. Needed ${quantity.toString()}, but only ${quantity.minus(remaining)} available across batches.`,
       );
     }
   }
@@ -201,7 +204,7 @@ export class ProductBatchesService {
   ) {
     const batch = await this.prisma.productBatch.findFirst({ where: { id, companyId } });
     if (!batch) throw new NotFoundException('Product batch not found');
-    if (batch.quantityAvailable < dto.quantity) {
+    if (batch.quantityAvailable.lt(dto.quantity)) {
       throw new BadRequestException(`Batch ${batch.batchNumber} only has ${batch.quantityAvailable} units available`);
     }
 

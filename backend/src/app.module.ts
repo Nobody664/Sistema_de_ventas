@@ -25,6 +25,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ProductsModule } from './modules/products/products.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { StockEntriesModule } from './modules/stock-entries/stock-entries.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { EmployeesModule } from './modules/employees/employees.module';
@@ -110,6 +111,7 @@ import { DistributorsModule } from './modules/distributors/distributors.module';
     PaymentsModule,
     ProductsModule,
     InventoryModule,
+    StockEntriesModule,
     SalesModule,
     CustomersModule,
     EmployeesModule,

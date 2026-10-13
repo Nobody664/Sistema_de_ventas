@@ -1,5 +1,17 @@
-import { IsInt, IsNumber, IsOptional, IsString, Min, IsIn } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  IsIn,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
+import { UnitOfMeasure } from '@prisma/client';
 
 export class CreateCategoryDto {
   @IsString()
@@ -35,6 +47,56 @@ export class ExportProductsQueryDto {
   categoryId?: string;
 }
 
+export class CreatePresentationDto {
+  @IsString()
+  name!: string;
+
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Type(() => Number)
+  factor!: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  @Type(() => Number)
+  price?: number;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class UpdatePresentationDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Type(() => Number)
+  factor?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  @Type(() => Number)
+  price?: number;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
 export class CreateProductDto {
   @IsOptional()
   @IsString()
@@ -59,6 +121,10 @@ export class CreateProductDto {
   @IsString()
   imageUrl?: string;
 
+  @IsOptional()
+  @IsEnum(UnitOfMeasure)
+  baseUnit?: UnitOfMeasure;
+
   @IsNumber()
   @Type(() => Number)
   costPrice!: number;
@@ -68,14 +134,22 @@ export class CreateProductDto {
   salePrice!: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
+  @Type(() => Number)
   stockQuantity?: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
+  @Type(() => Number)
   minStock?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreatePresentationDto)
+  presentations?: CreatePresentationDto[];
 }
 
 export class UpdateProductDto {
@@ -100,6 +174,10 @@ export class UpdateProductDto {
   imageUrl?: string;
 
   @IsOptional()
+  @IsEnum(UnitOfMeasure)
+  baseUnit?: UnitOfMeasure;
+
+  @IsOptional()
   @IsNumber()
   @Type(() => Number)
   costPrice?: number;
@@ -110,13 +188,22 @@ export class UpdateProductDto {
   salePrice?: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
+  @Type(() => Number)
   stockQuantity?: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
+  @Type(() => Number)
   minStock?: number;
 }
 
+export class UpsertPresentationsDto {
+  @IsArray()
+  @ArrayMinSize(0)
+  @ValidateNested({ each: true })
+  @Type(() => CreatePresentationDto)
+  presentations!: CreatePresentationDto[];
+}

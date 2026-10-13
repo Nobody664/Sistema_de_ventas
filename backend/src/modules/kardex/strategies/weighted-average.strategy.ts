@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { CostingStrategy, CostingResult } from './costing.strategy';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
@@ -10,7 +10,7 @@ export class WeightedAverageStrategy implements CostingStrategy {
 
   async calculateOutCost(
     productId: string,
-    quantity: number,
+    quantity: Prisma.Decimal,
     companyId: string,
     tx: PrismaTx,
   ): Promise<CostingResult> {
@@ -19,7 +19,7 @@ export class WeightedAverageStrategy implements CostingStrategy {
       orderBy: { movementDate: 'desc' },
     });
 
-    if (!lastEntry || lastEntry.balanceQty <= 0) {
+    if (!lastEntry || lastEntry.balanceQty.lte(0)) {
       throw new Error(`No inventory balance found for product ${productId}`);
     }
 

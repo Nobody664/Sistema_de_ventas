@@ -1,11 +1,17 @@
-import { ArrayMinSize, IsArray, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class CreateSaleItemDto {
   @IsString()
   productId!: string;
 
-  @IsInt()
+  @IsOptional()
+  @IsString()
+  presentationId?: string;
+
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Type(() => Number)
   quantity!: number;
 
   @IsOptional()

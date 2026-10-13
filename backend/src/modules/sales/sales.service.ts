@@ -222,53 +222,80 @@ export class SalesService {
       });
     }
 
-    const quantityByProduct = new Map<string, number>();
-    for (const item of input.items) {
-      quantityByProduct.set(
-        item.productId,
-        (quantityByProduct.get(item.productId) ?? 0) + item.quantity,
-      );
-    }
-    const saleItems = Array.from(quantityByProduct, ([productId, quantity]) => ({ productId, quantity }));
-
-    const products = (await this.prisma.product.findMany({
+    const products = await this.prisma.product.findMany({
       where: {
         companyId,
-        id: { in: saleItems.map((item) => item.productId) },
+        id: { in: Array.from(new Set(input.items.map((item) => item.productId))) },
       },
-    })) as Array<{ id: string; stockQuantity: number; name: string; salePrice: unknown }>;
+      include: { presentations: true },
+    });
 
-    const productMap = new Map<string, (typeof products)[number]>(products.map((product) => [product.id, product]));
+    const productMap = new Map(products.map((product) => [product.id, product]));
 
-    let subtotal = 0;
-    const itemsData = saleItems.map((item) => {
+    const resolvedItems = input.items.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) {
         throw new NotFoundException(`Product ${item.productId} not found.`);
       }
 
-      if (product.stockQuantity < item.quantity) {
-        throw new BadRequestException(`Insufficient stock for ${product.name}.`);
+      const presentation = item.presentationId
+        ? product.presentations.find((entry) => entry.id === item.presentationId)
+        : undefined;
+
+      if (item.presentationId && !presentation) {
+        throw new BadRequestException(`Presentation ${item.presentationId} not found.`);
       }
 
-      const unitPrice = Number(product.salePrice);
-      const totalPrice = unitPrice * item.quantity;
-
-      subtotal += totalPrice;
+      const factor = presentation ? presentation.factor : new Prisma.Decimal(1);
+      const quantity = new Prisma.Decimal(item.quantity);
+      const baseQuantity = quantity.mul(factor);
+      const unitPrice = new Prisma.Decimal(presentation?.price ?? product.salePrice);
+      const totalPrice = unitPrice.mul(quantity);
 
       return {
         productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: unitPrice,
-        totalPrice: totalPrice,
+        productName: product.name,
+        presentationId: presentation?.id,
+        quantity,
+        baseQuantity,
+        unitPrice,
+        totalPrice,
       };
     });
 
-    const taxAmount = Number(input.taxAmount ?? 0);
-    const discountAmount = Number(input.discountAmount ?? 0);
-    const totalAmount = subtotal + taxAmount - discountAmount;
+    const baseQuantityByProduct = new Map<string, Prisma.Decimal>();
+    for (const item of resolvedItems) {
+      baseQuantityByProduct.set(
+        item.productId,
+        (baseQuantityByProduct.get(item.productId) ?? new Prisma.Decimal(0)).plus(item.baseQuantity),
+      );
+    }
+
+    for (const [productId, baseQuantity] of baseQuantityByProduct) {
+      const product = productMap.get(productId);
+      if (!product) continue;
+      if (product.stockQuantity.lt(baseQuantity)) {
+        throw new BadRequestException(`Insufficient stock for ${product.name}.`);
+      }
+    }
+
+    let subtotal = new Prisma.Decimal(0);
+    const itemsData = resolvedItems.map((item) => {
+      subtotal = subtotal.plus(item.totalPrice);
+      return {
+        productId: item.productId,
+        presentationId: item.presentationId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+      };
+    });
+
+    const taxAmount = new Prisma.Decimal(input.taxAmount ?? 0);
+    const discountAmount = new Prisma.Decimal(input.discountAmount ?? 0);
+    const totalAmount = subtotal.plus(taxAmount).minus(discountAmount);
     const paidAmount = totalAmount;
-    const changeAmount = 0;
+    const changeAmount = new Prisma.Decimal(0);
     const saleNumber = `SALE-${Date.now()}`;
 
     if (input.customerId) {
@@ -311,37 +338,38 @@ export class SalesService {
         include: { items: true },
       });
 
-      for (const item of saleItems) {
+      for (const item of resolvedItems) {
         const stockUpdate = await tx.product.updateMany({
           where: {
             id: item.productId,
             companyId,
-            stockQuantity: { gte: item.quantity },
+            stockQuantity: { gte: item.baseQuantity },
           },
-          data: { stockQuantity: { decrement: item.quantity } },
+          data: { stockQuantity: { decrement: item.baseQuantity } },
         });
         if (stockUpdate.count !== 1) {
           throw new BadRequestException(`Insufficient stock for product ${item.productId}.`);
         }
       }
 
-      for (const item of saleItems) {
+      for (const item of resolvedItems) {
         await this.productBatchesService.reserveFromBatch(
           companyId,
           item.productId,
-          item.quantity,
+          item.baseQuantity,
           tx,
         );
       }
 
       const movements = await Promise.all(
-        saleItems.map((item) =>
+        resolvedItems.map((item) =>
           tx.inventoryMovement.create({
             data: {
               companyId,
               productId: item.productId,
+              presentationId: item.presentationId,
               type: 'OUT' as const,
-              quantity: item.quantity * -1,
+              quantity: item.baseQuantity.neg(),
               notes: `Sale ${saleNumber}`,
             },
           }),
@@ -352,8 +380,8 @@ export class SalesService {
         movements.map((movement, index) =>
           this.kardexService.recordOutMovement(
             companyId,
-            saleItems[index].productId,
-            saleItems[index].quantity,
+            resolvedItems[index].productId,
+            resolvedItems[index].baseQuantity,
             movement.id,
             tx,
           ),
@@ -370,16 +398,16 @@ export class SalesService {
       entityId: sale.id,
       changes: {
         saleNumber: sale.saleNumber,
-        subtotal,
-        taxAmount,
-        discountAmount,
+        subtotal: Number(subtotal),
+        taxAmount: Number(taxAmount),
+        discountAmount: Number(discountAmount),
         totalAmount: Number(sale.totalAmount),
         paymentMethod: sale.paymentMethod,
         customerId: sale.customerId,
         employeeId: sale.employeeId,
         items: sale.items.map((item) => ({
           productId: item.productId,
-          quantity: item.quantity,
+          quantity: Number(item.quantity),
           totalPrice: Number(item.totalPrice),
         })),
       },

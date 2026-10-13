@@ -21,8 +21,8 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
   const [selectedCategory, setSelectedCategory] = useState('');
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
 
-  const lowStockProducts = products.filter((p) => p.stockQuantity <= (p.minStock ?? 10));
-  const totalValue = products.reduce((acc, p) => acc + Number(p.salePrice) * p.stockQuantity, 0);
+  const lowStockProducts = products.filter((p) => Number(p.stockQuantity) <= Number(p.minStock ?? 10));
+  const totalValue = products.reduce((acc, p) => acc + Number(p.salePrice) * Number(p.stockQuantity), 0);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -239,16 +239,16 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                       <td className="py-4 text-right">
                         <span
                           className={`inline-block font-medium ${
-                            product.stockQuantity <= (product.minStock ?? 10)
+                            Number(product.stockQuantity) <= Number(product.minStock ?? 10)
                               ? 'text-amber-600'
-                              : product.stockQuantity === 0
+                              : Number(product.stockQuantity) === 0
                               ? 'text-red-600'
                               : 'text-foreground'
                           }`}
                         >
                           {product.stockQuantity}
                         </span>
-                        {product.stockQuantity <= (product.minStock ?? 10) && (
+                        {Number(product.stockQuantity) <= Number(product.minStock ?? 10) && (
                           <AlertTriangle className="ml-1 inline-block size-3 text-amber-500" />
                         )}
                       </td>

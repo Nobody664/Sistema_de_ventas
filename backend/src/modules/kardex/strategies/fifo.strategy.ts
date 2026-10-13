@@ -15,7 +15,7 @@ export class FifoStrategy implements CostingStrategy {
 
   async calculateOutCost(
     productId: string,
-    quantity: number,
+    quantity: Prisma.Decimal,
     companyId: string,
     tx: PrismaTx,
   ): Promise<CostingResult> {
@@ -27,10 +27,10 @@ export class FifoStrategy implements CostingStrategy {
     const layers: InventoryLayer[] = [];
 
     for (const entry of entries) {
-      if (entry.qtyIn > 0 && entry.unitCostIn) {
-        layers.push({ qty: entry.qtyIn, unitCost: entry.unitCostIn });
-      } else if (entry.qtyOut > 0) {
-        let remaining = entry.qtyOut;
+      if (entry.qtyIn.gt(0) && entry.unitCostIn) {
+        layers.push({ qty: entry.qtyIn.toNumber(), unitCost: entry.unitCostIn });
+      } else if (entry.qtyOut.gt(0)) {
+        let remaining = entry.qtyOut.toNumber();
         while (remaining > 0 && layers.length > 0) {
           const layer = layers[0];
           const consumed = Math.min(layer.qty, remaining);
@@ -41,7 +41,7 @@ export class FifoStrategy implements CostingStrategy {
       }
     }
 
-    let remainingToConsume = quantity;
+    let remainingToConsume = quantity.toNumber();
     let totalCost = new Prisma.Decimal(0);
 
     while (remainingToConsume > 0 && layers.length > 0) {
@@ -54,7 +54,7 @@ export class FifoStrategy implements CostingStrategy {
     }
 
     if (remainingToConsume > 0) {
-      throw new Error(`Insufficient inventory layers for product ${productId}. Needed ${quantity}, found ${quantity - remainingToConsume}`);
+      throw new Error(`Insufficient inventory layers for product ${productId}. Needed ${quantity.toString()}, found ${quantity.toNumber() - remainingToConsume}`);
     }
 
     const unitCost = totalCost.div(quantity);

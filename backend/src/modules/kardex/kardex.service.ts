@@ -37,7 +37,7 @@ export class KardexService {
   async recordInMovement(
     companyId: string,
     productId: string,
-    quantity: number,
+    quantity: Prisma.Decimal,
     unitCost: Prisma.Decimal,
     movementId: string,
     tx: PrismaTx,
@@ -47,12 +47,12 @@ export class KardexService {
       orderBy: { movementDate: 'desc' },
     });
 
-    const prevBalanceQty = lastEntry?.balanceQty ?? 0;
+    const prevBalanceQty = lastEntry?.balanceQty ?? new Prisma.Decimal(0);
     const prevBalanceTotalCost = lastEntry?.balanceTotalCost ?? new Prisma.Decimal(0);
     const totalCostIn = unitCost.mul(quantity);
-    const newBalanceQty = prevBalanceQty + quantity;
+    const newBalanceQty = prevBalanceQty.plus(quantity);
     const newBalanceTotalCost = prevBalanceTotalCost.plus(totalCostIn);
-    const newBalanceUnitCost = newBalanceQty > 0 ? newBalanceTotalCost.div(newBalanceQty) : new Prisma.Decimal(0);
+    const newBalanceUnitCost = newBalanceQty.gt(0) ? newBalanceTotalCost.div(newBalanceQty) : new Prisma.Decimal(0);
 
     await tx.inventoryKardex.create({
       data: {
@@ -75,7 +75,7 @@ export class KardexService {
   async recordOutMovement(
     companyId: string,
     productId: string,
-    quantity: number,
+    quantity: Prisma.Decimal,
     movementId: string,
     tx: PrismaTx,
   ): Promise<{ unitCost: Prisma.Decimal; totalCost: Prisma.Decimal }> {
@@ -91,7 +91,7 @@ export class KardexService {
       });
       if (!product) throw new Error(`Product ${productId} not found while initializing kardex.`);
 
-      const openingQuantity = product.stockQuantity + quantity;
+      const openingQuantity = product.stockQuantity.plus(quantity);
       const openingUnitCost = product.costPrice ?? new Prisma.Decimal(0);
       const openingTotalCost = openingUnitCost.mul(openingQuantity);
 
@@ -124,11 +124,11 @@ export class KardexService {
       orderBy: { movementDate: 'desc' },
     });
 
-    const prevBalanceQty = lastEntry?.balanceQty ?? 0;
+    const prevBalanceQty = lastEntry?.balanceQty ?? new Prisma.Decimal(0);
     const prevBalanceTotalCost = lastEntry?.balanceTotalCost ?? new Prisma.Decimal(0);
-    const newBalanceQty = prevBalanceQty - quantity;
+    const newBalanceQty = prevBalanceQty.minus(quantity);
     const newBalanceTotalCost = prevBalanceTotalCost.minus(totalCost);
-    const newBalanceUnitCost = newBalanceQty > 0 ? newBalanceTotalCost.div(newBalanceQty) : new Prisma.Decimal(0);
+    const newBalanceUnitCost = newBalanceQty.gt(0) ? newBalanceTotalCost.div(newBalanceQty) : new Prisma.Decimal(0);
 
     await tx.inventoryKardex.create({
       data: {
@@ -186,7 +186,7 @@ export class KardexService {
     const productMap = new Map(products.map((p) => [p.id, p]));
 
     const entries = result
-      .filter((r) => r._max.balanceQty !== null && r._max.balanceQty > 0)
+      .filter((r) => r._max.balanceQty !== null && r._max.balanceQty.gt(0))
       .map((r) => {
         const product = productMap.get(r.productId);
         return {

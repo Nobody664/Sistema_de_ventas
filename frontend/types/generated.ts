@@ -173,10 +173,11 @@ export interface Product {
   description?: string | null;
   salePrice: string;
   costPrice?: string | null;
-  stockQuantity: number;
-  minStock: number;
-  reorderPoint?: number | null;
-  safetyStock?: number | null;
+  stockQuantity: string;
+  minStock: string;
+  baseUnit: string;
+  reorderPoint?: string | null;
+  safetyStock?: string | null;
   leadTimeDays?: number | null;
   lastSoldAt?: Date | null;
   isActive: boolean;
@@ -186,10 +187,25 @@ export interface Product {
   updatedAt: Date;
   company?: Company;
   category?: Category | null;
+  presentations?: ProductPresentation[];
   saleItems?: SaleItem[];
   inventoryMovements?: InventoryMovement[];
   batches?: ProductBatch[];
   kardexEntries?: InventoryKardex[];
+}
+
+export interface ProductPresentation {
+  id: string;
+  companyId: string;
+  productId: string;
+  name: string;
+  factor: string;
+  price?: string | null;
+  barcode?: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  product?: Product;
 }
 
 export interface Sale {
@@ -220,12 +236,14 @@ export interface SaleItem {
   id: string;
   saleId: string;
   productId: string;
-  quantity: number;
+  quantity: string;
   unitPrice: string;
   totalPrice: string;
+  presentationId?: string | null;
   createdAt: Date;
   sale?: Sale;
   product?: Product;
+  presentation?: ProductPresentation | null;
 }
 
 export interface Employee {
@@ -265,8 +283,8 @@ export interface ProductBatch {
   productId: string;
   branchId?: string | null;
   batchNumber: string;
-  quantityReceived: number;
-  quantityAvailable: number;
+  quantityReceived: string;
+  quantityAvailable: string;
   purchasePrice: string;
   expirationDate?: Date | null;
   createdAt: Date;
@@ -283,13 +301,13 @@ export interface InventoryKardex {
   movementId?: string | null;
   movementDate: Date;
   movementType: string;
-  qtyIn: number;
+  qtyIn: string;
   unitCostIn?: string | null;
   totalCostIn?: string | null;
-  qtyOut: number;
+  qtyOut: string;
   unitCostOut?: string | null;
   totalCostOut?: string | null;
-  balanceQty: number;
+  balanceQty: string;
   balanceUnitCost: string;
   balanceTotalCost: string;
   createdAt: Date;
@@ -303,7 +321,10 @@ export interface InventoryMovement {
   productId: string;
   branchId?: string | null;
   type: InventoryMovementType;
-  quantity: number;
+  quantity: string;
+  presentationId?: string | null;
+  unitCost?: string | null;
+  totalCost?: string | null;
   reference?: string | null;
   reason?: string | null;
   notes?: string | null;

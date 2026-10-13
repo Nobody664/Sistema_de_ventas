@@ -47,9 +47,9 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
   const [showProductSearch, setShowProductSearch] = useState(false);
 
   const availableProducts = useMemo(() => {
-    if (!searchProduct) return products.filter(p => p.stockQuantity > 0);
+    if (!searchProduct) return products.filter(p => Number(p.stockQuantity) > 0);
     return products.filter(
-      p => p.stockQuantity > 0 && 
+      p => Number(p.stockQuantity) > 0 && 
       (p.name.toLowerCase().includes(searchProduct.toLowerCase()) || 
        p.sku?.toLowerCase().includes(searchProduct.toLowerCase()))
     );
@@ -63,7 +63,7 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
   const addItem = (product: Product) => {
     const existing = items.find(i => i.productId === product.id);
     if (existing) {
-      if (existing.quantity < product.stockQuantity) {
+      if (existing.quantity < Number(product.stockQuantity)) {
         setItems(items.map(i => 
           i.productId === product.id 
             ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
@@ -94,7 +94,7 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
     const newQty = item.quantity + delta;
     if (newQty <= 0) {
       setItems(items.filter(i => i.productId !== productId));
-    } else if (newQty <= product.stockQuantity) {
+    } else if (newQty <= Number(product.stockQuantity)) {
       setItems(items.map(i => 
         i.productId === productId 
           ? { ...i, quantity: newQty, total: newQty * i.unitPrice }

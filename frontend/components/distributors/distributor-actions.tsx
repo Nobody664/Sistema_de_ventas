@@ -7,7 +7,7 @@ import { PermissionGuard } from '@/components/auth/permission-guard';
 import type { Distributor } from '@/types/distributors';
 
 export function DistributorActions({ distributor }: { distributor: Distributor }) {
-  const hasDebtOrStock = (distributor.balance?.balanceQuantity ?? 0) > 0 || Number(distributor.balance?.debtAmount ?? 0) > 0;
+  const hasDebtOrStock = Number(distributor.balance?.balanceQuantity ?? 0) > 0 || Number(distributor.balance?.debtAmount ?? 0) > 0;
 
   return (
     <div className="flex items-center gap-2">

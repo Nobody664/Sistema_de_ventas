@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction } from '@prisma/client';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { AuditAction, Prisma } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { AuditService } from '@/common/services/audit.service';
+import { KardexService } from '@/modules/kardex/kardex.service';
 import { CreateInventoryAdjustmentDto } from './dto/inventory.dto';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly kardexService: KardexService,
   ) {}
 
   findLowStock(companyId: string) {
@@ -16,11 +18,11 @@ export class InventoryService {
       where: {
         companyId,
         stockQuantity: {
-          lte: 10,
+          lte: new Prisma.Decimal(10),
         },
       },
       orderBy: { stockQuantity: 'asc' },
-      take: 20,
+      take: 50,
     });
   }
 
@@ -42,20 +44,38 @@ export class InventoryService {
       throw new NotFoundException('Product not found.');
     }
 
-    if (product.stockQuantity + input.quantity < 0) {
+    const quantity = new Prisma.Decimal(input.quantity);
+
+    if (quantity.isZero()) {
+      throw new BadRequestException('La cantidad debe ser distinta de cero.');
+    }
+
+    if (input.type !== 'ADJUSTMENT' && quantity.lt(0)) {
+      throw new BadRequestException('La cantidad debe ser positiva para este tipo de movimiento.');
+    }
+
+    let delta: Prisma.Decimal;
+    if (input.type === 'IN') {
+      delta = quantity;
+    } else if (input.type === 'OUT' || input.type === 'LOSS') {
+      delta = quantity.neg();
+    } else {
+      delta = quantity;
+    }
+
+    const newStock = product.stockQuantity.plus(delta);
+    if (newStock.lt(0)) {
       throw new BadRequestException(
-        `Stock insuficiente. Disponible: ${product.stockQuantity}, ajuste: ${input.quantity}.`,
+        `Stock insuficiente. Disponible: ${Number(product.stockQuantity)}, ajuste: ${delta.toString()}.`,
       );
     }
+
+    const unitCost = new Prisma.Decimal(input.unitCost ?? Number(product.costPrice ?? 0));
 
     const result = await this.prisma.$transaction(async (tx) => {
       const productUpdate = await tx.product.updateMany({
         where: { id: input.productId, companyId },
-        data: {
-          stockQuantity: {
-            increment: input.quantity,
-          },
-        },
+        data: { stockQuantity: { increment: delta } },
       });
       if (productUpdate.count === 0) {
         throw new NotFoundException('Product not found.');
@@ -72,11 +92,33 @@ export class InventoryService {
         data: {
           companyId,
           productId: input.productId,
-          type: 'ADJUSTMENT',
-          quantity: input.quantity,
+          presentationId: input.presentationId,
+          type: input.type,
+          quantity: delta,
+          unitCost: input.type === 'IN' ? unitCost : undefined,
+          totalCost: input.type === 'IN' ? unitCost.mul(delta) : undefined,
           reason: input.reason ?? 'Manual adjustment',
         },
       });
+
+      if (delta.gt(0)) {
+        await this.kardexService.recordInMovement(
+          companyId,
+          input.productId,
+          delta,
+          unitCost,
+          movement.id,
+          tx,
+        );
+      } else {
+        await this.kardexService.recordOutMovement(
+          companyId,
+          input.productId,
+          delta.abs(),
+          movement.id,
+          tx,
+        );
+      }
 
       return { updatedProduct, movement };
     });
@@ -89,11 +131,11 @@ export class InventoryService {
       changes: {
         productId: input.productId,
         productName: product.name,
-        type: 'ADJUSTMENT',
+        type: input.type,
         quantity: input.quantity,
         reason: result.movement.reason,
-        stockBefore: product.stockQuantity,
-        stockAfter: result.updatedProduct.stockQuantity,
+        stockBefore: Number(product.stockQuantity),
+        stockAfter: Number(result.updatedProduct.stockQuantity),
       },
     });
 

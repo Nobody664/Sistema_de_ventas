@@ -124,7 +124,7 @@ export class ReportsService {
     const topProductsData = topProducts.slice(0, 8).map((p) => ({
       productId: p.productId,
       name: productMap.get(p.productId) || 'Unknown',
-      quantity: p._sum.quantity || 0,
+      quantity: Number(p._sum.quantity || 0),
       revenue: Number(p._sum.totalPrice || 0),
     }));
 

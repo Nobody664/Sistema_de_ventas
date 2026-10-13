@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
-import { AuditAction } from '@prisma/client';
+import { AuditAction, Prisma } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import {
   CreateCategoryDto,
+  CreatePresentationDto,
   CreateProductDto,
   UpdateCategoryDto,
+  UpdatePresentationDto,
   UpdateProductDto,
   ExportProductsQueryDto,
 } from './dto/product.dto';
@@ -40,7 +42,7 @@ export class ProductsService {
   findProductById(companyId: string, id: string) {
     return this.prisma.product.findFirst({
       where: { id, companyId },
-      include: { category: true },
+      include: { category: true, presentations: { orderBy: { createdAt: 'asc' } } },
     });
   }
 
@@ -59,6 +61,7 @@ export class ProductsService {
         name: true,
         sku: true,
         barcode: true,
+        baseUnit: true,
         salePrice: true,
         costPrice: true,
         stockQuantity: true,
@@ -68,6 +71,7 @@ export class ProductsService {
         description: true,
         createdAt: true,
         category: { select: { id: true, name: true } },
+        presentations: { select: { id: true, name: true, factor: true, price: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -219,14 +223,30 @@ export class ProductsService {
         name: input.name,
         description: input.description,
         imageUrl: input.imageUrl,
+        baseUnit: input.baseUnit ?? 'UNIT',
         costPrice: input.costPrice,
         salePrice: input.salePrice,
         stockQuantity: input.stockQuantity ?? 0,
         minStock: input.minStock ?? 5,
+        ...(input.presentations && input.presentations.length > 0
+          ? {
+              presentations: {
+                create: input.presentations.map((pres) => ({
+                  companyId,
+                  name: pres.name,
+                  factor: pres.factor,
+                  price: pres.price,
+                  barcode: pres.barcode,
+                  isActive: pres.isActive ?? true,
+                })),
+              },
+            }
+          : {}),
       },
+      include: { presentations: true },
     });
 
-    if (product.stockQuantity <= product.minStock) {
+    if (product.stockQuantity.lte(product.minStock)) {
       await this.sendLowStockNotification(companyId, product);
     }
 
@@ -241,7 +261,7 @@ export class ProductsService {
         barcode: product.barcode,
         salePrice: Number(product.salePrice),
         costPrice: product.costPrice === null ? null : Number(product.costPrice),
-        stockQuantity: product.stockQuantity,
+        stockQuantity: Number(product.stockQuantity),
       },
     });
 
@@ -275,8 +295,8 @@ export class ProductsService {
 
     if (
       input.stockQuantity !== undefined &&
-      updatedProduct.stockQuantity <= updatedProduct.minStock &&
-      existing.stockQuantity > existing.minStock
+      updatedProduct.stockQuantity.lte(updatedProduct.minStock) &&
+      existing.stockQuantity.gt(existing.minStock)
     ) {
       await this.sendLowStockNotification(companyId, updatedProduct);
     }
@@ -301,7 +321,7 @@ export class ProductsService {
     return updatedProduct;
   }
 
-  private async sendLowStockNotification(companyId: string, product: { id: string; name: string; stockQuantity: number; minStock: number }) {
+  private async sendLowStockNotification(companyId: string, product: { id: string; name: string; stockQuantity: Prisma.Decimal; minStock: Prisma.Decimal }) {
     const admins = await this.prisma.employee.findMany({
       where: { companyId, role: 'COMPANY_ADMIN', isActive: true },
       select: { userId: true },
@@ -314,8 +334,8 @@ export class ProductsService {
           companyId,
           type: NotificationType.LOW_STOCK,
           title: 'Stock bajo',
-          message: `El producto "${product.name}" tiene solo ${product.stockQuantity} unidades (min: ${product.minStock})`,
-          data: { productId: product.id, stockQuantity: product.stockQuantity },
+          message: `El producto "${product.name}" tiene solo ${Number(product.stockQuantity)} unidades (min: ${Number(product.minStock)})`,
+          data: { productId: product.id, stockQuantity: Number(product.stockQuantity) },
         });
       }
     }
@@ -402,6 +422,80 @@ export class ProductsService {
     return existing;
   }
 
+  async listPresentations(companyId: string, productId: string) {
+    await this.ensureProduct(companyId, productId);
+    return this.prisma.productPresentation.findMany({
+      where: { companyId, productId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createPresentation(companyId: string, productId: string, input: CreatePresentationDto) {
+    await this.ensureProduct(companyId, productId);
+
+    if (input.barcode) {
+      const existing = await this.prisma.productPresentation.findFirst({
+        where: { companyId, barcode: input.barcode },
+      });
+      if (existing) {
+        throw new ConflictException('Ya existe una presentación con ese código de barras.');
+      }
+    }
+
+    return this.prisma.productPresentation.create({
+      data: {
+        companyId,
+        productId,
+        name: input.name,
+        factor: input.factor,
+        price: input.price,
+        barcode: input.barcode,
+        isActive: input.isActive ?? true,
+      },
+    });
+  }
+
+  async updatePresentation(companyId: string, presentationId: string, input: UpdatePresentationDto) {
+    const presentation = await this.prisma.productPresentation.findFirst({
+      where: { id: presentationId, companyId },
+    });
+    if (!presentation) {
+      throw new NotFoundException('Presentation not found.');
+    }
+
+    if (input.barcode && input.barcode !== presentation.barcode) {
+      const existing = await this.prisma.productPresentation.findFirst({
+        where: { companyId, barcode: input.barcode },
+      });
+      if (existing) {
+        throw new ConflictException('Ya existe una presentación con ese código de barras.');
+      }
+    }
+
+    return this.prisma.productPresentation.update({
+      where: { id: presentationId },
+      data: {
+        name: input.name,
+        factor: input.factor,
+        price: input.price,
+        barcode: input.barcode,
+        isActive: input.isActive,
+      },
+    });
+  }
+
+  async removePresentation(companyId: string, presentationId: string) {
+    const presentation = await this.prisma.productPresentation.findFirst({
+      where: { id: presentationId, companyId },
+    });
+    if (!presentation) {
+      throw new NotFoundException('Presentation not found.');
+    }
+
+    await this.prisma.productPresentation.deleteMany({ where: { id: presentationId, companyId } });
+    return presentation;
+  }
+
   private async ensureProduct(companyId: string, id: string) {
     const product = await this.prisma.product.findFirst({
       where: { id, companyId },
@@ -463,7 +557,7 @@ export class ProductsService {
       where: {
         companyId,
         isActive: true,
-        stockQuantity: { lte: 5 },
+        stockQuantity: { lte: new Prisma.Decimal(5) },
       },
       select: {
         id: true,
@@ -476,7 +570,7 @@ export class ProductsService {
       take: 100,
     });
 
-    return products.filter((p) => p.stockQuantity <= p.minStock);
+    return products.filter((p) => p.stockQuantity.lte(p.minStock));
   }
 
   async uploadProductImage(companyId: string, productId: string, imageBase64: string) {
@@ -512,7 +606,7 @@ export class ProductsService {
     }
   }
 
-  private generateCsvExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: number; minStock: number }>) {
+  private generateCsvExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: Prisma.Decimal; minStock: Prisma.Decimal }>) {
     const headers = ['Nombre', 'SKU', 'Codigo de Barras', 'Categoria', 'Precio Costo', 'Precio Venta', 'Stock', 'Stock Minimo'];
     const rows = products.map((p) => [
       p.name,
@@ -535,7 +629,7 @@ export class ProductsService {
     };
   }
 
-  private generateExcelExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: number; minStock: number }>) {
+  private generateExcelExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: Prisma.Decimal; minStock: Prisma.Decimal }>) {
     const data = products.map((p) => ({
       Nombre: p.name,
       SKU: p.sku,
@@ -557,7 +651,7 @@ export class ProductsService {
     };
   }
 
-  private generatePdfExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: number; minStock: number }>) {
+  private generatePdfExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: Prisma.Decimal; minStock: Prisma.Decimal }>) {
     const html = `
       <html>
         <head>

@@ -38,15 +38,15 @@ export class ReplenishmentService {
     }> = [];
 
     for (const product of products) {
-      const stock = product.stockQuantity;
-      const reorderPoint = product.reorderPoint ?? 0;
+      const stock = Number(product.stockQuantity);
+      const reorderPoint = product.reorderPoint === null ? 0 : Number(product.reorderPoint);
 
       if (stock >= reorderPoint) continue;
 
       const demand = await this.forecastService.getDemandAverage(companyId, product.id, 30);
       const dailyAverage = demand.dailyAverage || 1;
       const leadTime = product.leadTimeDays ?? 7;
-      const safetyStock = product.safetyStock ?? Math.ceil(dailyAverage * 3);
+      const safetyStock = product.safetyStock === null ? Math.ceil(dailyAverage * 3) : Number(product.safetyStock);
 
       const suggestedOrder = Math.ceil(
         dailyAverage * leadTime + safetyStock - stock,
@@ -83,13 +83,13 @@ export class ReplenishmentService {
     const dailyAverage = demand.dailyAverage;
 
     const coverageDays = dailyAverage > 0
-      ? Math.floor(product.stockQuantity / dailyAverage)
+      ? Math.floor(Number(product.stockQuantity) / dailyAverage)
       : Infinity;
 
     return {
       productId,
       productName: product.name,
-      currentStock: product.stockQuantity,
+      currentStock: Number(product.stockQuantity),
       dailyAverage,
       coverageDays: coverageDays === Infinity ? null : coverageDays,
     };

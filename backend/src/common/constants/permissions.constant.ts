@@ -185,6 +185,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.INVENTORY_VIEW,
     Permission.INVENTORY_INBOUND,
     Permission.INVENTORY_OUTBOUND,
+    Permission.INVENTORY_ADJUST,
 
     Permission.CASH_OPEN_CLOSE,
     Permission.CASH_VIEW_REPORT,

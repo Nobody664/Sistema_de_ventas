@@ -181,7 +181,7 @@ export class DashboardService {
     ]);
 
     const todaySales = salesToday as Array<{ totalAmount: unknown }>;
-    const salesWithItems = recentSales as Array<{
+    const salesWithItems = recentSales as unknown as Array<{
       items: Array<{ productId: string; quantity: number; product: { name: string } }>;
     }>;
 
@@ -267,17 +267,17 @@ export class DashboardService {
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 5);
 
-    const products = allProducts as Array<{
+    const products = allProducts as unknown as Array<{
       id: string;
       name: string;
       stockQuantity: number;
       salePrice: unknown;
     }>;
 
-    const totalValue = products.reduce((sum, p) => sum + Number(p.salePrice || 0) * p.stockQuantity, 0);
-    const totalItems = products.reduce((sum, p) => sum + p.stockQuantity, 0);
-    const outOfStockCount = products.filter((p) => p.stockQuantity === 0).length;
-    const slowMovingCount = products.filter((p) => p.stockQuantity > 50).length;
+    const totalValue = products.reduce((sum, p) => sum + Number(p.salePrice || 0) * Number(p.stockQuantity), 0);
+    const totalItems = products.reduce((sum, p) => sum + Number(p.stockQuantity), 0);
+    const outOfStockCount = products.filter((p) => Number(p.stockQuantity) === 0).length;
+    const slowMovingCount = products.filter((p) => Number(p.stockQuantity) > 50).length;
 
     const salesAnalytics = {
       daily,

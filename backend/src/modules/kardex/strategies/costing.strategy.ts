@@ -11,7 +11,7 @@ export interface CostingStrategy {
   name: string;
   calculateOutCost(
     productId: string,
-    quantity: number,
+    quantity: Prisma.Decimal,
     companyId: string,
     tx: PrismaTx,
   ): Promise<CostingResult>;
