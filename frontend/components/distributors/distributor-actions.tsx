@@ -40,7 +40,7 @@ export function NewDistributorButton() {
     <PermissionGuard permission="distributor:create">
       <Link
         href="/distributors/new"
-        className="rounded-2xl bg-white px-6 py-3 text-sm font-medium text-orange-600 transition hover:bg-white/90"
+        className="flex w-full items-center justify-center whitespace-nowrap rounded-2xl bg-white px-6 py-3 text-sm font-medium text-orange-600 transition hover:bg-white/90 sm:w-auto"
       >
         + Nuevo distribuidor
       </Link>

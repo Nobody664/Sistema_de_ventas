@@ -29,7 +29,7 @@ export function NewEmployeeButton() {
     <PermissionGuard permission="employee:create">
       <Link
         href="/employees/new"
-        className="flex items-center gap-2 rounded-2xl bg-slate-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+        className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-slate-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-slate-800 sm:w-auto"
       >
         <span className="text-lg">+</span>
         Nuevo empleado

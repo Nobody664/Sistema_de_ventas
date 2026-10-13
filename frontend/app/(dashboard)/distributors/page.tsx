@@ -18,15 +18,15 @@ export default async function DistributorsPage() {
   return (
     <div className="space-y-6">
       <Card className="rounded-[34px] bg-gradient-to-br from-orange-500 to-amber-600 p-6 sm:p-8 text-white animate-fade-in-up">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Canal distribuidores</p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Gestión de distribuidores</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Administra el stock consignado, registra ventas, devoluciones, despachos y liquidaciones de cada distribuidor.
             </p>
           </div>
-          <div className="hidden sm:block animate-fade-in-up delay-150">
+          <div className="shrink-0 animate-fade-in-up delay-150">
             <NewDistributorButton />
           </div>
         </div>
