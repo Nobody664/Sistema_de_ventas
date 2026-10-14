@@ -3,27 +3,36 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { BarChart3, Bell, CreditCard, Handshake, LayoutDashboard, Menu, Package, ShoppingCart, Users, UserCog, FolderTree, Warehouse } from 'lucide-react';
+import { BarChart3, Bell, CreditCard, Handshake, LayoutDashboard, Menu, Package, ShoppingCart, Users, UserCog, FolderTree, Warehouse, type LucideIcon } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { usePlanCapabilities } from '@/components/plan-capabilities/plan-capabilities-provider';
 
-const mainItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
-  { label: 'Notificaciones', href: '/notifications', icon: Bell, roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
+type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  roles: string[];
+  module?: string;
+};
+
+const mainItems: NavItem[] = [
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard', roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
+  { label: 'Notificaciones', href: '/notifications', icon: Bell, module: 'notifications', roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
 ];
 
-const companyItems = [
-  { label: 'Inventario', href: '/inventory', icon: Warehouse, roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Productos', href: '/products', icon: Package, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Categorías', href: '/categories', icon: FolderTree, roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Ventas', href: '/sales', icon: ShoppingCart, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Clientes', href: '/customers', icon: Users, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Distribuidores', href: '/distributors', icon: Handshake, roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Empleados', href: '/employees', icon: UserCog, roles: ['COMPANY_ADMIN', 'MANAGER'] },
+const companyItems: NavItem[] = [
+  { label: 'Inventario', href: '/inventory', icon: Warehouse, module: 'inventory', roles: ['COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Productos', href: '/products', icon: Package, module: 'products', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
+  { label: 'Categorías', href: '/categories', icon: FolderTree, module: 'categories', roles: ['COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Ventas', href: '/sales', icon: ShoppingCart, module: 'sales', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
+  { label: 'Clientes', href: '/customers', icon: Users, module: 'customers', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
+  { label: 'Distribuidores', href: '/distributors', icon: Handshake, module: 'distributors', roles: ['COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Empleados', href: '/employees', icon: UserCog, module: 'employees', roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Pagos', href: '/payments', icon: CreditCard, roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Reportes', href: '/reports', icon: BarChart3, roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
+  { label: 'Reportes', href: '/reports', icon: BarChart3, module: 'reports', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
 ];
 
-const adminItems: typeof mainItems = [];
+const adminItems: NavItem[] = [];
 
 type AppSidebarProps = {
   roles: string[];
@@ -36,11 +45,16 @@ type SidebarContentProps = {
 
 function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
   const pathname = usePathname();
+  const { can } = usePlanCapabilities();
 
   const isPlatformAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
 
-  const visibleMainItems = mainItems.filter((item) => item.roles.some((role) => roles.includes(role)));
-  const visibleCompanyItems = companyItems.filter((item) => item.roles.some((role) => roles.includes(role)));
+  const visibleMainItems = mainItems.filter(
+    (item) => item.roles.some((role) => roles.includes(role)) && (!item.module || can(item.module)),
+  );
+  const visibleCompanyItems = companyItems.filter(
+    (item) => item.roles.some((role) => roles.includes(role)) && (!item.module || can(item.module)),
+  );
   const visibleAdminItems = adminItems.filter((item) => item.roles.some((role) => roles.includes(role)));
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');

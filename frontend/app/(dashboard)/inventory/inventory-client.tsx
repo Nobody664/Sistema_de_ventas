@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
-import { Package, History, Layers, Building2, Truck, AlertTriangle, PackagePlus } from 'lucide-react';
+import { Package, History, Layers, Building2, Truck, AlertTriangle, PackagePlus, Lock } from 'lucide-react';
+import { usePlanCapabilities } from '@/components/plan-capabilities/plan-capabilities-provider';
 
 interface InventoryPageClientProps {
   totalValue: string;
@@ -11,11 +12,13 @@ interface InventoryPageClientProps {
 }
 
 export function InventoryPageClient({ totalValue, expiringCount, suggestionsCount }: InventoryPageClientProps) {
+  const { canFeature } = usePlanCapabilities();
   const modules = [
     {
       title: 'Kardex Valorizado',
       description: 'Movimientos valorizados con costeo FIFO / Promedio Ponderado',
       href: '/inventory/kardex',
+      feature: 'inventory.kardex',
       icon: History,
       color: 'from-blue-500 to-indigo-700',
       iconBg: 'bg-blue-500/20',
@@ -25,6 +28,7 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
       title: 'Lotes',
       description: 'Gestión de lotes por producto con control FEFO',
       href: '/inventory/batches',
+      feature: 'inventory.batches',
       icon: Layers,
       color: 'from-emerald-500 to-teal-700',
       iconBg: 'bg-emerald-500/20',
@@ -84,27 +88,46 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {modules.map((mod, i) => {
           const Icon = mod.icon;
-          return (
-            <Link key={mod.href} href={mod.href}>
-              <Card
-                className="group rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up transition-all hover:scale-[1.02]"
-                style={{ animationDelay: `${(i + 1) * 100}ms` }}
-              >
-                <div className="flex items-start justify-between">
-                  <div className={`rounded-2xl ${mod.iconBg} p-2`}>
-                    <Icon className={`size-5 ${mod.iconColor}`} />
-                  </div>
-                  {mod.badge && (
+          const locked = 'feature' in mod && typeof mod.feature === 'string' ? !canFeature(mod.feature) : false;
+
+          const card = (
+            <Card
+              className={`group rounded-[30px] bg-white/80 p-6 animate-fade-in-up transition-all ${
+                locked ? 'opacity-60' : 'card-hover hover:scale-[1.02]'
+              }`}
+              style={{ animationDelay: `${(i + 1) * 100}ms` }}
+            >
+              <div className="flex items-start justify-between">
+                <div className={`rounded-2xl ${mod.iconBg} p-2`}>
+                  <Icon className={`size-5 ${mod.iconColor}`} />
+                </div>
+                {locked ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-700">
+                    <Lock className="size-3" />
+                    Mejora tu plan
+                  </span>
+                ) : (
+                  mod.badge && (
                     <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
                       {mod.badge}
                     </span>
-                  )}
-                </div>
-                <div className="mt-4">
-                  <h3 className="font-display text-lg">{mod.title}</h3>
-                  <p className="mt-1 text-sm text-foreground/50">{mod.description}</p>
-                </div>
-              </Card>
+                  )
+                )}
+              </div>
+              <div className="mt-4">
+                <h3 className="font-display text-lg">{mod.title}</h3>
+                <p className="mt-1 text-sm text-foreground/50">{mod.description}</p>
+              </div>
+            </Card>
+          );
+
+          return locked ? (
+            <div key={mod.href} aria-disabled className="cursor-not-allowed">
+              {card}
+            </div>
+          ) : (
+            <Link key={mod.href} href={mod.href}>
+              {card}
             </Link>
           );
         })}

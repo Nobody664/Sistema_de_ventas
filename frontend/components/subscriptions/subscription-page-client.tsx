@@ -6,8 +6,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
-import { Check, CreditCard, Calendar, AlertCircle, Loader2, Crown, Zap, Rocket } from 'lucide-react';
+import { Check, CreditCard, Calendar, AlertCircle, Loader2, Crown, Zap, Rocket, KeyRound } from 'lucide-react';
 import type { Subscription, Plan } from '@/types/generated';
+import { usePlanCapabilities } from '@/components/plan-capabilities/plan-capabilities-provider';
 
 interface PlanUpgradeRequest {
   id: string;
@@ -26,6 +27,8 @@ interface SubscriptionPageClientProps {
 export function SubscriptionPageClient({ initialSubscription, initialPlans, pendingUpgrade, initialCompleteness }: SubscriptionPageClientProps) {
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
+  const { capabilities } = usePlanCapabilities();
+  const apiUsage = capabilities?.apiUsage ?? null;
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(initialSubscription ?? null);
   const [plans] = useState<Plan[]>(initialPlans);
@@ -319,6 +322,65 @@ export function SubscriptionPageClient({ initialSubscription, initialPlans, pend
           )}
         </Card>
       </div>
+
+      {capabilities?.apiEnabled && (
+        <Card className="rounded-[30px] bg-white/85 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-violet-100 p-2 text-violet-600">
+                <KeyRound className="size-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-xl">Uso de API</h2>
+                <p className="text-foreground/60">
+                  Consumo del período actual
+                  {capabilities.apiSearchDniEnabled ? ' · incluye consultas DNI/RUC' : ''}
+                </p>
+              </div>
+            </div>
+            {apiUsage && apiUsage.limit > 0 && (
+              <p className="font-display text-2xl">
+                {apiUsage.used.toLocaleString('es-PE')}
+                <span className="text-base font-normal text-foreground/50">
+                  {' '}
+                  / {apiUsage.limit.toLocaleString('es-PE')}
+                </span>
+              </p>
+            )}
+          </div>
+
+          {apiUsage && apiUsage.limit > 0 && (
+            <div className="mt-5">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-foreground/10">
+                <div
+                  className={`h-full rounded-full ${
+                    apiUsage.remaining <= 0
+                      ? 'bg-red-500'
+                      : apiUsage.used / apiUsage.limit > 0.8
+                        ? 'bg-amber-500'
+                        : 'bg-violet-500'
+                  }`}
+                  style={{ width: `${Math.min(100, (apiUsage.used / apiUsage.limit) * 100)}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-sm text-foreground/60">
+                <span>{apiUsage.period || 'Período actual'}</span>
+                <span>
+                  {apiUsage.remaining > 0
+                    ? `${apiUsage.remaining.toLocaleString('es-PE')} solicitudes disponibles`
+                    : 'Cuota agotada'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {(!apiUsage || apiUsage.limit <= 0) && (
+            <p className="mt-4 text-sm text-foreground/50">
+              Tu plan incluye acceso a la API sin cuota mensual definida.
+            </p>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

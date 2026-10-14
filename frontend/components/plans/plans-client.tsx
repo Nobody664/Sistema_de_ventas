@@ -10,35 +10,56 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Check, Crown, Zap, Rocket, Star, Users, Package, Building2, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Check, Crown, Zap, Rocket, Star, Users, Package, Building2, Layers, KeyRound, Loader2 } from 'lucide-react';
 import type { Plan } from '@/types/generated';
+import {
+  FEATURE_LABELS,
+  MODULE_LABELS,
+  PLAN_FEATURE_KEYS,
+  PLAN_MODULE_KEYS,
+} from '@/lib/plan-capabilities';
+
+type AdminPlan = Plan & {
+  modules?: string[];
+  permissions?: string[];
+  apiEnabled?: boolean;
+  apiSearchDniEnabled?: boolean;
+  apiQuota?: number;
+};
 
 interface PlansClientProps {
-  initialPlans: Plan[];
+  initialPlans: AdminPlan[];
 }
+
+const emptyFormData = {
+  code: '',
+  name: '',
+  description: '',
+  priceMonthly: '',
+  priceYearly: '',
+  billingCycle: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
+  maxUsers: '',
+  maxProducts: '',
+  features: '',
+  modules: [] as string[],
+  permissions: [] as string[],
+  apiEnabled: false,
+  apiSearchDniEnabled: false,
+  apiQuota: '0',
+  isActive: true,
+};
 
 export function PlansClient({ initialPlans }: PlansClientProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const [plans, setPlans] = useState<Plan[]>(initialPlans);
+  const [plans, setPlans] = useState<AdminPlan[]>(initialPlans);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [editingPlan, setEditingPlan] = useState<AdminPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    code: '',
-    name: '',
-    description: '',
-    priceMonthly: '',
-    priceYearly: '',
-    billingCycle: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
-    maxUsers: '',
-    maxProducts: '',
-    features: '',
-    isActive: true,
-  });
+  const [formData, setFormData] = useState(emptyFormData);
 
   const planColors: Record<string, string> = {
     FREE: 'from-gray-500 to-slate-600',
@@ -61,7 +82,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
     return [];
   };
 
-  const handleOpenDialog = (plan?: Plan) => {
+  const handleOpenDialog = (plan?: AdminPlan) => {
     setSaveError(null);
     if (plan) {
       setEditingPlan(plan);
@@ -75,24 +96,28 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         maxUsers: plan.maxUsers?.toString() || '',
         maxProducts: plan.maxProducts?.toString() || '',
         features: parseFeatures(plan.features).join('\n'),
+        modules: parseFeatures(plan.modules),
+        permissions: parseFeatures(plan.permissions),
+        apiEnabled: plan.apiEnabled ?? false,
+        apiSearchDniEnabled: plan.apiSearchDniEnabled ?? false,
+        apiQuota: plan.apiQuota?.toString() || '0',
         isActive: plan.isActive,
       });
     } else {
       setEditingPlan(null);
-      setFormData({
-        code: '',
-        name: '',
-        description: '',
-        priceMonthly: '0',
-        priceYearly: '0',
-        billingCycle: 'MONTHLY',
-        maxUsers: '',
-        maxProducts: '',
-        features: '',
-        isActive: true,
-      });
+      setFormData({ ...emptyFormData, priceMonthly: '0', priceYearly: '0' });
     }
     setIsDialogOpen(true);
+  };
+
+  const toggleInArray = (key: 'modules' | 'permissions', value: string) => {
+    setFormData((current) => {
+      const list = current[key];
+      return {
+        ...current,
+        [key]: list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value],
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -108,21 +133,26 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         ...(formData.maxUsers ? { maxUsers: parseInt(formData.maxUsers, 10) } : {}),
         ...(formData.maxProducts ? { maxProducts: parseInt(formData.maxProducts, 10) } : {}),
         features: formData.features.split('\n').filter(f => f.trim()),
+        modules: formData.modules,
+        permissions: formData.permissions,
+        apiEnabled: formData.apiEnabled,
+        apiSearchDniEnabled: formData.apiSearchDniEnabled,
+        apiQuota: formData.apiQuota ? parseInt(formData.apiQuota, 10) : 0,
         isActive: formData.isActive,
       };
       const signal = AbortSignal.timeout(20_000);
       const token = getAccessToken();
-      let savedPlan: Plan;
+      let savedPlan: AdminPlan;
 
       if (editingPlan) {
-        savedPlan = await apiFetch<Plan>(`/plans/${editingPlan.id}`, {
+        savedPlan = await apiFetch<AdminPlan>(`/plans/${editingPlan.id}`, {
           method: 'PATCH',
           body: JSON.stringify(planFields),
           token,
           signal,
         });
       } else {
-        savedPlan = await apiFetch<Plan>('/plans', {
+        savedPlan = await apiFetch<AdminPlan>('/plans', {
           method: 'POST',
           body: JSON.stringify({ code: formData.code.trim(), ...planFields, billingCycle: 'MONTHLY' }),
           token,
@@ -163,7 +193,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
       });
       
       queryClient.invalidateQueries({ queryKey: ['plans'] });
-      const updatedPlans = await apiFetch<Plan[]>('/plans', {
+      const updatedPlans = await apiFetch<AdminPlan[]>('/plans', {
         token: getAccessToken(),
       });
       setPlans(updatedPlans || []);
@@ -184,7 +214,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
       });
       
       queryClient.invalidateQueries({ queryKey: ['plans'] });
-      const updatedPlans = await apiFetch<Plan[]>('/plans', {
+      const updatedPlans = await apiFetch<AdminPlan[]>('/plans', {
         token: getAccessToken(),
       });
       setPlans(updatedPlans || []);
@@ -318,6 +348,18 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 <div className="flex items-center gap-2 text-sm text-foreground/60">
                   <Building2 className="size-4" />
                   <span>Facturación {plan.billingCycle === 'MONTHLY' ? 'mensual' : 'anual'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-foreground/60">
+                  <Layers className="size-4" />
+                  <span>{parseFeatures(plan.modules).length} módulos incluidos</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-foreground/60">
+                  <KeyRound className="size-4" />
+                  <span>
+                    {plan.apiEnabled
+                      ? `API habilitada${plan.apiSearchDniEnabled ? ' · DNI/RUC' : ''}${plan.apiQuota ? ` · ${plan.apiQuota.toLocaleString('es-PE')} req/mes` : ''}`
+                      : 'Sin acceso a API'}
+                  </span>
                 </div>
               </div>
 
@@ -464,6 +506,90 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 placeholder="3 sucursales&#10;Reportes avanzados&#10;Roles personalizados"
                 rows={5}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Módulos incluidos</Label>
+              <p className="text-xs text-foreground/50">
+                Determinan qué secciones del sistema están habilitadas para las empresas con este plan.
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {PLAN_MODULE_KEYS.map((moduleKey) => (
+                  <label
+                    key={moduleKey}
+                    className="flex items-center gap-2 rounded-lg border border-input px-3 py-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-violet-600"
+                      checked={formData.modules.includes(moduleKey)}
+                      onChange={() => toggleInArray('modules', moduleKey)}
+                    />
+                    <span>{MODULE_LABELS[moduleKey] ?? moduleKey}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Permisos y funciones</Label>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {PLAN_FEATURE_KEYS.map((featureKey) => (
+                  <label
+                    key={featureKey}
+                    className="flex items-center gap-2 rounded-lg border border-input px-3 py-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-violet-600"
+                      checked={formData.permissions.includes(featureKey)}
+                      onChange={() => toggleInArray('permissions', featureKey)}
+                    />
+                    <span>{FEATURE_LABELS[featureKey] ?? featureKey}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-input p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="apiEnabled">Acceso a API</Label>
+                  <p className="text-xs text-foreground/50">Habilita el uso de integraciones por API.</p>
+                </div>
+                <input
+                  id="apiEnabled"
+                  type="checkbox"
+                  className="size-4 accent-violet-600"
+                  checked={formData.apiEnabled}
+                  onChange={(e) => setFormData({ ...formData, apiEnabled: e.target.checked })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="apiSearchDni">Búsqueda DNI/RUC</Label>
+                  <p className="text-xs text-foreground/50">Solo disponible en planes altos.</p>
+                </div>
+                <input
+                  id="apiSearchDni"
+                  type="checkbox"
+                  className="size-4 accent-violet-600"
+                  checked={formData.apiSearchDniEnabled}
+                  disabled={!formData.apiEnabled}
+                  onChange={(e) => setFormData({ ...formData, apiSearchDniEnabled: e.target.checked })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="apiQuota">Cuota de API por mes</Label>
+                <Input
+                  id="apiQuota"
+                  type="number"
+                  value={formData.apiQuota}
+                  disabled={!formData.apiEnabled}
+                  onChange={(e) => setFormData({ ...formData, apiQuota: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
             </div>
           </div>
 
