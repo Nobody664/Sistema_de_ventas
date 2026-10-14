@@ -117,6 +117,10 @@ Cupos ya existentes: `maxUsers` 1/3/10/999, `maxProducts` 50/500/5000/999999.
 - [x] Endpoint `GET /api/plan-capabilities/me` (devuelve capacidades + uso API).
 - [x] Validado localmente: FREE `products`/`reports` 200; `distributors`/`dni`
       403 `MODULE_NOT_ENABLED`; `kardex`/`product-batches` 403 `FEATURE_NOT_AVAILABLE`.
+- [x] **Validado en prod** (`https://sistema-de-ventas-c6xb.onrender.com`, deploy
+      `7813aa2`): `GET /api/plan-capabilities/me` → FREE con módulo `reports`;
+      `products`/`reports`/`branches` 200; `distributors`/`dni` 403
+      `MODULE_NOT_ENABLED`; `kardex` 403 `FEATURE_NOT_AVAILABLE`.
 
 ### Fase 3 — Frontend (UI/UX) ⏳
 - [ ] `usePlanCapabilities()` + `can(module|feature)` leyendo el plan de la empresa.
