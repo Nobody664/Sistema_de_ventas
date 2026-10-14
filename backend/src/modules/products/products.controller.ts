@@ -6,6 +6,7 @@ import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { SubscriptionLimitGuard, LimitResource } from '@/common/guards/subscription-limit.guard';
+import { RequireModule } from '@/modules/plan-capabilities/decorators/require-module.decorator';
 import {
   CreateCategoryDto,
   CreatePresentationDto,
@@ -19,6 +20,7 @@ import {
 import { ProductsService } from './products.service';
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@RequireModule('products')
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
@@ -49,6 +51,7 @@ export class ProductsController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER')
   @Permissions(Permission.CATEGORY_LIST)
+  @RequireModule('categories')
   @Get('categories')
   findCategories(@Req() request: { tenantId: string }) {
     return this.productsService.findCategories(request.tenantId);
@@ -56,6 +59,7 @@ export class ProductsController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER')
   @Permissions(Permission.CATEGORY_LIST)
+  @RequireModule('categories')
   @Get('categories/:id')
   findCategoryById(@Req() request: { tenantId: string }, @Param('id') id: string) {
     return this.productsService.findCategoryById(request.tenantId, id);
@@ -63,6 +67,7 @@ export class ProductsController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER')
   @Permissions(Permission.CATEGORY_CREATE)
+  @RequireModule('categories')
   @UseGuards(SubscriptionLimitGuard)
   @LimitResource('categories')
   @Post('categories')
@@ -72,6 +77,7 @@ export class ProductsController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER')
   @Permissions(Permission.CATEGORY_UPDATE)
+  @RequireModule('categories')
   @Patch('categories/:id')
   updateCategory(
     @Req() request: { tenantId: string },
@@ -83,6 +89,7 @@ export class ProductsController {
 
   @Roles('COMPANY_ADMIN')
   @Permissions(Permission.CATEGORY_DELETE)
+  @RequireModule('categories')
   @Delete('categories/:id')
   removeCategory(@Req() request: { tenantId: string }, @Param('id') id: string) {
     return this.productsService.removeCategory(request.tenantId, id);

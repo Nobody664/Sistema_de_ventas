@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { PlanCapabilitiesService } from '@/modules/plan-capabilities/plan-capabilities.service';
 
 export type ResourceType = 'products' | 'users' | 'customers' | 'employees' | 'categories' | 'sales';
 
@@ -20,33 +21,21 @@ export interface SubscriptionLimits {
 
 @Injectable()
 export class SubscriptionLimitService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planCapabilities: PlanCapabilitiesService,
+  ) {}
 
   async getSubscriptionLimits(companyId: string): Promise<SubscriptionLimits> {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { companyId },
-      include: { plan: true },
-    });
+    const capabilities = await this.planCapabilities.getCapabilities(companyId);
 
-    if (!subscription || subscription.status !== 'ACTIVE') {
-      return {
-        maxUsers: 1,
-        maxProducts: 10,
-        maxCustomers: 50,
-        maxEmployees: 1,
-        maxCategories: 5,
-        features: [],
-      };
-    }
-
-    const plan = subscription.plan;
     return {
-      maxUsers: plan.maxUsers ?? 1,
-      maxProducts: plan.maxProducts ?? 10,
-      maxCustomers: (plan.maxProducts ?? 10) * 5,
-      maxEmployees: plan.maxUsers ?? 1,
-      maxCategories: Math.max(1, Math.floor((plan.maxProducts ?? 10) / 20)),
-      features: (plan.features as string[]) ?? [],
+      maxUsers: capabilities.maxUsers,
+      maxProducts: capabilities.maxProducts,
+      maxCustomers: capabilities.maxProducts * 5,
+      maxEmployees: capabilities.maxUsers,
+      maxCategories: Math.max(1, Math.floor(capabilities.maxProducts / 20)),
+      features: capabilities.features,
     };
   }
 
@@ -114,10 +103,7 @@ export class SubscriptionLimitService {
         sales: 'ventas',
       };
 
-      const plan = await this.prisma.subscription.findUnique({
-        where: { companyId },
-        include: { plan: true },
-      });
+      const capabilities = await this.planCapabilities.getCapabilities(companyId);
 
       throw new ForbiddenException({
         error: 'LIMIT_EXCEEDED',
@@ -125,8 +111,8 @@ export class SubscriptionLimitService {
         current,
         limit,
         resource: res,
-        planName: plan?.plan.name,
-        upgradeUrl: '/dashboard/subscriptions',
+        planName: capabilities.planName,
+        upgradeUrl: '/subscription',
       });
     }
   }

@@ -5,10 +5,12 @@ import { Permission } from '@/common/constants/permissions.constant';
 import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { RequireModule } from '@/modules/plan-capabilities/decorators/require-module.decorator';
 import { CreateInventoryAdjustmentDto } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@RequireModule('inventory')
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}

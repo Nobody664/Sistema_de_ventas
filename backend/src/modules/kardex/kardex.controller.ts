@@ -5,10 +5,14 @@ import { Permission } from '@/common/constants/permissions.constant';
 import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { RequireModule } from '@/modules/plan-capabilities/decorators/require-module.decorator';
+import { RequireFeature } from '@/modules/plan-capabilities/decorators/require-feature.decorator';
 import { KardexService } from './kardex.service';
 import { QueryKardexDto } from './dto/kardex.dto';
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@RequireModule('inventory')
+@RequireFeature('inventory.kardex')
 @Controller('kardex')
 export class KardexController {
   constructor(private readonly kardexService: KardexService) {}

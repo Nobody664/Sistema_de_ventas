@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
 import { EmailService } from '@/modules/email/email.service';
+import { PlanCapabilitiesService } from '@/modules/plan-capabilities/plan-capabilities.service';
 import { CompanyStatus, SubscriptionStatus } from '@prisma/client';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class SubscriptionsService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService,
+    private readonly planCapabilities: PlanCapabilitiesService,
   ) {}
 
   findByCompany(companyId: string) {
@@ -123,8 +125,8 @@ export class SubscriptionsService {
 
     const adminUser = subscription.company.memberships[0]?.user;
 
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.subscription.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const subscriptionUpdate = await tx.subscription.update({
         where: { id: subscriptionId },
         data: { status: 'ACTIVE' },
       });
@@ -145,8 +147,12 @@ export class SubscriptionsService {
         });
       }
 
-      return updated;
+      return subscriptionUpdate;
     });
+
+    await this.planCapabilities.invalidate(subscription.companyId);
+
+    return updated;
   }
 
   async rejectSubscriber(subscriptionId: string, reason?: string) {
@@ -159,12 +165,16 @@ export class SubscriptionsService {
       throw new NotFoundException('Subscription not found.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const canceled = await this.prisma.$transaction(async (tx) => {
       return tx.subscription.update({
         where: { id: subscriptionId },
         data: { status: 'CANCELED' },
       });
     });
+
+    await this.planCapabilities.invalidate(subscription.companyId);
+
+    return canceled;
   }
 
   getStats() {
@@ -209,6 +219,8 @@ export class SubscriptionsService {
           data: { status: 'INACTIVE' as CompanyStatus },
         });
       });
+
+      await this.planCapabilities.invalidate(subscription.companyId);
 
       if (adminUser) {
         await this.notificationsService.create({
@@ -291,6 +303,8 @@ export class SubscriptionsService {
     if (updated.count === 0) {
       throw new NotFoundException('Subscription not found');
     }
+
+    await this.planCapabilities.invalidate(companyId);
 
     return {
       ...subscription,

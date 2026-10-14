@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { Prisma } from '@prisma/client';
 import { SalesService } from './sales.service';
 
 function makeSaleService() {
@@ -21,7 +22,7 @@ function makeSaleService() {
   const prisma = {
     product: {
       findMany: async () => [
-        { id: 'p1', stockQuantity: 10, name: 'Producto A', salePrice: 50 },
+        { id: 'p1', stockQuantity: new Prisma.Decimal(10), name: 'Producto A', salePrice: new Prisma.Decimal(50) },
       ],
     },
     $transaction: async (cb: any) => cb(tx),

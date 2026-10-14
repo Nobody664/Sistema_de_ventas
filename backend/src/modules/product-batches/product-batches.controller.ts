@@ -5,10 +5,14 @@ import { Permission } from '@/common/constants/permissions.constant';
 import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { RequireModule } from '@/modules/plan-capabilities/decorators/require-module.decorator';
+import { RequireFeature } from '@/modules/plan-capabilities/decorators/require-feature.decorator';
 import { ProductBatchesService } from './product-batches.service';
 import { CreateProductBatchDto, UpdateProductBatchDto, ReserveBatchDto, QueryProductBatchDto } from './dto/product-batch.dto';
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@RequireModule('inventory')
+@RequireFeature('inventory.batches')
 @Controller('product-batches')
 export class ProductBatchesController {
   constructor(private readonly productBatchesService: ProductBatchesService) {}

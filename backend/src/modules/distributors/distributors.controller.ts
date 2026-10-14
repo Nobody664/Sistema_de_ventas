@@ -16,6 +16,7 @@ import { Permission } from '@/common/constants/permissions.constant';
 import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { RequireModule } from '@/modules/plan-capabilities/decorators/require-module.decorator';
 import { DistributorsService } from './distributors.service';
 import {
   CreateDistributorDeliveryDto,
@@ -30,6 +31,7 @@ import {
 type TenantRequest = { tenantId: string };
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@RequireModule('distributors')
 @Controller('distributors')
 export class DistributorsController {
   constructor(private readonly distributorsService: DistributorsService) {}

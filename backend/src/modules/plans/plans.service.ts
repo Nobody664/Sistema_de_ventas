@@ -31,6 +31,11 @@ export class PlansService {
         maxUsers: input.maxUsers,
         maxProducts: input.maxProducts,
         features: input.features,
+        modules: input.modules ?? [],
+        permissions: input.permissions ?? [],
+        apiEnabled: input.apiEnabled ?? false,
+        apiSearchDniEnabled: input.apiSearchDniEnabled ?? false,
+        apiQuota: input.apiQuota ?? 0,
         isActive: input.isActive ?? true,
       },
     });

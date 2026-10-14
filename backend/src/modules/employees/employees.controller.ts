@@ -6,10 +6,12 @@ import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { SubscriptionLimitGuard, LimitResource } from '@/common/guards/subscription-limit.guard';
+import { RequireModule } from '@/modules/plan-capabilities/decorators/require-module.decorator';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 import { EmployeesService } from './employees.service';
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@RequireModule('employees')
 @Controller('employees')
 export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}

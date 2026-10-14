@@ -13,6 +13,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { CsrfGuard } from './common/guards/csrf.guard';
+import { PlanCapabilitiesGuard } from './modules/plan-capabilities/guards/plan-capabilities.guard';
 import { AuditCommonModule } from './common/services/audit.module';
 import { AuditContextInterceptor } from './common/interceptors/audit-context.interceptor';
 
@@ -45,6 +46,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { CompanyProfileModule } from './modules/company-profile/company-profile.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { DistributorsModule } from './modules/distributors/distributors.module';
+import { PlanCapabilitiesModule } from './modules/plan-capabilities/plan-capabilities.module';
 
 @Module({
   imports: [
@@ -131,6 +133,7 @@ import { DistributorsModule } from './modules/distributors/distributors.module';
     CompanyProfileModule,
     PlatformModule,
     DistributorsModule,
+    PlanCapabilitiesModule,
   ],
   providers: [
     {
@@ -152,6 +155,10 @@ import { DistributorsModule } from './modules/distributors/distributors.module';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PlanCapabilitiesGuard,
     },
     {
       provide: APP_INTERCEPTOR,

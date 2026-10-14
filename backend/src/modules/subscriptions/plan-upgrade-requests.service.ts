@@ -5,6 +5,7 @@ import { PrismaService } from '@/database/prisma/prisma.service';
 import { evaluateProfile } from '@/common/helpers/profile-completeness.helper';
 import { EmailService } from '@/modules/email/email.service';
 import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
+import { PlanCapabilitiesService } from '@/modules/plan-capabilities/plan-capabilities.service';
 import { CreatePlanUpgradeRequestDto, SubmitUpgradeProofDto, ReviewPlanUpgradeDto } from './dto/plan-upgrade.dto';
 
 const OFFLINE_PROVIDERS: PaymentProvider[] = [
@@ -19,6 +20,7 @@ export class PlanUpgradeRequestsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly notificationsService: NotificationsService,
+    private readonly planCapabilities: PlanCapabilitiesService,
   ) {}
 
   private buildUpgradeResponse(currentPlan: any, request: any, settings: any) {
@@ -380,6 +382,8 @@ export class PlanUpgradeRequestsService {
 
       return { subscription };
     });
+
+    await this.planCapabilities.invalidate(request.companyId);
 
     if (adminUser) {
       await this.notificationsService.create({
