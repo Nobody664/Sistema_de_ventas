@@ -122,10 +122,29 @@ Cupos ya existentes: `maxUsers` 1/3/10/999, `maxProducts` 50/500/5000/999999.
       `products`/`reports`/`branches` 200; `distributors`/`dni` 403
       `MODULE_NOT_ENABLED`; `kardex` 403 `FEATURE_NOT_AVAILABLE`.
 
-### Fase 3 — Frontend (UI/UX) ⏳
-- [ ] `usePlanCapabilities()` + `can(module|feature)` leyendo el plan de la empresa.
-- [ ] Ocultar/deshabilitar navegación y acciones no incluidas; CTA de upgrade.
-- [ ] `plans-client.tsx` (público/admin) alineado con la matriz.
+### Fase 3 — Frontend (UI/UX) ✅ (completada)
+- [x] `lib/plan-capabilities.ts`: tipos, claves (`PLAN_MODULE_KEYS`/`PLAN_FEATURE_KEYS`),
+      etiquetas y helpers `hasModule`/`hasFeature`/`satisfiesRequirement` +
+      `getRouteRequirement` (kardex, batches, distribuidores, empleados).
+- [x] `lib/plan-capabilities-server.ts` (`fetchPlanCapabilities`) y
+      `GET /api/plan-capabilities/me` consumido en `app/(dashboard)/layout.tsx`.
+- [x] `PlanCapabilitiesProvider` + `usePlanCapabilities()` (`can`, `canFeature`);
+      frontend permisivo por defecto si no hay capacidades.
+- [x] `PlanRouteGuard` envuelve el contenido del dashboard: muestra
+      `UpgradeRequired` (con CTA a `/subscription`) si la ruta queda fuera del plan.
+- [x] Navegación (`app-sidebar.tsx`, incluye `AppMobileNav`) filtrada por rol AND
+      módulo. El ítem `Pagos` se mantiene sin gateo por plan.
+- [x] `inventory-client.tsx`: tarjetas de submódulos con candado/CTA
+      (`inventory.kardex`, `inventory.batches`).
+- [x] `handle-limit-error.ts` reconoce `MODULE_NOT_ENABLED`/`FEATURE_NOT_AVAILABLE`/
+      `PLAN_REQUIRED`/`API_QUOTA_EXCEEDED` (vía `err.cause.error`); se preserva
+      `LIMIT_EXCEEDED`.
+- [x] `plans-client.tsx` (admin): edición de `modules`, `permissions`, API
+      (`apiEnabled`, `apiSearchDniEnabled`, `apiQuota`) + resumen en cada tarjeta.
+- [x] `subscription-page-client.tsx`: tarjeta de uso de API (usado/cuota + barra).
+- [x] `tsc --noEmit` y `next build` sin errores.
+- [x] **Validado en prod** (frontend Vercel `https://sistema-de-ventas-frontend-seven.vercel.app`;
+      `GET /api/plan-capabilities/me` → FREE con 8 módulos y `reports`).
 
 ### Fase 4 — Seed/verificación
 - [ ] Seed idempotente de planes con la matriz (para entornos nuevos).
