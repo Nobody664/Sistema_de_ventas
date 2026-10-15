@@ -11,7 +11,7 @@ import {
   ExportProductsQueryDto,
 } from './dto/product.dto';
 import { SubscriptionLimitService } from '@/common/guards/subscription-limit.service';
-import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
+import { LowStockService } from '@/modules/low-stock/low-stock.service';
 import { AuditService } from '@/common/services/audit.service';
 
 function escapeHtml(value: unknown): string {
@@ -31,7 +31,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly limitService: SubscriptionLimitService,
-    private readonly notificationsService: NotificationsService,
+    private readonly lowStockService: LowStockService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -247,7 +247,14 @@ export class ProductsService {
     });
 
     if (product.stockQuantity.lte(product.minStock)) {
-      await this.sendLowStockNotification(companyId, product);
+      await this.lowStockService.notifyIfLowStock({
+        companyId,
+        productId: product.id,
+        productName: product.name,
+        currentStock: product.stockQuantity,
+        minStock: product.minStock,
+        baseUnit: product.baseUnit,
+      });
     }
 
     await this.auditService.log({
@@ -293,12 +300,16 @@ export class ProductsService {
       throw new NotFoundException('Product not found.');
     }
 
-    if (
-      input.stockQuantity !== undefined &&
-      updatedProduct.stockQuantity.lte(updatedProduct.minStock) &&
-      existing.stockQuantity.gt(existing.minStock)
-    ) {
-      await this.sendLowStockNotification(companyId, updatedProduct);
+    if (input.stockQuantity !== undefined && updatedProduct.stockQuantity.lte(updatedProduct.minStock)) {
+      await this.lowStockService.notifyIfLowStock({
+        companyId,
+        productId: updatedProduct.id,
+        productName: updatedProduct.name,
+        currentStock: updatedProduct.stockQuantity,
+        minStock: updatedProduct.minStock,
+        baseUnit: updatedProduct.baseUnit,
+        previousStock: existing.stockQuantity,
+      });
     }
 
     await this.auditService.log({
@@ -319,26 +330,6 @@ export class ProductsService {
     });
 
     return updatedProduct;
-  }
-
-  private async sendLowStockNotification(companyId: string, product: { id: string; name: string; stockQuantity: Prisma.Decimal; minStock: Prisma.Decimal }) {
-    const admins = await this.prisma.employee.findMany({
-      where: { companyId, role: 'COMPANY_ADMIN', isActive: true },
-      select: { userId: true },
-    });
-
-    for (const admin of admins) {
-      if (admin.userId) {
-        await this.notificationsService.create({
-          userId: admin.userId,
-          companyId,
-          type: NotificationType.LOW_STOCK,
-          title: 'Stock bajo',
-          message: `El producto "${product.name}" tiene solo ${Number(product.stockQuantity)} unidades (min: ${Number(product.minStock)})`,
-          data: { productId: product.id, stockQuantity: Number(product.stockQuantity) },
-        });
-      }
-    }
   }
 
   async removeProduct(companyId: string, id: string) {
@@ -557,7 +548,6 @@ export class ProductsService {
       where: {
         companyId,
         isActive: true,
-        stockQuantity: { lte: new Prisma.Decimal(5) },
       },
       select: {
         id: true,
@@ -567,10 +557,12 @@ export class ProductsService {
         category: { select: { name: true } },
       },
       orderBy: { stockQuantity: 'asc' },
-      take: 100,
+      take: 10000,
     });
 
-    return products.filter((p) => p.stockQuantity.lte(p.minStock));
+    return products
+      .filter((p) => p.stockQuantity.lte(p.minStock))
+      .slice(0, 100);
   }
 
   async uploadProductImage(companyId: string, productId: string, imageBase64: string) {

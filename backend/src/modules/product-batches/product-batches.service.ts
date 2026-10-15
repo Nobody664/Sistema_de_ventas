@@ -192,7 +192,7 @@ export class ProductBatchesService {
 
     if (remaining.gt(0)) {
       throw new BadRequestException(
-        `Insufficient batch stock for product ${productId}. Needed ${quantity.toString()}, but only ${quantity.minus(remaining)} available across batches.`,
+        `Stock insuficiente en lotes para el producto ${productId}. Requerido: ${quantity.toString()}, disponible en lotes: ${quantity.minus(remaining)}.`,
       );
     }
   }
@@ -205,7 +205,7 @@ export class ProductBatchesService {
     const batch = await this.prisma.productBatch.findFirst({ where: { id, companyId } });
     if (!batch) throw new NotFoundException('Product batch not found');
     if (batch.quantityAvailable.lt(dto.quantity)) {
-      throw new BadRequestException(`Batch ${batch.batchNumber} only has ${batch.quantityAvailable} units available`);
+      throw new BadRequestException(`El lote ${batch.batchNumber} solo tiene ${batch.quantityAvailable} unidades disponibles.`);
     }
 
     const result = await this.prisma.productBatch.updateMany({

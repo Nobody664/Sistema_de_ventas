@@ -3,6 +3,7 @@ import { Prisma, PrismaClient, AuditAction } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { CreateSaleDto, ExportSalesQueryDto } from './dto/sale.dto';
 import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
+import { LowStockService } from '@/modules/low-stock/low-stock.service';
 import { KardexService } from '@/modules/kardex/kardex.service';
 import { ProductBatchesService } from '@/modules/product-batches/product-batches.service';
 import { DistributorsService } from '@/modules/distributors/distributors.service';
@@ -27,6 +28,7 @@ export class SalesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly lowStockService: LowStockService,
     private readonly kardexService: KardexService,
     private readonly productBatchesService: ProductBatchesService,
     private readonly auditService: AuditService,
@@ -275,7 +277,9 @@ export class SalesService {
       const product = productMap.get(productId);
       if (!product) continue;
       if (product.stockQuantity.lt(baseQuantity)) {
-        throw new BadRequestException(`Insufficient stock for ${product.name}.`);
+        throw new BadRequestException(
+          `Stock insuficiente para ${product.name}. Disponible: ${Number(product.stockQuantity)}, solicitado: ${Number(baseQuantity)}.`,
+        );
       }
     }
 
@@ -348,7 +352,7 @@ export class SalesService {
           data: { stockQuantity: { decrement: item.baseQuantity } },
         });
         if (stockUpdate.count !== 1) {
-          throw new BadRequestException(`Insufficient stock for product ${item.productId}.`);
+          throw new BadRequestException(`Stock insuficiente para el producto ${item.productId}.`);
         }
       }
 
@@ -412,6 +416,23 @@ export class SalesService {
         })),
       },
     });
+
+    for (const [productId, baseQuantity] of baseQuantityByProduct) {
+      const product = productMap.get(productId);
+      if (!product) {
+        continue;
+      }
+
+      await this.lowStockService.notifyIfLowStock({
+        companyId,
+        productId,
+        productName: product.name,
+        currentStock: product.stockQuantity.minus(baseQuantity),
+        minStock: product.minStock,
+        baseUnit: product.baseUnit,
+        previousStock: product.stockQuantity,
+      });
+    }
 
     return sale;
   }

@@ -28,6 +28,7 @@ function makeSaleService() {
     $transaction: async (cb: any) => cb(tx),
   } as any;
   const notificationsService = {} as any;
+  const lowStockService = { notifyIfLowStock: async () => true } as any;
   const kardexService = { recordOutMovement: async () => undefined } as any;
   const productBatchesService = { reserveFromBatch: async () => undefined } as any;
   const auditService = { log: async () => undefined } as any;
@@ -35,6 +36,7 @@ function makeSaleService() {
   const svc = new SalesService(
     prisma,
     notificationsService,
+    lowStockService,
     kardexService,
     productBatchesService,
     auditService,
@@ -59,6 +61,7 @@ describe('SalesService.createSale', () => {
     const svc = new SalesService(
       prisma,
       {} as any,
+      { notifyIfLowStock: async () => true } as any,
       {} as any,
       {} as any,
       {} as any,

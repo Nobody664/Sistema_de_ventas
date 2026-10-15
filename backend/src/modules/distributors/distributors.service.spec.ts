@@ -18,10 +18,17 @@ function buildService(options: {
   } as any;
 
   const kardexService = options.kardex ?? {};
+  const lowStockService = { notifyIfLowStock: async () => true };
   const productBatchesService = options.batches ?? {};
   const auditService = { log: async () => undefined } as any;
 
-  return new DistributorsService(prisma, kardexService as any, productBatchesService as any, auditService);
+  return new DistributorsService(
+    prisma,
+    kardexService as any,
+    lowStockService as any,
+    productBatchesService as any,
+    auditService,
+  );
 }
 
 describe('DistributorsService.transfer', () => {
@@ -40,7 +47,7 @@ describe('DistributorsService.transfer', () => {
   it('rejects when company stock is insufficient', async () => {
     const svc = buildService({
       distributor: { id: 'd1', companyId: 'com-a', status: 'ACTIVE', balances: [] },
-      products: [{ id: 'p1', name: 'Producto A', stockQuantity: 1 }],
+      products: [{ id: 'p1', name: 'Producto A', stockQuantity: new Prisma.Decimal(1) }],
     });
 
     await assert.rejects(
@@ -72,7 +79,7 @@ describe('DistributorsService.transfer', () => {
 
     const svc = buildService({
       distributor: { id: 'd1', companyId: 'com-a', status: 'ACTIVE', balances: [] },
-      products: [{ id: 'p1', name: 'Producto A', stockQuantity: 10 }],
+      products: [{ id: 'p1', name: 'Producto A', stockQuantity: new Prisma.Decimal(10) }],
       tx,
       kardex: { recordOutMovement: async () => { kardexCalls += 1; } },
       batches: { reserveFromBatch: async () => { batchCalls += 1; } },

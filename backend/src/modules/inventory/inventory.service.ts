@@ -3,6 +3,7 @@ import { AuditAction, Prisma } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { AuditService } from '@/common/services/audit.service';
 import { KardexService } from '@/modules/kardex/kardex.service';
+import { LowStockService } from '@/modules/low-stock/low-stock.service';
 import { CreateInventoryAdjustmentDto } from './dto/inventory.dto';
 
 @Injectable()
@@ -11,19 +12,19 @@ export class InventoryService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly kardexService: KardexService,
+    private readonly lowStockService: LowStockService,
   ) {}
 
-  findLowStock(companyId: string) {
-    return this.prisma.product.findMany({
-      where: {
-        companyId,
-        stockQuantity: {
-          lte: new Prisma.Decimal(10),
-        },
-      },
+  async findLowStock(companyId: string) {
+    const products = await this.prisma.product.findMany({
+      where: { companyId, isActive: true },
       orderBy: { stockQuantity: 'asc' },
-      take: 50,
+      take: 10000,
     });
+
+    return products
+      .filter((product) => product.stockQuantity.lte(product.minStock))
+      .slice(0, 50);
   }
 
   findMovements(companyId: string) {
@@ -138,6 +139,18 @@ export class InventoryService {
         stockAfter: Number(result.updatedProduct.stockQuantity),
       },
     });
+
+    if (delta.lt(0)) {
+      await this.lowStockService.notifyIfLowStock({
+        companyId,
+        productId: product.id,
+        productName: product.name,
+        currentStock: result.updatedProduct.stockQuantity,
+        minStock: product.minStock,
+        baseUnit: product.baseUnit,
+        previousStock: product.stockQuantity,
+      });
+    }
 
     return result;
   }

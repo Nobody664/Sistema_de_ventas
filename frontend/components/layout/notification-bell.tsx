@@ -21,12 +21,33 @@ export function NotificationBell() {
   } = useNotificationsStore();
 
   useEffect(() => {
-    if (user) {
-      fetchUnreadCount();
-      connectToStream();
+    if (!user) {
+      return;
     }
 
+    fetchUnreadCount();
+    connectToStream();
+
+    const interval = window.setInterval(() => {
+      fetchUnreadCount();
+    }, 30000);
+
+    const handleFocus = () => {
+      fetchUnreadCount();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnreadCount();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       disconnectFromStream();
     };
   }, [user, fetchUnreadCount, connectToStream, disconnectFromStream]);
@@ -49,8 +70,8 @@ export function NotificationBell() {
       >
         <Bell className="size-5" />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-            {unreadCount > 9 ? '9+' : unreadCount}
+          <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs text-white">
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </Button>

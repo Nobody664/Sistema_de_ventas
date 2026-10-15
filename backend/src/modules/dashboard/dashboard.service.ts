@@ -128,7 +128,6 @@ export class DashboardService {
 
     const [
       salesToday,
-      lowStockProducts,
       recentSales,
       company,
       totalProducts,
@@ -141,9 +140,6 @@ export class DashboardService {
       this.prisma.sale.findMany({
         where: { companyId, createdAt: { gte: todayStart } },
         select: { totalAmount: true },
-      }),
-      this.prisma.product.count({
-        where: { companyId, stockQuantity: { lte: 10 } },
       }),
       this.prisma.sale.findMany({
         where: { companyId },
@@ -172,7 +168,7 @@ export class DashboardService {
       }),
       this.prisma.product.findMany({
         where: { companyId },
-        select: { id: true, name: true, stockQuantity: true, salePrice: true },
+        select: { id: true, name: true, stockQuantity: true, minStock: true, salePrice: true },
         take: 10000,
       }),
       this.prisma.customer.count({
@@ -271,11 +267,13 @@ export class DashboardService {
       id: string;
       name: string;
       stockQuantity: number;
+      minStock: number;
       salePrice: unknown;
     }>;
 
     const totalValue = products.reduce((sum, p) => sum + Number(p.salePrice || 0) * Number(p.stockQuantity), 0);
     const totalItems = products.reduce((sum, p) => sum + Number(p.stockQuantity), 0);
+    const lowStockCount = products.filter((p) => Number(p.stockQuantity) <= Number(p.minStock)).length;
     const outOfStockCount = products.filter((p) => Number(p.stockQuantity) === 0).length;
     const slowMovingCount = products.filter((p) => Number(p.stockQuantity) > 50).length;
 
@@ -291,7 +289,7 @@ export class DashboardService {
     const inventoryMetrics: InventoryMetrics = {
       totalValue,
       totalItems,
-      lowStockCount: lowStockProducts,
+      lowStockCount,
       outOfStockCount,
       slowMovingCount,
     };
@@ -310,7 +308,7 @@ export class DashboardService {
       totalEmployees,
       salesToday: salesToday.length,
       revenueToday,
-      lowStockProducts,
+      lowStockProducts: lowStockCount,
       topProducts,
       salesAnalytics,
       paymentMethods,

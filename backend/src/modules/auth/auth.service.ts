@@ -253,6 +253,7 @@ export class AuthService {
     const claims: SessionClaims = {
       sub: user.id,
       email: user.email,
+      fullName: user.fullName,
       companyId: membership?.companyId ?? stored.companyId ?? null,
       roles: membership ? [user.globalRole, membership.role] : [user.globalRole],
       planCode,
@@ -394,6 +395,66 @@ export class AuthService {
     return { message: 'Password changed successfully.' };
   }
 
+  async updateProfile(userId: string, fullName: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found.');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { fullName },
+    });
+
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    let planCode: string | undefined;
+    let subscriptionStatus: string | undefined;
+
+    if (membership?.companyId) {
+      const subscription = await this.prisma.subscription.findFirst({
+        where: { companyId: membership.companyId },
+        include: { plan: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (subscription) {
+        subscriptionStatus = subscription.status;
+        planCode = subscription.plan.code;
+      }
+    }
+
+    const claims: SessionClaims = {
+      sub: user.id,
+      email: user.email,
+      fullName,
+      companyId: membership?.companyId ?? null,
+      roles: membership ? [user.globalRole, membership.role] : [user.globalRole],
+      planCode,
+      subscriptionStatus,
+    };
+
+    const { accessToken, companyStatus, trialEndsAt } = await this.signAccessToken(claims);
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName,
+        companyId: claims.companyId,
+        roles: claims.roles,
+        companyStatus,
+        planCode,
+        subscriptionStatus,
+        trialEndsAt,
+      },
+    };
+  }
+
   private async signAccessToken(claims: SessionClaims) {
     let companyStatus: string | undefined;
     let trialEndsAt: string | null | undefined;
@@ -411,6 +472,7 @@ export class AuthService {
       {
         sub: claims.sub,
         email: claims.email,
+        fullName: claims.fullName ?? null,
         companyId: claims.companyId,
         roles: claims.roles,
         companyStatus,

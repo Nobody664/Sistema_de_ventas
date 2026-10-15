@@ -101,6 +101,21 @@ export async function getMe(): Promise<AuthUser> {
   return handleResponse<AuthUser>(response);
 }
 
+export interface UpdateProfileResponse {
+  user: AuthUser;
+}
+
+export async function updateProfile(fullName: string): Promise<UpdateProfileResponse> {
+  const response = await fetch(`${API_URL}/auth/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fullName }),
+    credentials: 'include',
+  });
+
+  return handleResponse<UpdateProfileResponse>(response);
+}
+
 export async function refreshToken(): Promise<RefreshResponse> {
   const response = await fetch(`${API_URL}/auth/refresh`, {
     method: 'POST',

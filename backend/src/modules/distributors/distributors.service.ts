@@ -4,6 +4,7 @@ import type { DistributorBalance } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { AuditService } from '@/common/services/audit.service';
 import { KardexService } from '@/modules/kardex/kardex.service';
+import { LowStockService } from '@/modules/low-stock/low-stock.service';
 import { ProductBatchesService } from '@/modules/product-batches/product-batches.service';
 import {
   CreateDistributorDeliveryDto,
@@ -27,6 +28,7 @@ export class DistributorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly kardexService: KardexService,
+    private readonly lowStockService: LowStockService,
     private readonly productBatchesService: ProductBatchesService,
     private readonly auditService: AuditService,
   ) {}
@@ -219,7 +221,7 @@ export class DistributorsService {
     const items = this.mergeItems(dto.items);
     const products = await this.prisma.product.findMany({
       where: { companyId, id: { in: items.map((item) => item.productId) } },
-      select: { id: true, name: true, stockQuantity: true },
+      select: { id: true, name: true, stockQuantity: true, minStock: true, baseUnit: true },
     });
     const productMap = new Map(products.map((product) => [product.id, product]));
 
@@ -304,6 +306,23 @@ export class DistributorsService {
       entityId: distributor.id,
       changes: { operation: 'TRANSFER', items, totalQuantity },
     });
+
+    for (const item of items) {
+      const product = productMap.get(item.productId);
+      if (!product) {
+        continue;
+      }
+
+      await this.lowStockService.notifyIfLowStock({
+        companyId,
+        productId: item.productId,
+        productName: product.name,
+        currentStock: product.stockQuantity.minus(item.quantity),
+        minStock: product.minStock,
+        baseUnit: product.baseUnit,
+        previousStock: product.stockQuantity,
+      });
+    }
 
     return result;
   }

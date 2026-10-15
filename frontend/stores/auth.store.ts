@@ -4,6 +4,7 @@ import {
   register as apiRegister,
   logout as apiLogout,
   getMe,
+  updateProfile as apiUpdateProfile,
   refreshToken as apiRefreshToken,
   type AuthUser,
 } from '@/lib/api/auth';
@@ -17,6 +18,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string, companyName: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (fullName: string) => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
   clearError: () => void;
@@ -84,6 +86,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         error: null,
       });
     }
+  },
+
+  updateProfile: async (fullName: string) => {
+    const response = await apiUpdateProfile(fullName);
+    set({ user: response.user, isAuthenticated: true, error: null });
   },
 
   checkAuth: async () => {

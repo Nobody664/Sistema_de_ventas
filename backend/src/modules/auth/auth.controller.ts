@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -21,6 +22,7 @@ import {
   RefreshTokenDto,
   RegisterDto,
   ResetPasswordDto,
+  UpdateProfileDto,
 } from './dto/auth.dto';
 import { AuthService } from './auth.service';
 
@@ -87,6 +89,19 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
+  @Patch('me')
+  async updateMe(
+    @CurrentUser() user: { sub: string },
+    @Body() body: UpdateProfileDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.updateProfile(user.sub, body.fullName);
+    this.setAccessCookie(res, result.accessToken);
+    return { user: result.user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Post('change-password')
   changePassword(@CurrentUser() user: any, @Body() body: ChangePasswordDto) {
     return this.authService.changePassword(user.sub, body.oldPassword, body.newPassword);
@@ -116,10 +131,8 @@ export class AuthController {
     return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
-  private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+  private setAccessCookie(res: Response, accessToken: string) {
     const accessMaxAge = 15 * 60 * 1000;
-    const refreshMaxAge = 7 * 24 * 60 * 60 * 1000;
-
     const isProd = process.env.NODE_ENV === 'production';
     const sameSite = isProd ? 'none' : 'lax';
 
@@ -130,6 +143,14 @@ export class AuthController {
       maxAge: accessMaxAge,
       path: '/',
     });
+  }
+
+  private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+    this.setAccessCookie(res, accessToken);
+
+    const refreshMaxAge = 7 * 24 * 60 * 60 * 1000;
+    const isProd = process.env.NODE_ENV === 'production';
+    const sameSite = isProd ? 'none' : 'lax';
 
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,

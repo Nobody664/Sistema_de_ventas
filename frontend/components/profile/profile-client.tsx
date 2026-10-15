@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { useUiStore } from '@/store/ui-store';
 import { 
   Settings, 
   User, 
@@ -26,7 +27,8 @@ import {
   Calendar,
   ChevronRight,
   MapPin,
-  FileText
+  FileText,
+  Pencil
 } from 'lucide-react';
 
 type Subscription = {
@@ -75,10 +77,16 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
   const userRole = userRoles.find(r => ROLE_LABELS[r]) || '';
   const displayRole = ROLE_LABELS[userRole] || userRole;
   const user = useAuthStore((state) => state.user);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
+  const addToast = useUiStore((state) => state.addToast);
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(initialCompany);
   const [subscription, setSubscription] = useState<Subscription | null>(initialSubscription);
   const [loading, setLoading] = useState(!initialCompany);
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [savingName, setSavingName] = useState(false);
   
   const [formData, setFormData] = useState({
     name: initialCompany?.name || '',
@@ -98,8 +106,33 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
     }
   }, [initialCompany]);
 
-  const fullName = userName || userEmail || 'Usuario';
+  const fullName = user?.fullName?.trim() || userName?.trim() || userEmail || 'Usuario';
   const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  const startEditingName = () => {
+    setNameInput(userName || user?.fullName || '');
+    setIsEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    const trimmed = nameInput.trim();
+    if (trimmed.length < 2) {
+      addToast('El nombre debe tener al menos 2 caracteres', 'error');
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      await updateProfile(trimmed);
+      addToast('Nombre actualizado correctamente', 'success');
+      setIsEditingName(false);
+      router.refresh();
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : 'No se pudo actualizar el nombre', 'error');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const getCompanyStatus = () => {
     const isTrial = company?.status === 'TRIAL';
@@ -269,10 +302,54 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptLTItNHYyaC0ydi0yaDJ6bTQtOGgydjJoLTJ2LTJ6bS04LTR2MmgtMnYtMmgydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-40"></div>
               <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
               
-              <div className="relative">
-                <h2 className="font-display text-xl font-semibold text-slate-900">Mi Perfil</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Información de tu cuenta</p>
+              <div className="relative flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-xl font-semibold text-slate-900">Mi Perfil</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">Información de tu cuenta</p>
+                </div>
+                {!isEditingName && (
+                  <button
+                    type="button"
+                    onClick={startEditingName}
+                    className="flex shrink-0 items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all duration-200 hover:border-indigo-300 hover:text-indigo-600 hover:shadow-md"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Editar nombre
+                  </button>
+                )}
               </div>
+
+              {isEditingName && (
+                <div className="relative mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Input
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    placeholder="Tu nombre completo"
+                    maxLength={100}
+                    autoFocus
+                    className="h-12 rounded-xl"
+                  />
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleSaveName}
+                      disabled={savingName}
+                      className="h-12 rounded-xl"
+                    >
+                      {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guardar'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setIsEditingName(false)}
+                      disabled={savingName}
+                      className="h-12 rounded-xl"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 p-6 pt-0">
@@ -283,7 +360,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Nombre</span>
                 </div>
-                <p className="font-semibold text-slate-900 text-lg">{userName || '-'}</p>
+                <p className="font-semibold text-slate-900 text-lg">{fullName}</p>
               </div>
 
               <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
@@ -484,13 +561,22 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
                 </div>
               )}
 
-              <Link
-                href="/subscription"
-                className="mt-4 flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-              >
-                Ver todos los planes
-                <ChevronRight className="w-4 h-4" />
-              </Link>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Link
+                  href="/subscription"
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  Ver todos los planes
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="/subscription"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-700 hover:to-purple-700"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Cambiar de plan
+                </Link>
+              </div>
             </Card>
           )}
         </div>

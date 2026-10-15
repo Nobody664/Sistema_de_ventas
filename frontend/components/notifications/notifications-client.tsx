@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { useNotificationsStore } from '@/store/notifications-store';
 import { Bell, AlertTriangle, CheckCircle, Info, XCircle, Trash2, Eye, Search, CreditCard, Building2, Clock, Check, ArrowRight } from 'lucide-react';
 import type { Notification } from '@/types/api';
 
@@ -87,6 +88,7 @@ export function NotificationsClient({ initialNotifications, unreadCount: initial
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void useNotificationsStore.getState().fetchUnreadCount();
     },
   });
 
@@ -99,6 +101,7 @@ export function NotificationsClient({ initialNotifications, unreadCount: initial
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void useNotificationsStore.getState().fetchUnreadCount();
     },
   });
 
