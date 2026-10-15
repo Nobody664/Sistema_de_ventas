@@ -63,13 +63,13 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
             Volver a ventas
           </Link>
           
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-4 min-w-0">
               <div className="rounded-xl bg-gradient-to-br from-orange-500 to-rose-600 p-3 shadow-lg">
                 <FileText className="h-6 w-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Venta #{initialSale.saleNumber}</h1>
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-slate-900 break-words">Venta #{initialSale.saleNumber}</h1>
                 <p className="text-sm text-slate-500">
                   {initialSale.paidAt 
                     ? new Date(initialSale.paidAt as Date).toLocaleString('es-PE', {
@@ -83,7 +83,7 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                 </p>
               </div>
             </div>
-            <Button onClick={handlePrint} className="bg-orange-500 hover:bg-orange-600">
+            <Button onClick={handlePrint} className="w-full bg-orange-500 hover:bg-orange-600 sm:w-auto">
               <Printer className="mr-2 h-4 w-4" />
               Imprimir
             </Button>
@@ -122,7 +122,7 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
               Productos
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[480px]">
                 <thead>
                   <tr className="border-b">
                     <th className="pb-3 text-left text-sm font-medium text-slate-500">Producto</th>

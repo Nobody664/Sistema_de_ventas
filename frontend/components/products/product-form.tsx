@@ -251,14 +251,14 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           </button>
           
           <div className="flex items-center gap-4">
-            <div className="relative">
+            <div className="relative shrink-0">
               <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-3 shadow-lg shadow-emerald-500/20">
                 <Package className="h-6 w-6 text-white" />
               </div>
               <div className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-emerald-400"></div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight break-words">
                 {isEdit ? 'Editar producto' : 'Nuevo producto'}
               </h1>
               <p className="text-sm text-slate-500 font-medium">
@@ -557,7 +557,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
                 {/* Presentations Section */}
                 <div>
-                  <div className="flex items-center justify-between mb-4 gap-3">
+                  <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
                     <p className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                       <Layers className="h-4 w-4" />
                       Presentaciones
@@ -662,21 +662,21 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-slate-400">Los campos marcados con * son obligatorios</p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => router.push('/products')} 
-                className="h-12 rounded-xl px-6 border-slate-200 hover:bg-slate-50"
+                className="h-12 w-full rounded-xl px-6 border-slate-200 hover:bg-slate-50 sm:w-auto"
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
                 disabled={loading} 
-                className="h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-8 font-semibold hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
+                className="h-12 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-8 font-semibold hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all sm:w-auto"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEdit ? 'Guardar cambios' : 'Crear producto'}

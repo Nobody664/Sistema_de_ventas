@@ -10,7 +10,7 @@ export function DistributorActions({ distributor }: { distributor: Distributor }
   const hasDebtOrStock = Number(distributor.balance?.balanceQuantity ?? 0) > 0 || Number(distributor.balance?.debtAmount ?? 0) > 0;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <PermissionGuard permission="distributor:update">
         <Link
           href={`/distributors/${distributor.id}/edit`}

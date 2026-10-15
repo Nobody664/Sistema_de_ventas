@@ -78,23 +78,23 @@ export default async function DistributorsPage() {
                 key={distributor.id}
                 className="flex items-start justify-between gap-4 rounded-2xl border border-foreground/10 p-5 card-hover"
               >
-                <Link href={`/distributors/${distributor.id}`} className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{distributor.name}</p>
-                    <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-medium text-orange-600">
+                <Link href={`/distributors/${distributor.id}`} className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="font-medium truncate">{distributor.name}</p>
+                    <span className="shrink-0 rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-medium text-orange-600">
                       {distributor.code}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-foreground/50">
                     {distributor.email && (
-                      <span className="flex items-center gap-1">
-                        <Mail className="size-3" />
-                        {distributor.email}
+                      <span className="flex items-center gap-1 min-w-0">
+                        <Mail className="size-3 shrink-0" />
+                        <span className="truncate">{distributor.email}</span>
                       </span>
                     )}
                     {distributor.phone && (
                       <span className="flex items-center gap-1">
-                        <Phone className="size-3" />
+                        <Phone className="size-3 shrink-0" />
                         {distributor.phone}
                       </span>
                     )}

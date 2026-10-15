@@ -259,11 +259,11 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
                         onClick={() => addItem(product)}
                         className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50"
                       >
-                        <div>
-                          <p className="font-semibold text-slate-900">{product.name}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-900 truncate">{product.name}</p>
                           <p className="text-sm text-slate-500">SKU: {product.sku}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <p className="font-bold text-orange-600">S/ {product.salePrice}</p>
                           <p className="text-sm text-slate-500">Stock: {Number(product.stockQuantity)} {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}</p>
                         </div>
@@ -294,12 +294,12 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Método de pago</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {(['CASH', 'CARD', 'TRANSFER'] as const).map(method => (
                   <button
                     key={method}
                     onClick={() => setPaymentMethod(method)}
-                    className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${
+                    className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${
                       paymentMethod === method
                         ? 'border-orange-500 bg-orange-50 text-orange-700'
                         : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
@@ -338,8 +338,8 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
                     className="rounded-lg border border-slate-100 bg-slate-50 p-3"
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-semibold text-slate-900">{item.productName}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900 truncate">{item.productName}</p>
                         <p className="text-sm text-slate-500">
                           S/ {item.unitPrice.toFixed(2)} / {item.presentationName ?? UNIT_SHORT[item.baseUnit] ?? item.baseUnit}
                         </p>
@@ -421,7 +421,7 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
           </div>
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+        <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
           <Button variant="outline" onClick={handleClose} className="rounded-xl">
             Cancelar
           </Button>

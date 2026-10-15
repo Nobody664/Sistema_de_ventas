@@ -72,17 +72,17 @@ export function ReplenishmentPageClient({ suggestions, forecast }: Replenishment
       </div>
 
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-250">
-        <div className="mb-6 flex items-center gap-4">
-          <div>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Inventario</p>
             <h2 className="mt-2 font-display text-2xl">
               {tab === 'suggestions' ? 'Sugerencias de compra' : 'Pronóstico de demanda'}
             </h2>
           </div>
-          <div className="ml-auto flex rounded-xl border border-foreground/10 p-1">
+          <div className="flex w-full rounded-xl border border-foreground/10 p-1 sm:ml-auto sm:w-auto">
             <button
               onClick={() => setTab('suggestions')}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none ${
                 tab === 'suggestions' ? 'bg-purple-500 text-white' : 'text-foreground/60 hover:text-foreground'
               }`}
             >
@@ -90,7 +90,7 @@ export function ReplenishmentPageClient({ suggestions, forecast }: Replenishment
             </button>
             <button
               onClick={() => setTab('forecast')}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none ${
                 tab === 'forecast' ? 'bg-purple-500 text-white' : 'text-foreground/60 hover:text-foreground'
               }`}
             >

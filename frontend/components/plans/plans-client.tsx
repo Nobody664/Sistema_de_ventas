@@ -231,8 +231,8 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   return (
     <div className="space-y-6">
       <Card className="rounded-[34px] bg-gradient-to-br from-violet-600 to-indigo-700 p-6 sm:p-8 text-white">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Administración</p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Planes</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
@@ -242,7 +242,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
           </div>
           <Button 
             onClick={() => handleOpenDialog()}
-            className="flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-medium text-violet-600 transition hover:bg-white/90"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-medium text-violet-600 transition hover:bg-white/90 sm:w-auto"
           >
             <Plus className="size-4" />
             Nuevo Plan
@@ -250,7 +250,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="rounded-[30px] bg-white/80 p-6">
           <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Total planes</p>
           <p className="mt-4 font-display text-3xl">{plans.length}</p>
@@ -290,17 +290,17 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 </span>
               )}
 
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${colorClass} text-white`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${colorClass} text-white`}>
                     <Icon className="size-6" />
                   </div>
-                  <div>
-                    <h3 className="font-display text-xl">{plan.name}</h3>
-                    <code className="text-xs text-foreground/50">{plan.code}</code>
+                  <div className="min-w-0">
+                    <h3 className="truncate font-display text-xl">{plan.name}</h3>
+                    <code className="truncate text-xs text-foreground/50">{plan.code}</code>
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => handleOpenDialog(plan)}
                     className="rounded-lg p-2 hover:bg-foreground/5"

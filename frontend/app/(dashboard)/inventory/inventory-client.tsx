@@ -141,23 +141,23 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
           </div>
           <div className="space-y-3">
             {expiringCount > 0 && (
-              <div className="flex items-center justify-between rounded-xl bg-amber-50 px-4 py-3">
-                <div>
+              <div className="flex flex-col items-stretch gap-3 rounded-xl bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-amber-800">Lotes próximos a vencer</p>
                   <p className="text-xs text-amber-600">{expiringCount} lotes vencen en los próximos 7 días</p>
                 </div>
-                <Link href="/inventory/batches" className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-medium text-white hover:bg-amber-600">
+                <Link href="/inventory/batches" className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-center text-xs font-medium text-white hover:bg-amber-600">
                   Revisar
                 </Link>
               </div>
             )}
             {suggestionsCount > 0 && (
-              <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-3">
-                <div>
+              <div className="flex flex-col items-stretch gap-3 rounded-xl bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-blue-800">Productos por reabastecer</p>
                   <p className="text-xs text-blue-600">{suggestionsCount} productos necesitan reposición</p>
                 </div>
-                <Link href="/inventory/replenishment" className="rounded-lg bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-600">
+                <Link href="/inventory/replenishment" className="shrink-0 rounded-lg bg-blue-500 px-4 py-2 text-center text-xs font-medium text-white hover:bg-blue-600">
                   Revisar
                 </Link>
               </div>

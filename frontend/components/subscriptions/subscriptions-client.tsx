@@ -59,8 +59,8 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
   return (
     <div className="space-y-6">
       <Card className="rounded-[34px] bg-gradient-to-br from-violet-600 to-indigo-700 p-6 sm:p-8 text-white">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Gestión de empresas</p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Suscripciones</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
@@ -68,7 +68,7 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
             </p>
           </div>
           <CompanyWithPlanModal plans={plans}>
-            <button className="flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-medium text-violet-600 transition hover:bg-white/90">
+            <button className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-medium text-violet-600 transition hover:bg-white/90 sm:w-auto">
               <Plus className="size-4" />
               Nueva empresa
             </button>
@@ -76,7 +76,7 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="rounded-[30px] bg-white/80 p-6">
           <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Total empresas</p>
           <p className="mt-4 font-display text-3xl">{initialCompanies.length}</p>
@@ -103,7 +103,7 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
 
       <Card className="rounded-[34px] bg-white/85 p-6">
         <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Empresas registradas</p>
-        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {initialCompanies.length > 0 ? (
             initialCompanies.map((company) => {
               const status = statusColors[company.status] || statusColors.SUSPENDED;
@@ -113,24 +113,24 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
 
               return (
                 <Card key={company.id} className="rounded-[30px] bg-white p-6 border border-foreground/10">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-lg font-semibold text-violet-600">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-lg font-semibold text-violet-600">
                         {company.name.charAt(0)}
                       </div>
-                      <div>
-                        <h3 className="font-display text-lg">{company.name}</h3>
-                        <p className="text-sm text-foreground/50">@{company.slug}</p>
+                      <div className="min-w-0">
+                        <h3 className="truncate font-display text-lg">{company.name}</h3>
+                        <p className="truncate text-sm text-foreground/50">@{company.slug}</p>
                       </div>
                     </div>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${status.bg} ${status.text}`}>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${status.bg} ${status.text}`}>
                       {status.label}
                     </span>
                   </div>
 
                   {company.subscription && (
-                    <div className="mt-4 flex items-center gap-2">
-                      <CreditCard className="size-4 text-foreground/50" />
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <CreditCard className="size-4 shrink-0 text-foreground/50" />
                       <span className="text-sm font-medium">{company.subscription.plan?.name || 'Sin plan'}</span>
                       {subStatus && (
                         <span className={`rounded-full border px-2 py-0.5 text-xs ${subStatus.bg} ${subStatus.text}`}>
@@ -191,7 +191,7 @@ export function SubscriptionsClient({ companies: initialCompanies, plans }: Subs
               );
             })
           ) : (
-            <div className="col-span-3 flex flex-col items-center justify-center py-16">
+            <div className="col-span-full flex flex-col items-center justify-center py-16">
               <Building2 className="size-16 text-foreground/20" />
               <h3 className="mt-4 font-display text-xl">No hay empresas</h3>
               <p className="mt-1 text-foreground/50">Las empresas aparecerán aquí cuando se registren.</p>

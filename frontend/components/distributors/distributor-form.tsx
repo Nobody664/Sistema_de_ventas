@@ -263,16 +263,16 @@ export function DistributorForm({ distributor }: DistributorFormProps) {
           </div>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-foreground/40">Los campos marcados con * son obligatorios</p>
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="outline" onClick={() => router.push('/distributors')} className="h-12 rounded-xl px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button type="button" variant="outline" onClick={() => router.push('/distributors')} className="h-12 w-full rounded-xl px-6 sm:w-auto">
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="h-12 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 px-8 font-semibold text-white shadow-lg shadow-orange-500/25 transition-all hover:from-orange-600 hover:to-amber-700"
+              className="h-12 w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 px-8 font-semibold text-white shadow-lg shadow-orange-500/25 transition-all hover:from-orange-600 hover:to-amber-700 sm:w-auto"
             >
               {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
               {isEdit ? 'Guardar cambios' : 'Crear distribuidor'}

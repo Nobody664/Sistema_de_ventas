@@ -166,12 +166,12 @@ export function PaymentSettingsManager() {
                   : 'bg-gray-50 dark:bg-muted'
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{provider.icon}</span>
-                  <div>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="shrink-0 text-3xl">{provider.icon}</span>
+                  <div className="min-w-0">
                     <h3 className="font-display text-lg">{provider.name}</h3>
-                    <p className="text-sm text-foreground/50">{provider.description}</p>
+                    <p className="break-words text-sm text-foreground/50">{provider.description}</p>
                   </div>
                 </div>
                 <Switch

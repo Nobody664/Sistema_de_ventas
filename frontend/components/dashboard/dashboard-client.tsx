@@ -149,9 +149,9 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
                   <div className="mt-1 rounded-lg bg-slate-100 p-1.5">
                     <Activity className="size-4 text-slate-500" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{log.action.replace(/_/g, ' ')}</p>
-                    <p className="text-xs text-foreground/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{log.action.replace(/_/g, ' ')}</p>
+                    <p className="truncate text-xs text-foreground/50">
                       {log.company?.name || log.entity} · {new Date(log.createdAt).toLocaleDateString('es-PE')}
                     </p>
                   </div>
@@ -188,7 +188,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
         </Card>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -209,7 +209,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
       {isSuperAdmin && (
         <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
           <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-300">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Ingresos</p>
                 <h2 className="mt-2 font-display text-2xl">Revenue Overview</h2>
@@ -227,17 +227,17 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
             <div className="mt-5 space-y-4">
               {recentSubscriptions && recentSubscriptions.length > 0 ? (
                 recentSubscriptions.slice(0, 5).map((sub) => (
-                  <div key={sub.id} className="flex items-center justify-between rounded-xl border border-foreground/5 p-3 transition hover:border-violet-500/20">
-                    <div className="flex items-center gap-3">
+                  <div key={sub.id} className="flex items-center justify-between gap-3 rounded-xl border border-foreground/5 p-3 transition hover:border-violet-500/20">
+                    <div className="flex min-w-0 items-center gap-3">
                       <div className={`rounded-lg p-2 ${sub.status === 'ACTIVE' ? 'bg-green-100' : 'bg-amber-100'}`}>
                         <CreditCard className={`size-4 ${sub.status === 'ACTIVE' ? 'text-green-600' : 'text-amber-600'}`} />
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">{sub.company?.name || 'Empresa'}</p>
-                        <p className="text-xs text-foreground/50">{sub.plan?.name} · {sub.provider}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{sub.company?.name || 'Empresa'}</p>
+                        <p className="truncate text-xs text-foreground/50">{sub.plan?.name} · {sub.provider}</p>
                       </div>
                     </div>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs ${sub.status === 'ACTIVE' ? 'border-green-500/30 bg-green-500/20 text-green-700' : 'border-amber-500/30 bg-amber-500/20 text-amber-700'}`}>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${sub.status === 'ACTIVE' ? 'border-green-500/30 bg-green-500/20 text-green-700' : 'border-amber-500/30 bg-amber-500/20 text-amber-700'}`}>
                       {sub.status}
                     </span>
                   </div>
@@ -253,7 +253,7 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
       {isSuperAdmin && (
         <div className="grid gap-5 xl:grid-cols-2">
           <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-400">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Empresas</p>
                 <h2 className="mt-2 font-display text-2xl">Estado de empresas</h2>
@@ -435,14 +435,14 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
             <div className="space-y-3">
               {tenantMetrics.topProducts && tenantMetrics.topProducts.length > 0 ? (
                 tenantMetrics.topProducts.map((product, idx) => (
-                  <div key={product.productId} className="flex items-center justify-between rounded-xl bg-foreground/[0.02] p-3 transition hover:bg-foreground/[0.04]">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-600">
+                  <div key={product.productId} className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.02] p-3 transition hover:bg-foreground/[0.04]">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-600">
                         {idx + 1}
                       </div>
-                      <span className="font-medium">{product.name}</span>
+                      <span className="truncate font-medium">{product.name}</span>
                     </div>
-                    <span className="font-display text-lg text-violet-700">{product.quantity} uds</span>
+                    <span className="shrink-0 font-display text-lg text-violet-700">{product.quantity} uds</span>
                   </div>
                 ))
               ) : (
@@ -461,15 +461,15 @@ export function DashboardClient({ globalMetrics, auditLogs, recentSubscriptions,
             <div className="space-y-3">
               {tenantMetrics.customerStats?.topCustomers && tenantMetrics.customerStats.topCustomers.length > 0 ? (
                 tenantMetrics.customerStats.topCustomers.map((customer, idx) => (
-                  <div key={customer.customerId} className="flex items-center justify-between rounded-xl bg-foreground/[0.02] p-3 transition hover:bg-foreground/[0.04]">
-                    <div className="flex items-center gap-3">
-                      <Star className="size-4 text-amber-500" />
-                      <div>
-                        <p className="font-medium">{customer.name}</p>
+                  <div key={customer.customerId} className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.02] p-3 transition hover:bg-foreground/[0.04]">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Star className="size-4 shrink-0 text-amber-500" />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{customer.name}</p>
                         <p className="text-xs text-foreground/50">{customer.totalPurchases} compras</p>
                       </div>
                     </div>
-                    <span className="font-display text-lg text-amber-700">S/ {customer.totalSpent.toFixed(2)}</span>
+                    <span className="shrink-0 font-display text-lg text-amber-700">S/ {customer.totalSpent.toFixed(2)}</span>
                   </div>
                 ))
               ) : (

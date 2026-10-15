@@ -76,38 +76,38 @@ export default async function CustomersPage() {
             customers?.map((customer, index) => (
               <div
                 key={customer.id}
-                className="flex items-center justify-between rounded-2xl border border-foreground/10 p-4 transition hover:border-cyan-500/30 card-hover animate-fade-in-up"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-foreground/10 p-4 transition hover:border-cyan-500/30 card-hover animate-fade-in-up"
                 style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}
               >
                 <Link
                   href={`/customers/${customer.id}`}
-                  className="flex items-center gap-4 flex-1"
+                  className="flex min-w-0 flex-1 items-center gap-4"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-100 text-cyan-700 font-medium">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-cyan-700 font-medium">
                     {customer.firstName[0]}
                     {(customer.lastName || '')[0]}
                   </div>
-                  <div>
-                    <p className="font-medium">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
                       {customer.firstName} {customer.lastName}
                     </p>
-                    <div className="mt-1 flex items-center gap-3 text-sm text-foreground/50">
+                    <div className="mt-1 flex min-w-0 items-center gap-3 text-sm text-foreground/50">
                       {customer.email && (
-                        <span className="flex items-center gap-1">
-                          <Mail className="size-3" />
-                          {customer.email}
+                        <span className="flex min-w-0 items-center gap-1">
+                          <Mail className="size-3 shrink-0" />
+                          <span className="truncate">{customer.email}</span>
                         </span>
                       )}
                       {customer.phone && (
                         <span className="flex items-center gap-1">
-                          <Phone className="size-3" />
+                          <Phone className="size-3 shrink-0" />
                           {customer.phone}
                         </span>
                       )}
                     </div>
                   </div>
                 </Link>
-                <div className="text-right">
+                <div className="shrink-0 text-right">
                   <CustomerActions customer={customer} />
                   <p className="mt-2 font-display text-lg">
                     S/ {(

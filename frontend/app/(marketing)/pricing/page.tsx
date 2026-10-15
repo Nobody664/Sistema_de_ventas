@@ -85,7 +85,7 @@ export default function PricingPage() {
       {loadError && <p className="py-8 text-center text-sm text-red-600" role="alert">{loadError}</p>}
 
       {!loadingPlans && !loadError && (
-      <div className="grid gap-6 lg:grid-cols-4 mb-12">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-12">
         {plans.map((plan) => {
           const Icon = getPlanIcon(plan.code);
           const isFree = plan.code === 'FREE';

@@ -159,7 +159,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
             <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Historial</p>
             <h2 className="mt-2 font-display text-2xl">Ventas recientes</h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-foreground/50">
               <Calendar className="size-4" />
               {new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -200,13 +200,13 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                     isToday ? 'bg-orange-50/50 border-orange-200' : 'border-foreground/10'
                   }`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
                     <div className={`rounded-2xl p-2 ${isToday ? 'bg-orange-100' : 'bg-slate-100'}`}>
                       <PaymentIcon className={`size-5 ${isToday ? 'text-orange-600' : 'text-slate-600'}`} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{sale.saleNumber}</p>
+                        <p className="font-medium truncate">{sale.saleNumber}</p>
                         {(() => {
                           const info = channelLabels[(sale as { channel?: string }).channel ?? 'POS'] ?? channelLabels.POS;
                           return (
@@ -216,7 +216,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                           );
                         })()}
                       </div>
-                      <p className="text-sm text-foreground/50">
+                      <p className="text-sm text-foreground/50 truncate">
                         {sale.customer && sale.customer.firstName 
                           ? `${sale.customer.firstName} ${sale.customer.lastName || ''}`
                           : 'Cliente general'}
@@ -224,7 +224,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className="font-display text-xl">S/ {Number(sale.totalAmount || 0).toFixed(2)}</p>
                     <p className="text-sm text-foreground/50">
                       {new Date(sale.createdAt).toLocaleString('es-PE', {

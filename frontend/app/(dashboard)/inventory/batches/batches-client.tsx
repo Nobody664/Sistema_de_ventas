@@ -86,15 +86,15 @@ export function BatchesPageClient({ initialBatches, products, branches, expiring
 
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-250">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-0">
               <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Inventario</p>
               <h2 className="mt-2 font-display text-2xl">Lista de lotes</h2>
             </div>
             {totalExpiring > 0 && (
               <button
                 onClick={() => setShowExpiring(!showExpiring)}
-                className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition ${
+                className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition ${
                   showExpiring ? 'bg-red-500 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100'
                 }`}
               >
@@ -108,7 +108,7 @@ export function BatchesPageClient({ initialBatches, products, branches, expiring
             <select
               value={productFilter}
               onChange={(e) => setProductFilter(e.target.value)}
-              className="rounded-xl border border-foreground/10 bg-white py-2 pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none"
+              className="h-10 rounded-xl border border-foreground/10 bg-white pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none"
             >
               <option value="">Todos los productos</option>
               {products.map((p) => (

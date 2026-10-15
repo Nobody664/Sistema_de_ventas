@@ -152,21 +152,21 @@ export function CategoryForm({ category }: CategoryFormProps) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-slate-400">Los campos marcados con * son obligatorios</p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => router.push('/categories')} 
-                className="h-12 rounded-xl px-6 border-slate-200 hover:bg-slate-50"
+                className="h-12 w-full rounded-xl px-6 border-slate-200 hover:bg-slate-50 sm:w-auto"
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
                 disabled={loading} 
-                className="h-12 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 font-semibold hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all"
+                className="h-12 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-8 font-semibold hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all sm:w-auto"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEdit ? 'Guardar cambios' : 'Crear categoría'}

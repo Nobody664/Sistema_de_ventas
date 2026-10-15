@@ -145,11 +145,11 @@ export function CustomerDetailClient({ customer, purchasesData }: CustomerDetail
                     <Link
                       key={sale.id}
                       href={`/sales/${sale.id}`}
-                      className="flex items-center justify-between rounded-xl border p-4 transition hover:border-blue-300 hover:bg-blue-50/50"
+                      className="flex items-center justify-between gap-3 rounded-xl border p-4 transition hover:border-blue-300 hover:bg-blue-50/50"
                     >
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium">{sale.saleNumber}</p>
-                        <p className="text-sm text-slate-500">
+                        <p className="truncate text-sm text-slate-500">
                           {sale.paidAt 
                             ? new Date(sale.paidAt as Date).toLocaleString('es-PE', {
                                 day: 'numeric',
@@ -161,7 +161,7 @@ export function CustomerDetailClient({ customer, purchasesData }: CustomerDetail
                           {sale.employee && ` • Vendedor: ${sale.employee.firstName}`}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="shrink-0 text-right">
                         <p className="font-display text-lg font-bold text-green-600">
                           S/ {Number(sale.totalAmount || 0).toFixed(2)}
                         </p>

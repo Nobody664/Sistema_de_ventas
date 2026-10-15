@@ -228,9 +228,9 @@ export default async function SettingsPage() {
                 {section.items.map((item) => (
                   <div
                     key={item.label}
-                    className="flex items-center justify-between rounded-2xl border border-foreground/10 p-4"
+                    className="flex flex-col gap-3 rounded-2xl border border-foreground/10 p-4 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium">{item.label}</p>
                       <p className="text-sm text-foreground/50">{item.description}</p>
                     </div>
@@ -250,7 +250,7 @@ export default async function SettingsPage() {
                     )}
 
                     {item.type === 'select' && (
-                      <select className="rounded-xl border border-foreground/10 bg-background px-3 py-2 text-sm">
+                      <select className="w-full rounded-xl border border-foreground/10 bg-background px-3 py-2 text-sm sm:w-auto">
                         {item.options?.map((opt) => (
                           <option key={opt.value} value={opt.value}>
                             {opt.label}
@@ -262,26 +262,26 @@ export default async function SettingsPage() {
                     {item.type === 'button' && section.isPayment ? (
                       <Link 
                         href={section.link || ''}
-                        className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5"
+                        className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
                       >
                         Configurar
                       </Link>
                     ) : item.type === 'button' && item.action === 'payments' ? (
                       <Link 
                         href="/payments"
-                        className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5"
+                        className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
                       >
                         Ver
                       </Link>
                     ) : item.type === 'button' && section.link ? (
                       <Link 
                         href={section.link}
-                        className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5"
+                        className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
                       >
                         Ver
                       </Link>
                     ) : item.type === 'button' && (
-                      <button className="rounded-xl border border-foreground/20 px-4 py-2 text-sm font-medium transition hover:bg-foreground/5">
+                      <button className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto">
                         {item.action === 'export' && 'Exportar'}
                         {item.action === 'backup' && 'Configurar'}
                         {item.action === 'keys' && 'Gestionar'}
@@ -299,7 +299,7 @@ export default async function SettingsPage() {
       <Card className="rounded-[30px] bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 p-6">
         <h2 className="font-display text-xl text-red-800 dark:text-red-300">Zona de peligro</h2>
         <p className="mt-1 text-red-600/70 dark:text-red-400/70">Estas acciones son irreversibles</p>
-        <div className="mt-4 flex gap-4">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button className="rounded-xl border border-red-200 dark:border-red-800 bg-card px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 transition hover:bg-red-50 dark:hover:bg-red-950/50">
             Eliminar cuenta
           </button>

@@ -149,7 +149,7 @@ export function ReportsClient({ initial }: { initial: ReportOverview }) {
         </div>
       )}
 
-      <div className="grid gap-5 md:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="rounded-[30px] bg-white/80 p-6">
           <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Ventas totales</p>
           <p className="mt-4 font-display text-3xl">{data.totalSales}</p>
@@ -181,12 +181,12 @@ export function ReportsClient({ initial }: { initial: ReportOverview }) {
               const width = (entry.revenue / maxChannelRevenue) * 100;
               return (
                 <div key={entry.channel} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 font-medium">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex min-w-0 items-center gap-2 font-medium">
                       <Icon className="size-4 text-foreground/60" />
                       {meta.label}
                     </span>
-                    <span className="text-foreground/60">
+                    <span className="shrink-0 text-foreground/60">
                       {entry.sales} ventas · S/ {entry.revenue.toFixed(2)}
                     </span>
                   </div>
@@ -204,8 +204,8 @@ export function ReportsClient({ initial }: { initial: ReportOverview }) {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
         <Card className="rounded-[34px] bg-white/85 p-6">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Tendencia</p>
               <h2 className="mt-2 font-display text-2xl">Variación de ingresos</h2>
             </div>
@@ -252,14 +252,14 @@ export function ReportsClient({ initial }: { initial: ReportOverview }) {
           <div className="space-y-4">
             {data.topProducts.length > 0 ? (
               data.topProducts.map((product, idx) => (
-                <div key={product.productId} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-medium">
+                <div key={product.productId} className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-medium">
                       {idx + 1}
                     </span>
-                    <span className="font-medium">{product.name}</span>
+                    <span className="truncate font-medium">{product.name}</span>
                   </div>
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     <p className="font-display">{product.quantity} uds</p>
                     <p className="text-sm text-foreground/50">S/ {product.revenue.toFixed(2)}</p>
                   </div>

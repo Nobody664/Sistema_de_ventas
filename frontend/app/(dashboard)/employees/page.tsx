@@ -84,36 +84,36 @@ export default async function EmployeesPage() {
               return (
                 <div
                   key={employee.id}
-                  className="flex items-center justify-between rounded-2xl border border-foreground/10 p-4 transition hover:border-purple-500/30 card-hover animate-fade-in-up"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-foreground/10 p-4 transition hover:border-purple-500/30 card-hover animate-fade-in-up"
                   style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}
                 >
                   <Link
                     href={`/employees/${employee.id}/edit`}
-                    className="flex items-center gap-4 flex-1"
+                    className="flex min-w-0 flex-1 items-center gap-4"
                   >
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-full ${role.bg} ${role.color} font-medium`}>
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${role.bg} ${role.color} font-medium`}>
                       {employee.firstName[0]}
                       {(employee.lastName || '')[0]}
                     </div>
-                    <div>
-                      <p className="font-medium">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
                         {employee.firstName} {employee.lastName}
                       </p>
-                      <div className="mt-1 flex items-center gap-3 text-sm text-foreground/50">
-                        <span className={`flex items-center gap-1 ${role.color}`}>
+                      <div className="mt-1 flex min-w-0 items-center gap-3 text-sm text-foreground/50">
+                        <span className={`flex shrink-0 items-center gap-1 ${role.color}`}>
                           <Shield className="size-3" />
                           {role.label}
                         </span>
                         {employee.email && (
-                          <span className="flex items-center gap-1">
-                            <Mail className="size-3" />
-                            {employee.email}
+                          <span className="flex min-w-0 items-center gap-1">
+                            <Mail className="size-3 shrink-0" />
+                            <span className="truncate">{employee.email}</span>
                           </span>
                         )}
                       </div>
                     </div>
                   </Link>
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     <EmployeeActions employee={employee} />
                     <p className={`mt-2 font-display text-lg ${employee.isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
                       {employee.isActive ? 'Activo' : 'Inactivo'}

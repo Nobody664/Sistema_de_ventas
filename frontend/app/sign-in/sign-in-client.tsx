@@ -8,14 +8,14 @@ export function SignInPageClient() {
   return (
     <main className="flex min-h-screen bg-black">
       {/* Left Side - Form */}
-      <div className="relative flex w-full items-center justify-center overflow-hidden px-8 py-12 lg:w-1/2">
+      <div className="relative flex w-full items-center justify-center overflow-hidden px-4 py-12 sm:px-8 lg:w-1/2">
         {/* Background effects */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-violet-900/20 via-black to-black" />
         <div className="absolute top-20 left-0 w-[400px] h-[400px] bg-violet-600/10 rounded-full blur-[100px]" />
         
         <div className="relative z-10 w-full max-w-md">
           <AnimatedSection>
-            <div className="rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 p-8 shadow-2xl shadow-black/50">
+            <div className="rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 p-6 shadow-2xl shadow-black/50 sm:p-8">
               <div className="mb-2">
                 <h1 className="font-display text-3xl text-white">Bienvenido de nuevo</h1>
                 <p className="mt-2 text-white/50">Ingresa a tu cuenta para continuar</p>

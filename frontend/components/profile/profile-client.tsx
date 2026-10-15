@@ -231,21 +231,21 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header Card */}
-      <Card className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white border-0">
+      <Card className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white border-0 sm:p-8">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptMC00aDJ2MmgtMnYtMnptLTQgNHYyaC0ydi0yaDJ6bTQtOGgydjJoLTJ2LTJ6bTgtOGgydjJoLTJ2LTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-50" />
-        <div className="relative flex items-center gap-6">
-          <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-5xl font-light tracking-wider border border-white/20">
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-3xl font-light tracking-wider border border-white/20 sm:h-28 sm:w-28 sm:text-5xl">
             {initials}
           </div>
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-400">Mi Perfil</p>
-            <h1 className="font-display text-4xl font-semibold tracking-tight">{fullName}</h1>
-            <p className="text-slate-400 flex items-center gap-2">
+            <h1 className="break-words font-display text-4xl font-semibold tracking-tight">{fullName}</h1>
+            <p className="flex items-center gap-2 text-slate-400">
               <Mail className="w-4 h-4" />
               {userEmail}
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
             {displayRole && (
               <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
                 <Shield className="w-4 h-4 text-emerald-400" />
@@ -302,8 +302,8 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptLTItNHYyaC0ydi0yaDJ6bTQtOGgydjJoLTJ2LTJ6bS04LTR2MmgtMnYtMmgydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-40"></div>
               <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
               
-              <div className="relative flex items-start justify-between gap-4">
-                <div>
+              <div className="relative flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0">
                   <h2 className="font-display text-xl font-semibold text-slate-900">Mi Perfil</h2>
                   <p className="text-sm text-slate-500 mt-0.5">Información de tu cuenta</p>
                 </div>
@@ -519,13 +519,13 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
+              <div className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
                     <CreditCard className="w-7 h-7" />
                   </div>
-                  <div>
-                    <p className="font-display text-2xl font-semibold">
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-2xl font-semibold">
                       {subscription?.plan?.name || 'Sin plan'}
                     </p>
                     <p className="text-slate-300 text-sm">
@@ -533,7 +533,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <p className="font-display text-3xl font-bold">
                     {subscription?.plan?.priceMonthly === '0' ? 'Gratis' : `S/ ${subscription?.plan?.priceMonthly}`}
                   </p>
@@ -544,7 +544,7 @@ export function ProfileClient({ initialSubscription, initialCompany, userName, u
               </div>
 
               {subscription?.endDate && (
-                <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 p-4">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-4">
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5 text-slate-500" />
                     <span className="text-sm text-slate-600">

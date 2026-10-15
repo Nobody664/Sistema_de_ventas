@@ -95,7 +95,7 @@ export function KardexPageClient({ initialEntries, products }: KardexPageClientP
               <select
                 value={productFilter}
                 onChange={(e) => setProductFilter(e.target.value)}
-                className="rounded-xl border border-foreground/10 bg-white py-2 pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none"
+                className="h-10 rounded-xl border border-foreground/10 bg-white pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none"
               >
                 <option value="">Todos los productos</option>
                 {products.map((p) => (
@@ -106,7 +106,7 @@ export function KardexPageClient({ initialEntries, products }: KardexPageClientP
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition focus:border-emerald-500/50 focus:outline-none"
+              className="h-10 rounded-xl border border-foreground/10 bg-white px-4 text-sm transition focus:border-emerald-500/50 focus:outline-none"
             >
               <option value="">Todos los tipos</option>
               <option value="IN">Entrada</option>

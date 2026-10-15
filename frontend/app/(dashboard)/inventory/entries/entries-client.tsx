@@ -371,12 +371,12 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
       </Card>
 
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-200">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Historial</p>
             <h2 className="mt-2 font-display text-2xl">Entradas de stock</h2>
           </div>
-          <div className="text-right">
+          <div className="shrink-0 text-right">
             <p className="text-xs uppercase tracking-[0.15em] text-slate-400">Inversión acumulada</p>
             <p className="font-display text-xl text-slate-900">S/ {historyInvestment.toFixed(2)}</p>
           </div>

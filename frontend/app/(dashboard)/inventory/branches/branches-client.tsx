@@ -51,8 +51,8 @@ export function BranchesPageClient({ initialBranches }: BranchesPageClientProps)
   return (
     <div className="space-y-6">
       <Card className="rounded-[34px] bg-gradient-to-br from-amber-500 to-orange-700 p-6 sm:p-8 text-white animate-fade-in-up">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Inventario</p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Sucursales</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
@@ -62,7 +62,7 @@ export function BranchesPageClient({ initialBranches }: BranchesPageClientProps)
           {isAdmin && (
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 rounded-xl bg-white/20 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/30"
+              className="flex shrink-0 items-center gap-2 rounded-xl bg-white/20 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/30"
             >
               <Plus className="size-4" />
               Nueva sucursal
@@ -98,13 +98,13 @@ export function BranchesPageClient({ initialBranches }: BranchesPageClientProps)
             <div className="flex gap-2">
               <button
                 onClick={handleCreate}
-                className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
+                className="flex-1 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 sm:flex-none"
               >
                 Guardar
               </button>
               <button
                 onClick={() => setShowForm(false)}
-                className="rounded-xl border border-foreground/10 bg-white px-5 py-2.5 text-sm font-semibold hover:bg-foreground/5"
+                className="flex-1 rounded-xl border border-foreground/10 bg-white px-5 py-2.5 text-sm font-semibold hover:bg-foreground/5 sm:flex-none"
               >
                 Cancelar
               </button>

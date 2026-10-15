@@ -428,7 +428,7 @@ function CheckoutContent() {
           }
         </p>
 
-        <Card className="mt-8 rounded-[34px] bg-white/85 p-8">
+        <Card className="mt-8 rounded-[34px] bg-white/85 p-6 sm:p-8">
           {isAuthenticated ? (
             <div className="mb-6 rounded-xl bg-green-50 p-4">
               <div className="flex items-center gap-2">

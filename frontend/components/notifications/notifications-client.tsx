@@ -127,13 +127,13 @@ export function NotificationsClient({ initialNotifications, unreadCount: initial
           </div>
           <p className="mt-1 text-foreground/50">Alertas y avisos del sistema</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 sm:w-auto">
           {unreadCount > 0 && (
             <Button
               variant="outline"
               onClick={() => markAllAsReadMutation.mutate()}
               disabled={markAllAsReadMutation.isPending}
-              className="flex items-center gap-2"
+              className="flex w-full items-center gap-2 sm:w-auto"
             >
               <Check className="size-4" />
               Marcar todo como leído
@@ -153,7 +153,7 @@ export function NotificationsClient({ initialNotifications, unreadCount: initial
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className={`rounded-[30px] p-6 ${unreadCount > 0 ? 'bg-blue-50 border-blue-200' : 'bg-white/80'}`}>
           <div className="flex items-center justify-between">
             <div className="rounded-xl bg-blue-100 p-2">
@@ -227,11 +227,11 @@ export function NotificationsClient({ initialNotifications, unreadCount: initial
                   <div className={`rounded-xl p-3 ${config.bg}`}>
                     <Icon className={`size-6 ${config.color}`} />
                   </div>
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-display text-lg">{notification.title}</h3>
+                      <h3 className="truncate font-display text-lg">{notification.title}</h3>
                     </div>
-                    <p className="mt-1 text-foreground/60">{notification.message}</p>
+                    <p className="mt-1 break-words text-foreground/60">{notification.message}</p>
                     <div className="mt-2 flex items-center gap-4 text-xs text-foreground/40">
                       <span>{new Date(notification.createdAt).toLocaleString('es-PE')}</span>
                       <span className="text-foreground/30">• Click para ver</span>

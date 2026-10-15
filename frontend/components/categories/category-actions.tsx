@@ -62,7 +62,7 @@ export function NewCategoryButton() {
     <PermissionGuard permission="category:create">
       <Link
         href="/categories/new"
-        className="rounded-2xl bg-white px-6 py-3 text-sm font-medium text-indigo-600 transition hover:bg-white/90"
+        className="block w-full rounded-2xl bg-white px-6 py-3 text-center text-sm font-medium text-indigo-600 transition hover:bg-white/90 sm:w-auto"
       >
         + Nueva categoría
       </Link>

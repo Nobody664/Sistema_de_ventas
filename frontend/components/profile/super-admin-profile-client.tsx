@@ -70,13 +70,13 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header Card */}
-      <Card className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 p-8 text-white border-0">
+      <Card className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 p-6 text-white border-0 sm:p-8">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptMC00aDJ2MmgtMnYtMnptLTQgNHYyaC0ydi0yaDJ6bTQtOGgydjJoLTJ2LTJ6bTgtOGgydjJoLTJ2LTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-50" />
-        <div className="relative flex items-center gap-6">
-          <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-5xl font-light tracking-wider border border-white/20">
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-3xl font-light tracking-wider border border-white/20 sm:h-28 sm:w-28 sm:text-5xl">
             {initials}
           </div>
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-purple-300">Panel de Administración</p>
               <Crown className="w-5 h-5 text-yellow-400" />
@@ -167,7 +167,7 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
 
           {/* Companies List */}
           <Card className="rounded-3xl bg-white border-slate-200 p-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="font-display text-xl font-semibold text-slate-900">Empresas Recientes</h2>
                 <p className="text-sm text-slate-500 mt-1">Últimas empresas registradas en el sistema</p>
@@ -182,20 +182,20 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
 
             <div className="space-y-3">
               {companies.slice(0, 5).map((company) => (
-                <div 
+                <div
                   key={company.id}
-                  className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition"
+                  className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-4 transition hover:bg-slate-100"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-100">
                       <Building2 className="w-5 h-5 text-purple-600" />
                     </div>
-                    <div>
-                      <p className="font-medium text-slate-900">{company.name}</p>
-                      <p className="text-sm text-slate-500">@{company.slug}</p>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-900">{company.name}</p>
+                      <p className="truncate text-sm text-slate-500">@{company.slug}</p>
                     </div>
                   </div>
-                  {getStatusBadge(company.status)}
+                  <div className="shrink-0">{getStatusBadge(company.status)}</div>
                 </div>
               ))}
               {companies.length === 0 && (

@@ -26,7 +26,7 @@ export function UpgradeRequired({ featureLabel, canUpgrade = true }: UpgradeRequ
             ? ' Mejora tu plan para desbloquearla.'
             : ' Solicita a un administrador de tu empresa que mejore el plan para desbloquearla.'}
         </p>
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
           <Button asChild variant="outline">
             <Link href="/dashboard">Volver al dashboard</Link>
           </Button>

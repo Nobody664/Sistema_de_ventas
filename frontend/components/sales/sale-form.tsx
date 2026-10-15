@@ -308,11 +308,11 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
             Volver a ventas
           </button>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="rounded-xl bg-accent/10 p-3">
               <ShoppingCart className="h-6 w-6 text-accent" />
             </div>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <h1 className="text-2xl font-bold text-foreground tracking-tight">Nueva Venta</h1>
               <p className="text-sm text-muted-foreground">Punto de venta &mdash; Registra una nueva transacci&oacute;n</p>
             </div>

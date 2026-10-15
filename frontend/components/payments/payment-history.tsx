@@ -200,10 +200,10 @@ export function PaymentHistoryClient({ billingStatus, isSuperAdmin }: PaymentHis
       {currentPending && !currentPending.hasProof && (
         <Card className="rounded-[30px] bg-amber-50 border border-amber-200 p-6">
           <div className="flex items-start gap-4">
-            <div className="rounded-xl bg-amber-100 p-2">
+            <div className="shrink-0 rounded-xl bg-amber-100 p-2">
               <AlertCircle className="size-5 text-amber-700" />
             </div>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <h3 className="font-display text-lg text-amber-800">Pago Pendiente</h3>
               <p className="text-sm text-amber-700 mt-1">
                 Tienes un pago pendiente de <strong>S/ {currentPending.amount}</strong>
@@ -248,7 +248,7 @@ export function PaymentHistoryClient({ billingStatus, isSuperAdmin }: PaymentHis
                         </div>
                       )}
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button onClick={handleSubmitProof} disabled={!proofImage || uploading}>
                           {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Check className="mr-2 size-4" />}
                           Confirmar pago

@@ -152,7 +152,7 @@ export default function CompanySettingsPage() {
         </Button>
       </div>
 
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-10 text-white shadow-2xl">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-2xl sm:p-10">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptLTItNHYyaC0ydi0yaDJ6bTQtOGgydjJoLTJ2LTJ6bS04LTR2MmgtMnYtMmgydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50"></div>
         
         <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 blur-3xl"></div>
@@ -165,8 +165,8 @@ export default function CompanySettingsPage() {
           </div>
         </div>
         
-        <div className="relative flex items-center gap-6">
-          <div className="relative">
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+          <div className="relative shrink-0">
             <div className="rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 p-5 shadow-2xl shadow-indigo-500/30">
               <Building2 className="h-10 w-10 text-white" />
             </div>
@@ -174,9 +174,9 @@ export default function CompanySettingsPage() {
               <CheckCircle className="w-3.5 h-3.5 text-white" />
             </div>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/50">Empresa</p>
-            <h1 className="font-display text-4xl tracking-tight mt-1">Datos de la Empresa</h1>
+            <h1 className="font-display text-2xl tracking-tight mt-1 sm:text-4xl">Datos de la Empresa</h1>
             <p className="mt-2 text-white/70">Gestiona la información legal, fiscal y de contacto</p>
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function CompanySettingsPage() {
       <Card className="rounded-3xl border-0 shadow-2xl shadow-slate-200/50 overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500"></div>
         
-        <form onSubmit={handleSubmit} className="p-8 space-y-10">
+        <form onSubmit={handleSubmit} className="p-5 space-y-10 sm:p-8">
           <div className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
               <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-500/20 dark:to-indigo-500/5">
@@ -332,7 +332,7 @@ export default function CompanySettingsPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-8 border-t border-slate-100">
+          <div className="flex flex-col gap-4 pt-6 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between sm:pt-8">
             <div className="flex items-center gap-3 text-sm text-slate-500">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
               <span>Los cambios se aplicarán inmediatamente</span>
@@ -340,7 +340,7 @@ export default function CompanySettingsPage() {
             <Button
               type="submit"
               disabled={updateMutation.isPending}
-              className="h-14 px-10 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-700 text-white font-semibold shadow-2xl shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group/btn"
+              className="h-14 w-full justify-center px-10 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-700 text-white font-semibold shadow-2xl shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group/btn sm:w-auto"
             >
               <span className="relative z-10 flex items-center gap-2">
                 {updateMutation.isPending ? (

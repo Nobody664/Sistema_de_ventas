@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" suppressHydrationWarning data-scroll-behavior="smooth">
-      <body className={`${displayFont.variable} ${bodyFont.variable} font-body antialiased`}>
+      <body className={`${displayFont.variable} ${bodyFont.variable} font-body antialiased overflow-x-clip`}>
         <Providers>
           {children}
           <ToastContainer />

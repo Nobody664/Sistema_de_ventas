@@ -178,7 +178,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
 
         {isOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <Card className="max-h-[90vh] w-full max-w-md overflow-auto rounded-[34px] bg-white p-8 text-center">
+            <Card className="max-h-[90vh] w-full max-w-md overflow-auto rounded-[34px] bg-white p-6 text-center sm:p-8">
               <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-green-100">
                 <Check className="size-10 text-green-600" />
               </div>
@@ -224,7 +224,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
 
         {isOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <Card className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-[34px] bg-white p-8">
+            <Card className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-[34px] bg-white p-6 sm:p-8">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-2xl">Completa tu pago</h2>
                 <button
@@ -375,7 +375,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[34px] bg-white p-8">
+          <Card className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[34px] bg-white p-6 sm:p-8">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-3xl">Cambiar plan</h2>
               <button

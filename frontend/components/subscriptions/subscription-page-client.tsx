@@ -325,12 +325,12 @@ export function SubscriptionPageClient({ initialSubscription, initialPlans, pend
 
       {capabilities?.apiEnabled && (
         <Card className="rounded-[30px] bg-white/85 p-6">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-violet-100 p-2 text-violet-600">
                 <KeyRound className="size-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="font-display text-xl">Uso de API</h2>
                 <p className="text-foreground/60">
                   Consumo del período actual
@@ -339,7 +339,7 @@ export function SubscriptionPageClient({ initialSubscription, initialPlans, pend
               </div>
             </div>
             {apiUsage && apiUsage.limit > 0 && (
-              <p className="font-display text-2xl">
+              <p className="shrink-0 font-display text-2xl">
                 {apiUsage.used.toLocaleString('es-PE')}
                 <span className="text-base font-normal text-foreground/50">
                   {' '}
@@ -363,7 +363,7 @@ export function SubscriptionPageClient({ initialSubscription, initialPlans, pend
                   style={{ width: `${Math.min(100, (apiUsage.used / apiUsage.limit) * 100)}%` }}
                 />
               </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-foreground/60">
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-foreground/60">
                 <span>{apiUsage.period || 'Período actual'}</span>
                 <span>
                   {apiUsage.remaining > 0

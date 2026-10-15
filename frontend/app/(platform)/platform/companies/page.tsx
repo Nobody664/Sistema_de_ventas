@@ -62,14 +62,14 @@ export default async function CompaniesPage() {
             const StatusIcon = status.icon;
             return (
               <Card key={company.id} className="group rounded-[30px] bg-white/80 p-6 transition hover:shadow-lg">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
                       {company.name.charAt(0)}
                     </div>
-                    <div>
-                      <h3 className="font-display text-xl">{company.name}</h3>
-                      <p className="text-sm text-foreground/50">@{company.slug}</p>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-display text-xl">{company.name}</h3>
+                      <p className="truncate text-sm text-foreground/50">@{company.slug}</p>
                     </div>
                   </div>
                   <CompanyActions company={company} />
@@ -82,15 +82,15 @@ export default async function CompaniesPage() {
 
                 <div className="mt-5 space-y-3 text-sm">
                   {company.email && (
-                    <div className="flex items-center gap-2 text-foreground/60">
-                      <Mail className="size-4" />
-                      <span>{company.email}</span>
+                    <div className="flex min-w-0 items-center gap-2 text-foreground/60">
+                      <Mail className="size-4 shrink-0" />
+                      <span className="truncate">{company.email}</span>
                     </div>
                   )}
                   {company.phone && (
-                    <div className="flex items-center gap-2 text-foreground/60">
-                      <Phone className="size-4" />
-                      <span>{company.phone}</span>
+                    <div className="flex min-w-0 items-center gap-2 text-foreground/60">
+                      <Phone className="size-4 shrink-0" />
+                      <span className="truncate">{company.phone}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-foreground/60">

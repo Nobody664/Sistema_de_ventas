@@ -161,7 +161,7 @@ export default function UpgradeRequestsPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-foreground/10">
+      <div className="flex gap-2 overflow-x-auto border-b border-foreground/10">
         <button
           onClick={() => setActiveTab('checkout')}
           className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
@@ -216,17 +216,17 @@ export default function UpgradeRequestsPage() {
 
             return (
               <Card key={request.id} className="rounded-[30px] bg-white/80 p-6 transition hover:shadow-lg">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
                       {getCompanyName(request).charAt(0)}
                     </div>
-                    <div>
-                      <h3 className="font-display text-xl">{getCompanyName(request)}</h3>
-                      <p className="text-sm text-foreground/50">{getCompanyEmail(request)}</p>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-display text-xl">{getCompanyName(request)}</h3>
+                      <p className="truncate text-sm text-foreground/50">{getCompanyEmail(request)}</p>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${statusColor}`}>
+                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${statusColor}`}>
                     <Clock className="size-3" />
                     {statusLabel}
                   </span>
@@ -283,7 +283,7 @@ export default function UpgradeRequestsPage() {
 
       {showProofModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[34px] bg-white p-8">
+          <Card className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[34px] bg-white p-6 sm:p-8">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-2xl">Revisar solicitud</h2>
               <button

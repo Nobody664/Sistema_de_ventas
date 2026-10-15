@@ -56,7 +56,7 @@ export default async function SubscribersPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="rounded-[30px] bg-white/80 p-6">
           <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Total suscriptores</p>
           <p className="mt-4 font-display text-3xl">{subscribers.length}</p>
@@ -101,20 +101,20 @@ export default async function SubscribersPage() {
             const planColor = planColors[sub.subscription?.plan?.code || 'START'];
             return (
               <Card key={sub.id} className="group rounded-[30px] bg-white/80 p-6 transition hover:shadow-lg">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
                       {sub.name?.charAt(0) || '?'}
                     </div>
-                    <div>
-                      <h3 className="font-display text-xl">{sub.name}</h3>
-                      <p className="text-sm text-foreground/50">{sub.email || 'Sin email'}</p>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-display text-xl">{sub.name}</h3>
+                      <p className="truncate text-sm text-foreground/50">{sub.email || 'Sin email'}</p>
                     </div>
                   </div>
                   <SubscriberActions subscriber={sub} />
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-2">
                   <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${status.bg}`}>
                     <StatusIcon className={`size-4 ${status.color}`} />
                     <span className={`text-sm font-medium ${status.color}`}>{status.label}</span>
@@ -128,15 +128,15 @@ export default async function SubscribersPage() {
                 </div>
 
                 <div className="mt-5 space-y-3 text-sm">
-                  <div className="flex items-center gap-2 text-foreground/60">
-                    <CreditCard className="size-4" />
-                    <span>
+                  <div className="flex min-w-0 items-center gap-2 text-foreground/60">
+                    <CreditCard className="size-4 shrink-0" />
+                    <span className="min-w-0 break-words">
                       {sub.subscription?.billingCycle === 'MONTHLY' ? 'Mensual' : 'Anual'} - S/ {sub.subscription?.billingCycle === 'MONTHLY' ? Number(sub.subscription?.plan?.priceMonthly) : Number(sub.subscription?.plan?.priceYearly)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-foreground/60">
-                    <Clock className="size-4" />
-                    <span>
+                  <div className="flex min-w-0 items-center gap-2 text-foreground/60">
+                    <Clock className="size-4 shrink-0" />
+                    <span className="min-w-0 break-words">
                       Inicio: {new Date(sub.subscription?.startDate || Date.now()).toLocaleDateString('es-PE')}
                       {sub.subscription?.endDate && ` - Fin: ${new Date(sub.subscription.endDate).toLocaleDateString('es-PE')}`}
                     </span>

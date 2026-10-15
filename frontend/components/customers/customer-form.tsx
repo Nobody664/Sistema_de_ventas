@@ -180,7 +180,7 @@ export function CustomerForm({ customer }: CustomerFormProps) {
                       <Label htmlFor="documentType" className="text-sm font-semibold text-slate-700">
                         Tipo de documento
                       </Label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <button
                           type="button"
                           onClick={() => setDocumentType('DNI')}
@@ -361,21 +361,21 @@ export function CustomerForm({ customer }: CustomerFormProps) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-slate-400">Los campos marcados con * son obligatorios</p>
-            <div className="flex items-center gap-3">
+            <div className="flex w-full items-center gap-3 sm:w-auto">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => router.push('/customers')} 
-                className="h-12 rounded-xl px-6 border-slate-200 hover:bg-slate-50"
+                className="h-12 flex-1 rounded-xl px-6 border-slate-200 hover:bg-slate-50 sm:flex-none"
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
                 disabled={loading} 
-                className="h-12 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 px-8 font-semibold hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all"
+                className="h-12 flex-1 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 px-8 font-semibold hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all sm:flex-none"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEdit ? 'Guardar cambios' : 'Crear cliente'}

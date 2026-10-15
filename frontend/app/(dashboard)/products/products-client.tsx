@@ -66,9 +66,9 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
       <div className="space-y-6">
         <Card className="rounded-[34px] bg-gradient-to-br from-emerald-500 to-teal-700 p-6 sm:p-8 text-white animate-fade-in-up">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="min-w-0">
               <p className="text-sm uppercase tracking-[0.18em] text-white/60">Catalogo de productos</p>
-              <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Gestion de inventario</h1>
+              <h1 className="mt-4 font-display text-4xl leading-tight break-words sm:text-5xl sm:leading-none">Gestion de inventario</h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
                 Administra tu catalogo de productos, controla el stock y mantien actualizado tu inventario.
               </p>
@@ -79,13 +79,13 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
           </div>
         </Card>
 
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-100">
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-blue-500/20 p-2">
                 <Package className="size-5 text-blue-600" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Total productos</p>
                 <p className="font-display text-3xl">{products.length}</p>
               </div>
@@ -97,7 +97,7 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
               <div className="rounded-2xl bg-amber-500/20 p-2">
                 <AlertTriangle className="size-5 text-amber-600" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Stock bajo</p>
                 <p className="font-display text-3xl">{lowStockProducts.length}</p>
               </div>
@@ -109,9 +109,9 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
               <div className="rounded-2xl bg-emerald-500/20 p-2">
                 <TrendingUp className="size-5 text-emerald-600" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Valor inventario</p>
-                <p className="font-display text-3xl">S/ {totalValue.toFixed(2)}</p>
+                <p className="font-display text-3xl break-words">S/ {totalValue.toFixed(2)}</p>
               </div>
             </div>
           </Card>
@@ -124,20 +124,20 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
               <h2 className="mt-2 font-display text-2xl">Lista completa</h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground/30" />
                 <input
                   type="text"
                   placeholder="Buscar productos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="rounded-xl border border-foreground/10 bg-white py-2 pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none"
+                  className="w-full rounded-xl border border-foreground/10 bg-white py-2 pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none sm:w-auto"
                 />
               </div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition focus:border-emerald-500/50 focus:outline-none"
+                className="w-full rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition focus:border-emerald-500/50 focus:outline-none sm:w-auto"
               >
                 <option value="">Todas las categorias</option>
                 {categories.map((cat) => (

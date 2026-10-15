@@ -102,7 +102,7 @@ export function SignUpForm() {
   });
 
   return (
-    <div className="rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 p-8 shadow-2xl shadow-black/50">
+    <div className="rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 p-6 shadow-2xl shadow-black/50 sm:p-8">
       <p className="text-sm uppercase tracking-[0.18em] text-white/50">Registro</p>
       <h1 className="mt-2 font-display text-3xl text-white">Crea tu empresa</h1>
       <p className="mt-3 text-sm leading-7 text-white/50">

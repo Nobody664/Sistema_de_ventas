@@ -232,20 +232,20 @@ export function InvoicesTemplatesClient({ templates: initialTemplates, companies
                         >
                           <div className={`absolute inset-0 bg-gradient-to-br ${typeConfig.color} opacity-0 transition-opacity group-hover:opacity-5`} />
                           <div className="relative p-5">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={`rounded-xl bg-gradient-to-br ${typeConfig.color} p-2 shadow-md`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div className={`shrink-0 rounded-xl bg-gradient-to-br ${typeConfig.color} p-2 shadow-md`}>
                                   <TemplateIcon className="h-5 w-5 text-white" />
                                 </div>
-                                <div>
-                                  <h3 className="font-semibold text-foreground">{template.name}</h3>
-                                  <p className="text-xs text-muted-foreground">
+                                <div className="min-w-0">
+                                  <h3 className="truncate font-semibold text-foreground">{template.name}</h3>
+                                  <p className="truncate text-xs text-muted-foreground">
                                     {getPaperSizeLabel(template.paperSize)}
                                   </p>
                                 </div>
                               </div>
                               {template.isDefault && (
-                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-500/15 dark:text-green-300">
+                                <span className="shrink-0 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-500/15 dark:text-green-300">
                                   <CheckCircle className="mr-1 inline h-3 w-3" />
                                   Default
                                 </span>
