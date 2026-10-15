@@ -300,7 +300,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found.');
     }
 
-    if (input.stockQuantity !== undefined || input.minStock !== undefined) {
+    if (input.minStock !== undefined) {
       await this.lowStockService.notifyIfLowStock({
         companyId,
         productId: updatedProduct.id,

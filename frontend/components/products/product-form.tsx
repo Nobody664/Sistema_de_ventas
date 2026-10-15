@@ -12,7 +12,7 @@ import { handleLimitError } from '@/lib/handle-limit-error';
 import { BarcodeScanner } from '@/components/ui/barcode-scanner';
 import { useUiStore } from '@/store/ui-store';
 import { useAuthStore } from '@/stores/auth.store';
-import { createProductSchema } from '@/lib/validations/product.validation';
+import { createProductSchema, updateProductSchema } from '@/lib/validations/product.validation';
 import type { Category, Product } from '@/types/api';
 import { z } from 'zod';
 
@@ -137,21 +137,24 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     }
     setPresentationError(null);
 
-    const data = {
+    const baseData = {
       name: formData.get('name') as string,
       sku: (formData.get('sku') as string) || undefined,
       barcode: (formData.get('barcode') as string) || undefined,
       description: (formData.get('description') as string) || undefined,
       costPrice: parseFloat(formData.get('costPrice') as string) || 0,
       salePrice: parseFloat(formData.get('salePrice') as string) || 0,
-      stockQuantity: parseFloat(formData.get('stockQuantity') as string) || 0,
       minStock: parseFloat(formData.get('minStock') as string) || 5,
       baseUnit: unit,
       categoryId: (formData.get('categoryId') as string) || undefined,
       imageUrl: imagePreview || undefined,
     };
 
-    const result = createProductSchema.safeParse(data);
+    const data = isEdit
+      ? baseData
+      : { ...baseData, stockQuantity: parseFloat(formData.get('stockQuantity') as string) || 0 };
+
+    const result = (isEdit ? updateProductSchema : createProductSchema).safeParse(data);
 
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -525,18 +528,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       <p className="text-xs text-slate-400">El stock se controla en esta unidad base; las presentaciones se convierten a ella.</p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="stockQuantity" className="text-sm font-semibold text-slate-700">Stock inicial</Label>
-                      <Input
-                        id="stockQuantity"
-                        name="stockQuantity"
-                        type="number"
-                        step="0.001"
-                        defaultValue={product?.stockQuantity || 0}
-                        placeholder="0"
-                        className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.stockQuantity ? 'border-red-500' : ''}`}
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="minStock" className="text-sm font-semibold text-slate-700">Stock mínimo</Label>
                       <div className="relative">
                         <Input
@@ -550,8 +541,29 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                         />
                         <AlertTriangle className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                       </div>
-                      <p className="text-xs text-slate-400">Recibirás una alerta cuando baje de este nivel</p>
+                      {isEdit ? (
+                        <p className="text-xs text-slate-400">
+                          El stock se gestiona desde <span className="font-semibold text-slate-600">Inventario → Entradas</span>.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400">Recibirás una alerta cuando baje de este nivel</p>
+                      )}
                     </div>
+                    {!isEdit && (
+                      <div className="space-y-2">
+                        <Label htmlFor="stockQuantity" className="text-sm font-semibold text-slate-700">Stock inicial</Label>
+                        <Input
+                          id="stockQuantity"
+                          name="stockQuantity"
+                          type="number"
+                          step="0.001"
+                          defaultValue={0}
+                          placeholder="0"
+                          className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.stockQuantity ? 'border-red-500' : ''}`}
+                        />
+                        <p className="text-xs text-slate-400">Solo se define al crear; luego aumenta por entradas de inventario.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

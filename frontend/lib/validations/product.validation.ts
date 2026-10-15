@@ -14,7 +14,7 @@ export const createProductSchema = z.object({
   imageUrl: z.string().optional().or(z.literal('')),
 });
 
-export const updateProductSchema = createProductSchema.extend({});
+export const updateProductSchema = createProductSchema.omit({ stockQuantity: true });
 
 export type CreateProductDto = z.infer<typeof createProductSchema>;
 export type UpdateProductDto = z.infer<typeof updateProductSchema>;

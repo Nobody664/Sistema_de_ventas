@@ -191,12 +191,6 @@ export class UpdateProductDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
   @Type(() => Number)
-  stockQuantity?: number;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 3 })
-  @Min(0)
-  @Type(() => Number)
   minStock?: number;
 }
 
