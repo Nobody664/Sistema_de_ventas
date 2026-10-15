@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { useUiStore } from '@/store/ui-store';
 import type { Sale } from '@/types/api';
 
 interface SaleDetailClientProps {
@@ -14,34 +15,44 @@ interface SaleDetailClientProps {
 
 export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
   const user = useAuthStore((state) => state.user);
+  const addToast = useUiStore((state) => state.addToast);
 
   const handlePrint = async () => {
     try {
-    const response = await apiFetch<{ html: string }>(`/invoices/generate/${initialSale.id}`, {
-      token: getAccessToken(),
-    });
+      const response = await apiFetch<{ html: string }>(`/invoices/generate/${initialSale.id}`, {
+        token: getAccessToken(),
+      });
 
-      if (response?.html) {
-        const printFrame = document.createElement('iframe');
-        printFrame.style.position = 'fixed';
-        printFrame.style.right = '0';
-        printFrame.style.bottom = '0';
-        printFrame.style.width = '0';
-        printFrame.style.height = '0';
-        printFrame.style.border = '0';
-        printFrame.setAttribute('sandbox', 'allow-modals');
-        printFrame.srcdoc = response.html;
-        document.body.appendChild(printFrame);
-        printFrame.onload = () => {
-          try {
-            printFrame.contentWindow?.print();
-          } finally {
-            document.body.removeChild(printFrame);
-          }
-        };
+      if (!response?.html) {
+        addToast('No se pudo generar el comprobante de la venta', 'error');
+        return;
       }
+
+      const printFrame = document.createElement('iframe');
+      printFrame.setAttribute('aria-hidden', 'true');
+      printFrame.style.position = 'fixed';
+      printFrame.style.right = '0';
+      printFrame.style.bottom = '0';
+      printFrame.style.width = '0';
+      printFrame.style.height = '0';
+      printFrame.style.border = '0';
+
+      printFrame.onload = () => {
+        const frameWindow = printFrame.contentWindow;
+        if (!frameWindow) {
+          printFrame.remove();
+          return;
+        }
+        frameWindow.focus();
+        frameWindow.print();
+        window.setTimeout(() => printFrame.remove(), 1000);
+      };
+
+      printFrame.srcdoc = response.html;
+      document.body.appendChild(printFrame);
     } catch (error) {
       console.error('Error generating invoice:', error);
+      addToast(error instanceof Error ? error.message : 'No se pudo generar la impresión de la venta', 'error');
     }
   };
 

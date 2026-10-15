@@ -197,14 +197,14 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-[34px] bg-gradient-to-br from-slate-700 to-slate-900 p-8 text-white">
-        <div className="flex items-center gap-4">
-          <div className="rounded-2xl bg-white/10 p-3">
+      <Card className="rounded-[34px] bg-gradient-to-br from-slate-700 to-slate-900 p-6 text-white sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="shrink-0 rounded-2xl bg-white/10 p-3">
             <Settings className="size-8" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Administración</p>
-            <h1 className="mt-1 font-display text-4xl">Configuración</h1>
+            <h1 className="mt-1 break-words font-display text-3xl leading-tight sm:text-4xl">Configuración</h1>
             <p className="mt-1 text-white/60">Personaliza tu experiencia</p>
           </div>
         </div>

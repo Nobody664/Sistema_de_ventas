@@ -52,11 +52,11 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
         Volver a distribuidores
       </Link>
 
-      <Card className="rounded-[34px] bg-gradient-to-br from-orange-500 to-amber-600 p-8 text-white">
+      <Card className="rounded-[34px] bg-gradient-to-br from-orange-500 to-amber-600 p-6 text-white sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-6">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">{distributor.code}</p>
-            <h1 className="mt-3 font-display text-4xl leading-none break-words">{distributor.name}</h1>
+            <h1 className="mt-3 break-words font-display text-3xl leading-tight sm:text-4xl">{distributor.name}</h1>
             <div className="mt-5 flex flex-wrap gap-4 text-sm text-white/80">
               {distributor.email && (
                 <span className="flex items-center gap-2">

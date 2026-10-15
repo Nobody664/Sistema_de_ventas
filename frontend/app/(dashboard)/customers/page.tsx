@@ -18,15 +18,15 @@ export default async function CustomersPage() {
   return (
     <div className="space-y-6">
       <Card className="rounded-[34px] bg-gradient-to-br from-cyan-500 to-blue-600 p-6 sm:p-8 text-white animate-fade-in-up">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">CRM basico</p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Gestion de clientes</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Administra tu base de clientes, registra nuevos clientes y observa su historial de compras.
             </p>
           </div>
-          <div className="hidden sm:block animate-fade-in-up delay-150">
+          <div className="w-full shrink-0 animate-fade-in-up delay-150 sm:w-auto">
             <NewCustomerButton />
           </div>
         </div>
@@ -65,9 +65,6 @@ export default async function CustomersPage() {
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Directorio</p>
             <h2 className="mt-2 font-display text-2xl">Clientes registrados</h2>
-          </div>
-          <div className="sm:hidden">
-            <NewCustomerButton />
           </div>
         </div>
 

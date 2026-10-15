@@ -29,7 +29,7 @@ export function NewCustomerButton() {
     <PermissionGuard permission="customer:create">
       <Link
         href="/customers/new"
-        className="rounded-2xl bg-white px-6 py-3 text-sm font-medium text-cyan-600 transition hover:bg-white/90"
+        className="flex w-full items-center justify-center whitespace-nowrap rounded-2xl bg-white px-6 py-3 text-sm font-medium text-cyan-600 transition hover:bg-white/90 sm:w-auto"
       >
         + Nuevo cliente
       </Link>

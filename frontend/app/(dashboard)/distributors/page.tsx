@@ -26,7 +26,7 @@ export default async function DistributorsPage() {
               Administra el stock consignado, registra ventas, devoluciones, despachos y liquidaciones de cada distribuidor.
             </p>
           </div>
-          <div className="shrink-0 animate-fade-in-up delay-150">
+          <div className="w-full shrink-0 animate-fade-in-up delay-150 sm:w-auto">
             <NewDistributorButton />
           </div>
         </div>

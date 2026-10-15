@@ -75,33 +75,24 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
   return (
     <div className="space-y-6">
       <Card className="rounded-[34px] bg-gradient-to-br from-orange-500 to-rose-600 p-6 sm:p-8 text-white animate-fade-in-up">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Punto de venta</p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Gestion de ventas</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Registra nuevas ventas, consulta el historial y gestiona transacciones.
             </p>
           </div>
-          <div className="lg:block">
+          <div className="w-full shrink-0 sm:w-auto">
             <Link
               href="/sales/new"
-              className="rounded-2xl bg-white px-6 py-3 text-sm font-medium text-orange-600 transition hover:bg-white/90"
+              className="flex w-full items-center justify-center whitespace-nowrap rounded-2xl bg-white px-6 py-3 text-sm font-medium text-orange-600 transition hover:bg-white/90 sm:w-auto"
             >
               + Nueva venta
             </Link>
           </div>
         </div>
       </Card>
-
-      <div className="fixed bottom-6 right-6 z-40 lg:hidden">
-        <Link
-          href="/sales/new"
-          className="rounded-full bg-orange-500 p-4 text-white shadow-lg"
-        >
-          <ShoppingCart className="h-6 w-6" />
-        </Link>
-      </div>
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
         <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-100">
@@ -174,14 +165,6 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                 <button onClick={() => handleExport('excel')} className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5">Excel</button>
                 <button onClick={() => handleExport('pdf')} className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5">PDF</button>
               </div>
-            </div>
-            <div className="lg:hidden">
-              <Link
-                href="/sales/new"
-                className="rounded-full bg-orange-500 p-4 text-white shadow-lg"
-              >
-                <ShoppingCart className="h-6 w-6" />
-              </Link>
             </div>
           </div>
         </div>
