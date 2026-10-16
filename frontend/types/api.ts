@@ -78,3 +78,19 @@ export type SubscriberWithCompany = Company & {
     users: number;
   };
 };
+export interface DiscountCoupon {
+  id: string;
+  companyId: string;
+  code: string;
+  description?: string | null;
+  type: 'PERCENTAGE' | 'FIXED';
+  value: number;
+  maxUses?: number | null;
+  usedCount?: number;
+  minPurchase?: number | null;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}

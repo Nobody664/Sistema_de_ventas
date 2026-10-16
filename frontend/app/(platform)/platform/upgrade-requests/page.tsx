@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Search, Check, X, Clock, Upload, Smartphone, Building2, CreditCard, Banknote } from 'lucide-react';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { PageGuard } from '@/components/auth/page-guard';
+import { useUiStore } from '@/store/ui-store';
 
 interface CheckoutRequest {
   id: string;
@@ -39,7 +40,39 @@ interface CheckoutRequest {
   };
 }
 
-type AllRequest = CheckoutRequest;
+type AllRequest = CheckoutRequest | UpgradeRequest;
+
+interface UpgradeRequest {
+  id: string;
+  companyId: string;
+  provider: string;
+  amount: string;
+  currency: string;
+  status: string;
+  proofImageBase64?: string | null;
+  paymentDate?: string | null;
+  submittedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  reviewNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  fullName?: string;
+  companyName?: string;
+  email?: string;
+  plan: {
+    id: string;
+    code: string;
+    name: string;
+    priceMonthly?: string;
+    priceYearly?: string;
+  };
+  company?: {
+    id: string;
+    name: string;
+    email?: string;
+  };
+}
 
 const providerIcons: Record<string, typeof Smartphone> = {
   YAPE: Smartphone,
@@ -54,6 +87,7 @@ const providerColors: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-700',
   SUBMITTED: 'bg-amber-100 text-amber-700',
   APPROVED: 'bg-green-100 text-green-700',
   REJECTED: 'bg-red-100 text-red-700',
@@ -61,6 +95,7 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
+  PENDING: 'Pendiente',
   SUBMITTED: 'Pendiente',
   APPROVED: 'Aprobado',
   REJECTED: 'Rechazado',
@@ -69,12 +104,17 @@ const statusLabels: Record<string, string> = {
 
 export default function UpgradeRequestsPage() {
   const queryClient = useQueryClient();
+  const addToast = useUiStore((state) => state.addToast);
   const [selectedRequest, setSelectedRequest] = useState<AllRequest | null>(null);
   const [showProofModal, setShowProofModal] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
   const [activeTab, setActiveTab] = useState<'checkout' | 'subscriptions'>('checkout');
 
-  const { data: checkoutRequests, isLoading: loadingCheckout } = useQuery({
+  const {
+    data: checkoutRequests,
+    isLoading: loadingCheckout,
+    isError: errorCheckout,
+  } = useQuery({
     queryKey: ['checkout-requests'],
     queryFn: async () => {
       const data = await apiFetch<CheckoutRequest[]>('/payments/checkout/requests/pending', {
@@ -83,6 +123,21 @@ export default function UpgradeRequestsPage() {
       return data || [];
     },
     enabled: activeTab === 'checkout',
+  });
+
+  const {
+    data: upgradeRequests,
+    isLoading: loadingUpgrades,
+    isError: errorUpgrades,
+  } = useQuery({
+    queryKey: ['upgrade-requests'],
+    queryFn: async () => {
+      const data = await apiFetch<UpgradeRequest[]>('/platform/upgrade-requests/pending', {
+        token: getAccessToken() ?? undefined,
+      });
+      return data || [];
+    },
+    enabled: activeTab === 'subscriptions',
   });
 
   const approveMutation = useMutation({
@@ -94,7 +149,7 @@ export default function UpgradeRequestsPage() {
           body: JSON.stringify({ status: 'APPROVED', reviewNotes }),
         });
       } else {
-        return apiFetch(`/subscriptions/upgrade-requests/${requestId}/review`, {
+        return apiFetch(`/platform/upgrade-requests/${requestId}/review`, {
           method: 'POST',
           token: getAccessToken() ?? undefined,
           body: JSON.stringify({ status: 'APPROVED', reviewNotes }),
@@ -107,6 +162,10 @@ export default function UpgradeRequestsPage() {
       setSelectedRequest(null);
       setShowProofModal(false);
       setReviewNotes('');
+      addToast('Solicitud aprobada correctamente', 'success');
+    },
+    onError: (err) => {
+      addToast(err instanceof Error ? err.message : 'Error al aprobar la solicitud', 'error');
     },
   });
 
@@ -119,7 +178,7 @@ export default function UpgradeRequestsPage() {
           body: JSON.stringify({ status: 'REJECTED', reviewNotes }),
         });
       } else {
-        return apiFetch(`/subscriptions/upgrade-requests/${requestId}/review`, {
+        return apiFetch(`/platform/upgrade-requests/${requestId}/review`, {
           method: 'POST',
           token: getAccessToken() ?? undefined,
           body: JSON.stringify({ status: 'REJECTED', reviewNotes }),
@@ -132,6 +191,10 @@ export default function UpgradeRequestsPage() {
       setSelectedRequest(null);
       setShowProofModal(false);
       setReviewNotes('');
+      addToast('Solicitud rechazada correctamente', 'success');
+    },
+    onError: (err) => {
+      addToast(err instanceof Error ? err.message : 'Error al rechazar la solicitud', 'error');
     },
   });
 
@@ -148,8 +211,9 @@ export default function UpgradeRequestsPage() {
     return request.company?.email || request.email || 'Sin email';
   };
 
-  const isLoading = activeTab === 'checkout' ? loadingCheckout : false;
-  const requests = activeTab === 'checkout' ? checkoutRequests : [];
+  const isLoading = activeTab === 'checkout' ? loadingCheckout : loadingUpgrades;
+  const hasError = activeTab === 'checkout' ? errorCheckout : errorUpgrades;
+  const requests = activeTab === 'checkout' ? checkoutRequests : upgradeRequests;
 
   return (
     <PageGuard requiredRoles={['SUPER_ADMIN', 'SUPPORT_ADMIN']}>
@@ -188,6 +252,11 @@ export default function UpgradeRequestsPage() {
         >
           <Banknote className="size-4" />
           Suscripciones
+          {upgradeRequests && upgradeRequests.length > 0 && (
+            <span className="ml-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
+              {upgradeRequests.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -257,21 +326,25 @@ export default function UpgradeRequestsPage() {
                 </div>
 
                 <div className="mt-5 flex gap-2">
-                  {request.proofImageBase64 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewProof(request)}
-                      className="flex-1 gap-1"
-                    >
-                      <Upload className="size-4" />
-                      Ver comprobante
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewProof(request)}
+                    className="flex-1 gap-1"
+                  >
+                    <Upload className="size-4" />
+                    {request.proofImageBase64 ? 'Ver comprobante' : 'Revisar solicitud'}
+                  </Button>
                 </div>
               </Card>
             );
           })}
+        </div>
+      ) : hasError ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <Clock className="size-16 text-foreground/20" />
+          <h3 className="mt-4 font-display text-xl">No se pudieron cargar las solicitudes</h3>
+          <p className="mt-1 text-foreground/50">Ocurrió un error al consultar el servidor. Intenta de nuevo.</p>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-16">

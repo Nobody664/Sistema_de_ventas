@@ -19,9 +19,10 @@ import { useAuthStore } from '@/stores/auth.store';
 
 interface DeleteDialogProps {
   id: string;
-  entity: 'product' | 'customer' | 'employee' | 'sale' | 'category' | 'distributor';
+  entity: 'product' | 'customer' | 'employee' | 'sale' | 'category' | 'distributor' | 'discount';
   title?: string;
   description?: string;
+  successMessage?: string;
   onSuccess?: () => void;
 }
 
@@ -32,9 +33,17 @@ const QUERY_KEYS: Record<string, string[]> = {
   sale: ['sales'],
   category: ['categories'],
   distributor: ['distributors'],
+  discount: ['discounts'],
 };
 
-export function DeleteDialog({ id, entity, title, description, onSuccess }: DeleteDialogProps) {
+export function DeleteDialog({
+  id,
+  entity,
+  title,
+  description,
+  successMessage,
+  onSuccess,
+}: DeleteDialogProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -50,6 +59,7 @@ export function DeleteDialog({ id, entity, title, description, onSuccess }: Dele
     sale: 'la venta',
     category: 'la categoria',
     distributor: 'el distribuidor',
+    discount: 'el cupon',
   };
 
   const entityLabels = {
@@ -59,6 +69,7 @@ export function DeleteDialog({ id, entity, title, description, onSuccess }: Dele
     sale: 'Venta',
     category: 'Categoría',
     distributor: 'Distribuidor',
+    discount: 'Cupón',
   };
 
   const endpoints = {
@@ -68,6 +79,7 @@ export function DeleteDialog({ id, entity, title, description, onSuccess }: Dele
     sale: `/sales/${id}`,
     category: `/products/categories/${id}`,
     distributor: `/distributors/${id}`,
+    discount: `/discounts/${id}`,
   };
 
   const handleDelete = async () => {
@@ -82,7 +94,10 @@ export function DeleteDialog({ id, entity, title, description, onSuccess }: Dele
 
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS[entity] });
       router.refresh();
-      addToast(`${entityLabels[entity]} eliminado correctamente`, 'success');
+      addToast(
+        successMessage ?? `${entityLabels[entity]} eliminado correctamente`,
+        'success',
+      );
       setOpen(false);
       onSuccess?.();
     } catch (err) {

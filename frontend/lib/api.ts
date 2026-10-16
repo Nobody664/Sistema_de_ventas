@@ -1,4 +1,4 @@
-export { getAccessToken, getRefreshToken, isAuthenticated } from './api/auth';
+export { getAccessToken } from './api/auth';
 export { login, register, logout, getMe, refreshToken } from './api/auth';
 export type { LoginRequest, RegisterRequest, AuthResponse, AuthUser, RefreshResponse } from './api/auth';
 

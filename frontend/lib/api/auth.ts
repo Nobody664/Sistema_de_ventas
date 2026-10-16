@@ -130,11 +130,3 @@ export async function refreshToken(): Promise<RefreshResponse> {
 export function getAccessToken(): undefined {
   return undefined;
 }
-
-export function getRefreshToken(): undefined {
-  return undefined;
-}
-
-export function isAuthenticated(): boolean {
-  return false;
-}

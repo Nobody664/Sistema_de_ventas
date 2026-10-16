@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, Search, ArrowLeft, Banknote, CreditCard, Building2, Check, Receipt, Package, Store, Globe, Truck } from 'lucide-react';
+import { Loader2, Plus, Minus, Trash2, ShoppingCart, Search, ArrowLeft, Banknote, CreditCard, Building2, Check, Receipt, Package, Store, Globe, Truck, TicketPercent, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,6 +53,12 @@ interface SelectedCustomer {
 
 type SaleChannelOption = 'POS' | 'ONLINE' | 'DISTRIBUTOR';
 
+interface AppliedCoupon {
+  code: string;
+  type: 'PERCENTAGE' | 'FIXED';
+  value: number;
+}
+
 interface SaleFormProps {
   products: Product[];
   customers: Customer[];
@@ -76,6 +82,10 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
   const [saleCompleted, setSaleCompleted] = useState(false);
   const [lastSaleNumber, setLastSaleNumber] = useState('');
   const [flashProductId, setFlashProductId] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   const { isConnected } = useBarcodeScanner({
     enabled: !saleCompleted,
@@ -108,7 +118,17 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
   }, [products, searchProduct]);
 
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const discountAmount = subtotal * (discountPercent / 100);
+  const couponDiscount = appliedCoupon
+    ? Math.min(
+        appliedCoupon.type === 'PERCENTAGE'
+          ? (subtotal * appliedCoupon.value) / 100
+          : appliedCoupon.value,
+        subtotal,
+      )
+    : 0;
+  const discountAmount = appliedCoupon
+    ? couponDiscount
+    : subtotal * (discountPercent / 100);
   const total = subtotal - discountAmount;
 
   const addItem = (product: Product) => {
@@ -185,6 +205,44 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
     setItems(items.filter(i => i.productId !== productId));
   };
 
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    if (subtotal <= 0) {
+      setCouponError('Agrega productos antes de aplicar un cupón');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError(null);
+
+    try {
+      const result = await apiFetch<{
+        coupon: { code: string; type: 'PERCENTAGE' | 'FIXED'; value: number };
+        discountAmount: number;
+      }>('/discounts/validate', {
+        method: 'POST',
+        token: getAccessToken(),
+        body: JSON.stringify({ code, subtotal }),
+      });
+
+      setAppliedCoupon(result.coupon);
+      setDiscountPercent(0);
+      addToast(`Cupón ${result.coupon.code} aplicado`, 'success');
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponError(err instanceof Error ? err.message : 'Cupón no válido');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponError(null);
+  };
+
   const handleSubmit = async () => {
     if (items.length === 0) {
       addToast('Debe agregar al menos un producto', 'error');
@@ -229,7 +287,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
             paymentMethod,
             channel,
             items: saleItems,
-            discountAmount,
+            ...(appliedCoupon ? { couponCode: appliedCoupon.code } : { discountAmount }),
           }),
         });
         saleNumber = result.saleNumber;
@@ -256,6 +314,9 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
     setChannel('POS');
     setDistributorId('');
     setDiscountPercent(0);
+    setCouponInput('');
+    setAppliedCoupon(null);
+    setCouponError(null);
     setSaleCompleted(false);
     setLastSaleNumber('');
   };
@@ -532,7 +593,14 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                         key={value}
                         type="button"
                         disabled={isDisabled}
-                        onClick={() => setChannel(value)}
+                        onClick={() => {
+                          setChannel(value);
+                          if (value === 'DISTRIBUTOR') {
+                            setAppliedCoupon(null);
+                            setCouponInput('');
+                            setCouponError(null);
+                          }
+                        }}
                         className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1.5 transition-colors ${
                           isDisabled
                             ? 'cursor-not-allowed border-border opacity-40'
@@ -598,6 +666,58 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                 </div>
               </div>
 
+              {/* Coupon */}
+              {channel !== 'DISTRIBUTOR' && (
+                <div className="px-5 pb-4 space-y-2">
+                  <Label className="text-sm font-semibold text-foreground mb-2 block">
+                    Cupón de descuento
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      placeholder="VERANO10"
+                      maxLength={32}
+                      disabled={!!appliedCoupon}
+                      className="h-10 rounded-lg font-mono uppercase tracking-widest"
+                    />
+                    {appliedCoupon ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleRemoveCoupon}
+                        className="h-10 shrink-0 rounded-lg"
+                      >
+                        <X className="mr-1 h-4 w-4" />
+                        Quitar
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponInput.trim()}
+                        className="h-10 shrink-0 rounded-lg"
+                      >
+                        {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
+                      </Button>
+                    )}
+                  </div>
+                  {appliedCoupon && (
+                    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                      <TicketPercent className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {appliedCoupon.code} ·{' '}
+                        {appliedCoupon.type === 'PERCENTAGE'
+                          ? `${appliedCoupon.value}% de descuento`
+                          : `S/ ${appliedCoupon.value.toFixed(2)} de descuento`}
+                      </span>
+                    </div>
+                  )}
+                  {couponError && <p className="text-xs text-red-500">{couponError}</p>}
+                </div>
+              )}
+
               {/* Discount */}
               <div className="px-5 pb-4">
                 <Label className="text-sm font-semibold text-foreground mb-2 block">
@@ -609,8 +729,14 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                   max="100"
                   value={discountPercent}
                   onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                  disabled={!!appliedCoupon}
                   className="h-10 rounded-lg"
                 />
+                {!!appliedCoupon && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    El descuento lo define el cupón aplicado.
+                  </p>
+                )}
               </div>
 
               {/* Totals + Submit */}
@@ -620,9 +746,13 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                     <span>Subtotal</span>
                     <span>S/ {subtotal.toFixed(2)}</span>
                   </div>
-                  {discountPercent > 0 && (
+                  {discountAmount > 0 && (
                     <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
-                      <span>Descuento ({discountPercent}%)</span>
+                      <span>
+                        {appliedCoupon
+                          ? `Cupón ${appliedCoupon.code}`
+                          : `Descuento (${discountPercent}%)`}
+                      </span>
                       <span>-S/ {discountAmount.toFixed(2)}</span>
                     </div>
                   )}

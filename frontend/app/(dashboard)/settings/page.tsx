@@ -4,6 +4,7 @@ import { getServerSession } from '@/lib/session';
 import { Settings, Globe, Palette, Bell, Database, Key, Monitor, Moon, Sun, CreditCard, LucideIcon, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { ProfileCompletenessIndicator } from '@/components/settings/profile-completeness';
+import { DangerZone } from '@/components/settings/danger-zone';
 
 type SelectOption = { value: string; label: string; icon?: LucideIcon };
 
@@ -296,18 +297,7 @@ export default async function SettingsPage() {
         })}
       </div>
 
-      <Card className="rounded-[30px] bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 p-6">
-        <h2 className="font-display text-xl text-red-800 dark:text-red-300">Zona de peligro</h2>
-        <p className="mt-1 text-red-600/70 dark:text-red-400/70">Estas acciones son irreversibles</p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <button className="rounded-xl border border-red-200 dark:border-red-800 bg-card px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 transition hover:bg-red-50 dark:hover:bg-red-950/50">
-            Eliminar cuenta
-          </button>
-          <button className="rounded-xl border border-red-200 dark:border-red-800 bg-card px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 transition hover:bg-red-50 dark:hover:bg-red-950/50">
-            Cancelar suscripción
-          </button>
-        </div>
-      </Card>
+      <DangerZone canCancelSubscription={isCompanyAdmin} />
     </div>
   );
 }

@@ -54,7 +54,9 @@ export type Permission =
   | 'distributor:view'
   | 'distributor:transfer'
   | 'distributor:deliver'
-  | 'distributor:settle';
+  | 'distributor:settle'
+  | 'discount:list'
+  | 'discount:manage';
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: [
@@ -114,6 +116,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'distributor:transfer',
     'distributor:deliver',
     'distributor:settle',
+    'discount:list',
+    'discount:manage',
   ],
 
   COMPANY_ADMIN: [
@@ -162,6 +166,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'distributor:transfer',
     'distributor:deliver',
     'distributor:settle',
+    'discount:list',
+    'discount:manage',
   ],
 
   MANAGER: [
@@ -199,6 +205,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'distributor:view',
     'distributor:transfer',
     'distributor:deliver',
+    'discount:list',
   ],
 
   CASHIER: [
@@ -214,6 +221,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'dashboard:view',
     'report:sales',
     'company:view',
+
+    'discount:list',
   ],
 
   VIEWER: [
