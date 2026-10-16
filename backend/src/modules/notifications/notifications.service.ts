@@ -50,12 +50,44 @@ export interface CreateNotificationInput {
   data?: Record<string, unknown>;
 }
 
+export type NotificationEmitter = (notification: unknown) => void;
+
 @Injectable()
 export class NotificationsService {
+  private readonly subscribers = new Map<string, Set<NotificationEmitter>>();
+
   constructor(private readonly prisma: PrismaService) {}
 
+  subscribe(userId: string, emitter: NotificationEmitter): () => void {
+    let emitters = this.subscribers.get(userId);
+    if (!emitters) {
+      emitters = new Set();
+      this.subscribers.set(userId, emitters);
+    }
+    emitters.add(emitter);
+
+    return () => {
+      const current = this.subscribers.get(userId);
+      if (!current) {
+        return;
+      }
+      current.delete(emitter);
+      if (current.size === 0) {
+        this.subscribers.delete(userId);
+      }
+    };
+  }
+
+  emitNotification(userId: string, notification: unknown): void {
+    const emitters = this.subscribers.get(userId);
+    if (!emitters) {
+      return;
+    }
+    emitters.forEach((emitter) => emitter(notification));
+  }
+
   async create(input: CreateNotificationInput) {
-    return this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         userId: input.userId,
         companyId: input.companyId,
@@ -67,6 +99,10 @@ export class NotificationsService {
         sentAt: input.channel === NotificationChannel.EMAIL ? new Date() : null,
       },
     });
+
+    this.emitNotification(input.userId, notification);
+
+    return notification;
   }
 
   async findByUser(userId: string, options?: { unreadOnly?: boolean; limit?: number }) {

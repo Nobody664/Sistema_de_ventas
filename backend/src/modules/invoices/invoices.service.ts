@@ -63,6 +63,7 @@ export class InvoicesService {
 
     const data: any = {
       name: input.name || 'Plantilla',
+      description: input.description,
       isGlobal,
       type: input.type || 'BOLETA',
       headerText: input.headerText,

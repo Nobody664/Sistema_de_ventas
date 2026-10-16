@@ -11,6 +11,7 @@ import {
   CreateCategoryDto,
   CreatePresentationDto,
   CreateProductDto,
+  QueryProductDto,
   UpdateCategoryDto,
   UpdatePresentationDto,
   UpdateProductDto,
@@ -98,8 +99,8 @@ export class ProductsController {
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Permissions(Permission.PRODUCT_LIST)
   @Get()
-  findByCompany(@Req() request: { tenantId: string }) {
-    return this.productsService.findByCompany(request.tenantId);
+  findByCompany(@Req() request: { tenantId: string }, @Query() query: QueryProductDto) {
+    return this.productsService.findByCompany(request.tenantId, query);
   }
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')

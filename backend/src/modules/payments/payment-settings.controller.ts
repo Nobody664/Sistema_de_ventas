@@ -8,7 +8,6 @@ import {
   ParseEnumPipe,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { PaymentProvider } from '@prisma/client';
@@ -98,10 +97,10 @@ export class PaymentSettingsController {
   @Patch('proof/:proofId/review')
   async reviewProof(
     @Param('proofId') proofId: string,
-    @Query('userId') userId: string,
+    @CurrentUser() user: AuthUser,
     @Body() data: ReviewPaymentProofDto,
   ): Promise<PaymentProofResponseDto> {
-    return this.paymentSettingsService.reviewProof(proofId, userId, data);
+    return this.paymentSettingsService.reviewProof(proofId, user.sub, data);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

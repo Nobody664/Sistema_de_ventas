@@ -5,6 +5,7 @@ import {
   CreateCategoryDto,
   CreatePresentationDto,
   CreateProductDto,
+  QueryProductDto,
   UpdateCategoryDto,
   UpdatePresentationDto,
   UpdateProductDto,
@@ -53,7 +54,10 @@ export class ProductsService {
     });
   }
 
-  findByCompany(companyId: string) {
+  findByCompany(companyId: string, query?: QueryProductDto) {
+    const page = query?.page ?? 1;
+    const limit = query?.limit ?? 50;
+
     return this.prisma.product.findMany({
       where: { companyId },
       select: {
@@ -74,7 +78,8 @@ export class ProductsService {
         presentations: { select: { id: true, name: true, factor: true, price: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      skip: (page - 1) * limit,
+      take: limit,
     });
   }
 

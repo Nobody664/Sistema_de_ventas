@@ -23,10 +23,6 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   planCode?: string;
-
-  @IsOptional()
-  @IsString()
-  paymentMethod?: string;
 }
 
 export class LoginDto {

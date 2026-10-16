@@ -126,6 +126,10 @@ export class DashboardService {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
     const [
       salesToday,
       recentSales,
@@ -209,6 +213,7 @@ export class DashboardService {
     }>;
 
     const dailyMap = new Map<string, { sales: number; revenue: number }>();
+    const weeklyMap = new Map<string, { sales: number; revenue: number }>();
     const monthlyMap = new Map<string, { sales: number; revenue: number }>();
     const paymentMethodMap = new Map<string, { count: number; total: number }>();
     const customerPurchaseMap = new Map<string, { customerName: string; totalPurchases: number; totalSpent: number }>();
@@ -225,6 +230,13 @@ export class DashboardService {
       daily.sales += 1;
       daily.revenue += amount;
       dailyMap.set(date, daily);
+
+      if (sale.createdAt >= sevenDaysAgo) {
+        const weekly = weeklyMap.get(date) ?? { sales: 0, revenue: 0 };
+        weekly.sales += 1;
+        weekly.revenue += amount;
+        weeklyMap.set(date, weekly);
+      }
 
       const monthly = monthlyMap.get(month) ?? { sales: 0, revenue: 0 };
       monthly.sales += 1;
@@ -249,6 +261,10 @@ export class DashboardService {
       .map(([date, data]) => ({ date, ...data }))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-7);
+
+    const weekly = Array.from(weeklyMap.entries())
+      .map(([week, data]) => ({ week, ...data }))
+      .sort((a, b) => a.week.localeCompare(b.week));
 
     const monthly = Array.from(monthlyMap.entries())
       .map(([month, data]) => ({ month, ...data }))
@@ -279,7 +295,7 @@ export class DashboardService {
 
     const salesAnalytics = {
       daily,
-      weekly: [],
+      weekly,
       monthly,
       averageTicket: allSalesData.length > 0 ? totalRevenue / allSalesData.length : 0,
       totalSales: allSalesData.length,

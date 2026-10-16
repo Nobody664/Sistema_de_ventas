@@ -1,7 +1,9 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
 
 import { Permissions } from '@/common/decorators/permissions.decorator';
 import { Permission } from '@/common/constants/permissions.constant';
+import { AuthUser, CurrentUser } from '@/common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PlatformGuard } from '@/common/guards/platform.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
@@ -12,11 +14,15 @@ import {
   UpdateCompanyStatusDto,
 } from '@/modules/companies/dto/company.dto';
 import { CompaniesService } from '@/modules/companies/companies.service';
+import { PlatformAuditService } from './platform-audit.service';
 
 @Controller('platform/companies')
 @UseGuards(JwtAuthGuard, PlatformGuard, PermissionsGuard)
 export class PlatformCompaniesController {
-  constructor(private readonly companiesService: CompaniesService) {}
+  constructor(
+    private readonly companiesService: CompaniesService,
+    private readonly platformAudit: PlatformAuditService,
+  ) {}
 
   @Permissions(Permission.PLATFORM_VIEW)
   @Get()
@@ -32,37 +38,89 @@ export class PlatformCompaniesController {
 
   @Permissions(Permission.PLATFORM_MANAGE_COMPANIES)
   @Post()
-  create(@Body() body: CreateCompanyDto) {
-    return this.companiesService.create(body);
+  async create(@Body() body: CreateCompanyDto, @CurrentUser() user: AuthUser) {
+    const company = await this.companiesService.create(body);
+    await this.platformAudit.log({
+      actorId: user.sub,
+      action: AuditAction.CREATE,
+      entity: 'Company',
+      entityId: company.id,
+      changes: { name: company.name },
+    });
+    return company;
   }
 
   @Permissions(Permission.PLATFORM_MANAGE_COMPANIES)
   @Post('with-plan')
-  createWithPlan(@Body() body: CreateCompanyWithPlanDto) {
-    return this.companiesService.createWithPlan(body);
+  async createWithPlan(@Body() body: CreateCompanyWithPlanDto, @CurrentUser() user: AuthUser) {
+    const company = await this.companiesService.createWithPlan(body);
+    await this.platformAudit.log({
+      actorId: user.sub,
+      action: AuditAction.CREATE,
+      entity: 'Company',
+      entityId: company.id,
+      changes: { name: company.name, planId: body.planId },
+    });
+    return company;
   }
 
   @Permissions(Permission.PLATFORM_MANAGE_COMPANIES)
   @Post(':id/approve')
-  approve(@Param('id') id: string) {
-    return this.companiesService.approve(id);
+  async approve(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const company = await this.companiesService.approve(id);
+    await this.platformAudit.log({
+      actorId: user.sub,
+      action: AuditAction.UPDATE,
+      entity: 'Company',
+      entityId: id,
+      changes: { status: 'ACTIVE' },
+    });
+    return company;
   }
 
   @Permissions(Permission.PLATFORM_MANAGE_COMPANIES)
   @Post(':id/reject')
-  reject(@Param('id') id: string) {
-    return this.companiesService.reject(id);
+  async reject(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const company = await this.companiesService.reject(id);
+    await this.platformAudit.log({
+      actorId: user.sub,
+      action: AuditAction.UPDATE,
+      entity: 'Company',
+      entityId: id,
+      changes: { rejected: true },
+    });
+    return company;
   }
 
   @Permissions(Permission.PLATFORM_MANAGE_COMPANIES)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: UpdateCompanyDto) {
-    return this.companiesService.update(id, body);
+  async update(@Param('id') id: string, @Body() body: UpdateCompanyDto, @CurrentUser() user: AuthUser) {
+    const company = await this.companiesService.update(id, body);
+    await this.platformAudit.log({
+      actorId: user.sub,
+      action: AuditAction.UPDATE,
+      entity: 'Company',
+      entityId: id,
+      changes: body,
+    });
+    return company;
   }
 
   @Permissions(Permission.PLATFORM_MANAGE_COMPANIES)
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() body: UpdateCompanyStatusDto) {
-    return this.companiesService.updateStatus(id, body);
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateCompanyStatusDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const company = await this.companiesService.updateStatus(id, body);
+    await this.platformAudit.log({
+      actorId: user.sub,
+      action: AuditAction.UPDATE,
+      entity: 'Company',
+      entityId: id,
+      changes: { status: body.status },
+    });
+    return company;
   }
 }

@@ -91,7 +91,14 @@ export class HealthService {
 
     const start = Date.now();
     try {
-      await this.cache.ping();
+      const pong = await this.cache.ping();
+      if (pong !== 'PONG') {
+        return {
+          status: 'error',
+          latency: Date.now() - start,
+          error: 'Redis unavailable, using memory fallback',
+        };
+      }
       return {
         status: 'ok',
         latency: Date.now() - start,
@@ -99,7 +106,7 @@ export class HealthService {
     } catch (error) {
       this.logger.warn('Redis check failed, using fallback', error);
       return {
-        status: 'ok',
+        status: 'error',
         latency: Date.now() - start,
         error: 'Redis unavailable, using memory fallback',
       };
@@ -121,11 +128,12 @@ export class HealthService {
   async checkFull(): Promise<{
     status: string;
     timestamp: string;
+    service: string;
     version: string;
     checks: {
-      database: { status: string; latency: number };
-      redis: { status: string; latency: number };
-      memory: { used: number; total: number };
+      database: { status: string; latency: number; error?: string };
+      redis: { status: string; latency: number; error?: string };
+      memory: { status: string; used: number; total: number };
       uptime: number;
     };
   }> {
@@ -134,11 +142,12 @@ export class HealthService {
     return {
       status,
       timestamp: new Date().toISOString(),
+      service: 'backend',
       version: process.env.npm_package_version || '1.0.0',
       checks: {
-        database: { status: checks.database.status, latency: checks.database.latency },
-        redis: { status: checks.redis.status, latency: checks.redis.latency },
-        memory: { used: checks.memory.used, total: checks.memory.total },
+        database: checks.database,
+        redis: checks.redis,
+        memory: checks.memory,
         uptime: checks.uptime,
       },
     };

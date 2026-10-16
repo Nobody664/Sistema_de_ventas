@@ -17,6 +17,12 @@ export class InvoicesController {
     return this.invoicesService.findTemplates(request.tenantId);
   }
 
+  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Get('templates/default')
+  getDefaultTemplate(@Req() request: { tenantId: string }) {
+    return this.invoicesService.getDefaultTemplate(request.tenantId);
+  }
+
   @Roles('SUPER_ADMIN')
   @Get('templates/:id')
   findTemplateById(@Req() request: { tenantId: string }, @Param('id') id: string) {
@@ -49,12 +55,6 @@ export class InvoicesController {
   @Delete('templates/:id')
   removeTemplate(@Req() request: { tenantId: string }, @Param('id') id: string) {
     return this.invoicesService.remove(id, request.tenantId);
-  }
-
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
-  @Get('templates/default')
-  getDefaultTemplate(@Req() request: { tenantId: string }) {
-    return this.invoicesService.getDefaultTemplate(request.tenantId);
   }
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')

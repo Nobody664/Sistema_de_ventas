@@ -12,9 +12,10 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { AuthUser, CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Public } from '@/common/decorators/public.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '@/common/guards/optional-jwt-auth.guard';
 import {
   ChangePasswordDto,
   ForgotPasswordDto,
@@ -75,12 +76,6 @@ export class AuthController {
     return this.authService.forgotPassword(body.email);
   }
 
-  @HttpCode(HttpStatus.OK)
-  @Post('test-public')
-  testPublic() {
-    return { message: 'Test public works!' };
-  }
-
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@CurrentUser() user: unknown) {
@@ -116,11 +111,16 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('logout')
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    await this.authService.logout(this.readCookie(req, 'refresh_token'));
+  async logout(
+    @CurrentUser() user: AuthUser | null,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(this.readCookie(req, 'refresh_token'), user?.sub);
     this.clearAuthCookies(res);
     return { message: 'Logged out successfully' };
   }

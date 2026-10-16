@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuditAction } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
+import { CreateCustomerDto, QueryCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { SubscriptionLimitService } from '@/common/guards/subscription-limit.service';
 import { AuditService } from '@/common/services/audit.service';
 
@@ -19,7 +19,7 @@ export class CustomersService {
 
   findById(companyId: string, id: string) {
     return this.prisma.customer.findFirst({
-      where: { id, companyId },
+      where: { id, companyId, deletedAt: null },
     });
   }
 
@@ -57,9 +57,12 @@ export class CustomersService {
     };
   }
 
-  findByCompany(companyId: string) {
+  findByCompany(companyId: string, query?: QueryCustomerDto) {
+    const page = query?.page ?? 1;
+    const limit = query?.limit ?? 50;
+
     return this.prisma.customer.findMany({
-      where: { companyId },
+      where: { companyId, deletedAt: null },
       select: {
         id: true,
         firstName: true,
@@ -71,7 +74,8 @@ export class CustomersService {
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      skip: (page - 1) * limit,
+      take: limit,
     });
   }
 
@@ -167,7 +171,7 @@ export class CustomersService {
 
   private async ensureCustomer(companyId: string, id: string) {
     const customer = await this.prisma.customer.findFirst({
-      where: { id, companyId },
+      where: { id, companyId, deletedAt: null },
     });
 
     if (!customer) {

@@ -161,10 +161,19 @@ export class KardexService {
       where.movementDate = dateFilter;
     }
 
+    const pagination: { skip?: number; take?: number } = {};
+    if (filters.page !== undefined || filters.limit !== undefined) {
+      const page = Math.max(filters.page ?? 1, 1);
+      const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+      pagination.skip = (page - 1) * limit;
+      pagination.take = limit;
+    }
+
     return this.prisma.inventoryKardex.findMany({
       where,
       include: { product: { select: { name: true, sku: true } } },
       orderBy: { movementDate: 'desc' },
+      ...pagination,
     });
   }
 

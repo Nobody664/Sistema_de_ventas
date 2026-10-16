@@ -6,7 +6,7 @@ import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
-import { CreateCompanyDto, CreateCompanyWithPlanDto, UpdateCompanyDto, UpdateCompanyStatusDto } from './dto/company.dto';
+import { CreateCompanyDto, CreateCompanyWithPlanDto, QueryCompanyDto, UpdateCompanyDto, UpdateCompanyStatusDto } from './dto/company.dto';
 import { CompaniesService } from './companies.service';
 
 @Controller('companies')
@@ -33,11 +33,8 @@ export class CompaniesController {
   @Permissions(Permission.COMPANY_MANAGE_ALL)
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Get()
-  findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.companiesService.findAll(page, limit);
+  findAll(@Query() query: QueryCompanyDto) {
+    return this.companiesService.findAll(query.page, query.limit);
   }
 
   @Roles('SUPER_ADMIN')

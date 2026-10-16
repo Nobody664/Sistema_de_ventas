@@ -1,8 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { AuditAction } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
-import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
+import { CreateEmployeeDto, QueryEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 import { SubscriptionLimitService } from '@/common/guards/subscription-limit.service';
 import { AuditService } from '@/common/services/audit.service';
 
@@ -20,16 +20,19 @@ export class EmployeesService {
 
   findById(companyId: string, id: string) {
     return this.prisma.employee.findFirst({
-      where: { id, companyId },
+      where: { id, companyId, deletedAt: null },
       include: {
         user: { select: { id: true, email: true, fullName: true, isActive: true } },
       },
     });
   }
 
-  findByCompany(companyId: string) {
+  findByCompany(companyId: string, query?: QueryEmployeeDto) {
+    const page = query?.page ?? 1;
+    const limit = query?.limit ?? 50;
+
     return this.prisma.employee.findMany({
-      where: { companyId },
+      where: { companyId, deletedAt: null },
       select: {
         id: true,
         firstName: true,
@@ -43,12 +46,17 @@ export class EmployeesService {
         user: { select: { email: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      skip: (page - 1) * limit,
+      take: limit,
     });
   }
 
   async create(companyId: string, input: CreateEmployeeDto) {
     await this.limitService.validateLimit(companyId, 'employees');
+
+    if (input.userId) {
+      return this.createForExistingUser(companyId, input.userId, input);
+    }
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email: input.email },
@@ -93,6 +101,64 @@ export class EmployeesService {
           user: { select: { id: true, email: true, fullName: true } },
         },
       });
+    });
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.CREATE,
+      entity: 'Employee',
+      entityId: employee.id,
+      changes: {
+        email: employee.email,
+        role: employee.role,
+        dni: employee.dni,
+        userId: employee.userId,
+      },
+    });
+
+    return employee;
+  }
+
+  private async createForExistingUser(companyId: string, userId: string, input: CreateEmployeeDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('El usuario especificado no existe.');
+    }
+
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+    });
+    if (!membership) {
+      throw new BadRequestException('El usuario no pertenece a esta empresa.');
+    }
+
+    const linkedEmployee = await this.prisma.employee.findUnique({ where: { userId } });
+    if (linkedEmployee) {
+      throw new BadRequestException('El usuario ya está vinculado a otro empleado.');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: input.email },
+    });
+    if (existingUser && existingUser.id !== userId) {
+      throw new ConflictException('Ya existe un usuario con ese correo electrónico.');
+    }
+
+    const employee = await this.prisma.employee.create({
+      data: {
+        companyId,
+        userId,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+        phone: input.phone,
+        dni: input.dni,
+        role: input.role,
+        isActive: input.isActive ?? true,
+      },
+      include: {
+        user: { select: { id: true, email: true, fullName: true } },
+      },
     });
 
     await this.auditService.log({

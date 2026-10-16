@@ -8,8 +8,6 @@ import { CurrentUser, AuthUser } from '@/common/decorators/current-user.decorato
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
-  private readonly eventClients: Map<string, Set<(data: unknown) => void>> = new Map();
-
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get('stream')
@@ -22,32 +20,15 @@ export class NotificationsController {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
-    const clientId = user.sub;
-    
-    if (!this.eventClients.has(clientId)) {
-      this.eventClients.set(clientId, new Set());
-    }
-    
-    const clientSet = this.eventClients.get(clientId)!;
     const sendToClient = (data: unknown) => {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     };
-    
-    clientSet.add(sendToClient);
+
+    const unsubscribe = this.notificationsService.subscribe(user.sub, sendToClient);
 
     res.on('close', () => {
-      clientSet.delete(sendToClient);
-      if (clientSet.size === 0) {
-        this.eventClients.delete(clientId);
-      }
+      unsubscribe();
     });
-  }
-
-  emitNotification(userId: string, notification: unknown) {
-    const clientSet = this.eventClients.get(userId);
-    if (clientSet) {
-      clientSet.forEach((sendFn) => sendFn(notification));
-    }
   }
 
   @Get()

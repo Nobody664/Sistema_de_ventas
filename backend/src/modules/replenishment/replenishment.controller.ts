@@ -32,9 +32,9 @@ export class ReplenishmentController {
   coverage(
     @Req() request: { tenantId: string },
     @Param('productId') productId: string,
-    @Query() _query: CoverageQueryDto,
+    @Query() query: CoverageQueryDto,
   ) {
-    return this.replenishmentService.getCoverageDays(request.tenantId, productId);
+    return this.replenishmentService.getCoverageDays(request.tenantId, productId, query.days ?? 30);
   }
 
   @Roles('COMPANY_ADMIN', 'MANAGER')

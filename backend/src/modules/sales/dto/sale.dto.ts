@@ -1,4 +1,4 @@
-import { ArrayMinSize, IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class CreateSaleItemDto {
@@ -50,11 +50,35 @@ export class CreateSaleDto {
   @Type(() => Number)
   discountAmount?: number;
 
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateSaleItemDto)
   items!: CreateSaleItemDto[];
+}
+
+export class QuerySalesDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  page?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  limit?: number;
+}
+
+export class CancelSaleDto {
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
 
 export class ExportSalesQueryDto {

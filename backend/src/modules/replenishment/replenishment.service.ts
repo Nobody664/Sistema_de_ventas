@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { ForecastService } from './forecast.service';
 
@@ -73,13 +73,13 @@ export class ReplenishmentService {
     return suggestions;
   }
 
-  async getCoverageDays(companyId: string, productId: string) {
+  async getCoverageDays(companyId: string, productId: string, days = 30) {
     const product = await this.prisma.product.findFirst({
       where: { id: productId, companyId },
     });
-    if (!product) throw new Error('Product not found');
+    if (!product) throw new NotFoundException('Product not found');
 
-    const demand = await this.forecastService.getDemandAverage(companyId, productId, 30);
+    const demand = await this.forecastService.getDemandAverage(companyId, productId, days);
     const dailyAverage = demand.dailyAverage;
 
     const coverageDays = dailyAverage > 0

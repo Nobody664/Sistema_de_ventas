@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Permissions } from '@/common/decorators/permissions.decorator';
 import { Permission } from '@/common/constants/permissions.constant';
@@ -7,7 +7,7 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { SubscriptionLimitGuard, LimitResource } from '@/common/guards/subscription-limit.guard';
 import { RequireModule } from '@/modules/plan-capabilities/decorators/require-module.decorator';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
+import { CreateCustomerDto, QueryCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { CustomersService } from './customers.service';
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
@@ -40,8 +40,8 @@ export class CustomersController {
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Permissions(Permission.CUSTOMER_LIST)
   @Get()
-  findByCompany(@Req() request: { tenantId: string }) {
-    return this.customersService.findByCompany(request.tenantId);
+  findByCompany(@Req() request: { tenantId: string }, @Query() query: QueryCustomerDto) {
+    return this.customersService.findByCompany(request.tenantId, query);
   }
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')

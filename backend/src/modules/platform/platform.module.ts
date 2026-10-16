@@ -16,6 +16,7 @@ import { PlatformMetricsController } from './platform-metrics.controller';
 import { PlatformAdminsController } from './platform-admins.controller';
 import { PlatformMetricsService } from './platform-metrics.service';
 import { PlatformAdminsService } from './platform-admins.service';
+import { PlatformAuditService } from './platform-audit.service';
 
 @Module({
   imports: [
@@ -36,6 +37,6 @@ import { PlatformAdminsService } from './platform-admins.service';
     PlatformMetricsController,
     PlatformAdminsController,
   ],
-  providers: [PlatformMetricsService, PlatformAdminsService],
+  providers: [PlatformMetricsService, PlatformAdminsService, PlatformAuditService],
 })
 export class PlatformModule {}

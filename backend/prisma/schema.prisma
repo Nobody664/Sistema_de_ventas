@@ -247,6 +247,7 @@ model Company {
   distributors        Distributor[]
   distributorDeliveries DistributorDelivery[]
   apiUsage            ApiUsage[]
+  discountCoupons     DiscountCoupon[]
 
   @@map("companies")
 }
@@ -425,6 +426,7 @@ model Sale {
   customerId     String?         @map("customer_id")
   employeeId     String?         @map("employee_id")
   distributorId  String?         @map("distributor_id")
+  couponId       String?         @map("coupon_id")
   channel        SaleChannel     @default(POS)
   saleNumber     String          @map("sale_number")
   status         SaleStatus      @default(COMPLETED)
@@ -443,12 +445,14 @@ model Sale {
   customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   employee    Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   distributor Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  coupon      DiscountCoupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items       SaleItem[]
 
   @@unique([companyId, saleNumber])
   @@index([companyId, createdAt])
   @@index([companyId, status])
   @@index([companyId, distributorId])
+  @@index([couponId])
   @@index([customerId])
   @@index([employeeId])
   @@map("sales")
@@ -473,6 +477,36 @@ model SaleItem {
   @@index([productId])
   @@index([presentationId])
   @@map("sale_items")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model DiscountCoupon {
+  id          String       @id @default(cuid())
+  companyId   String       @map("company_id")
+  code        String
+  description String?
+  type        DiscountType @default(PERCENTAGE)
+  value       Decimal      @db.Decimal(12, 2)
+  maxUses     Int?         @map("max_uses")
+  usedCount   Int          @default(0) @map("used_count")
+  minPurchase Decimal?     @map("min_purchase") @db.Decimal(12, 2)
+  startsAt    DateTime?    @map("starts_at")
+  expiresAt   DateTime?    @map("expires_at")
+  isActive    Boolean      @default(true) @map("is_active")
+  createdById String?      @map("created_by_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sales   Sale[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+  @@map("discount_coupons")
 }
 
 model Employee {

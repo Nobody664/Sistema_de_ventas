@@ -68,7 +68,8 @@ export class SubscriptionsService {
     ]);
 
     const transformed = data.map((sub) => ({
-      id: sub.company.id,
+      id: sub.id,
+      companyId: sub.company.id,
       name: sub.company.name,
       email: sub.company.email,
       status: sub.company.status,

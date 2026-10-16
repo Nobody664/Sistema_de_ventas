@@ -92,6 +92,10 @@ export enum Permission {
   DISTRIBUTOR_TRANSFER = 'distributor:transfer',
   DISTRIBUTOR_DELIVERY = 'distributor:deliver',
   DISTRIBUTOR_SETTLE = 'distributor:settle',
+
+  // Discount coupons
+  DISCOUNT_LIST = 'discount:list',
+  DISCOUNT_MANAGE = 'discount:manage',
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -156,6 +160,9 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.DISTRIBUTOR_TRANSFER,
     Permission.DISTRIBUTOR_DELIVERY,
     Permission.DISTRIBUTOR_SETTLE,
+
+    Permission.DISCOUNT_LIST,
+    Permission.DISCOUNT_MANAGE,
   ],
 
   MANAGER: [
@@ -206,6 +213,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.DISTRIBUTOR_VIEW,
     Permission.DISTRIBUTOR_TRANSFER,
     Permission.DISTRIBUTOR_DELIVERY,
+
+    Permission.DISCOUNT_LIST,
   ],
 
   CASHIER: [
@@ -221,6 +230,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.DASHBOARD_VIEW,
     Permission.REPORT_SALES,
     Permission.COMPANY_VIEW,
+
+    Permission.DISCOUNT_LIST,
   ],
 
   VIEWER: [

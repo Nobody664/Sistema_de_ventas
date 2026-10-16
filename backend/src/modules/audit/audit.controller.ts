@@ -1,20 +1,10 @@
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
-import { AuditAction } from '@prisma/client';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { TenantGuard } from '@/common/guards/tenant.guard';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { AuditService } from '@/common/services/audit.service';
-
-interface AuditQueryDto {
-  userId?: string;
-  entity?: string;
-  action?: AuditAction;
-  from?: string;
-  to?: string;
-  page?: string;
-  limit?: string;
-}
+import { AuditQueryDto } from './dto/audit.dto';
 
 @Controller('audit')
 export class AuditController {
@@ -30,8 +20,8 @@ export class AuditController {
       action: query.action,
       from: query.from ? new Date(query.from) : undefined,
       to: query.to ? new Date(query.to) : undefined,
-      page: query.page ? Number(query.page) : undefined,
-      limit: query.limit ? Number(query.limit) : undefined,
+      page: query.page,
+      limit: query.limit,
     });
   }
 
@@ -45,8 +35,8 @@ export class AuditController {
       action: query.action,
       from: query.from ? new Date(query.from) : undefined,
       to: query.to ? new Date(query.to) : undefined,
-      page: query.page ? Number(query.page) : undefined,
-      limit: query.limit ? Number(query.limit) : undefined,
+      page: query.page,
+      limit: query.limit,
     });
   }
 }

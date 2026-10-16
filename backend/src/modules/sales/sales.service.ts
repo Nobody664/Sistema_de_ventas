@@ -1,12 +1,14 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Prisma, PrismaClient, AuditAction } from '@prisma/client';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Prisma, PrismaClient, AuditAction, SaleStatus, InventoryMovementType } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
-import { CreateSaleDto, ExportSalesQueryDto } from './dto/sale.dto';
+import { CreateSaleDto, ExportSalesQueryDto, QuerySalesDto } from './dto/sale.dto';
 import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
 import { LowStockService } from '@/modules/low-stock/low-stock.service';
 import { KardexService } from '@/modules/kardex/kardex.service';
 import { ProductBatchesService } from '@/modules/product-batches/product-batches.service';
 import { DistributorsService } from '@/modules/distributors/distributors.service';
+import { DiscountsService } from '@/modules/discounts/discounts.service';
+import { PlanCapabilitiesService } from '@/modules/plan-capabilities/plan-capabilities.service';
 import { AuditService } from '@/common/services/audit.service';
 
 type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
@@ -33,9 +35,14 @@ export class SalesService {
     private readonly productBatchesService: ProductBatchesService,
     private readonly auditService: AuditService,
     private readonly distributorsService: DistributorsService,
+    private readonly discountsService: DiscountsService,
+    private readonly planCapabilities: PlanCapabilitiesService,
   ) {}
 
-  findRecentSales(companyId: string) {
+  findRecentSales(companyId: string, query: QuerySalesDto = {}) {
+    const page = Math.max(query.page ?? 1, 1);
+    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+
     return this.prisma.sale.findMany({
       where: { companyId },
       select: {
@@ -50,16 +57,18 @@ export class SalesService {
         employee: { select: { firstName: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      skip: (page - 1) * limit,
+      take: limit,
     });
   }
 
-  findById(companyId: string, id: string) {
-    return this.prisma.sale.findFirst({
+  async findById(companyId: string, id: string) {
+    const sale = await this.prisma.sale.findFirst({
       where: { id, companyId },
       include: {
         customer: true,
         employee: true,
+        coupon: { select: { id: true, code: true, type: true, value: true } },
         items: {
           include: {
             product: {
@@ -69,6 +78,12 @@ export class SalesService {
         },
       },
     });
+
+    if (!sale) {
+      throw new NotFoundException('Venta no encontrada.');
+    }
+
+    return sale;
   }
 
   async exportSales(companyId: string, query: ExportSalesQueryDto) {
@@ -295,12 +310,17 @@ export class SalesService {
       };
     });
 
+    if (input.couponCode && input.discountAmount && input.discountAmount > 0) {
+      throw new BadRequestException('No puedes combinar un cupon de descuento con un descuento manual.');
+    }
+
+    if (input.couponCode || (input.discountAmount && input.discountAmount > 0)) {
+      await this.assertDiscountsEnabled(companyId);
+    }
+
     const taxAmount = new Prisma.Decimal(input.taxAmount ?? 0);
-    const discountAmount = new Prisma.Decimal(input.discountAmount ?? 0);
-    const totalAmount = subtotal.plus(taxAmount).minus(discountAmount);
-    const paidAmount = totalAmount;
-    const changeAmount = new Prisma.Decimal(0);
-    const saleNumber = `SALE-${Date.now()}`;
+    const manualDiscount = new Prisma.Decimal(input.discountAmount ?? 0);
+    const saleNumber = `SALE-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
     if (input.customerId) {
       const customer = await this.prisma.customer.findFirst({
@@ -321,20 +341,36 @@ export class SalesService {
     }
 
     const sale = await this.prisma.$transaction(async (tx) => {
+      let couponId: string | undefined;
+      let discountAmount = manualDiscount;
+      if (input.couponCode) {
+        const applied = await this.discountsService.resolveForSale(
+          tx,
+          companyId,
+          input.couponCode,
+          subtotal,
+        );
+        couponId = applied.couponId;
+        discountAmount = applied.discountAmount;
+      }
+
+      const totalAmount = subtotal.plus(taxAmount).minus(discountAmount);
+
       const created = await tx.sale.create({
         data: {
           companyId,
           customerId: input.customerId,
           employeeId: input.employeeId,
           channel: input.channel ?? 'POS',
+          couponId,
           saleNumber,
           subtotal,
           taxAmount,
           discountAmount,
           totalAmount,
           paymentMethod: input.paymentMethod,
-          paidAmount,
-          changeAmount,
+          paidAmount: totalAmount,
+          changeAmount: new Prisma.Decimal(0),
           items: {
             create: itemsData,
           },
@@ -404,7 +440,7 @@ export class SalesService {
         saleNumber: sale.saleNumber,
         subtotal: Number(subtotal),
         taxAmount: Number(taxAmount),
-        discountAmount: Number(discountAmount),
+        discountAmount: Number(sale.discountAmount),
         totalAmount: Number(sale.totalAmount),
         paymentMethod: sale.paymentMethod,
         customerId: sale.customerId,
@@ -435,5 +471,135 @@ export class SalesService {
     }
 
     return sale;
+  }
+
+  private async assertDiscountsEnabled(companyId: string) {
+    const capabilities = await this.planCapabilities.getCapabilities(companyId);
+    if (!this.planCapabilities.hasFeature(capabilities, 'sales.discounts')) {
+      throw new ForbiddenException({
+        error: 'FEATURE_NOT_AVAILABLE',
+        message: 'Los descuentos no estan incluidos en tu plan actual.',
+        features: ['sales.discounts'],
+        currentPlan: capabilities.planCode,
+        upgradeUrl: '/subscription',
+      });
+    }
+  }
+
+  cancelSale(companyId: string, id: string, userId: string | undefined, reason?: string) {
+    return this.reverseSale(companyId, id, SaleStatus.CANCELLED, userId, reason);
+  }
+
+  refundSale(companyId: string, id: string, userId: string | undefined, reason?: string) {
+    return this.reverseSale(companyId, id, SaleStatus.REFUNDED, userId, reason);
+  }
+
+  private async reverseSale(
+    companyId: string,
+    id: string,
+    targetStatus: SaleStatus,
+    userId: string | undefined,
+    reason?: string,
+  ) {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, companyId },
+      include: { items: true },
+    });
+
+    if (!sale) {
+      throw new NotFoundException('Venta no encontrada.');
+    }
+    if (sale.status !== SaleStatus.COMPLETED) {
+      throw new BadRequestException(
+        `Solo se pueden anular o reembolsar ventas completadas. Estado actual: ${sale.status}.`,
+      );
+    }
+
+    const label = targetStatus === SaleStatus.REFUNDED ? 'Reembolso' : 'Anulacion';
+    const noteText = reason
+      ? `${sale.notes ? `${sale.notes}\n` : ''}${label}: ${reason}`
+      : sale.notes;
+
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        const guard = await tx.sale.updateMany({
+          where: { id, companyId, status: SaleStatus.COMPLETED },
+          data: { status: targetStatus, notes: noteText },
+        });
+        if (guard.count !== 1) {
+          throw new BadRequestException('La venta ya fue procesada.');
+        }
+
+        const productIds = Array.from(new Set(sale.items.map((item) => item.productId)));
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds }, companyId },
+          include: { presentations: true },
+        });
+        const productMap = new Map(products.map((product) => [product.id, product]));
+
+        for (const item of sale.items) {
+          const product = productMap.get(item.productId);
+          if (!product) {
+            throw new NotFoundException(`Producto ${item.productId} no encontrado.`);
+          }
+
+          const presentation = item.presentationId
+            ? product.presentations.find((entry) => entry.id === item.presentationId)
+            : undefined;
+          const factor = presentation ? presentation.factor : new Prisma.Decimal(1);
+          const baseQuantity = item.quantity.mul(factor);
+
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stockQuantity: { increment: baseQuantity } },
+          });
+
+          const movement = await tx.inventoryMovement.create({
+            data: {
+              companyId,
+              productId: item.productId,
+              presentationId: item.presentationId,
+              type: InventoryMovementType.RETURN,
+              quantity: baseQuantity,
+              notes: `${label} de venta ${sale.saleNumber}`,
+            },
+          });
+
+          await this.kardexService.recordInMovement(
+            companyId,
+            item.productId,
+            baseQuantity,
+            product.costPrice ?? new Prisma.Decimal(0),
+            movement.id,
+            tx,
+          );
+        }
+
+        return tx.sale.findUnique({
+          where: { id },
+          include: { items: true, customer: true, employee: true },
+        });
+      },
+      { maxWait: 10_000, timeout: 15_000 },
+    );
+
+    await this.auditService.log({
+      companyId,
+      userId,
+      action: AuditAction.UPDATE,
+      entity: 'Sale',
+      entityId: id,
+      changes: {
+        status: targetStatus,
+        reason: reason ?? null,
+        saleNumber: sale.saleNumber,
+        reversedItems: sale.items.map((item) => ({
+          productId: item.productId,
+          quantity: Number(item.quantity),
+        })),
+      },
+    });
+
+    return updated;
   }
 }
