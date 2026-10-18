@@ -1,8 +1,10 @@
 # Área: Cupones de descuento
 
 Alta, edición y listado de cupones de descuento con cupo de usos (`maxUses`), vigencia
-(`startsAt`/`expiresAt`), compra mínima (`minPurchase`) y activación/desactivación. Exclusivo del rol
-`COMPANY_ADMIN`. Los cupones se consumen en el POS (ver `ventas.md`). Ruta del código:
+(`startsAt`/`expiresAt`), compra mínima (`minPurchase`) y activación/desactivación. Ver el listado está
+disponible para `COMPANY_ADMIN` y `MANAGER`; crear, editar y desactivar es exclusivo de
+`COMPANY_ADMIN` (los botones usan `PermissionGuard permission="discount:manage"`). Los cupones se
+consumen en el POS (ver `ventas.md`). Ruta del código:
 `frontend/app/(dashboard)/discounts/` y `frontend/components/discounts/`.
 
 ## Rutas y páginas

@@ -77,3 +77,10 @@ Relacionados con el gating de plan (usados por los layouts y el sidebar):
 - `TrialBanner` no se muestra si `daysLeft <= 0` aunque `companyStatus` siga siendo `TRIAL`.
 - `next.config.ts` redirige rutas heredadas a `/platform/...`: `/payment-settings`, `/settings/payment`, `/companies`, `/subscribers`, `/upgrade-requests`, `/subscriptions`, `/audit`, `/invoices/templates`.
 - El layout de dashboard solo redirige por `INACTIVE` y `SUSPENDED` (no por `PAST_DUE`); el middleware `frontend/proxy.ts` sí redirige `PAST_DUE` a `/account-suspended`.
+
+## Actualizacion: campanita sonora y nuevas entradas de menu
+
+- `NotificationBell` guarda el conteo previo en un `useRef` y, cuando `unreadCount` aumenta, activa la clase `animate-bell-ring` (keyframes `bellRing` en `app/globals.css`, respeta `prefers-reduced-motion`) durante 1.2 s.
+- `store/notifications-store.ts` reproduce un chime al agregar una notificacion en vivo (`playNotificationChime` de `frontend/lib/sound.ts`, basado en `AudioContext`); solo suena lo que llega por SSE, no el `fetch` inicial.
+- `components/notifications/notifications-client.tsx` agrega `PRODUCT_EXPIRING_SOON` a `typeConfig` (icono `Clock`, tonos naranja) y a `notificationRoutes` (`/products`).
+- `app-sidebar.tsx` agrega `{ label: 'Finanzas', href: '/finance', icon: Landmark, roles: ['COMPANY_ADMIN'] }` (sin `module`) y mantiene `Cupones` visible para `COMPANY_ADMIN` y `MANAGER`.

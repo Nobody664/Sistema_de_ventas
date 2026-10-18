@@ -12,6 +12,7 @@ import { useUiStore } from '@/store/ui-store';
 import { useAuthStore } from '@/stores/auth.store';
 import { CustomerSearch } from '@/components/ui/customer-search';
 import { CustomerBoxSelector } from '@/components/ui/customer-box-selector';
+import { PermissionGuard } from '@/components/auth/permission-guard';
 import { useBarcodeScanner } from '@/components/scanner/hooks/useBarcodeScanner';
 import { ScannerStatus } from '@/components/scanner/components/scanner-status';
 import { playScanBeep, playErrorBeep } from '@/components/scanner/services/sound';
@@ -668,6 +669,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
 
               {/* Coupon */}
               {channel !== 'DISTRIBUTOR' && (
+                <PermissionGuard permission="discount:list">
                 <div className="px-5 pb-4 space-y-2">
                   <Label className="text-sm font-semibold text-foreground mb-2 block">
                     Cupón de descuento
@@ -716,6 +718,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                   )}
                   {couponError && <p className="text-xs text-red-500">{couponError}</p>}
                 </div>
+                </PermissionGuard>
               )}
 
               {/* Discount */}

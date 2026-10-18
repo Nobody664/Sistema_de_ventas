@@ -164,3 +164,8 @@ apiQuota, maxUsers, maxProducts }`.
 | `FEATURE_NOT_AVAILABLE` | 403 | `@RequireFeature` / API sin plan |
 | `API_QUOTA_EXCEEDED` | 429 | `ApiQuotaService.consume` |
 | `LIMIT_EXCEEDED` | 403 | `SubscriptionLimitService.validateLimit` |
+
+## Actualizacion: permisos de Finanzas y cupones
+
+- `finance:list` (`GET /finance`, `GET /finance/summary`, `GET /finance/:id`) y `finance:manage` (`POST`/`PATCH`/`DELETE /finance`): solo `COMPANY_ADMIN` (`SUPER_ADMIN` por comodin). No dependen de modulo/feature de plan.
+- Cupones: ver listado = `COMPANY_ADMIN` + `MANAGER` (`discount:list`); aplicar en el POS = cualquier rol que pueda vender; gestionar (`discount:manage`) = solo `COMPANY_ADMIN`.

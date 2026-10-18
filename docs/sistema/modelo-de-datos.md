@@ -165,3 +165,12 @@ Company 1─* Branch / ApiUsage
 - `distributors`: `@@unique([companyId, code])`; `distributor_deliveries`: `@@unique([companyId, deliveryNumber])`.
 - `customers`: únicos `(companyId, email)` y `(companyId, documentValue)`.
 - `entities` con soft-delete (`deletedAt`): `Product`, `Category`, `Customer`, `Employee`, `Distributor`.
+
+## Actualizacion (vencimiento, sueldos y finanzas)
+
+- `Product.expiryDate` (`DateTime?`): fecha de vencimiento del producto; se usa en el listado de productos y en las alertas de vencimiento.
+- `StockEntry.entryDate` (`DateTime?`, default `now()`): fecha del ingreso de mercaderia (distinta de `createdAt`).
+- `StockEntryItem.expiryDate` (`DateTime?`): vencimiento por item del ingreso; al registrar la entrada tambien actualiza `Product.expiryDate`.
+- `Employee.salary` (`Decimal(12,2)?`) y `Employee.paymentDay` (`Int?`, 1-31); relacion `Employee.financeRecords`.
+- `NotificationType` suma `PRODUCT_EXPIRING_SOON`.
+- `finance_records` (modelo `FinanceRecord`, migracion `20261016000000_add_expiry_alerts_finance`): `companyId`, `direction` (`ENTRY`/`EXIT`), `category` (`PURCHASE`/`SALE`/`PAYROLL`/`ELECTRICITY`/`WATER`/`MAINTENANCE`/`OTHER`), `description`, `amount` (`Decimal(12,2)`), `currency` (default `PEN`), `recordDate`, `dueDate?`, `reference?`, `supplier?`, `employeeId?`, `notes?`, `createdById?`; relacion `Company.financeRecords`. Indices: `(companyId, recordDate)`, `(companyId, direction)`, `(companyId, category)`.

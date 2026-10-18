@@ -16,6 +16,31 @@ const UNIT_SHORT: Record<string, string> = {
   MT: 'mt',
 };
 
+function ExpiryBadge({ value }: { value?: Date | string | null }) {
+  if (!value) {
+    return <span className="text-foreground/30">—</span>;
+  }
+
+  const date = new Date(value);
+  const daysLeft = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+  const label = daysLeft < 0 ? 'Vencido' : daysLeft <= 3 ? 'Por vencer' : 'Vigente';
+  const className =
+    daysLeft < 0
+      ? 'border-red-500/30 bg-red-500/15 text-red-700'
+      : daysLeft <= 3
+        ? 'border-amber-500/30 bg-amber-500/20 text-amber-700'
+        : 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700';
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span className="text-sm text-foreground/70">{date.toLocaleDateString('es-PE')}</span>
+      <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${className}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 interface ProductsPageClientProps {
   initialProducts: Product[];
   categories: Category[];
@@ -188,6 +213,8 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                   <th className="pb-4 font-medium">Categoria</th>
                   <th className="pb-4 font-medium text-right">Stock</th>
                   <th className="pb-4 font-medium text-right">Precio</th>
+                  <th className="pb-4 font-medium text-center">Registro</th>
+                  <th className="pb-4 font-medium text-center">Vencimiento</th>
                   <th className="pb-4 font-medium text-center">Estado</th>
                   <th className="pb-4 pr-4 text-right font-medium">Acciones</th>
                 </tr>
@@ -262,6 +289,12 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                       <td className="py-4 text-right">
                         <span className="font-medium">S/ {Number(product.salePrice).toFixed(2)}</span>
                       </td>
+                      <td className="py-4 text-center text-sm text-foreground/60">
+                        {new Date(product.createdAt).toLocaleDateString('es-PE')}
+                      </td>
+                      <td className="py-4 text-center">
+                        <ExpiryBadge value={product.expiryDate} />
+                      </td>
                       <td className="py-4 text-center">
                         <span
                           className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
@@ -280,7 +313,7 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-foreground/50">
+                    <td colSpan={10} className="py-12 text-center text-foreground/50">
                       {searchQuery || selectedCategory
                         ? 'No se encontraron productos con los filtros aplicados.'
                         : 'No hay productos registrados. Registra el Primero!!.'}

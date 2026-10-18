@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Loader2, User, Mail, Phone, FileText, AlertTriangle, ArrowLeft, Shield, ToggleLeft, ToggleRight, Key, Check, X } from 'lucide-react';
+import { Loader2, User, Mail, Phone, FileText, AlertTriangle, ArrowLeft, Shield, ToggleLeft, ToggleRight, Key, Check, X, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -111,6 +111,8 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
       email: formData.get('email') as string,
       phone: (formData.get('phone') as string) || undefined,
       dni: formData.get('dni') as string,
+      salary: formData.get('salary') as string,
+      paymentDay: formData.get('paymentDay') as string,
       role: (formData.get('role') as string) || 'CASHIER',
       isActive: formData.get('isActive') === 'on',
     };
@@ -355,6 +357,56 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
                   </div>
                 </div>
               )}
+
+              {/* Remuneración */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Remuneración
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="salary" className="text-sm font-semibold text-slate-700">
+                      Sueldo mensual
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="salary"
+                        name="salary"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={employee?.salary != null ? Number(employee.salary).toFixed(2) : ''}
+                        placeholder="0.00"
+                        className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-10 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all ${fieldErrors.salary ? 'border-red-500' : ''}`}
+                      />
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">S/</span>
+                    </div>
+                    {fieldErrors.salary && (
+                      <p className="text-sm text-red-500">{fieldErrors.salary}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="paymentDay" className="text-sm font-semibold text-slate-700">
+                      Día de pago
+                    </Label>
+                    <Input
+                      id="paymentDay"
+                      name="paymentDay"
+                      type="number"
+                      min="1"
+                      max="31"
+                      defaultValue={employee?.paymentDay ?? ''}
+                      placeholder="Ej. 30"
+                      className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all ${fieldErrors.paymentDay ? 'border-red-500' : ''}`}
+                    />
+                    {fieldErrors.paymentDay && (
+                      <p className="text-sm text-red-500">{fieldErrors.paymentDay}</p>
+                    )}
+                    <p className="text-xs text-slate-400">Día del mes en que se paga el sueldo (1-31)</p>
+                  </div>
+                </div>
+              </div>
 
               {/* Role & Status */}
               <div>

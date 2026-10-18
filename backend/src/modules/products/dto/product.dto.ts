@@ -163,6 +163,10 @@ export class CreateProductDto {
   minStock?: number;
 
   @IsOptional()
+  @IsString()
+  expiryDate?: string | null;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreatePresentationDto)
@@ -209,6 +213,10 @@ export class UpdateProductDto {
   @Min(0)
   @Type(() => Number)
   minStock?: number;
+
+  @IsOptional()
+  @IsString()
+  expiryDate?: string | null;
 }
 
 export class UpsertPresentationsDto {

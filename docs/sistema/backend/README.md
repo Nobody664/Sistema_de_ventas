@@ -26,6 +26,7 @@ Convenciones generales (guards, errores, CSRF, paginación): ver
 | branches | `/branches` | [branches.md](./branches.md) | Sucursales. |
 | sales | `/sales` | [sales.md](./sales.md) | Punto de venta, cancelación/devolución y ventas a distribuidor. |
 | discounts | `/discounts` | [discounts.md](./discounts.md) | Cupones de descuento (cupo de usos, vigencia, consumo en la venta). |
+| finance | `/finance` | [finance.md](./finance.md) | Control financiero: entradas/salidas manuales + ventas automáticas, resumen y totales semanales. |
 | customers | `/customers` | [customers.md](./customers.md) | Clientes. |
 | employees | `/employees` | [employees.md](./employees.md) | Empleados. |
 | distributors | `/distributors` | [distributors.md](./distributors.md) | Distribuidores, entregas y saldos. |

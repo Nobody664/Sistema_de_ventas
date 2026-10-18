@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, Banknote, Boxes, AlertTriangle, ArrowLeft, QrCode, Plus, Trash2, Layers, Ruler } from 'lucide-react';
+import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, Banknote, Boxes, AlertTriangle, ArrowLeft, QrCode, Plus, Trash2, Layers, Ruler, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -148,6 +148,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       baseUnit: unit,
       categoryId: (formData.get('categoryId') as string) || undefined,
       imageUrl: imagePreview || undefined,
+      expiryDate: (formData.get('expiryDate') as string) || undefined,
     };
 
     const data = isEdit
@@ -174,7 +175,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       const method = isEdit ? 'PATCH' : 'POST';
 
       const payload = isEdit
-        ? data
+        ? { ...data, expiryDate: data.expiryDate ?? null }
         : {
             ...data,
             presentations: cleanPresentations.map((row) => ({
@@ -548,6 +549,20 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       ) : (
                         <p className="text-xs text-slate-400">Recibirás una alerta cuando baje de este nivel</p>
                       )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="expiryDate" className="text-sm font-semibold text-slate-700">Fecha de vencimiento</Label>
+                      <div className="relative">
+                        <Input
+                          id="expiryDate"
+                          name="expiryDate"
+                          type="date"
+                          defaultValue={product?.expiryDate ? new Date(product.expiryDate).toISOString().slice(0, 10) : ''}
+                          className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 pr-10 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.expiryDate ? 'border-red-500' : ''}`}
+                        />
+                        <CalendarClock className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" />
+                      </div>
+                      <p className="text-xs text-slate-400">Te avisaremos 3 días antes del vencimiento.</p>
                     </div>
                     {!isEdit && (
                       <div className="space-y-2">

@@ -53,3 +53,8 @@ Documenta el área de empleados del frontend Next.js (App Router). Código en
 - En `employee-form.tsx` el control visual de estado (`isActive`) no está enlazado a un handler que actualice su estado: el valor enviado proviene de checkbox ocultos con `defaultChecked` derivado de `employee?.isActive`. El comportamiento al alternar visualmente no se pudo verificar en el código.
 - `employee-form.tsx` importa `useAuthStore` y asigna `user`, pero `user` no se usa en el cuerpo del componente.
 - `serverApiFetch` devuelve `null` ante error o ausencia de token; las páginas usan valores por defecto (`?? 0`, `?? []`).
+
+## Actualizacion: sueldo y dia de pago
+
+- `employee-form.tsx` agrega la seccion **Remuneracion** con `salary` (monto, `S/`) y `paymentDay` (1-31); los valores viajan en el payload y se validan con `optionalSalary`/`optionalPaymentDay` de `employee.validation.ts` (vacio -> `null`).
+- El listado de `/employees` muestra `S/ <monto>` y `· dia <n>` cuando el empleado tiene sueldo definido.

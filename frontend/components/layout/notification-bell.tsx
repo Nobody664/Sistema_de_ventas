@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotificationsStore } from '@/store/notifications-store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -19,6 +19,21 @@ export function NotificationBell() {
     disconnectFromStream,
     markAllAsRead 
   } = useNotificationsStore();
+
+  const [isRinging, setIsRinging] = useState(false);
+  const previousUnread = useRef(unreadCount);
+
+  useEffect(() => {
+    if (unreadCount > previousUnread.current) {
+      setIsRinging(true);
+      const timeout = window.setTimeout(() => setIsRinging(false), 1200);
+      previousUnread.current = unreadCount;
+      return () => window.clearTimeout(timeout);
+    }
+
+    previousUnread.current = unreadCount;
+    return undefined;
+  }, [unreadCount]);
 
   useEffect(() => {
     if (!user) {
@@ -68,7 +83,7 @@ export function NotificationBell() {
         className="relative rounded-full"
         onClick={handleClick}
       >
-        <Bell className="size-5" />
+        <Bell className={isRinging ? 'size-5 animate-bell-ring' : 'size-5'} />
         {unreadCount > 0 && (
           <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs text-white">
             {unreadCount > 99 ? '99+' : unreadCount}

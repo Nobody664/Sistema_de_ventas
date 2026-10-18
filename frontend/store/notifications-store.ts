@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { apiFetch } from '@/lib/api';
+import { playNotificationChime } from '@/lib/sound';
 import type { Notification } from '@/types/api';
 
 interface NotificationsState {
@@ -125,6 +126,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   addNotification: (notification: Notification) => {
     const { notifications, unreadCount } = get();
+    playNotificationChime();
     set({
       notifications: [notification, ...notifications],
       unreadCount: unreadCount + 1,

@@ -68,7 +68,7 @@ export default async function DiscountsPage({ searchParams }: DiscountPageProps)
   }
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes('COMPANY_ADMIN')) {
+  if (!roles.includes('COMPANY_ADMIN') && !roles.includes('MANAGER')) {
     redirect('/dashboard');
   }
 

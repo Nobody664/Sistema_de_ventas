@@ -115,7 +115,23 @@ enum NotificationType {
   NEW_CUSTOMER
   SALE_COMPLETED
   SALE_RETURNED
+  PRODUCT_EXPIRING_SOON
   GENERAL
+}
+
+enum FinanceDirection {
+  ENTRY
+  EXIT
+}
+
+enum FinanceCategory {
+  PURCHASE
+  SALE
+  PAYROLL
+  ELECTRICITY
+  WATER
+  MAINTENANCE
+  OTHER
 }
 
 enum NotificationChannel {
@@ -248,6 +264,7 @@ model Company {
   distributorDeliveries DistributorDelivery[]
   apiUsage            ApiUsage[]
   discountCoupons     DiscountCoupon[]
+  financeRecords      FinanceRecord[]
 
   @@map("companies")
 }
@@ -399,6 +416,7 @@ model Product {
   isActive      Boolean        @default(true) @map("is_active")
   imageUrl      String?        @map("image_url")
   barcode       String?
+  expiryDate    DateTime?      @map("expiry_date")
   deletedAt     DateTime?      @map("deleted_at")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
@@ -519,6 +537,8 @@ model Employee {
   phone     String?
   dni       String?
   role      MembershipRole @default(CASHIER)
+  salary    Decimal?       @db.Decimal(12, 2)
+  paymentDay Int?          @map("payment_day")
   isActive  Boolean        @default(true) @map("is_active")
   deletedAt DateTime?      @map("deleted_at")
   createdAt DateTime       @default(now()) @map("created_at")
@@ -527,6 +547,7 @@ model Employee {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
   sales   Sale[]
+  financeRecords FinanceRecord[]
 
   @@unique([companyId, dni])
   @@index([companyId])
@@ -582,6 +603,7 @@ model StockEntry {
   branchId  String?  @map("branch_id")
   reference String?
   notes     String?
+  entryDate DateTime @default(now()) @map("entry_date")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -595,14 +617,15 @@ model StockEntry {
 }
 
 model StockEntryItem {
-  id             String   @id @default(cuid())
-  stockEntryId   String   @map("stock_entry_id")
-  productId      String   @map("product_id")
-  presentationId String?  @map("presentation_id")
-  quantity       Decimal  @db.Decimal(14, 3)
-  baseQuantity   Decimal  @map("base_quantity") @db.Decimal(14, 3)
-  unitCost       Decimal  @map("unit_cost") @db.Decimal(12, 4)
-  createdAt      DateTime @default(now()) @map("created_at")
+  id             String    @id @default(cuid())
+  stockEntryId   String    @map("stock_entry_id")
+  productId      String    @map("product_id")
+  presentationId String?   @map("presentation_id")
+  quantity       Decimal   @db.Decimal(14, 3)
+  baseQuantity   Decimal   @map("base_quantity") @db.Decimal(14, 3)
+  unitCost       Decimal   @map("unit_cost") @db.Decimal(12, 4)
+  expiryDate     DateTime? @map("expiry_date")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   stockEntry   StockEntry          @relation(fields: [stockEntryId], references: [id], onDelete: Cascade)
   product      Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -1030,4 +1053,32 @@ model RefreshToken {
   @@index([companyId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+model FinanceRecord {
+  id          String          @id @default(cuid())
+  companyId   String          @map("company_id")
+  direction   FinanceDirection
+  category    FinanceCategory @default(OTHER)
+  description String
+  amount      Decimal         @db.Decimal(12, 2)
+  currency    String          @default("PEN")
+  recordDate  DateTime        @map("record_date")
+  dueDate     DateTime?       @map("due_date")
+  reference   String?
+  supplier    String?
+  employeeId  String?         @map("employee_id")
+  notes       String?
+  createdById String?         @map("created_by_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, recordDate])
+  @@index([companyId, direction])
+  @@index([companyId, category])
+  @@index([employeeId])
+  @@map("finance_records")
 }

@@ -94,3 +94,64 @@ export interface DiscountCoupon {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export type FinanceDirection = 'ENTRY' | 'EXIT';
+
+export type FinanceCategory =
+  | 'PURCHASE'
+  | 'SALE'
+  | 'PAYROLL'
+  | 'ELECTRICITY'
+  | 'WATER'
+  | 'MAINTENANCE'
+  | 'OTHER';
+
+export type FinanceSource = 'MANUAL' | 'SALE';
+
+export interface FinanceRecord {
+  id: string;
+  source: FinanceSource;
+  direction: FinanceDirection;
+  category: FinanceCategory;
+  description: string;
+  amount: number;
+  currency: string;
+  recordDate: string;
+  dueDate: string | null;
+  reference: string | null;
+  supplier: string | null;
+  notes: string | null;
+  employeeId: string | null;
+  employeeName: string | null;
+  editable: boolean;
+  createdAt: string;
+}
+
+export interface FinanceWeekBucket {
+  start: string;
+  end: string;
+  entries: number;
+  exits: number;
+  sales: number;
+  expenses: number;
+  balance: number;
+}
+
+export interface FinanceSummary {
+  from: string;
+  to: string;
+  entries: { total: number; count: number };
+  exits: { total: number; count: number };
+  sales: { total: number; count: number };
+  expenses: { total: number; count: number };
+  balance: number;
+  byCategory: Record<string, number>;
+  weeks: FinanceWeekBucket[];
+}
+
+export interface FinanceListResponse {
+  items: FinanceRecord[];
+  total: number;
+  page: number;
+  limit: number;
+}

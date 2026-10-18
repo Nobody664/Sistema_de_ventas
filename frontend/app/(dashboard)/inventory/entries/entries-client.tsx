@@ -27,6 +27,7 @@ interface EntryItem {
   baseQuantity: string;
   unitCost: string;
   unitCostPresentation: string;
+  expiryDate: string | null;
   product: { id: string; name: string; sku: string | null; baseUnit: string };
   presentation?: { id: string; name: string; factor: string } | null;
 }
@@ -35,6 +36,7 @@ interface EntryRecord {
   id: string;
   reference: string | null;
   notes: string | null;
+  entryDate: string | null;
   createdAt: string;
   branch?: { id: string; name: string } | null;
   items: EntryItem[];
@@ -46,6 +48,7 @@ interface Line {
   presentationId: string;
   quantity: string;
   unitCost: string;
+  expiryDate: string;
 }
 
 interface StockEntriesClientProps {
@@ -60,6 +63,7 @@ const emptyLine = (): Line => ({
   presentationId: '',
   quantity: '',
   unitCost: '',
+  expiryDate: '',
 });
 
 export function StockEntriesClient({ initialEntries, products, branches }: StockEntriesClientProps) {
@@ -73,6 +77,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
   const [branchId, setBranchId] = useState('');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
+  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,6 +121,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
         presentationId: line.presentationId || undefined,
         quantity: Number(line.quantity),
         unitCost: Number(line.unitCost) || 0,
+        expiryDate: line.expiryDate ? `${line.expiryDate}T00:00:00` : undefined,
       }));
 
     if (items.length === 0) {
@@ -132,6 +138,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
           branchId: branchId || undefined,
           reference: reference || undefined,
           notes: notes || undefined,
+          entryDate: entryDate ? new Date(`${entryDate}T00:00:00`).toISOString() : undefined,
           items,
         }),
       });
@@ -183,7 +190,16 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
 
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-100">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Fecha de ingreso</Label>
+              <Input
+                type="date"
+                value={entryDate}
+                onChange={(event) => setEntryDate(event.target.value)}
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+              />
+            </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Sucursal</Label>
               <select
@@ -246,7 +262,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
               return (
                 <div key={line.key} className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4">
                   <div className="grid grid-cols-2 gap-3 lg:grid-cols-12">
-                    <div className="col-span-2 space-y-1 lg:col-span-4">
+                    <div className="col-span-2 space-y-1 lg:col-span-3">
                       <Label className="text-xs font-semibold text-slate-500">Producto</Label>
                       <select
                         value={line.productId}
@@ -308,6 +324,16 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
                           className="h-11 rounded-lg border-slate-200 bg-white pl-9"
                         />
                       </div>
+                    </div>
+
+                    <div className="col-span-2 space-y-1 lg:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-500">Vencimiento</Label>
+                      <Input
+                        type="date"
+                        value={line.expiryDate}
+                        onChange={(event) => updateLine(line.key, 'expiryDate', event.target.value)}
+                        className="h-11 rounded-lg border-slate-200 bg-white"
+                      />
                     </div>
 
                     <div className="col-span-2 flex items-end justify-between gap-2 lg:col-span-1 lg:justify-end">
@@ -383,7 +409,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
         </div>
 
         <div className="max-h-[600px] overflow-auto rounded-xl border border-foreground/10">
-          <table className="w-full min-w-[820px]">
+          <table className="w-full min-w-[940px]">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b border-foreground/10 text-left text-sm text-foreground/50">
                 <th className="pb-4 pl-4 font-medium">Fecha</th>
@@ -391,6 +417,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
                 <th className="pb-4 font-medium">Sucursal</th>
                 <th className="pb-4 font-medium">Producto</th>
                 <th className="pb-4 font-medium text-right">Cantidad</th>
+                <th className="pb-4 font-medium text-center">Vencimiento</th>
                 <th className="pb-4 font-medium text-right">Costo total</th>
               </tr>
             </thead>
@@ -402,7 +429,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
                       {itemIndex === 0 && (
                         <>
                           <td className="py-3 pl-4 text-sm text-foreground/60" rowSpan={entry.items.length}>
-                            {new Date(entry.createdAt).toLocaleDateString()}
+                            {new Date(entry.entryDate ?? entry.createdAt).toLocaleDateString()}
                           </td>
                           <td className="py-3 text-sm" rowSpan={entry.items.length}>
                             {entry.reference ?? '—'}
@@ -424,6 +451,9 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
                           {Number(item.baseQuantity).toFixed(3)} {UNIT_SHORT[item.product.baseUnit] ?? item.product.baseUnit}
                         </span>
                       </td>
+                      <td className="py-3 text-center text-sm text-foreground/60">
+                        {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '—'}
+                      </td>
                       <td className="py-3 pr-4 text-right text-sm font-medium">
                         S/ {(Number(item.unitCost) * Number(item.quantity)).toFixed(2)}
                       </td>
@@ -432,7 +462,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
                 )
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-foreground/50">
+                  <td colSpan={7} className="py-12 text-center text-foreground/50">
                     Aún no hay entradas registradas.
                   </td>
                 </tr>

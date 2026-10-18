@@ -148,3 +148,8 @@ Ejemplos observados en el código:
 Verifican la propiedad en `markAsRead`:
 - Devuelve **404** (`NotFoundException`) cuando la notificación es de otro usuario (`findFirst` → `null`).
 - Marca como leída solo una notificación cuyo `findFirst({ id, userId })` coincide, y el `update` se ejecuta con `{ id }`.
+
+## Actualizacion: tipo PRODUCT_EXPIRING_SOON
+
+- El enum de tipos suma `PRODUCT_EXPIRING_SOON`, emitido por `LowStockService` cuando un producto esta a 3 dias o menos de vencer (ver `low-stock.md`).
+- El frontend mapea el tipo a un icono/color propio y navega a `/products` al hacer clic (ver `frontend/layout-navegacion-estado.md`).

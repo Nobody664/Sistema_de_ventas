@@ -357,8 +357,8 @@ curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/plans" -H "Content-Type: applic
 ### 6.4 Superficies públicas reducidas (R4)
 
 ```powershell
-curl.exe -s -o - -w "`n%{http_code}" "$B/debug/routes"       # esperado: 401 (antes público)
-curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/auth/test-public" -H "Content-Type: application/json" -d '{}'   # esperado: 401
+curl.exe -s -o - -w "`n%{http_code}" "$B/debug/routes"       # esperado: 404 (módulo debug eliminado)
+curl.exe -s -o - -w "`n%{http_code}" -X POST "$B/auth/test-public" -H "Content-Type: application/json" -d '{}'   # esperado: 404 (ruta eliminada)
 ```
 
 ### 6.5 Notificaciones: `markAsRead` solo propias (R4)
@@ -568,13 +568,55 @@ Checklist manual (requiere el server corriendo con DB/Redis alcanzables):
 - [ ] proof de empresa ajena → 404
 - [ ] `GET /payment-settings/proof/subscription/:id` sin token → 401
 - [ ] `/api/sales/test` → 401
-- [ ] `/api/debug/routes` → 401 (antes público)
-- [ ] `POST /auth/test-public` → 401 (antes público)
+- [ ] `/api/debug/routes` → 404 (módulo debug eliminado)
+- [ ] `POST /auth/test-public` → 404 (ruta eliminada)
 - [ ] `POST /payments/webhooks/mercadopago` sin firma/secreto → 401
 - [ ] `POST /plans` con usuario sin SUPER_ADMIN → 403 (Rol en guard global)
 - [ ] `POST /subscriptions/upgrade-requests/:id/proof` de empresa ajena → 403
 - [ ] `PATCH /notifications/:id/read` de otro usuario → 404
-- [ ] `npm test` (backend) → 46/46
+- [ ] `npm test` (backend) → 66/66 (18 suites)
 - [ ] `npm run lint` (frontend) → 0
 - [ ] `tsc --noEmit` + `npm run build` (backend) → 0
 - [ ] `npm run build` (frontend) → 0 (verificado round 3)
+
+---
+
+## Round 5 - Vencimientos, finanzas y sueldos
+
+### Backend
+
+- [ ] `npm test` (backend) → 66/66 (18 suites).
+- [ ] `npx tsc --noEmit` (backend) → 0.
+
+### Frontend
+
+- [ ] `npx tsc --noEmit` (frontend) → 0.
+- [ ] `npm run build` (frontend) → 0 (incluye la ruta `/finance`).
+
+### Productos
+
+- [ ] Crear un producto con fecha de vencimiento: aparece en la columna **Vencimiento** con badge **Vigente**.
+- [ ] Un producto con vencimiento a 1-3 días muestra **Por vencer** y genera una notificación `PRODUCT_EXPIRING_SOON` (cron diario 07:00 o al crear/editar el producto).
+- [ ] Un producto vencido muestra **Vencido**.
+
+### Inventario (ingresos)
+
+- [ ] Registrar una entrada con **Fecha** y **Vencimiento** por línea; el historial muestra ambas fechas y el producto queda con el nuevo `expiryDate`.
+
+### Notificaciones
+
+- [ ] Con la app abierta, recibir una notificación en vivo: suena el chime y la campanita se agita (`animate-bell-ring`).
+- [ ] Las notificaciones de vencimiento navegan a `/products` al hacer clic.
+
+### Finanzas (solo COMPANY_ADMIN)
+
+- [ ] `/finance` carga tarjetas (Entradas/Salidas/Ventas/Gastos), balance, totales semanales y listado.
+- [ ] Registrar una entrada (compra) y una salida (luz/agua/mantenimiento/otro) y ver el balance actualizado.
+- [ ] Registrar un pago de sueldo eligiendo empleado; el select solo aparece con la categoria **Sueldo**.
+- [ ] Editar y eliminar un registro manual; las filas de venta muestran **Automatico** y no se pueden editar ni borrar.
+- [ ] Intentar crear una categoria **SALE** manual → 400 (las ventas se registran desde Ventas).
+- [ ] Un usuario no `COMPANY_ADMIN` no ve la entrada de menu ni puede abrir `/finance` (redirige a `/dashboard`).
+
+### Empleados
+
+- [ ] Crear/editar un empleado con sueldo y dia de pago; el listado muestra ambos datos.

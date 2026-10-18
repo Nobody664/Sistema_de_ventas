@@ -56,7 +56,9 @@ export type Permission =
   | 'distributor:deliver'
   | 'distributor:settle'
   | 'discount:list'
-  | 'discount:manage';
+  | 'discount:manage'
+  | 'finance:list'
+  | 'finance:manage';
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: [
@@ -118,6 +120,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'distributor:settle',
     'discount:list',
     'discount:manage',
+    'finance:list',
+    'finance:manage',
   ],
 
   COMPANY_ADMIN: [
@@ -168,6 +172,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'distributor:settle',
     'discount:list',
     'discount:manage',
+    'finance:list',
+    'finance:manage',
   ],
 
   MANAGER: [

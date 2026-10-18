@@ -1,7 +1,7 @@
 # Módulo: discounts
 
 ## Propósito
-Cupones de descuento por empresa: código canónico (mayúsculas), tipo (`PERCENTAGE`/`FIXED`), valor, cupo máximo de usos, vigencia y compra mínima. El descuento se valida y se consume **dentro de la transacción de la venta**, por lo que el cupo no puede sobre-venderse. Crear/editar/desactivar cupones es exclusivo de `COMPANY_ADMIN`; aplicarlos en una venta está disponible para cualquier rol que pueda vender.
+Cupones de descuento por empresa: código canónico (mayúsculas), tipo (`PERCENTAGE`/`FIXED`), valor, cupo máximo de usos, vigencia y compra mínima. El descuento se valida y se consume **dentro de la transacción de la venta**, por lo que el cupo no puede sobre-venderse. Ver el listado y consultar un cupón está disponible para `COMPANY_ADMIN` y `MANAGER` (`discount:list`), aplicarlo en una venta para cualquier rol que pueda vender, y crear/editar/desactivar (`discount:manage`) es exclusivo de `COMPANY_ADMIN`.
 
 ## Archivos clave
 - `backend/src/modules/discounts/discounts.controller.ts` — controller `discounts`; guards de clase `JwtAuthGuard`, `TenantGuard`, `PermissionsGuard` + `@RequireModule('sales')` + `@RequireFeature('sales.discounts')`.

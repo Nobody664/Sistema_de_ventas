@@ -18,6 +18,10 @@ export class StockEntryItemDto {
   @Min(0)
   @Type(() => Number)
   unitCost!: number;
+
+  @IsOptional()
+  @IsString()
+  expiryDate?: string | null;
 }
 
 export class CreateStockEntryDto {
@@ -32,6 +36,10 @@ export class CreateStockEntryDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  entryDate?: string;
 
   @IsArray()
   @ArrayMinSize(1)

@@ -11,6 +11,7 @@ responsables, llamadas al backend y estado global. Ruta del código: `frontend/`
 | Productos y categorías | [productos-categorias.md](./productos-categorias.md) | CRUD de productos/categorías, escáner, imágenes. |
 | Ventas (POS) | [ventas.md](./ventas.md) | Punto de venta, detalle de venta, exportación, impresión. |
 | Cupones de descuento | [discounts.md](./discounts.md) | CRUD de cupones con cupo/vigencia y consumo en el POS. |
+| Finanzas | [finanzas.md](./finanzas.md) | Entradas/salidas, resumen, totales semanales y pagos de sueldo (solo `COMPANY_ADMIN`). |
 | Clientes | [clientes.md](./clientes.md) | Listado, formularios y detalle de clientes. |
 | Empleados | [empleados.md](./empleados.md) | Listado, formularios y detalle de empleados. |
 | Inventario | [inventario.md](./inventario.md) | Movimientos, sucursales, entradas, lotes, kardex, reposición. |

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { BarChart3, Bell, CreditCard, Handshake, LayoutDashboard, Menu, Package, ShoppingCart, TicketPercent, Users, UserCog, FolderTree, Warehouse, type LucideIcon } from 'lucide-react';
+import { BarChart3, Bell, CreditCard, Handshake, Landmark, LayoutDashboard, Menu, Package, ShoppingCart, TicketPercent, Users, UserCog, FolderTree, Warehouse, type LucideIcon } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { usePlanCapabilities } from '@/components/plan-capabilities/plan-capabilities-provider';
 
@@ -25,11 +25,12 @@ const companyItems: NavItem[] = [
   { label: 'Productos', href: '/products', icon: Package, module: 'products', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
   { label: 'Categorías', href: '/categories', icon: FolderTree, module: 'categories', roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Ventas', href: '/sales', icon: ShoppingCart, module: 'sales', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Cupones', href: '/discounts', icon: TicketPercent, module: 'sales', roles: ['COMPANY_ADMIN'] },
+  { label: 'Cupones', href: '/discounts', icon: TicketPercent, module: 'sales', roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Clientes', href: '/customers', icon: Users, module: 'customers', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
   { label: 'Distribuidores', href: '/distributors', icon: Handshake, module: 'distributors', roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Empleados', href: '/employees', icon: UserCog, module: 'employees', roles: ['COMPANY_ADMIN', 'MANAGER'] },
   { label: 'Pagos', href: '/payments', icon: CreditCard, roles: ['COMPANY_ADMIN', 'MANAGER'] },
+  { label: 'Finanzas', href: '/finance', icon: Landmark, roles: ['COMPANY_ADMIN'] },
   { label: 'Reportes', href: '/reports', icon: BarChart3, module: 'reports', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
 ];
 

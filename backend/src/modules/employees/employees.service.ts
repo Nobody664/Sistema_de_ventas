@@ -42,6 +42,8 @@ export class EmployeesService {
         dni: true,
         role: true,
         isActive: true,
+        salary: true,
+        paymentDay: true,
         createdAt: true,
         user: { select: { email: true } },
       },
@@ -95,6 +97,8 @@ export class EmployeesService {
           phone: input.phone,
           dni: input.dni,
           role: input.role,
+          salary: input.salary ?? null,
+          paymentDay: input.paymentDay ?? null,
           isActive: input.isActive ?? true,
         },
         include: {
@@ -154,6 +158,8 @@ export class EmployeesService {
         phone: input.phone,
         dni: input.dni,
         role: input.role,
+        salary: input.salary ?? null,
+        paymentDay: input.paymentDay ?? null,
         isActive: input.isActive ?? true,
       },
       include: {

@@ -386,3 +386,9 @@ plan `categories`.
 
 - No se encontró un `PaginationDto` en este módulo: `GET /api/products` no acepta `page`/`limit` (usa `take: 50` fijo).
 - No se verificó que el guard `SubscriptionLimitGuard` aplique en el orden exacto respecto a `PermissionsGuard` (ambos están declarados; el orden de resolución no se inspeccionó en detalle).
+
+## Actualizacion: fecha de vencimiento
+
+- `CreateProductDto`/`UpdateProductDto` aceptan `expiryDate?: string | null` (ISO 8601). `createProduct` persiste `expiryDate` y `updateProduct` lo convierte a `Date` (`null` lo limpia); `findByCompany` lo incluye en el `select`.
+- Al crear o al cambiar `minStock`/`expiryDate` se disparan las alertas de stock bajo y de vencimiento (`LowStockService.notifyIfExpiring`) en modo best-effort (try/catch), sin bloquear la operacion.
+- El listado del frontend muestra columnas **Registro** (`createdAt`) y **Vencimiento** (badge Vencido / Por vencer / Vigente).

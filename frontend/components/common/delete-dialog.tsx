@@ -19,7 +19,7 @@ import { useAuthStore } from '@/stores/auth.store';
 
 interface DeleteDialogProps {
   id: string;
-  entity: 'product' | 'customer' | 'employee' | 'sale' | 'category' | 'distributor' | 'discount';
+  entity: 'product' | 'customer' | 'employee' | 'sale' | 'category' | 'distributor' | 'discount' | 'finance';
   title?: string;
   description?: string;
   successMessage?: string;
@@ -34,6 +34,7 @@ const QUERY_KEYS: Record<string, string[]> = {
   category: ['categories'],
   distributor: ['distributors'],
   discount: ['discounts'],
+  finance: ['finance'],
 };
 
 export function DeleteDialog({
@@ -60,6 +61,7 @@ export function DeleteDialog({
     category: 'la categoria',
     distributor: 'el distribuidor',
     discount: 'el cupon',
+    finance: 'el registro financiero',
   };
 
   const entityLabels = {
@@ -70,6 +72,7 @@ export function DeleteDialog({
     category: 'Categoría',
     distributor: 'Distribuidor',
     discount: 'Cupón',
+    finance: 'Registro',
   };
 
   const endpoints = {
@@ -80,6 +83,7 @@ export function DeleteDialog({
     category: `/products/categories/${id}`,
     distributor: `/distributors/${id}`,
     discount: `/discounts/${id}`,
+    finance: `/finance/${id}`,
   };
 
   const handleDelete = async () => {

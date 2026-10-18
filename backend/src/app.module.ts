@@ -47,6 +47,7 @@ import { CompanyProfileModule } from './modules/company-profile/company-profile.
 import { PlatformModule } from './modules/platform/platform.module';
 import { DistributorsModule } from './modules/distributors/distributors.module';
 import { DiscountsModule } from './modules/discounts/discounts.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { PlanCapabilitiesModule } from './modules/plan-capabilities/plan-capabilities.module';
 
 @Module({
@@ -135,6 +136,7 @@ import { PlanCapabilitiesModule } from './modules/plan-capabilities/plan-capabil
     PlatformModule,
     DistributorsModule,
     DiscountsModule,
+    FinanceModule,
     PlanCapabilitiesModule,
   ],
   providers: [

@@ -83,3 +83,9 @@ y por lector tipo teclado).
 - El escáner de `ui/barcode-scanner.tsx` (cámara, `BarcodeDetector`) y el de `components/scanner/*` (lector tipo teclado) son mecanismos distintos; el formulario de producto usa el de cámara.
 - El listado de productos no pagina en el frontend (el backend devuelve hasta 50).
 - `ProductActions` no incluye botón de borrado si el usuario carece de `product:delete`; el enlace de edición no está envuelto en `PermissionGuard`.
+
+## Actualizacion: vencimiento en el listado y el formulario
+
+- `/products` agrega las columnas **Registro** (`createdAt` formateado) y **Vencimiento** (componente `ExpiryBadge`: fecha + badge Vencido / Por vencer (<= 3 dias) / Vigente, o `-` sin fecha); el `colSpan` del estado vacio pasa a 10.
+- `product-form.tsx` incluye el campo `expiryDate` (`CalendarClock`, input `type=date`) con el aviso "Te avisaremos 3 dias antes del vencimiento."; en edicion envia `expiryDate ?? null`.
+- `frontend/lib/validations/product.validation.ts` acepta `expiryDate` opcional; `Product.expiryDate` existe en `frontend/types/generated.ts`.

@@ -96,6 +96,10 @@ export enum Permission {
   // Discount coupons
   DISCOUNT_LIST = 'discount:list',
   DISCOUNT_MANAGE = 'discount:manage',
+
+  // Finance
+  FINANCE_LIST = 'finance:list',
+  FINANCE_MANAGE = 'finance:manage',
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -163,6 +167,9 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 
     Permission.DISCOUNT_LIST,
     Permission.DISCOUNT_MANAGE,
+
+    Permission.FINANCE_LIST,
+    Permission.FINANCE_MANAGE,
   ],
 
   MANAGER: [

@@ -157,3 +157,8 @@ Guards a nivel de controlador: `@UseGuards(JwtAuthGuard, TenantGuard, Permission
 ## Observaciones
 - El DTO acepta `userId` opcional, pero `create` no lo usa para vincular un usuario existente: siempre crea un `User` nuevo a partir de `email`.
 - `findByCompany` no filtra por `deletedAt`, por lo que los empleados con borrado lógico podrían seguir apareciendo (no verificado en otros listados).
+
+## Actualizacion: sueldo y dia de pago
+
+- `CreateEmployeeDto`/`UpdateEmployeeDto` aceptan `salary` (`Int >= 0`) y `paymentDay` (`Int` 1-31), ambos opcionales/nullable; `create` (ambos caminos) y `update` los persisten, y `findByCompany` los incluye en el `select`.
+- Estos campos alimentan el selector de empleado y los pagos de sueldo del modulo `finance` (`docs/sistema/backend/finance.md`).

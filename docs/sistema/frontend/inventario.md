@@ -71,3 +71,9 @@ Documenta el área de inventario del frontend Next.js (App Router). Código en
 - `entries-client.tsx` importa el tipo `StockEntryProductOption` desde `./page` (archivo de página server).
 - Los filtros de lotes/kardex/reposición se aplican en el cliente sobre los datos cargados en el servidor; no se detectaron llamadas de filtrado al backend.
 - `serverApiFetch` devuelve `null` ante error o ausencia de token; las páginas usan `?? []`.
+
+## Actualizacion: fecha de ingreso y vencimiento por linea
+
+- `entries-client.tsx` agrega el campo **Fecha** del ingreso (input `date`, valor por defecto hoy; se envia como ISO `T00:00:00`) y un campo **Vencimiento** por linea (`Line.expiryDate`).
+- El historial usa `entry.entryDate ?? entry.createdAt` en la columna Fecha y muestra una columna **Vencimiento** por item (`-` si no tiene).
+- Los tipos locales `EntryRecord`/`EntryItem` incorporan `entryDate` y `expiryDate`.

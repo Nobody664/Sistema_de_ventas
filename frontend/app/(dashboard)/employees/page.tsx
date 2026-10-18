@@ -2,7 +2,7 @@
 import { Card } from '@/components/ui/card';
 import { serverApiFetch } from '@/lib/server-api';
 import { getServerSession } from '@/lib/session';
-import { Users, UserPlus, Shield, Mail, Phone, Calendar } from 'lucide-react';
+import { Users, UserPlus, Shield, Mail, Phone, Calendar, Wallet } from 'lucide-react';
 import { EmployeeActions, NewEmployeeButton } from '@/components/employees/employee-actions';
 import type { Employee } from '@/types/api';
 import Link from 'next/link';
@@ -108,6 +108,13 @@ export default async function EmployeesPage() {
                           <span className="flex min-w-0 items-center gap-1">
                             <Mail className="size-3 shrink-0" />
                             <span className="truncate">{employee.email}</span>
+                          </span>
+                        )}
+                        {employee.salary != null && (
+                          <span className="flex shrink-0 items-center gap-1">
+                            <Wallet className="size-3 shrink-0" />
+                            S/ {Number(employee.salary).toFixed(2)}
+                            {employee.paymentDay ? ` · día ${employee.paymentDay}` : ''}
                           </span>
                         )}
                       </div>

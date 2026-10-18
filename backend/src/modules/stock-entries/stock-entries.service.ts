@@ -3,6 +3,7 @@ import { Prisma, AuditAction } from '@prisma/client';
 import { PrismaService } from '@/database/prisma/prisma.service';
 import { KardexService } from '@/modules/kardex/kardex.service';
 import { AuditService } from '@/common/services/audit.service';
+import { LowStockService } from '@/modules/low-stock/low-stock.service';
 import { CreateStockEntryDto } from './dto/stock-entry.dto';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class StockEntriesService {
     private readonly prisma: PrismaService,
     private readonly kardexService: KardexService,
     private readonly auditService: AuditService,
+    private readonly lowStockService: LowStockService,
   ) {}
 
   findAll(companyId: string) {
@@ -91,6 +93,7 @@ export class StockEntriesService {
         unitCost,
         totalCost,
         baseUnitCost,
+        expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
       };
     });
 
@@ -101,6 +104,7 @@ export class StockEntriesService {
           branchId: input.branchId,
           reference: input.reference,
           notes: input.notes,
+          entryDate: input.entryDate ? new Date(input.entryDate) : undefined,
           items: {
             create: resolvedItems.map((item) => ({
               productId: item.productId,
@@ -108,6 +112,7 @@ export class StockEntriesService {
               quantity: item.quantity,
               baseQuantity: item.baseQuantity,
               unitCost: item.unitCost,
+              expiryDate: item.expiryDate,
             })),
           },
         },
@@ -124,6 +129,13 @@ export class StockEntriesService {
         });
         if (update.count === 0) {
           throw new NotFoundException(`Product ${item.productId} not found.`);
+        }
+
+        if (item.expiryDate) {
+          await tx.product.updateMany({
+            where: { id: item.productId, companyId },
+            data: { expiryDate: item.expiryDate },
+          });
         }
 
         const movement = await tx.inventoryMovement.create({
@@ -170,6 +182,18 @@ export class StockEntriesService {
 
       return entry.id;
     });
+
+    for (const item of resolvedItems) {
+      if (!item.expiryDate) continue;
+      try {
+        await this.lowStockService.notifyIfExpiring({
+          companyId,
+          productId: item.productId,
+          productName: item.productName,
+          expiryDate: item.expiryDate,
+        });
+      } catch {}
+    }
 
     return this.findById(companyId, entryId);
   }

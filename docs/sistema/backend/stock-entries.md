@@ -98,3 +98,9 @@ cada línea.
 
 - No hay endpoints de actualización ni eliminación de ingresos en este módulo.
 - El efecto sobre costos usa `baseUnitCost` como nuevo `costPrice` del producto (sobrescritura directa), pero no se verificó interacción con `inventoryCostMethod` más allá del asiento en kardex.
+
+## Actualizacion: fecha de ingreso y vencimiento por item
+
+- `CreateStockEntryDto.entryDate?: string` (default `now()`) y `StockEntryItemDto.expiryDate?: string | null`.
+- El servicio persiste `entryDate` en la entrada, el `expiryDate` de cada item, actualiza `Product.expiryDate` para los productos con vencimiento informado, y fuera de la transaccion recorre los items llamando `LowStockService.notifyIfExpiring` (best-effort, try/catch).
+- `GET /api/stock-entries` devuelve `entryDate` y el `expiryDate` de cada item (usa `include`, por lo que expone todos los campos escalares).

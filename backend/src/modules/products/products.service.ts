@@ -74,6 +74,7 @@ export class ProductsService {
         imageUrl: true,
         description: true,
         createdAt: true,
+        expiryDate: true,
         category: { select: { id: true, name: true } },
         presentations: { select: { id: true, name: true, factor: true, price: true } },
       },
@@ -233,6 +234,7 @@ export class ProductsService {
         salePrice: input.salePrice,
         stockQuantity: input.stockQuantity ?? 0,
         minStock: input.minStock ?? 5,
+        expiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
         ...(input.presentations && input.presentations.length > 0
           ? {
               presentations: {
@@ -260,6 +262,18 @@ export class ProductsService {
         minStock: product.minStock,
         baseUnit: product.baseUnit,
       });
+    }
+
+    if ((product as any).expiryDate) {
+      try {
+        await (this.lowStockService as any).notifyIfExpiring?.({
+          companyId,
+          productId: product.id,
+          productName: product.name,
+          expiryDate: (product as any).expiryDate,
+          baseUnit: product.baseUnit,
+        });
+      } catch {}
     }
 
     await this.auditService.log({
@@ -292,6 +306,12 @@ export class ProductsService {
       data: {
         ...input,
         categoryId: input.categoryId ?? undefined,
+        expiryDate:
+          input.expiryDate === undefined
+            ? undefined
+            : input.expiryDate === null
+              ? null
+              : new Date(input.expiryDate),
       },
     });
     if (product.count === 0) {
@@ -305,7 +325,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found.');
     }
 
-    if (input.minStock !== undefined) {
+    if (input.minStock !== undefined || input.expiryDate !== undefined) {
       await this.lowStockService.notifyIfLowStock({
         companyId,
         productId: updatedProduct.id,
@@ -316,6 +336,17 @@ export class ProductsService {
         previousStock: existing.stockQuantity,
         previousMinStock: existing.minStock,
       });
+      if ((updatedProduct as any).expiryDate) {
+        try {
+          await (this.lowStockService as any).notifyIfExpiring?.({
+            companyId,
+            productId: updatedProduct.id,
+            productName: updatedProduct.name,
+            expiryDate: (updatedProduct as any).expiryDate,
+            baseUnit: updatedProduct.baseUnit,
+          });
+        } catch {}
+      }
     }
 
     await this.auditService.log({

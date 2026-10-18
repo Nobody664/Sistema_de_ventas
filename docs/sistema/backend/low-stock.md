@@ -78,3 +78,10 @@ HTTP en este módulo.
   `stockQuantity`; no se verificó el SQL exacto que Prisma genera para la comparación columna-contra-columna.
 - No hay endpoint para forzar manualmente el barrido ni para consultar las alertas desde este módulo
   (las notificaciones se gestionan en el módulo `notifications`).
+
+## Actualizacion: alertas de vencimiento
+
+- `EXPIRY_WINDOW_DAYS = 3`: se notifica cuando faltan 0 a 3 dias para `Product.expiryDate`.
+- `notifyIfExpiring({ companyId, productId, productName, expiryDate })`: crea notificaciones `PRODUCT_EXPIRING_SOON` para los destinatarios con pendientes (`getPendingRecipients(companyId, productId, userIds, type)`); a diferencia de las alertas de stock, ignora el flag `force`.
+- Cron `scanExpiringProducts()` (`CronExpression.EVERY_DAY_AT_7AM`): busca productos activos (`isActive`, `deletedAt: null`) con `expiryDate` entre hoy y hoy+3 dias y notifica; devuelve el numero de productos notificados.
+- `dispatch()` se refactorizo para recibir el `NotificationType`; `dispatchExpiring` y `createForUsers` son los helpers usados por las alertas de vencimiento. `buildExpiringMessage`/`parseDate` generan el texto.

@@ -13,7 +13,7 @@ export type PaymentProvider = 'STRIPE' | 'MERCADOPAGO' | 'PAYPAL' | 'CASH' | 'CA
 export type GlobalRole = 'SUPER_ADMIN' | 'ADMIN' | 'USER';
 export type MembershipRole = 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'VIEWER';
 export type SaleStatus = 'COMPLETED' | 'CANCELLED' | 'REFUNDED' | 'PENDING';
-export type NotificationType = 'SALE' | 'PAYMENT' | 'INVENTORY' | 'SUBSCRIPTION' | 'SYSTEM' | 'NEW_COMPANY_REGISTRATION' | 'CHECKOUT_REQUEST_PENDING' | 'PLAN_UPGRADE_REQUEST' | 'SUBSCRIPTION_PENDING' | 'SUBSCRIPTION_APPROVED' | 'SUBSCRIPTION_REJECTED' | 'PAYMENT_RECEIVED' | 'PAYMENT_FAILED' | 'ACCOUNT_ACTIVATED' | 'ACCOUNT_APPROVED' | 'PLAN_UPGRADED' | 'TRIAL_EXPIRING_SOON' | 'TRIAL_EXPIRED' | 'NEW_SALE' | 'LOW_STOCK' | 'NEW_CUSTOMER' | 'SALE_COMPLETED' | 'SALE_RETURNED' | 'GENERAL';
+export type NotificationType = 'SALE' | 'PAYMENT' | 'INVENTORY' | 'SUBSCRIPTION' | 'SYSTEM' | 'NEW_COMPANY_REGISTRATION' | 'CHECKOUT_REQUEST_PENDING' | 'PLAN_UPGRADE_REQUEST' | 'SUBSCRIPTION_PENDING' | 'SUBSCRIPTION_APPROVED' | 'SUBSCRIPTION_REJECTED' | 'PAYMENT_RECEIVED' | 'PAYMENT_FAILED' | 'ACCOUNT_ACTIVATED' | 'ACCOUNT_APPROVED' | 'PLAN_UPGRADED' | 'TRIAL_EXPIRING_SOON' | 'TRIAL_EXPIRED' | 'NEW_SALE' | 'LOW_STOCK' | 'PRODUCT_EXPIRING_SOON' | 'NEW_CUSTOMER' | 'SALE_COMPLETED' | 'SALE_RETURNED' | 'GENERAL';
 export type NotificationChannel = 'EMAIL' | 'IN_APP' | 'SMS' | 'WHATSAPP';
 export type PlanUpgradeStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type CheckoutRequestStatus = 'DRAFT' | 'SUBMITTED' | 'REVIEWING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
@@ -183,6 +183,7 @@ export interface Product {
   isActive: boolean;
   imageUrl?: string | null;
   barcode?: string | null;
+  expiryDate?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   company?: Company;
@@ -256,6 +257,8 @@ export interface Employee {
   phone?: string | null;
   dni?: string | null;
   role: MembershipRole;
+  salary?: string | null;
+  paymentDay?: number | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -499,6 +502,7 @@ export interface CreateProductDto {
   minStock?: number;
   categoryId?: string;
   imageUrl?: string;
+  expiryDate?: string;
 }
 
 export interface UpdateProductDto extends CreateProductDto {}
@@ -524,6 +528,8 @@ export interface CreateEmployeeDto {
   dni?: string;
   role: MembershipRole;
   userId?: string;
+  salary?: number;
+  paymentDay?: number;
   isActive?: boolean;
 }
 

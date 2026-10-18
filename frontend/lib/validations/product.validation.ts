@@ -12,6 +12,7 @@ export const createProductSchema = z.object({
   baseUnit: z.enum(['UNIT', 'KG', 'LT', 'MT']).optional(),
   categoryId: z.string().optional().or(z.literal('')),
   imageUrl: z.string().optional().or(z.literal('')),
+  expiryDate: z.string().optional().or(z.literal('')),
 });
 
 export const updateProductSchema = createProductSchema.omit({ stockQuantity: true });
