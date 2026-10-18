@@ -71,4 +71,10 @@ historial a CSV/Excel/PDF e impresión del comprobante de una venta.
 - Impresión del comprobante: usa `GET /api/invoices/generate/:id` (ver `docs/sistema/backend/invoices.md`), que devuelve HTML; `sale-detail-client.tsx` no envía `templateId` (usa la plantilla por defecto).
 - `new-sale-modal.tsx` existe pero no se encontró importado desde las páginas del área de ventas (la página de ventas enlaza a `/sales/new` y usa `SaleForm`). No verificado que se renderice en esta área.
 - `sale-detail-client.tsx` importa el icono `Download` pero no lo usa; no implementa exportación (solo impresión).
-- `customer-search.tsx` dispara la búsqueda automáticamente al alcanzar la longitud válida del documento (8/11) y expone `direccion` en el resultado de RUC, aunque `SaleForm`/`SelectedCustomer` no persiste esos campos extra.
+ - `customer-search.tsx` dispara la búsqueda automáticamente al alcanzar la longitud válida del documento (8/11) y expone `direccion` en el resultado de RUC, aunque `SaleForm`/`SelectedCustomer` no persiste esos campos extra.
+
+## Actualización: entradas numéricas y cupón alfanumérico
+
+- `BarcodeScannerService` (`frontend/components/scanner/services/barcode-scanner.service.ts`) ahora ignora las teclas cuando el elemento enfocado es un campo editable (`INPUT`/`TEXTAREA`/`SELECT`/`contenteditable`), vía `isEditableTarget`. Antes hacía `preventDefault()` a cada dígito de forma global, lo que impedía escribir números en el formulario de venta (cantidad, descuento %, monto pagado y cupón). El escáner sigue funcionando cuando el foco no está en un input.
+- El campo de cupón (`sale-form.tsx`) admite códigos alfanuméricos (mayúsculas + dígitos); solo se normaliza a mayúsculas, sin filtrar caracteres.
+

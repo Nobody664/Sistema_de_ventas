@@ -306,6 +306,8 @@ export class ProductsService {
       data: {
         ...input,
         categoryId: input.categoryId ?? undefined,
+        isActive: true,
+        deletedAt: null,
         expiryDate:
           input.expiryDate === undefined
             ? undefined
@@ -372,11 +374,16 @@ export class ProductsService {
   async removeProduct(companyId: string, id: string) {
     const existing = await this.ensureProduct(companyId, id);
 
-    const saleItemsCount = await this.prisma.saleItem.count({
-      where: { productId: id },
-    });
+    const [saleItemsCount, movementsCount, stockEntryItemsCount] = await Promise.all([
+      this.prisma.saleItem.count({ where: { productId: id } }),
+      this.prisma.inventoryMovement.count({ where: { productId: id } }),
+      this.prisma.stockEntryItem.count({ where: { productId: id } }),
+    ]);
 
-    if (saleItemsCount > 0) {
+    const hasHistory =
+      saleItemsCount > 0 || movementsCount > 0 || stockEntryItemsCount > 0;
+
+    if (hasHistory) {
       const productUpdate = await this.prisma.product.updateMany({
         where: { id, companyId },
         data: { deletedAt: new Date(), isActive: false },
@@ -396,37 +403,13 @@ export class ProductsService {
         action: AuditAction.DELETE,
         entity: 'Product',
         entityId: id,
-        changes: { softDelete: true, saleItemsCount, name: existing.name },
-      });
-
-      return product;
-    }
-
-    const movementsCount = await this.prisma.inventoryMovement.count({
-      where: { productId: id },
-    });
-
-    if (movementsCount > 0) {
-      const productUpdate = await this.prisma.product.updateMany({
-        where: { id, companyId },
-        data: { deletedAt: new Date(), isActive: false },
-      });
-      if (productUpdate.count === 0) {
-        throw new NotFoundException('Product not found.');
-      }
-      const product = await this.prisma.product.findFirst({
-        where: { id, companyId },
-      });
-      if (!product) {
-        throw new NotFoundException('Product not found.');
-      }
-
-      await this.auditService.log({
-        companyId,
-        action: AuditAction.DELETE,
-        entity: 'Product',
-        entityId: id,
-        changes: { softDelete: true, movementsCount, name: existing.name },
+        changes: {
+          softDelete: true,
+          saleItemsCount,
+          movementsCount,
+          stockEntryItemsCount,
+          name: existing.name,
+        },
       });
 
       return product;

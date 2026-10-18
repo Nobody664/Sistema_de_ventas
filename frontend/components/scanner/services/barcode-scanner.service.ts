@@ -79,7 +79,16 @@ export class BarcodeScannerService {
     this.setConnected(false);
   }
 
+  private isEditableTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    const tagName = target.tagName;
+    if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return true;
+    return target.isContentEditable;
+  }
+
   private handleKeydown(e: KeyboardEvent): void {
+    if (this.isEditableTarget(e.target)) return;
+
     if (e.key === 'Enter') {
       this.finalizeScan();
       return;

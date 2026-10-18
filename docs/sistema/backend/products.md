@@ -245,8 +245,10 @@ plan `categories`.
 - **Auth**: JWT + `@Roles(['COMPANY_ADMIN'])` + `@Permissions([product:delete])`.
 - **Path params**: `id`.
 - **Respuesta**: el producto resultante (soft-delete devuelve el registro actualizado; físico devuelve el `existing`).
-- **Efectos secundarios**: si `saleItem.count > 0` o `inventoryMovement.count > 0` → `deletedAt=now`, `isActive=false` (soft-delete); si no → `deleteMany` (físico). `AuditService.log` (`DELETE`, entity `Product`).
+- **Efectos secundarios**: si `saleItem.count > 0`, `inventoryMovement.count > 0` o `stockEntryItem.count > 0` → `deletedAt=now`, `isActive=false` (soft-delete, preserva el historial); si no → `deleteMany` (físico). `AuditService.log` (`DELETE`, entity `Product`).
 - **Errores**: 404 si no existe.
+- **Reactivación**: `PATCH /api/products/:id` (editar) siempre pone el producto en `isActive=true` y limpia `deletedAt`, de modo que un producto soft-deleteado vuelve a estar activo al editarlo.
+
 
 ### POST /api/products/:id/image
 - **Descripción**: Sube/cambia la imagen del producto (base64).
@@ -323,16 +325,17 @@ plan `categories`.
 - **Lanza**: 403 `LIMIT_EXCEEDED`; 404 si la categoría no existe; conflictos Prisma de unicidad.
 
 ### `updateProduct(companyId, id, input)`
-- **Qué hace**: asegura producto y categoría, actualiza campos permitidos, evalúa stock bajo si cambia `minStock`.
+- **Qué hace**: asegura producto y categoría, actualiza campos permitidos, reactiva el producto (`isActive=true`, `deletedAt=null`), evalúa stock bajo si cambia `minStock`.
 - **Escribe en**: `products`; notificaciones; auditoría (`Product`, `UPDATE`).
 - **Devuelve**: producto actualizado.
 - **Lanza**: 404 si producto o categoría no existen.
 
 ### `removeProduct(companyId, id)`
-- **Qué hace**: decide soft-delete vs borrado físico según ventas/movimientos existentes.
+- **Qué hace**: decide soft-delete vs borrado físico según historial existente (ventas, movimientos de inventario o ítems de ingreso).
 - **Escribe en**: `products` (update o delete); auditoría (`Product`, `DELETE`).
 - **Devuelve**: producto resultante.
 - **Lanza**: 404 si no existe.
+
 
 ### `listPresentations(companyId, productId)`
 - **Qué hace**: asegura producto y lista presentaciones.
