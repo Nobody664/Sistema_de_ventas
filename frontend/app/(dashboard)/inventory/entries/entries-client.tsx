@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
-import { ArrowLeft, ClipboardList, Loader2, PackagePlus, Plus, Printer, Receipt, Store, Trash2 } from 'lucide-react';
+import { ArrowLeft, ClipboardList, FileText, Loader2, PackagePlus, Plus, Printer, Receipt, Store, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import type {
   DistributorPurchaseSummary,
+  PurchaseReceiptDetail,
+  PurchaseReceiptRecord,
   StockEntryDistributorOption,
   StockEntryProductOption,
 } from './page';
@@ -62,6 +64,7 @@ interface StockEntriesClientProps {
   branches: Array<{ id: string; name: string }>;
   distributors: StockEntryDistributorOption[];
   purchases: DistributorPurchaseSummary[];
+  receipts: PurchaseReceiptRecord[];
 }
 
 const emptyLine = (): Line => ({
@@ -73,7 +76,7 @@ const emptyLine = (): Line => ({
   expiryDate: '',
 });
 
-export function StockEntriesClient({ initialEntries, products, branches, distributors, purchases }: StockEntriesClientProps) {
+export function StockEntriesClient({ initialEntries, products, branches, distributors, purchases, receipts }: StockEntriesClientProps) {
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
 
@@ -83,6 +86,7 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
   const [branchId, setBranchId] = useState('');
   const [distributorId, setDistributorId] = useState('');
+  const [issuingKey, setIssuingKey] = useState<string | null>(null);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -166,19 +170,29 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
     }
   };
 
-  const printReceipt = (group: DistributorPurchaseSummary) => {
-    const title = group.distributor ? `${group.distributor.name} (${group.distributor.code})` : 'General / sin distribuidor';
-    const rows = group.entries
-      .map(
-        (entry) =>
-          `<tr><td>${new Date(entry.entryDate).toLocaleDateString()}</td><td>${escapeHtml(entry.reference ?? '—')}</td><td style="text-align:right">${entry.itemCount}</td><td style="text-align:right">S/ ${entry.total.toFixed(2)}</td></tr>`,
+  const printReceipt = (receipt: PurchaseReceiptDetail) => {
+    const title = receipt.distributor
+      ? `${receipt.distributor.name} (${receipt.distributor.code})`
+      : 'General / sin distribuidor';
+
+    const rows = receipt.entries
+      .flatMap((entry) =>
+        entry.items.map((item) => {
+          const productName = item.presentation
+            ? `${item.product.name} (${item.presentation.name})`
+            : item.product.name;
+          const lineTotal = Number(item.unitCost) * Number(item.quantity);
+          return `<tr><td>${new Date(entry.entryDate).toLocaleDateString()}</td><td>${escapeHtml(entry.reference ?? '—')}</td><td>${escapeHtml(productName)}</td><td style="text-align:right">${Number(item.quantity)}</td><td style="text-align:right">S/ ${Number(item.unitCost).toFixed(2)}</td><td style="text-align:right">S/ ${lineTotal.toFixed(2)}</td></tr>`;
+        }),
       )
       .join('');
-    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Boleta interna - ${escapeHtml(title)}</title>
+
+    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Boleta interna ${escapeHtml(receipt.fullNumber)}</title>
 <style>
   body{font-family:system-ui,Arial,sans-serif;padding:32px;color:#0f172a}
   h1{font-size:20px;margin:0 0 4px}
   p{margin:2px 0;color:#475569;font-size:13px}
+  .folio{font-size:22px;font-weight:700;letter-spacing:.05em}
   table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
   th,td{border-bottom:1px solid #e2e8f0;padding:8px}
   th{background:#f8fafc;text-transform:uppercase;font-size:11px;letter-spacing:.08em;color:#64748b;text-align:left}
@@ -186,12 +200,15 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
   .brand{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#10b981}
 </style></head><body>
   <p class="brand">Boleta interna de compras</p>
-  <h1>${escapeHtml(title)}</h1>
-  <p>Entradas: ${group.entryCount} · Artículos: ${group.itemCount}</p>
-  <p>Emitida: ${new Date().toLocaleString()}</p>
-  <table><thead><tr><th>Fecha</th><th>Referencia</th><th style="text-align:right">Items</th><th style="text-align:right">Total</th></tr></thead><tbody>${rows}</tbody></table>
-  <p class="total">Total comprado: S/ ${group.totalPurchased.toFixed(2)}</p>
+  <h1>BOLETA INTERNA DE COMPRA</h1>
+  <p class="folio">${escapeHtml(receipt.fullNumber)}</p>
+  <p>Proveedor: <strong>${escapeHtml(title)}</strong></p>
+  <p>Entradas: ${receipt.entryCount} · Artículos: ${receipt.itemCount}</p>
+  <p>Emitida: ${new Date(receipt.issuedAt).toLocaleString()}</p>
+  <table><thead><tr><th>Fecha</th><th>Referencia</th><th>Producto</th><th style="text-align:right">Cant.</th><th style="text-align:right">Costo</th><th style="text-align:right">Total</th></tr></thead><tbody>${rows}</tbody></table>
+  <p class="total">Total comprado: S/ ${receipt.totalAmount.toFixed(2)}</p>
 </body></html>`;
+
     const win = window.open('', '_blank', 'width=820,height=900');
     if (!win) {
       addToast('Permite las ventanas emergentes para imprimir la boleta.', 'error');
@@ -201,6 +218,38 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
     win.document.close();
     win.focus();
     win.print();
+  };
+
+  const issueReceipt = async (group: DistributorPurchaseSummary) => {
+    const key = group.distributor?.id ?? 'general';
+    setIssuingKey(key);
+    try {
+      const detail = await apiFetch<PurchaseReceiptDetail>('/stock-entries/receipts', {
+        method: 'POST',
+        token: getAccessToken(),
+        body: JSON.stringify({ distributorId: group.distributor?.id ?? undefined }),
+      });
+      addToast(`Boleta ${detail.fullNumber} emitida`, 'success');
+      printReceipt(detail);
+      router.refresh();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'No se pudo emitir la boleta.';
+      addToast(message, 'error');
+    } finally {
+      setIssuingKey(null);
+    }
+  };
+
+  const reprintReceipt = async (receipt: PurchaseReceiptRecord) => {
+    try {
+      const detail = await apiFetch<PurchaseReceiptDetail>(`/stock-entries/receipts/${receipt.id}`, {
+        token: getAccessToken(),
+      });
+      printReceipt(detail);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'No se pudo cargar la boleta.';
+      addToast(message, 'error');
+    }
   };
 
   return (
@@ -566,18 +615,24 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="mt-4 grid grid-cols-3 gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-slate-400">Total comprado</p>
-                    <p className="font-display text-xl text-slate-900">S/ {group.totalPurchased.toFixed(2)}</p>
+                    <p className="font-display text-lg text-slate-900">S/ {group.totalPurchased.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Pendiente</p>
+                    <p className={`font-display text-lg ${group.pendingCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                      S/ {group.pendingTotal.toFixed(2)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-slate-400">Entradas</p>
-                    <p className="font-display text-xl text-slate-900">{group.entryCount}</p>
+                    <p className="font-display text-lg text-slate-900">{group.entryCount}</p>
                   </div>
                 </div>
                 <p className="mt-3 text-xs text-slate-400">
-                  {group.itemCount} artículos
+                  {group.itemCount} artículos · {group.pendingCount} sin boletar
                   {group.lastEntryDate
                     ? ` · Última: ${new Date(group.lastEntryDate).toLocaleDateString()}`
                     : ''}
@@ -586,11 +641,21 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => printReceipt(group)}
-                  className="mt-4 h-10 w-full rounded-xl border-slate-200 text-slate-700 hover:bg-white hover:border-emerald-300"
+                  disabled={group.pendingCount === 0 || issuingKey === (group.distributor?.id ?? 'general')}
+                  onClick={() => issueReceipt(group)}
+                  className="mt-4 h-10 w-full rounded-xl border-slate-200 text-slate-700 hover:bg-white hover:border-emerald-300 disabled:opacity-60"
                 >
-                  <Printer className="mr-2 h-4 w-4" />
-                  Imprimir boleta interna
+                  {issuingKey === (group.distributor?.id ?? 'general') ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Emitiendo...
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="mr-2 h-4 w-4" />
+                      {group.pendingCount > 0 ? 'Emitir boleta interna' : 'Sin compras pendientes'}
+                    </>
+                  )}
                 </Button>
               </div>
             ))}
@@ -599,6 +664,64 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
           <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-400">
             <Receipt className="mx-auto mb-3 h-8 w-8 text-slate-300" />
             Aún no hay compras registradas por proveedor.
+          </div>
+        )}
+      </Card>
+
+      <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-200">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Documentos</p>
+            <h2 className="mt-2 font-display text-2xl">Boletas emitidas</h2>
+          </div>
+        </div>
+
+        {receipts.length > 0 ? (
+          <div className="overflow-auto rounded-xl border border-foreground/10">
+            <table className="w-full min-w-[720px]">
+              <thead className="bg-slate-50">
+                <tr className="border-b border-foreground/10 text-left text-sm text-foreground/50">
+                  <th className="py-3 pl-4 font-medium">Folio</th>
+                  <th className="py-3 font-medium">Proveedor</th>
+                  <th className="py-3 font-medium">Emitida</th>
+                  <th className="py-3 text-right font-medium">Entradas</th>
+                  <th className="py-3 text-right font-medium">Total</th>
+                  <th className="py-3 pr-4 text-right font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receipts.map((receipt) => (
+                  <tr key={receipt.id} className="border-b border-foreground/5 table-row-hover">
+                    <td className="py-3 pl-4 text-sm font-semibold text-slate-900">{receipt.fullNumber}</td>
+                    <td className="py-3 text-sm text-foreground/70">
+                      {receipt.distributor ? `${receipt.distributor.name} (${receipt.distributor.code})` : 'General'}
+                    </td>
+                    <td className="py-3 text-sm text-foreground/60">
+                      {new Date(receipt.issuedAt).toLocaleDateString()}
+                    </td>
+                    <td className="py-3 text-right text-sm">{receipt.entryCount}</td>
+                    <td className="py-3 text-right text-sm font-medium">S/ {receipt.totalAmount.toFixed(2)}</td>
+                    <td className="py-3 pr-4 text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => reprintReceipt(receipt)}
+                        className="h-9 rounded-lg text-slate-600 hover:bg-slate-100"
+                      >
+                        <Printer className="mr-1.5 h-4 w-4" />
+                        Reimprimir
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-400">
+            <FileText className="mx-auto mb-3 h-8 w-8 text-slate-300" />
+            Aún no se han emitido boletas internas.
           </div>
         )}
       </Card>

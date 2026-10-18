@@ -84,3 +84,10 @@ Documenta el área de inventario del frontend Next.js (App Router). Código en
 - `entries-client.tsx` agrega el selector **Distribuidor / Proveedor** (opcion "General (sin distribuidor)") que se envia como `distributorId` en `POST /stock-entries`.
 - El historial incorpora la columna **Distribuidor** (`entry.distributor?.name ?? 'General'`).
 - Nueva tarjeta **Boletas internas** (compras por proveedor): una tarjeta por distribuidor/general con total comprado, numero de entradas y articulos, y boton **Imprimir boleta interna** que abre una ventana con el detalle y llama `print()` (helper `printReceipt` + `escapeHtml`).
+
+## Actualizacion: folio/serie de boletas internas
+
+- `page.tsx` carga ademas `GET /stock-entries/receipts` (`PurchaseReceiptRecord[]`).
+- La tarjeta **Boletas internas** muestra ahora `Total comprado`, `Pendiente` (`pendingTotal`) y `Entradas`, ademas de "N sin boletar"; el boton pasa a **Emitir boleta interna** (deshabilitado si `pendingCount === 0`), que hace `POST /stock-entries/receipts` con `{ distributorId? }`, imprime el detalle devuelto (con folio `fullNumber`) y hace `router.refresh()`.
+- Nueva tarjeta **Boletas emitidas**: lista de los recibos (`GET /stock-entries/receipts`) con folio, proveedor, fecha, entradas y total, y boton **Imprimir** que carga `GET /stock-entries/receipts/:id` (`reprintReceipt`) y reimprime el documento (incluye lineas de producto).
+- El documento impreso muestra el encabezado "BOLETA INTERNA DE COMPRA" con el folio `series-number` y el detalle de productos por entrada.

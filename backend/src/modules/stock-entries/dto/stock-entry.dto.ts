@@ -51,3 +51,17 @@ export class CreateStockEntryDto {
   @Type(() => StockEntryItemDto)
   items!: StockEntryItemDto[];
 }
+
+export class CreatePurchaseReceiptDto {
+  @IsOptional()
+  @IsString()
+  distributorId?: string;
+
+  @IsOptional()
+  @IsString()
+  series?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}

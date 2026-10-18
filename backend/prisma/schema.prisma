@@ -252,6 +252,7 @@ model Company {
   invoices      InvoiceTemplate[]
   notifications Notification[]
   auditLogs     AuditLog[]
+  purchaseReceipts PurchaseReceipt[]
 
   inventoryMovements  InventoryMovement[]
   planUpgradeRequests PlanUpgradeRequest[]
@@ -602,6 +603,7 @@ model StockEntry {
   companyId String   @map("company_id")
   branchId  String?  @map("branch_id")
   distributorId String? @map("distributor_id")
+  receiptId String?  @map("receipt_id")
   reference String?
   notes     String?
   entryDate DateTime @default(now()) @map("entry_date")
@@ -611,11 +613,13 @@ model StockEntry {
   company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   branch  Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
   distributor Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  receipt PurchaseReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
   items   StockEntryItem[]
 
   @@index([companyId, createdAt])
   @@index([branchId])
   @@index([distributorId])
+  @@index([receiptId])
   @@map("stock_entries")
 }
 
@@ -637,6 +641,31 @@ model StockEntryItem {
   @@index([stockEntryId])
   @@index([productId])
   @@map("stock_entry_items")
+}
+
+model PurchaseReceipt {
+  id            String   @id @default(cuid())
+  companyId     String   @map("company_id")
+  distributorId String?  @map("distributor_id")
+  series        String   @default("BI")
+  number        Int
+  fullNumber    String   @map("full_number")
+  totalAmount   Decimal  @map("total_amount") @db.Decimal(12, 2)
+  entryCount    Int      @map("entry_count")
+  itemCount     Int      @map("item_count")
+  notes         String?
+  createdById   String?  @map("created_by_id")
+  issuedAt      DateTime @default(now()) @map("issued_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  distributor Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  entries     StockEntry[]
+
+  @@unique([companyId, series, number])
+  @@index([companyId, issuedAt])
+  @@index([distributorId])
+  @@map("purchase_receipts")
 }
 
 model ProductBatch {
@@ -887,6 +916,7 @@ model Distributor {
   sales     Sale[]
   balances  DistributorBalance[]
   deliveries DistributorDelivery[]
+  purchaseReceipts PurchaseReceipt[]
 
   @@unique([companyId, code])
   @@index([companyId, status])

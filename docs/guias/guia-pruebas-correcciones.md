@@ -620,3 +620,30 @@ Checklist manual (requiere el server corriendo con DB/Redis alcanzables):
 ### Empleados
 
 - [ ] Crear/editar un empleado con sueldo y dia de pago; el listado muestra ambos datos.
+
+## Round 6 - Activar/desactivar productos y boletas internas de compra
+
+### Backend
+
+- [ ] `npm test` (backend) → 66/66 (18 suites).
+- [ ] `npx tsc --noEmit` (backend) → 0.
+- [ ] `npx prisma migrate deploy` aplica `20261018000000_add_stock_entry_distributor` y `20261018010000_add_purchase_receipts`.
+
+### Frontend
+
+- [ ] `npx tsc --noEmit` (frontend) → 0.
+- [ ] `npm run build` (frontend) → 0.
+
+### Productos (activar/desactivar)
+
+- [ ] En la edicion de un producto, el `Switch` **Estado** cambia entre Activo/Inactivo y muestra el texto de ayuda.
+- [ ] Desactivar un producto (`PATCH .../products/:id { isActive: false }`) lo oculta en ventas; reactivarlo con `isActive: true` lo vuelve a mostrar y limpia `deletedAt`.
+
+### Inventario (boletas internas)
+
+- [ ] Al registrar una entrada se puede elegir **Distribuidor / Proveedor** (o "General (sin distribuidor)").
+- [ ] El historial muestra la columna **Distribuidor**.
+- [ ] La tarjeta **Boletas internas** muestra Total comprado / Pendiente / Entradas y "N sin boletar".
+- [ ] **Emitir boleta interna** crea un folio correlativo (`BI-000001`...), lo imprime y deja el pendiente en 0.
+- [ ] La tarjeta **Boletas emitidas** lista los folios con su total; **Imprimir** reimprime el documento con el detalle de productos.
+- [ ] Emitir de nuevo sin compras pendientes → boton deshabilitado (backend responde 400 si se fuerza).

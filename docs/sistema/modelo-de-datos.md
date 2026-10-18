@@ -83,9 +83,13 @@ IDs `cuid()`. Nombres de tabla en `snake_case` (mapeados con `@@map`).
 ### Inventario
 
 - **`Branch`** (`branches`): sucursal (`name`, `address`, `isActive`) del tenant.
-- **`StockEntry`** (`stock_entries`): cabecera de ingreso de mercadería (`branchId?`, `reference`,
-  `notes`). **`StockEntryItem`** (`stock_entry_items`): `productId`, `presentationId?`, `quantity`,
-  `baseQuantity`, `unitCost`.
+- **`StockEntry`** (`stock_entries`): cabecera de ingreso de mercadería (`branchId?`, `distributorId?`,
+  `receiptId?`, `reference`, `notes`, `entryDate`). **`StockEntryItem`** (`stock_entry_items`):
+  `productId`, `presentationId?`, `quantity`, `baseQuantity`, `unitCost`, `expiryDate?`.
+- **`PurchaseReceipt`** (`purchase_receipts`): boleta interna de compra por proveedor con folio
+  correlativo (`series` default `BI`, `number`, `fullNumber`), `distributorId?`, `totalAmount`,
+  `entryCount`, `itemCount`, `notes?`, `createdById?`, `issuedAt`. Único por `[companyId, series, number]`;
+  agrupa las `StockEntry` que referencia vía `StockEntry.receiptId`.
 - **`ProductBatch`** (`product_batches`): lote (`batchNumber`, `quantityReceived`,
   `quantityAvailable`, `purchasePrice`, `expirationDate?`, `branchId?`).
 - **`InventoryMovement`** (`inventory_movements`): movimiento (`type`, `quantity`, `unitCost?`,

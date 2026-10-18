@@ -112,3 +112,13 @@ cada línea.
 - `findAll`/`findById` incluyen `distributor: { id, name, code }` (nullable). Sin distribuidor la entrada queda como "General".
 - **Nuevo endpoint** `GET /api/stock-entries/purchases/by-distributor` (`@Roles(['COMPANY_ADMIN','MANAGER'])`, `@Permissions([inventory:view])`, `@RequireModule('inventory')`): agrupa las entradas (ultimas 500) por distribuidor y devuelve `{ distributor | null (null = general), entryCount, itemCount, totalPurchased, lastEntryDate, entries[{ id, reference, entryDate, itemCount, total }] }`, ordenado por `totalPurchased` desc. `total` por entrada = `sum(quantity × unitCost)`.
 - **Frontend** (`frontend/app/(dashboard)/inventory/entries/`): selector **Distribuidor / Proveedor** en el formulario (opcion "General (sin distribuidor)"), columna **Distribuidor** en el historial y tarjeta **Boletas internas** con el total comprado por proveedor y boton **Imprimir boleta interna** (abre una ventana con el detalle y llama `print()`).
+
+## Actualizacion: folio/serie correlativa de boletas internas
+
+- `GET /api/stock-entries/purchases/by-distributor` ahora agrega `pendingCount` y `pendingTotal` por proveedor (compras con `receiptId = null`) y cada `entry` incluye `receiptId`.
+- **Modelo `PurchaseReceipt`** (`purchase_receipts`, migracion `20261018010000_add_purchase_receipts`): `companyId`, `distributorId?`, `series` (default `BI`), `number` (correlativo por empresa+serie), `fullNumber` (ej. `BI-000001`), `totalAmount`, `entryCount`, `itemCount`, `notes?`, `createdById?`, `issuedAt`. `@@unique([companyId, series, number])`. `StockEntry.receiptId` vincula cada entrada a su boleta (`onDelete: SetNull`). RLS habilitado en `purchase_receipts`.
+- **Endpoints nuevos** (todos `@Roles(['COMPANY_ADMIN','MANAGER'])`, `@RequireModule('inventory')`):
+  - `GET /api/stock-entries/receipts` (`inventory:view`): boletas emitidas (ultimas 100) con `distributor {id,name,code}`; `totalAmount` serializado como number.
+  - `GET /api/stock-entries/receipts/:id` (`inventory:view`): detalle de una boleta con `entries` (incluye `items` con `product` y `presentation`).
+  - `POST /api/stock-entries/receipts` (`inventory:inbound`): emite una boleta para un `distributorId` (o general) tomando las entradas pendientes (`receiptId = null`) de ese proveedor; body `CreatePurchaseReceiptDto { distributorId?, series?, notes? }`. Calcula total/entradas/articulos, asigna el folio correlativo dentro de una transaccion (reintenta hasta 5 veces ante colision `P2002`), marca `receiptId` en las entradas, audita (`PurchaseReceipt`, `CREATE`) y devuelve el detalle. 400 `BadRequestException` si no hay compras pendientes; 404 si el distribuidor no existe.
+- `createdById` se toma del JWT via `@CurrentUser()` (`AuthUser.sub`).
