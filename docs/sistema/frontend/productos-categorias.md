@@ -89,3 +89,8 @@ y por lector tipo teclado).
 - `/products` agrega las columnas **Registro** (`createdAt` formateado) y **Vencimiento** (componente `ExpiryBadge`: fecha + badge Vencido / Por vencer (<= 3 dias) / Vigente, o `-` sin fecha); el `colSpan` del estado vacio pasa a 10.
 - `product-form.tsx` incluye el campo `expiryDate` (`CalendarClock`, input `type=date`) con el aviso "Te avisaremos 3 dias antes del vencimiento."; en edicion envia `expiryDate ?? null`.
 - `frontend/lib/validations/product.validation.ts` acepta `expiryDate` opcional; `Product.expiryDate` existe en `frontend/types/generated.ts`.
+
+## Actualizacion: toggle activo/inactivo en la edicion
+
+- `product-form.tsx` (solo en modo edicion) agrega un `Switch` (`frontend/components/ui/switch.tsx`) en la tarjeta "Estado" del panel izquierdo: alterna **Activo** (disponible en ventas) / **Inactivo** (oculto), con estado local `isActive` inicializado en `product?.isActive ?? true`.
+- Al guardar en edicion el `PATCH /products/:id` incluye `isActive`, permitiendo activar o desactivar el producto desde el formulario.

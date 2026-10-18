@@ -217,6 +217,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   expiryDate?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpsertPresentationsDto {

@@ -601,6 +601,7 @@ model StockEntry {
   id        String   @id @default(cuid())
   companyId String   @map("company_id")
   branchId  String?  @map("branch_id")
+  distributorId String? @map("distributor_id")
   reference String?
   notes     String?
   entryDate DateTime @default(now()) @map("entry_date")
@@ -609,10 +610,12 @@ model StockEntry {
 
   company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   branch  Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  distributor Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
   items   StockEntryItem[]
 
   @@index([companyId, createdAt])
   @@index([branchId])
+  @@index([distributorId])
   @@map("stock_entries")
 }
 
@@ -877,6 +880,8 @@ model Distributor {
 
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  stockEntries StockEntry[]
 
   movements InventoryMovement[]
   sales     Sale[]

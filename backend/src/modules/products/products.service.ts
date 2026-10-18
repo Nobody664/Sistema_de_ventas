@@ -306,8 +306,8 @@ export class ProductsService {
       data: {
         ...input,
         categoryId: input.categoryId ?? undefined,
-        isActive: true,
-        deletedAt: null,
+        isActive: input.isActive ?? true,
+        deletedAt: input.isActive === false ? undefined : null,
         expiryDate:
           input.expiryDate === undefined
             ? undefined

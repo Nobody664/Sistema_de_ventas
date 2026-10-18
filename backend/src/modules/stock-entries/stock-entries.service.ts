@@ -20,6 +20,7 @@ export class StockEntriesService {
       where: { companyId },
       include: {
         branch: { select: { id: true, name: true } },
+        distributor: { select: { id: true, name: true, code: true } },
         items: {
           include: {
             product: { select: { id: true, name: true, sku: true, baseUnit: true } },
@@ -37,6 +38,7 @@ export class StockEntriesService {
       where: { id, companyId },
       include: {
         branch: { select: { id: true, name: true } },
+        distributor: { select: { id: true, name: true, code: true } },
         items: {
           include: {
             product: { select: { id: true, name: true, sku: true, baseUnit: true } },
@@ -55,6 +57,13 @@ export class StockEntriesService {
         where: { id: input.branchId, companyId },
       });
       if (!branch) throw new NotFoundException('Branch not found.');
+    }
+
+    if (input.distributorId) {
+      const distributor = await this.prisma.distributor.findFirst({
+        where: { id: input.distributorId, companyId },
+      });
+      if (!distributor) throw new NotFoundException('Distributor not found.');
     }
 
     const productIds = Array.from(new Set(input.items.map((item) => item.productId)));
@@ -102,6 +111,7 @@ export class StockEntriesService {
         data: {
           companyId,
           branchId: input.branchId,
+          distributorId: input.distributorId,
           reference: input.reference,
           notes: input.notes,
           entryDate: input.entryDate ? new Date(input.entryDate) : undefined,
@@ -169,6 +179,7 @@ export class StockEntriesService {
         changes: {
           reference: entry.reference,
           branchId: entry.branchId,
+          distributorId: entry.distributorId,
           items: resolvedItems.map((item) => ({
             productId: item.productId,
             productName: item.productName,
@@ -196,5 +207,73 @@ export class StockEntriesService {
     }
 
     return this.findById(companyId, entryId);
+  }
+
+  async purchasesByDistributor(companyId: string) {
+    const entries = await this.prisma.stockEntry.findMany({
+      where: { companyId },
+      include: {
+        distributor: { select: { id: true, name: true, code: true } },
+        items: { select: { quantity: true, unitCost: true } },
+      },
+      orderBy: { entryDate: 'desc' },
+      take: 500,
+    });
+
+    type Group = {
+      distributor: { id: string; name: string; code: string } | null;
+      entryCount: number;
+      itemCount: number;
+      totalPurchased: number;
+      lastEntryDate: Date | null;
+      entries: Array<{
+        id: string;
+        reference: string | null;
+        entryDate: Date;
+        itemCount: number;
+        total: number;
+      }>;
+    };
+
+    const groups = new Map<string, Group>();
+
+    for (const entry of entries) {
+      const key = entry.distributor?.id ?? 'general';
+      const total = entry.items.reduce(
+        (sum, item) => sum + Number(item.quantity) * Number(item.unitCost),
+        0,
+      );
+
+      const group =
+        groups.get(key) ??
+        {
+          distributor: entry.distributor
+            ? { id: entry.distributor.id, name: entry.distributor.name, code: entry.distributor.code }
+            : null,
+          entryCount: 0,
+          itemCount: 0,
+          totalPurchased: 0,
+          lastEntryDate: null,
+          entries: [],
+        };
+
+      group.entryCount += 1;
+      group.itemCount += entry.items.length;
+      group.totalPurchased += total;
+      if (!group.lastEntryDate || entry.entryDate > group.lastEntryDate) {
+        group.lastEntryDate = entry.entryDate;
+      }
+      group.entries.push({
+        id: entry.id,
+        reference: entry.reference,
+        entryDate: entry.entryDate,
+        itemCount: entry.items.length,
+        total,
+      });
+
+      groups.set(key, group);
+    }
+
+    return Array.from(groups.values()).sort((a, b) => b.totalPurchased - a.totalPurchased);
   }
 }

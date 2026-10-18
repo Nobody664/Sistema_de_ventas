@@ -77,3 +77,10 @@ Documenta el área de inventario del frontend Next.js (App Router). Código en
 - `entries-client.tsx` agrega el campo **Fecha** del ingreso (input `date`, valor por defecto hoy; se envia como ISO `T00:00:00`) y un campo **Vencimiento** por linea (`Line.expiryDate`).
 - El historial usa `entry.entryDate ?? entry.createdAt` en la columna Fecha y muestra una columna **Vencimiento** por item (`-` si no tiene).
 - Los tipos locales `EntryRecord`/`EntryItem` incorporan `entryDate` y `expiryDate`.
+
+## Actualizacion: distribuidor/proveedor y boletas internas
+
+- `page.tsx` carga ademas `GET /distributors` (`StockEntryDistributorOption[]`) y `GET /stock-entries/purchases/by-distributor` (`DistributorPurchaseSummary[]`) via `serverApiFetch` (con `?? []`).
+- `entries-client.tsx` agrega el selector **Distribuidor / Proveedor** (opcion "General (sin distribuidor)") que se envia como `distributorId` en `POST /stock-entries`.
+- El historial incorpora la columna **Distribuidor** (`entry.distributor?.name ?? 'General'`).
+- Nueva tarjeta **Boletas internas** (compras por proveedor): una tarjeta por distribuidor/general con total comprado, numero de entradas y articulos, y boton **Imprimir boleta interna** que abre una ventana con el detalle y llama `print()` (helper `printReceipt` + `escapeHtml`).

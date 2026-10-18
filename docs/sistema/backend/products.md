@@ -247,7 +247,7 @@ plan `categories`.
 - **Respuesta**: el producto resultante (soft-delete devuelve el registro actualizado; físico devuelve el `existing`).
 - **Efectos secundarios**: si `saleItem.count > 0`, `inventoryMovement.count > 0` o `stockEntryItem.count > 0` → `deletedAt=now`, `isActive=false` (soft-delete, preserva el historial); si no → `deleteMany` (físico). `AuditService.log` (`DELETE`, entity `Product`).
 - **Errores**: 404 si no existe.
-- **Reactivación**: `PATCH /api/products/:id` (editar) siempre pone el producto en `isActive=true` y limpia `deletedAt`, de modo que un producto soft-deleteado vuelve a estar activo al editarlo.
+- **Reactivación**: `PATCH /api/products/:id` (editar) permite volver a activar el producto enviando `isActive=true` (limpia `deletedAt`); al enviar `isActive=false` el producto queda inactivo y oculto en ventas. Ver "Actualizacion: estado activo/inactivo".
 
 
 ### POST /api/products/:id/image
@@ -325,7 +325,7 @@ plan `categories`.
 - **Lanza**: 403 `LIMIT_EXCEEDED`; 404 si la categoría no existe; conflictos Prisma de unicidad.
 
 ### `updateProduct(companyId, id, input)`
-- **Qué hace**: asegura producto y categoría, actualiza campos permitidos, reactiva el producto (`isActive=true`, `deletedAt=null`), evalúa stock bajo si cambia `minStock`.
+- **Qué hace**: asegura producto y categoría, actualiza campos permitidos, respeta `isActive` (`input.isActive ?? true`; si es `true` limpia `deletedAt`, si es `false` deja el producto inactivo sin tocar `deletedAt`), evalúa stock bajo si cambia `minStock`.
 - **Escribe en**: `products`; notificaciones; auditoría (`Product`, `UPDATE`).
 - **Devuelve**: producto actualizado.
 - **Lanza**: 404 si producto o categoría no existen.
@@ -395,3 +395,11 @@ plan `categories`.
 - `CreateProductDto`/`UpdateProductDto` aceptan `expiryDate?: string | null` (ISO 8601). `createProduct` persiste `expiryDate` y `updateProduct` lo convierte a `Date` (`null` lo limpia); `findByCompany` lo incluye en el `select`.
 - Al crear o al cambiar `minStock`/`expiryDate` se disparan las alertas de stock bajo y de vencimiento (`LowStockService.notifyIfExpiring`) en modo best-effort (try/catch), sin bloquear la operacion.
 - El listado del frontend muestra columnas **Registro** (`createdAt`) y **Vencimiento** (badge Vencido / Por vencer / Vigente).
+
+## Actualizacion: estado activo/inactivo
+
+- `UpdateProductDto` acepta `isActive?: boolean` (`@IsOptional()`, `@IsBoolean()`).
+- `updateProduct` aplica `isActive: input.isActive ?? true` y `deletedAt: input.isActive === false ? undefined : null`:
+  - `isActive=true` (o ausente) → producto activo y `deletedAt` limpiado (reactiva un soft-delete).
+  - `isActive=false` → producto inactivo (oculto en ventas) sin modificar `deletedAt`.
+- El formulario de edición (`frontend/components/products/product-form.tsx`) incluye un **Switch** "Estado" que alterna Activo/Inactivo y lo envía en el `PATCH`.

@@ -31,6 +31,10 @@ export class CreateStockEntryDto {
 
   @IsOptional()
   @IsString()
+  distributorId?: string;
+
+  @IsOptional()
+  @IsString()
   reference?: string;
 
   @IsOptional()

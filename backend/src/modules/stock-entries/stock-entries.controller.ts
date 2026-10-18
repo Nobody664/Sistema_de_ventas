@@ -24,6 +24,13 @@ export class StockEntriesController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER')
   @Permissions(Permission.INVENTORY_VIEW)
+  @Get('purchases/by-distributor')
+  purchasesByDistributor(@Req() request: { tenantId: string }) {
+    return this.stockEntriesService.purchasesByDistributor(request.tenantId);
+  }
+
+  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Permissions(Permission.INVENTORY_VIEW)
   @Get(':id')
   findById(@Req() request: { tenantId: string }, @Param('id') id: string) {
     return this.stockEntriesService.findById(request.tenantId, id);

@@ -104,3 +104,11 @@ cada línea.
 - `CreateStockEntryDto.entryDate?: string` (default `now()`) y `StockEntryItemDto.expiryDate?: string | null`.
 - El servicio persiste `entryDate` en la entrada, el `expiryDate` de cada item, actualiza `Product.expiryDate` para los productos con vencimiento informado, y fuera de la transaccion recorre los items llamando `LowStockService.notifyIfExpiring` (best-effort, try/catch).
 - `GET /api/stock-entries` devuelve `entryDate` y el `expiryDate` de cada item (usa `include`, por lo que expone todos los campos escalares).
+
+## Actualizacion: distribuidor/proveedor y boleta interna
+
+- `StockEntry.distributorId String?` (`distributor_id`) con relacion opcional a `Distributor` (`onDelete: SetNull`) e indice `@@index([distributorId])`; migracion `20261018000000_add_stock_entry_distributor`.
+- `CreateStockEntryDto.distributorId?: string` (`@IsOptional()`, `@IsString()`). Si se envia, `create` valida que el distribuidor exista en la empresa (404 si no) y lo persiste en la cabecera; tambien se agrega a la auditoria.
+- `findAll`/`findById` incluyen `distributor: { id, name, code }` (nullable). Sin distribuidor la entrada queda como "General".
+- **Nuevo endpoint** `GET /api/stock-entries/purchases/by-distributor` (`@Roles(['COMPANY_ADMIN','MANAGER'])`, `@Permissions([inventory:view])`, `@RequireModule('inventory')`): agrupa las entradas (ultimas 500) por distribuidor y devuelve `{ distributor | null (null = general), entryCount, itemCount, totalPurchased, lastEntryDate, entries[{ id, reference, entryDate, itemCount, total }] }`, ordenado por `totalPurchased` desc. `total` por entrada = `sum(quantity × unitCost)`.
+- **Frontend** (`frontend/app/(dashboard)/inventory/entries/`): selector **Distribuidor / Proveedor** en el formulario (opcion "General (sin distribuidor)"), columna **Distribuidor** en el historial y tarjeta **Boletas internas** con el total comprado por proveedor y boton **Imprimir boleta interna** (abre una ventana con el detalle y llama `print()`).

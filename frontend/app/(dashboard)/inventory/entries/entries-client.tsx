@@ -8,9 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { useUiStore } from '@/store/ui-store';
-import { ArrowLeft, ClipboardList, Loader2, PackagePlus, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Loader2, PackagePlus, Plus, Printer, Receipt, Store, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import type { StockEntryProductOption } from './page';
+import type {
+  DistributorPurchaseSummary,
+  StockEntryDistributorOption,
+  StockEntryProductOption,
+} from './page';
 
 const UNIT_SHORT: Record<string, string> = {
   UNIT: 'und',
@@ -39,6 +43,7 @@ interface EntryRecord {
   entryDate: string | null;
   createdAt: string;
   branch?: { id: string; name: string } | null;
+  distributor?: { id: string; name: string; code: string } | null;
   items: EntryItem[];
 }
 
@@ -55,6 +60,8 @@ interface StockEntriesClientProps {
   initialEntries: Array<Record<string, unknown>>;
   products: StockEntryProductOption[];
   branches: Array<{ id: string; name: string }>;
+  distributors: StockEntryDistributorOption[];
+  purchases: DistributorPurchaseSummary[];
 }
 
 const emptyLine = (): Line => ({
@@ -66,7 +73,7 @@ const emptyLine = (): Line => ({
   expiryDate: '',
 });
 
-export function StockEntriesClient({ initialEntries, products, branches }: StockEntriesClientProps) {
+export function StockEntriesClient({ initialEntries, products, branches, distributors, purchases }: StockEntriesClientProps) {
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
 
@@ -75,6 +82,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
   const [branchId, setBranchId] = useState('');
+  const [distributorId, setDistributorId] = useState('');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -136,6 +144,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
         token: getAccessToken(),
         body: JSON.stringify({
           branchId: branchId || undefined,
+          distributorId: distributorId || undefined,
           reference: reference || undefined,
           notes: notes || undefined,
           entryDate: entryDate ? new Date(`${entryDate}T00:00:00`).toISOString() : undefined,
@@ -155,6 +164,43 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const printReceipt = (group: DistributorPurchaseSummary) => {
+    const title = group.distributor ? `${group.distributor.name} (${group.distributor.code})` : 'General / sin distribuidor';
+    const rows = group.entries
+      .map(
+        (entry) =>
+          `<tr><td>${new Date(entry.entryDate).toLocaleDateString()}</td><td>${escapeHtml(entry.reference ?? '—')}</td><td style="text-align:right">${entry.itemCount}</td><td style="text-align:right">S/ ${entry.total.toFixed(2)}</td></tr>`,
+      )
+      .join('');
+    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Boleta interna - ${escapeHtml(title)}</title>
+<style>
+  body{font-family:system-ui,Arial,sans-serif;padding:32px;color:#0f172a}
+  h1{font-size:20px;margin:0 0 4px}
+  p{margin:2px 0;color:#475569;font-size:13px}
+  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+  th,td{border-bottom:1px solid #e2e8f0;padding:8px}
+  th{background:#f8fafc;text-transform:uppercase;font-size:11px;letter-spacing:.08em;color:#64748b;text-align:left}
+  .total{margin-top:20px;font-size:16px;font-weight:700;color:#0f172a}
+  .brand{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#10b981}
+</style></head><body>
+  <p class="brand">Boleta interna de compras</p>
+  <h1>${escapeHtml(title)}</h1>
+  <p>Entradas: ${group.entryCount} · Artículos: ${group.itemCount}</p>
+  <p>Emitida: ${new Date().toLocaleString()}</p>
+  <table><thead><tr><th>Fecha</th><th>Referencia</th><th style="text-align:right">Items</th><th style="text-align:right">Total</th></tr></thead><tbody>${rows}</tbody></table>
+  <p class="total">Total comprado: S/ ${group.totalPurchased.toFixed(2)}</p>
+</body></html>`;
+    const win = window.open('', '_blank', 'width=820,height=900');
+    if (!win) {
+      addToast('Permite las ventanas emergentes para imprimir la boleta.', 'error');
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   return (
@@ -190,7 +236,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
 
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-100">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Fecha de ingreso</Label>
               <Input
@@ -211,6 +257,21 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">Distribuidor / Proveedor</Label>
+              <select
+                value={distributorId}
+                onChange={(event) => setDistributorId(event.target.value)}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+              >
+                <option value="">General (sin distribuidor)</option>
+                {distributors.map((distributor) => (
+                  <option key={distributor.id} value={distributor.id}>
+                    {distributor.name}
                   </option>
                 ))}
               </select>
@@ -409,12 +470,13 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
         </div>
 
         <div className="max-h-[600px] overflow-auto rounded-xl border border-foreground/10">
-          <table className="w-full min-w-[940px]">
+          <table className="w-full min-w-[1080px]">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b border-foreground/10 text-left text-sm text-foreground/50">
                 <th className="pb-4 pl-4 font-medium">Fecha</th>
                 <th className="pb-4 font-medium">Referencia</th>
                 <th className="pb-4 font-medium">Sucursal</th>
+                <th className="pb-4 font-medium">Distribuidor</th>
                 <th className="pb-4 font-medium">Producto</th>
                 <th className="pb-4 font-medium text-right">Cantidad</th>
                 <th className="pb-4 font-medium text-center">Vencimiento</th>
@@ -436,6 +498,9 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
                           </td>
                           <td className="py-3 text-sm text-foreground/60" rowSpan={entry.items.length}>
                             {entry.branch?.name ?? '—'}
+                          </td>
+                          <td className="py-3 text-sm text-foreground/60" rowSpan={entry.items.length}>
+                            {entry.distributor?.name ?? 'General'}
                           </td>
                         </>
                       )}
@@ -462,7 +527,7 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
                 )
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-foreground/50">
+                  <td colSpan={8} className="py-12 text-center text-foreground/50">
                     Aún no hay entradas registradas.
                   </td>
                 </tr>
@@ -470,6 +535,72 @@ export function StockEntriesClient({ initialEntries, products, branches }: Stock
             </tbody>
           </table>
         </div>
+      </Card>
+
+      <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-200">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Compras por proveedor</p>
+            <h2 className="mt-2 font-display text-2xl">Boletas internas</h2>
+          </div>
+        </div>
+
+        {purchases.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {purchases.map((group) => (
+              <div
+                key={group.distributor?.id ?? 'general'}
+                className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                    {group.distributor ? <Store className="size-5" /> : <PackagePlus className="size-5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-900">
+                      {group.distributor?.name ?? 'General (sin distribuidor)'}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {group.distributor ? `Código ${group.distributor.code}` : 'Compras sin proveedor'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Total comprado</p>
+                    <p className="font-display text-xl text-slate-900">S/ {group.totalPurchased.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Entradas</p>
+                    <p className="font-display text-xl text-slate-900">{group.entryCount}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-slate-400">
+                  {group.itemCount} artículos
+                  {group.lastEntryDate
+                    ? ` · Última: ${new Date(group.lastEntryDate).toLocaleDateString()}`
+                    : ''}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => printReceipt(group)}
+                  className="mt-4 h-10 w-full rounded-xl border-slate-200 text-slate-700 hover:bg-white hover:border-emerald-300"
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Imprimir boleta interna
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-400">
+            <Receipt className="mx-auto mb-3 h-8 w-8 text-slate-300" />
+            Aún no hay compras registradas por proveedor.
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -481,5 +612,18 @@ function unitLabel(
 ): string {
   if (item.presentation) return item.presentation.name;
   const product = productMap.get(item.productId);
-  return product ? UNIT_SHORT[item.product.baseUnit] ?? item.product.baseUnit : '';
+  return product ? UNIT_SHORT[product.baseUnit] ?? product.baseUnit : '';
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    const map: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+    return map[char] as string;
+  });
 }

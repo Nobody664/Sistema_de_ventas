@@ -7,6 +7,7 @@ import { Loader2, Upload, Image as ImageIcon, Package, Barcode, Tag, Banknote, B
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { handleLimitError } from '@/lib/handle-limit-error';
 import { BarcodeScanner } from '@/components/ui/barcode-scanner';
@@ -51,6 +52,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(product?.imageUrl || null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [barcodeValue, setBarcodeValue] = useState(product?.barcode || '');
+  const [isActive, setIsActive] = useState(product?.isActive ?? true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = !!product;
@@ -175,7 +177,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       const method = isEdit ? 'PATCH' : 'POST';
 
       const payload = isEdit
-        ? { ...data, expiryDate: data.expiryDate ?? null }
+        ? { ...data, expiryDate: data.expiryDate ?? null, isActive }
         : {
             ...data,
             presentations: cleanPresentations.map((row) => ({
@@ -354,6 +356,22 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                         <span className="text-slate-500">Precio</span>
                         <span className="font-bold text-slate-900">S/ {parseFloat(String(product?.salePrice || '0')).toFixed(2)}</span>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {isEdit && (
+                  <div className="mt-4 p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-700">Estado</p>
+                        <p className="text-xs text-slate-400">
+                          {isActive
+                            ? 'Activo y disponible para la venta'
+                            : 'Inactivo, oculto en ventas'}
+                        </p>
+                      </div>
+                      <Switch checked={isActive} onCheckedChange={setIsActive} />
                     </div>
                   </div>
                 )}
