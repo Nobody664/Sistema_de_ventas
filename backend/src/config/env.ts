@@ -19,7 +19,7 @@ export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(4000),
   API_PREFIX: z.string().default('api'),
-  APP_NAME: z.string().default('Ventas SaaS API'),
+  APP_NAME: z.string().default('Huanka-Saas API'),
   DATABASE_URL: z.string().min(1),
   DIRECT_URL: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().min(10),

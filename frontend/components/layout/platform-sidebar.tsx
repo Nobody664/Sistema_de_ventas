@@ -51,7 +51,7 @@ function PlatformSidebarContent({ roles, onNavigate }: PlatformSidebarContentPro
     <>
       <div className="flex min-h-0 flex-col gap-6 overflow-hidden">
         <div className="rounded-2xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-sidebar-foreground/40">Ventas SaaS</p>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-sidebar-foreground/40">Huanka-Saas</p>
           <p className="mt-2 font-display text-2xl text-sidebar-foreground">Control</p>
           <p className="mt-1 text-xs font-medium text-violet-400">Plataforma</p>
         </div>

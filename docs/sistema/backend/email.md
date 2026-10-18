@@ -20,7 +20,7 @@ Valores y asuntos definidos en `EMAIL_TEMPLATES`:
 - `payment-received` — "Pago recibido".
 - `payment-proof-received` — "Comprobante recibido" (usa `{{companyName}}` y `{{planName}}`).
 - `password-reset` — "Restablece tu contraseña" (usa `{{resetUrl}}`, indica validez de 15 minutos).
-- `welcome` — "Bienvenido a Ventas SaaS".
+- `welcome` — "Bienvenido a Huanka-Saas".
 
 La interpolación reemplaza `{{clave}}` por el valor de `data[clave]`, saneando caracteres de control y saltos de línea. El asunto y el cuerpo se pueden sobreescribir con `job.subject` si se provee.
 

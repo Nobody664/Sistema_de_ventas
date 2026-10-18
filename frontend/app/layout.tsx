@@ -16,7 +16,7 @@ const bodyFont = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Ventas SaaS',
+  title: 'Huanka-Saas',
   description: 'Plataforma SaaS multi-empresa para ventas, inventario y suscripciones.',
 };
 

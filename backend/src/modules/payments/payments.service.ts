@@ -362,7 +362,7 @@ export class PaymentsService {
 
     const paymentData = {
       transaction_amount: Number(plan.priceMonthly),
-      description: `Suscripción ${plan.name} - Ventas SaaS`,
+      description: `Suscripción ${plan.name} - Huanka-Saas`,
       payment_method_id: 'yape',
       payer: {
         email: company?.email || 'customer@example.com',

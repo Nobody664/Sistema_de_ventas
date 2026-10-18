@@ -43,7 +43,7 @@ const testimonials = [
   {
     name: 'Ana López',
     company: 'Supermercado Local',
-    description: 'Desde que usamos Ventas SaaS, nuestro control de inventario es perfecto.',
+    description: 'Desde que usamos Huanka-Saas, nuestro control de inventario es perfecto.',
     rating: 5,
   },
 ];
@@ -97,7 +97,7 @@ export default function HomePage() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 font-bold text-white">
                 V
               </div>
-              <span className="hidden text-lg font-medium text-white sm:inline">Ventas SaaS</span>
+              <span className="hidden text-lg font-medium text-white sm:inline">Huanka-Saas</span>
             </Link>
             <nav className="flex items-center gap-2">
               <Link
@@ -345,7 +345,7 @@ export default function HomePage() {
                 ¿Listo para transformar tu negocio?
               </h2>
               <p className="mt-4 text-lg text-white/80">
-                Únete a miles de emprendedores que ya están vendiendo más con Ventas SaaS
+                Únete a miles de emprendedores que ya están vendiendo más con Huanka-Saas
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Button asChild size="lg" className="h-12 rounded-xl bg-white text-violet-600 px-8 font-semibold hover:bg-white/90">
@@ -371,10 +371,10 @@ export default function HomePage() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 text-white font-bold">
                 V
               </div>
-              <span className="text-lg font-medium text-white">Ventas SaaS</span>
+              <span className="text-lg font-medium text-white">Huanka-Saas</span>
             </div>
             <p className="text-sm text-white/40">
-              © 2026 Ventas SaaS. Todos los derechos reservados.
+              © 2026 Huanka-Saas. Todos los derechos reservados.
             </p>
           </div>
         </div>

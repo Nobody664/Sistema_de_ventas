@@ -98,7 +98,7 @@ async function bootstrap() {
   // =========================
   if (config.get('NODE_ENV') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Ventas SaaS API')
+      .setTitle('Huanka-Saas API')
       .setDescription('API para sistema de gestión de ventas')
       .setVersion('1.0')
       .addBearerAuth()

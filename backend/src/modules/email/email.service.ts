@@ -24,14 +24,14 @@ const EMAIL_TEMPLATES: Record<EmailTemplate, { subject: string; text: string }> 
   [EmailTemplate.SUBSCRIPTION_PENDING]: {
     subject: 'Tu cuenta está pendiente de aprobación',
     text: `
-¡Gracias por registrarte en Ventas SaaS!
+¡Gracias por registrarte en Huanka-Saas!
 
 Tu empresa ha sido registrada y está esperando ser aprobada por nuestro equipo.
 
 Te notificaremos cuando tu cuenta haya sido activada y puedas comenzar a usar el sistema.
 
 Saludos,
-Equipo Ventas SaaS
+Equipo Huanka-Saas
     `.trim(),
   },
   [EmailTemplate.SUBSCRIPTION_APPROVED]: {
@@ -39,12 +39,12 @@ Equipo Ventas SaaS
     text: `
 ¡Tu cuenta ha sido aprobada!
 
-Ahora puedes acceder a Ventas SaaS y comenzar a usar todas las funcionalidades de tu plan.
+Ahora puedes acceder a Huanka-Saas y comenzar a usar todas las funcionalidades de tu plan.
 
 Ingresa a tu cuenta: https://ventas.example.com/sign-in
 
 Saludos,
-Equipo Ventas SaaS
+Equipo Huanka-Saas
     `.trim(),
   },
   [EmailTemplate.SUBSCRIPTION_REJECTED]: {
@@ -55,7 +55,7 @@ Lamentamos informarte que tu solicitud de suscripción ha sido rechazada.
 Si crees que esto es un error, por favor contacta a nuestro equipo de soporte.
 
 Saludos,
-Equipo Ventas SaaS
+Equipo Huanka-Saas
     `.trim(),
   },
   [EmailTemplate.ACCOUNT_ACTIVATED]: {
@@ -63,12 +63,12 @@ Equipo Ventas SaaS
     text: `
 ¡Tu cuenta está ahora activa!
 
-Puedes comenzar a usar todas las funcionalidades de Ventas SaaS.
+Puedes comenzar a usar todas las funcionalidades de Huanka-Saas.
 
 Ingresa a tu cuenta: https://ventas.example.com/sign-in
 
 Saludos,
-Equipo Ventas SaaS
+Equipo Huanka-Saas
     `.trim(),
   },
   [EmailTemplate.PAYMENT_RECEIVED]: {
@@ -76,10 +76,10 @@ Equipo Ventas SaaS
     text: `
 Hemos recibido tu pago correctamente.
 
-Tu suscripción está al día y puedes seguir usando todas las funcionalidades de Ventas SaaS.
+Tu suscripción está al día y puedes seguir usando todas las funcionalidades de Huanka-Saas.
 
 Saludos,
-Equipo Ventas SaaS
+Equipo Huanka-Saas
     `.trim(),
   },
   [EmailTemplate.PAYMENT_PROOF_RECEIVED]: {
@@ -90,7 +90,7 @@ Hemos recibido tu comprobante de pago para la empresa "{{companyName}}" (plan "{
 Nuestro equipo lo revisará y te notificaremos cuando tu cuenta esté lista para ingresar.
 
 Saludos,
-Equipo Ventas SaaS
+Equipo Huanka-Saas
     `.trim(),
   },
   [EmailTemplate.PASSWORD_RESET]: {
@@ -105,20 +105,20 @@ Usa el siguiente enlace para crear una nueva contraseña (válido por 15 minutos
 Si no solicitaste este cambio, puedes ignorar este correo.
 
 Saludos,
-Equipo Ventas SaaS
+Equipo Huanka-Saas
     `.trim(),
   },
   [EmailTemplate.WELCOME]: {
-    subject: 'Bienvenido a Ventas SaaS',
+    subject: 'Bienvenido a Huanka-Saas',
     text: `
-¡Bienvenido a Ventas SaaS!
+¡Bienvenido a Huanka-Saas!
 
 Gracias por registrarte. Tu cuenta está en proceso de aprobación.
 
 Te notificaremos cuando tu cuenta haya sido activada.
 
 Saludos,
-Equipo Ventas SaaS
+Equipo Huanka-Saas
     `.trim(),
   },
 };
