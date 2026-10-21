@@ -44,14 +44,15 @@ Antes `format=excel` devolvía JSON y `format=pdf` devolvía HTML con extensión
 - 4.2 Flujos manuales (Yape/Plin/transferencia) validados contra `PaymentSetting.isEnabled`. ✅ (`createCheckoutSession` + checkout/upgrade ya usaban settings)
 - 4.3 Dejar Stripe/PayPal documentados como no soportados (respuesta clara 501) en vez de `pending` silencioso. ✅ `NotImplementedException`
 
-## Fase 5 — SSE multi-instancia (Redis pub/sub) ⬜
+## Fase 5 — SSE multi-instancia (Redis pub/sub) ✅
 *Esfuerzo: medio · Impacto: MEDIA (requerido para escalar >1 instancia)*
 
-`NotificationsService` usa un `Map` in-process de suscriptores SSE.
+`NotificationsService` usaba un `Map` in-process de suscriptores SSE (una instancia no veía a las demás).
 
-- 5.1 Publicar eventos de notificación en canal Redis (`notifications:{userId}`).
-- 5.2 Suscripción Redis en cada instancia → fan-out a sus suscriptores locales.
-- 5.3 Fallback in-process si no hay Redis (comportamiento actual).
+- 5.1 `create` publica el evento en el canal Redis `notifications:events` (`publishNotification`). ✅
+- 5.2 Cada instancia se suscribe (`onModuleInit` con `duplicate()`) y hace fan-out a sus clientes SSE locales (`onPubSubMessage`). ✅
+- 5.3 Fallback in-process si no hay Redis, si falla la suscripción o si `publish` falla. ✅
+- 5.4 Tests `notifications.service.spec.ts` ampliados (pub/sub, fallback, payload inválido). ✅ suite 92/92
 
 ## Fase 6 — Tests: e2e y cobertura de servicios clave ⬜
 *Esfuerzo: alto · Impacto: MEDIO-ALTO (seguridad de futuros cambios)*

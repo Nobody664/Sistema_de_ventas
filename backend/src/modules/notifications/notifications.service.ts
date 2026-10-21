@@ -1,6 +1,18 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+  OnModuleDestroy,
+  OnModuleInit,
+} from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { REDIS_CLIENT } from "@/cache/redis.module";
 import { Prisma } from "@prisma/client";
+import Redis from "ioredis";
+
+export const NOTIFICATIONS_CHANNEL = "notifications:events";
 
 export enum NotificationType {
   // SUPER_ADMIN
@@ -53,11 +65,64 @@ export interface CreateNotificationInput {
 
 export type NotificationEmitter = (notification: unknown) => void;
 
-@Injectable()
-export class NotificationsService {
-  private readonly subscribers = new Map<string, Set<NotificationEmitter>>();
+interface NotificationPubSubMessage {
+  userId: string;
+  notification: unknown;
+}
 
-  constructor(private readonly prisma: PrismaService) {}
+@Injectable()
+export class NotificationsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(NotificationsService.name);
+  private readonly subscribers = new Map<string, Set<NotificationEmitter>>();
+  private subscriber: Redis | null = null;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    @Inject(REDIS_CLIENT)
+    private readonly redisClient?: Redis | null,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    if (!this.redisClient) {
+      this.logger.log("SSE en modo local (sin REDIS_URL)");
+      return;
+    }
+
+    const subscriber = this.redisClient.duplicate();
+    subscriber.on("error", (error: Error) => {
+      this.logger.warn(`Redis pub/sub error: ${error.message}`);
+    });
+    subscriber.on("message", (channel: string, payload: string) => {
+      if (channel === NOTIFICATIONS_CHANNEL) {
+        this.onPubSubMessage(payload);
+      }
+    });
+
+    try {
+      await subscriber.connect();
+      await subscriber.subscribe(NOTIFICATIONS_CHANNEL);
+      this.subscriber = subscriber;
+      this.logger.log("SSE multi-instancia habilitado (Redis pub/sub)");
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo suscribir a Redis (${(error as Error).message}); SSE local`,
+      );
+      subscriber.disconnect();
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (!this.subscriber) {
+      return;
+    }
+    try {
+      await this.subscriber.quit();
+    } catch {
+      // ignore errors on shutdown
+    }
+    this.subscriber = null;
+  }
 
   subscribe(userId: string, emitter: NotificationEmitter): () => void {
     let emitters = this.subscribers.get(userId);
@@ -87,6 +152,38 @@ export class NotificationsService {
     emitters.forEach((emitter) => emitter(notification));
   }
 
+  private onPubSubMessage(payload: string): void {
+    try {
+      const message = JSON.parse(payload) as NotificationPubSubMessage;
+      if (message.userId && "notification" in message) {
+        this.emitNotification(message.userId, message.notification);
+      }
+    } catch (error) {
+      this.logger.warn(`Mensaje pub/sub invalido: ${(error as Error).message}`);
+    }
+  }
+
+  private async publishNotification(
+    userId: string,
+    notification: unknown,
+  ): Promise<void> {
+    if (this.subscriber && this.redisClient?.status === "ready") {
+      try {
+        await this.redisClient.publish(
+          NOTIFICATIONS_CHANNEL,
+          JSON.stringify({ userId, notification }),
+        );
+        return;
+      } catch (error) {
+        this.logger.warn(
+          `No se pudo publicar en Redis (${(error as Error).message}); emit local`,
+        );
+      }
+    }
+
+    this.emitNotification(userId, notification);
+  }
+
   async create(input: CreateNotificationInput) {
     const notification = await this.prisma.notification.create({
       data: {
@@ -101,7 +198,7 @@ export class NotificationsService {
       },
     });
 
-    this.emitNotification(input.userId, notification);
+    await this.publishNotification(input.userId, notification);
 
     return notification;
   }

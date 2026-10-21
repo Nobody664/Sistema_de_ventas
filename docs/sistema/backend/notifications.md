@@ -1,7 +1,7 @@
 # Módulo: notifications
 
 ## Propósito
-Gestiona las notificaciones persistidas en la tabla `notifications`: consulta por usuario y por empresa, conteo de no leídas, marcado como leídas y un canal SSE en memoria para push al cliente. Además, `NotificationsService.create` es el punto único de creación de notificaciones usado por otros módulos (billing, sales, low-stock, subscriptions, payments, company-profile, plan-upgrade-requests, checkout-requests).
+Gestiona las notificaciones persistidas en la tabla `notifications`: consulta por usuario y por empresa, conteo de no leídas, marcado como leídas y un canal SSE para push al cliente, con **fan-out multi-instancia vía Redis pub/sub** (`notifications:events`) y fallback en memoria si no hay Redis. `NotificationsService.create` es el punto único de creación usado por otros módulos (billing, sales, low-stock, subscriptions, payments, company-profile, plan-upgrade-requests, checkout-requests).
 
 ## Archivos clave
 - `backend/src/modules/notifications/notifications.controller.ts` — controller de `notifications`; expone consultas, marcado de lectura y el stream SSE.
@@ -18,15 +18,14 @@ Gestiona las notificaciones persistidas en la tabla `notifications`: consulta po
 Todos los endpoints cuelgan del prefijo global `/api`. El controller aplica `@UseGuards(JwtAuthGuard)` a nivel de clase.
 
 ### GET /api/notifications/stream
-- **Descripción**: Abre un stream SSE (`text/event-stream`) para el usuario autenticado. Mantiene un registro en memoria (`Map<userId, Set<send>>`) y escribe `data: <json>\n\n` cuando se le entrega una notificación.
+- **Descripción**: Abre un stream SSE (`text/event-stream`) para el usuario autenticado. Registra al cliente en el `Map<userId, Set<send>>` local; el evento llega tanto desde `create` en esta instancia como desde el canal Redis `notifications:events` (otras instancias).
 - **Auth**: JWT (guard de clase).
 - **Plan**: ninguno.
 - **Guards extra**: `JwtAuthGuard` (clase).
 - **Path params / Query / Body**: ninguno.
 - **Respuesta**: stream SSE (headers `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`, `X-Accel-Buffering: no`). No devuelve un cuerpo JSON.
-- **Efectos secundarios**: manejador en memoria por `user.sub`; en `close` se desregistra el cliente. No escribe base de datos.
+- **Efectos secundarios**: manejador local por `user.sub`; en `close` se desregistra el cliente. No escribe base de datos.
 - **Errores**: 401 por JWT (guard global).
-- **Nota**: el método público `emitNotification(userId, notification)` del controller empuja datos a los clientes suscritos, pero **no se encontraron llamadas a este método en el código** (queda como "no verificado en el código" que se use actualmente).
 
 ### GET /api/notifications
 - **Descripción**: Lista las notificaciones del usuario autenticado.
@@ -101,10 +100,17 @@ Ejemplos observados en el código:
 ## Funciones del servicio (`NotificationsService`)
 
 ### `create(input: CreateNotificationInput)`
-- **Qué hace**: Inserta una `Notification` con `type`/`channel` (por defecto `IN_APP`), `data` (por defecto `{}`) y `sentAt` (fecha solo si el canal es `EMAIL`).
+- **Qué hace**: Inserta una `Notification` con `type`/`channel` (por defecto `IN_APP`), `data` (por defecto `{}`) y `sentAt` (fecha solo si el canal es `EMAIL`). Luego **publica** el evento SSE (ver "SSE multi-instancia").
 - **Escribe en**: `notifications`.
 - **Devuelve**: la notificación creada.
 - **Lanza**: no lanza excepciones propias.
+
+## SSE multi-instancia (Redis pub/sub)
+- `onModuleInit` crea una conexión `duplicate()` del cliente Redis global y se suscribe a `notifications:events`; si no hay `REDIS_URL` o falla la suscripción, queda en modo local (comportamiento anterior).
+- `publishNotification(userId, notification)` publica `{ userId, notification }` en `notifications:events`; si no hay Redis `ready` (o falla el `publish`), hace `emitNotification` local directamente.
+- `onPubSubMessage(payload)` reenvía a los suscriptores locales del `userId`; payloads inválidos se ignoran con warning. Así varias instancias del backend reciben y reenvían a sus clientes SSE.
+- `onModuleDestroy` cierra la conexión suscriptora.
+- `emitNotification(userId, notification)` / `subscribe(userId, emitter)` siguen siendo la API local (fan-out a los `Set` de emisores por usuario).
 
 ### `findByUser(userId: string, options?: { unreadOnly?: boolean; limit?: number })`
 - **Qué hace**: Lista notificaciones del usuario; opcionalmente solo no leídas; orden `createdAt desc`, `take` = `limit` o 50.
