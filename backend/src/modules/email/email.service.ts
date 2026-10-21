@@ -1,6 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
 import nodemailer from "nodemailer";
+import { EMAIL_JOB_SEND, EMAIL_QUEUE } from "./email.constants";
 
 export interface SendEmailJob {
   to: string;
@@ -158,7 +161,12 @@ export class EmailService {
   private readonly smtpEnabled: boolean;
   private readonly frontendUrl: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional()
+    @InjectQueue(EMAIL_QUEUE)
+    private readonly queue?: Queue<SendEmailJob>,
+  ) {
     this.fromEmail =
       this.configService.get<string>("SMTP_FROM_EMAIL") ||
       "noreply@ventassaas.com";
@@ -184,37 +192,27 @@ export class EmailService {
   }
 
   async sendEmail(job: SendEmailJob): Promise<void> {
-    const template = EMAIL_TEMPLATES[job.template];
-
-    if (!template) {
-      this.logger.warn(`Unknown email template: ${job.template}`);
+    if (!this.queue) {
+      await this.sendEmailDirect(job);
       return;
     }
 
-    if (this.hasInvalidRecipient(job.to)) {
-      this.logger.warn(
-        `Envío rechazado: destinatario inválido (posible inyección de headers)`,
+    try {
+      await this.queue.add(EMAIL_JOB_SEND, job, {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5_000 },
+        removeOnComplete: { count: 200 },
+        removeOnFail: { count: 500 },
+      });
+      this.logger.log(
+        `Email encolado: ${job.template} to @${this.recipientDomain(job.to)}`,
       );
-      return;
+    } catch (error) {
+      this.logger.error(
+        `No se pudo encolar ${job.template}: ${(error as Error).message}. Reintento sincrono.`,
+      );
+      await this.sendEmailDirect(job);
     }
-
-    const text = this.interpolateTemplate(
-      template.text,
-      this.withCommonData(job.data),
-    );
-    const subject = this.subjectOf(job, template, job.data);
-
-    // Direct send (no queue)
-    await this.transporter.sendMail({
-      from: this.fromEmail,
-      to: job.to,
-      subject,
-      text,
-    });
-
-    this.logger.log(
-      `Email queued: ${job.template} to @${this.recipientDomain(job.to)}`,
-    );
   }
 
   async sendEmailDirect(job: SendEmailJob): Promise<void> {
@@ -302,7 +300,7 @@ export class EmailService {
     userEmail: string,
     companyName: string,
   ): Promise<void> {
-    await this.sendEmailDirect({
+    await this.sendEmail({
       to: userEmail,
       subject: "",
       template: EmailTemplate.SUBSCRIPTION_PENDING,
@@ -314,7 +312,7 @@ export class EmailService {
     userEmail: string,
     companyName: string,
   ): Promise<void> {
-    await this.sendEmailDirect({
+    await this.sendEmail({
       to: userEmail,
       subject: "",
       template: EmailTemplate.SUBSCRIPTION_APPROVED,
@@ -326,7 +324,7 @@ export class EmailService {
     userEmail: string,
     companyName: string,
   ): Promise<void> {
-    await this.sendEmailDirect({
+    await this.sendEmail({
       to: userEmail,
       subject: "",
       template: EmailTemplate.SUBSCRIPTION_REJECTED,
@@ -338,7 +336,7 @@ export class EmailService {
     userEmail: string,
     companyName: string,
   ): Promise<void> {
-    await this.sendEmailDirect({
+    await this.sendEmail({
       to: userEmail,
       subject: "",
       template: EmailTemplate.ACCOUNT_ACTIVATED,
@@ -347,7 +345,7 @@ export class EmailService {
   }
 
   async sendPasswordReset(userEmail: string, resetUrl: string): Promise<void> {
-    await this.sendEmailDirect({
+    await this.sendEmail({
       to: userEmail,
       subject: "",
       template: EmailTemplate.PASSWORD_RESET,
@@ -360,7 +358,7 @@ export class EmailService {
     companyName: string,
     planName: string,
   ): Promise<void> {
-    await this.sendEmailDirect({
+    await this.sendEmail({
       to: userEmail,
       subject: "",
       template: EmailTemplate.PAYMENT_PROOF_RECEIVED,
@@ -374,7 +372,7 @@ export class EmailService {
     planName: string,
     daysLeft: number,
   ): Promise<void> {
-    await this.sendEmailDirect({
+    await this.sendEmail({
       to: userEmail,
       subject: "",
       template: EmailTemplate.TRIAL_EXPIRING_SOON,
@@ -391,7 +389,7 @@ export class EmailService {
     companyName: string,
     planName: string,
   ): Promise<void> {
-    await this.sendEmailDirect({
+    await this.sendEmail({
       to: userEmail,
       subject: "",
       template: EmailTemplate.TRIAL_EXPIRED,

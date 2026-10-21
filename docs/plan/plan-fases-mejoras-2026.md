@@ -27,15 +27,15 @@ Antes `format=excel` devolvía JSON y `format=pdf` devolvía HTML con extensión
 - 2.4 Helper compartido `common/helpers/export.helper.ts` (`buildCsvExport`, `buildXlsxExport`, `buildPdfExport`); misma forma `{ filename, contentType, data }` base64, sin cambios en el cliente. ✅
 - 2.5 Tests `export.helper.spec.ts` (6 casos: BOM/escape CSV, magic bytes `PK` y `%PDF-`, paginación, dataset vacío). ✅ suite 86/86
 
-## Fase 3 — BullMQ: emails asíncronos ⬜
+## Fase 3 — BullMQ: emails asíncronos ✅
 *Esfuerzo: medio · Impacto: MEDIA-ALTA (latencia de requests y fiabilidad)*
 
-`@nestjs/bullmq` está instalado y `BullModule.forRoot` condicional, pero **no existe ninguna cola**; los emails se envían síncronos con nodemailer dentro de requests.
+`@nestjs/bullmq` estaba instalado y `BullModule.forRoot` condicional, pero no existía ninguna cola; los emails se enviaban síncronos.
 
-- 3.1 Registrar cola `email` (`registerQueue`) + `EmailProcessor` (`WorkerHost`).
-- 3.2 `EmailService` → `add()` a la cola; fallback síncrono si no hay `REDIS_URL`.
-- 3.3 Reintentos/backoff configurados; log de fallos.
-- 3.4 Tests del processor con mock de cola.
+- 3.1 Cola `email` (`registerQueue`) + `EmailProcessor` (`WorkerHost`) registrados cuando hay `REDIS_URL`. ✅
+- 3.2 `EmailService.sendEmail` → `add()` a la cola; fallback síncrono (`sendEmailDirect`) sin Redis o si `add()` falla. Helpers de envío migrados a `sendEmail`. ✅
+- 3.3 Reintentos: `attempts: 3`, backoff exponencial 5 s, `removeOnComplete/Fail` acotados; los errores SMTP se propagan para que BullMQ reintente. ✅
+- 3.4 Tests `email.processor.spec.ts` (delegación + propagación de errores). ✅ suite 88/88
 
 ## Fase 4 — Pagos: Yape/Plin y providers ✅
 *Esfuerzo: medio-alto · Impacto: MEDIA*
