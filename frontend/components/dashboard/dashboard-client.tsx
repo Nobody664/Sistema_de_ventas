@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth.store";
 import { RevenueChart } from "@/components/charts/revenue-chart";
+import { DashboardMetricsPanel } from "@/components/dashboard/dashboard-metrics-panel";
 import { ErrorBoundary } from "@/components/common/error-boundary";
 import {
   Building2,
@@ -309,6 +310,12 @@ export function DashboardClient({
           );
         })}
       </div>
+
+      {!isSuperAdmin && (
+        <ErrorBoundary>
+          <DashboardMetricsPanel />
+        </ErrorBoundary>
+      )}
 
       {isSuperAdmin && (
         <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">

@@ -68,6 +68,60 @@ type TenantMetrics = {
   customerStats: CustomerStats;
 };
 
+type MetricsTrendPoint = {
+  bucket: string;
+  sales: number;
+  revenue: number;
+};
+
+type MetricsSummary = {
+  totalSales: number;
+  totalRevenue: number;
+  averageTicket: number;
+  totalUnits: number;
+};
+
+type MetricsComparison = {
+  revenueChange: number;
+  salesChange: number;
+  averageTicketChange: number;
+};
+
+type RotationPoint = {
+  productId: string;
+  name: string;
+  quantitySold: number;
+  averageStock: number;
+  rotation: number;
+};
+
+type RotationMetrics = {
+  globalRotation: number;
+  averageStockValue: number;
+  coefficient: number;
+  products: RotationPoint[];
+};
+
+type DashboardMetrics = {
+  period: {
+    days: number;
+    granularity: "day" | "week" | "month";
+    from: string;
+    to: string;
+  };
+  summary: MetricsSummary;
+  previous: MetricsSummary;
+  comparison: MetricsComparison;
+  trend: MetricsTrendPoint[];
+  topProducts: Array<{
+    productId: string;
+    name: string;
+    quantity: number;
+    revenue: number;
+  }>;
+  rotation: RotationMetrics;
+};
+
 @Injectable()
 export class DashboardService {
   constructor(
@@ -402,6 +456,228 @@ export class DashboardService {
       paymentMethods,
       inventoryMetrics,
       customerStats,
+    };
+
+    await this.cache.set(cacheKey, result, 60);
+    return result;
+  }
+
+  async getMetrics(
+    companyId: string,
+    days: number,
+    granularity: "day" | "week" | "month",
+  ): Promise<DashboardMetrics> {
+    const cacheKey = `dashboard:metrics:${companyId}:${days}:${granularity}`;
+    const cached = await this.cache.get<DashboardMetrics>(cacheKey);
+    if (cached) return cached;
+
+    const now = new Date();
+    const to = new Date(now);
+    to.setHours(23, 59, 59, 999);
+
+    const from = new Date(to);
+    from.setDate(from.getDate() - (days - 1));
+    from.setHours(0, 0, 0, 0);
+
+    const previousTo = new Date(from);
+    previousTo.setMilliseconds(-1);
+
+    const previousFrom = new Date(previousTo);
+    previousFrom.setDate(previousFrom.getDate() - (days - 1));
+    previousFrom.setHours(0, 0, 0, 0);
+
+    const [currentSales, previousSales] = await Promise.all([
+      this.prisma.sale.findMany({
+        where: {
+          companyId,
+          status: "COMPLETED",
+          createdAt: { gte: from, lte: to },
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          totalAmount: true,
+          items: {
+            select: {
+              productId: true,
+              quantity: true,
+              totalPrice: true,
+              product: { select: { name: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.sale.findMany({
+        where: {
+          companyId,
+          status: "COMPLETED",
+          createdAt: { gte: previousFrom, lte: previousTo },
+        },
+        select: { totalAmount: true },
+      }),
+    ]);
+
+    const current = currentSales as unknown as Array<{
+      id: string;
+      createdAt: Date;
+      totalAmount: unknown;
+      items: Array<{
+        productId: string;
+        quantity: unknown;
+        totalPrice: unknown;
+        product: { name: string };
+      }>;
+    }>;
+    const previous = previousSales as Array<{ totalAmount: unknown }>;
+
+    const aggregate = (
+      sales: Array<{ totalAmount: unknown }>,
+      units: number,
+    ): MetricsSummary => {
+      const revenue = sales.reduce(
+        (sum, sale) => sum + Number(sale.totalAmount),
+        0,
+      );
+      return {
+        totalSales: sales.length,
+        totalRevenue: revenue,
+        averageTicket: sales.length > 0 ? revenue / sales.length : 0,
+        totalUnits: units,
+      };
+    };
+
+    let totalUnits = 0;
+    const trendMap = new Map<string, MetricsTrendPoint>();
+    const productMap = new Map<
+      string,
+      { productId: string; name: string; quantity: number; revenue: number }
+    >();
+
+    const bucketKey = (date: Date): string => {
+      const iso = date.toISOString().split("T")[0];
+      if (granularity === "day") return iso;
+      if (granularity === "month") return iso.slice(0, 7);
+      const monday = new Date(date);
+      const dayIdx = (monday.getUTCDay() + 6) % 7;
+      monday.setUTCDate(monday.getUTCDate() - dayIdx);
+      return monday.toISOString().split("T")[0];
+    };
+
+    for (const sale of current) {
+      const amount = Number(sale.totalAmount);
+      const key = bucketKey(sale.createdAt);
+      const point = trendMap.get(key) ?? { bucket: key, sales: 0, revenue: 0 };
+      point.sales += 1;
+      point.revenue += amount;
+      trendMap.set(key, point);
+
+      for (const item of sale.items) {
+        const quantity = Number(item.quantity);
+        const lineRevenue = Number(item.totalPrice);
+        totalUnits += quantity;
+        const entry = productMap.get(item.productId) ?? {
+          productId: item.productId,
+          name: item.product.name,
+          quantity: 0,
+          revenue: 0,
+        };
+        entry.quantity += quantity;
+        entry.revenue += lineRevenue;
+        productMap.set(item.productId, entry);
+      }
+    }
+
+    const summary = aggregate(current, totalUnits);
+    const previousSummary = aggregate(previous, 0);
+
+    const percentChange = (currentValue: number, previousValue: number) => {
+      if (previousValue === 0) {
+        return currentValue > 0 ? 100 : 0;
+      }
+      return ((currentValue - previousValue) / previousValue) * 100;
+    };
+
+    const comparison: MetricsComparison = {
+      revenueChange: percentChange(
+        summary.totalRevenue,
+        previousSummary.totalRevenue,
+      ),
+      salesChange: percentChange(
+        summary.totalSales,
+        previousSummary.totalSales,
+      ),
+      averageTicketChange: percentChange(
+        summary.averageTicket,
+        previousSummary.averageTicket,
+      ),
+    };
+
+    const trend = Array.from(trendMap.values()).sort((a, b) =>
+      a.bucket.localeCompare(b.bucket),
+    );
+
+    const topProducts = Array.from(productMap.values())
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 10);
+
+    const topIds = topProducts.map((p) => p.productId);
+    const stockRows =
+      topIds.length > 0
+        ? await this.prisma.product.findMany({
+            where: { companyId, id: { in: topIds } },
+            select: { id: true, stockQuantity: true },
+          })
+        : [];
+    const stockById = new Map(
+      stockRows.map((row) => [row.id, Number(row.stockQuantity)]),
+    );
+
+    const rotationProducts: RotationPoint[] = topProducts.map((product) => {
+      const averageStock = stockById.get(product.productId) ?? 0;
+      const rotation =
+        averageStock > 0 ? product.quantity / averageStock : product.quantity;
+      return {
+        productId: product.productId,
+        name: product.name,
+        quantitySold: product.quantity,
+        averageStock,
+        rotation,
+      };
+    });
+
+    const averageStockValue =
+      rotationProducts.length > 0
+        ? rotationProducts.reduce((sum, p) => sum + p.averageStock, 0) /
+          rotationProducts.length
+        : 0;
+    const averageUnits =
+      rotationProducts.length > 0
+        ? rotationProducts.reduce((sum, p) => sum + p.quantitySold, 0) /
+          rotationProducts.length
+        : 0;
+    const globalRotation =
+      averageStockValue > 0 ? averageUnits / averageStockValue : 0;
+
+    const rotation: RotationMetrics = {
+      globalRotation,
+      averageStockValue,
+      coefficient: globalRotation,
+      products: rotationProducts.sort((a, b) => b.rotation - a.rotation),
+    };
+
+    const result: DashboardMetrics = {
+      period: {
+        days,
+        granularity,
+        from: from.toISOString(),
+        to: to.toISOString(),
+      },
+      summary,
+      previous: previousSummary,
+      comparison,
+      trend,
+      topProducts,
+      rotation,
     };
 
     await this.cache.set(cacheKey, result, 60);
