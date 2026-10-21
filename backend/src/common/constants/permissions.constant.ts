@@ -100,6 +100,14 @@ export enum Permission {
   // Finance
   FINANCE_LIST = "finance:list",
   FINANCE_MANAGE = "finance:manage",
+
+  // Support
+  SUPPORT_TICKET_LIST = "support:ticket_list",
+  SUPPORT_TICKET_CREATE = "support:ticket_create",
+  SUPPORT_TICKET_MANAGE = "support:ticket_manage",
+  SUPPORT_CHAT = "support:chat",
+  SUPPORT_FAQ_VIEW = "support:faq_view",
+  SUPPORT_FAQ_MANAGE = "support:faq_manage",
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -170,6 +178,13 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 
     Permission.FINANCE_LIST,
     Permission.FINANCE_MANAGE,
+
+    Permission.SUPPORT_TICKET_LIST,
+    Permission.SUPPORT_TICKET_CREATE,
+    Permission.SUPPORT_TICKET_MANAGE,
+    Permission.SUPPORT_CHAT,
+    Permission.SUPPORT_FAQ_VIEW,
+    Permission.SUPPORT_FAQ_MANAGE,
   ],
 
   MANAGER: [
@@ -222,6 +237,13 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.DISTRIBUTOR_DELIVERY,
 
     Permission.DISCOUNT_LIST,
+
+    Permission.SUPPORT_TICKET_LIST,
+    Permission.SUPPORT_TICKET_CREATE,
+    Permission.SUPPORT_TICKET_MANAGE,
+    Permission.SUPPORT_CHAT,
+    Permission.SUPPORT_FAQ_VIEW,
+    Permission.SUPPORT_FAQ_MANAGE,
   ],
 
   CASHIER: [
@@ -239,6 +261,11 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.COMPANY_VIEW,
 
     Permission.DISCOUNT_LIST,
+
+    Permission.SUPPORT_TICKET_LIST,
+    Permission.SUPPORT_TICKET_CREATE,
+    Permission.SUPPORT_CHAT,
+    Permission.SUPPORT_FAQ_VIEW,
   ],
 
   VIEWER: [
@@ -260,5 +287,12 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.USER_MANAGE,
     Permission.PLATFORM_VIEW,
     Permission.PLATFORM_VIEW_AUDIT,
+
+    Permission.SUPPORT_TICKET_LIST,
+    Permission.SUPPORT_TICKET_CREATE,
+    Permission.SUPPORT_TICKET_MANAGE,
+    Permission.SUPPORT_CHAT,
+    Permission.SUPPORT_FAQ_VIEW,
+    Permission.SUPPORT_FAQ_MANAGE,
   ],
 };

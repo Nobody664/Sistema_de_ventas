@@ -49,6 +49,7 @@ import { DistributorsModule } from "./modules/distributors/distributors.module";
 import { DiscountsModule } from "./modules/discounts/discounts.module";
 import { FinanceModule } from "./modules/finance/finance.module";
 import { PlanCapabilitiesModule } from "./modules/plan-capabilities/plan-capabilities.module";
+import { SupportModule } from "./modules/support/support.module";
 
 @Module({
   imports: [
@@ -138,6 +139,7 @@ import { PlanCapabilitiesModule } from "./modules/plan-capabilities/plan-capabil
     DiscountsModule,
     FinanceModule,
     PlanCapabilitiesModule,
+    SupportModule,
   ],
   providers: [
     {

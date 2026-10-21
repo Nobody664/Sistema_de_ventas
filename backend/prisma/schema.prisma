@@ -219,6 +219,17 @@ model User {
   distributor   Distributor?
   platformSettings   PlatformSetting[] @relation("PlatformSettingAuthor")
   platformAuditLogs  PlatformAuditLog[] @relation("PlatformAuditActor")
+
+  supportTicketsRequested   SupportTicket[] @relation("SupportTicketRequester")
+  supportTicketsAssigned    SupportTicket[] @relation("SupportTicketAssignee")
+  supportComments           SupportTicketComment[] @relation("SupportCommentAuthor")
+  supportStatusChanges      SupportTicketStatusHistory[] @relation("SupportStatusChanger")
+  supportConversationsCreated  SupportConversation[] @relation("SupportConversationCreator")
+  supportConversationsAssigned SupportConversation[] @relation("SupportConversationAssignee")
+  supportParticipations     SupportConversationParticipant[] @relation("SupportParticipantUser")
+  supportMessages           SupportMessage[] @relation("SupportMessageSender")
+  supportFaqsCreated        SupportFaq[] @relation("SupportFaqCreator")
+  supportFaqsUpdated        SupportFaq[] @relation("SupportFaqUpdater")
 }
 
 model Company {
@@ -263,9 +274,13 @@ model Company {
   refreshTokens       RefreshToken[]
   distributors        Distributor[]
   distributorDeliveries DistributorDelivery[]
+  financeRecords      FinanceRecord[]
+  supportTickets      SupportTicket[]
+  supportConversations SupportConversation[]
+  supportCategories   SupportCategory[]
+  supportFaqs         SupportFaq[]
   apiUsage            ApiUsage[]
   discountCoupons     DiscountCoupon[]
-  financeRecords      FinanceRecord[]
 
   @@map("companies")
 }
@@ -1116,4 +1131,211 @@ model FinanceRecord {
   @@index([companyId, category])
   @@index([employeeId])
   @@map("finance_records")
+}
+
+// =========================
+// SUPPORT (tickets, chat, FAQ)
+// =========================
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SupportTicketSource {
+  CHAT
+  FORM
+  EMAIL
+  SYSTEM
+}
+
+enum SupportConversationStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+enum SupportMessageType {
+  TEXT
+  SYSTEM
+  FAQ_SUGGESTION
+  AUTO_REPLY
+}
+
+enum SupportParticipantRole {
+  REQUESTER
+  AGENT
+  OBSERVER
+}
+
+enum SupportScope {
+  GLOBAL
+  TENANT
+}
+
+model SupportTicket {
+  id              String                 @id @default(cuid())
+  companyId       String                 @map("company_id")
+  requesterId     String                 @map("requester_id")
+  assignedToId    String?                @map("assigned_to_id")
+  conversationId  String?                @unique @map("conversation_id")
+  title           String
+  description     String
+  status          SupportTicketStatus     @default(OPEN)
+  priority        SupportTicketPriority   @default(MEDIUM)
+  source          SupportTicketSource     @default(FORM)
+  slaDueAt        DateTime?              @map("sla_due_at")
+  firstResponseAt DateTime?              @map("first_response_at")
+  resolvedAt      DateTime?              @map("resolved_at")
+  closedAt        DateTime?              @map("closed_at")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  company      Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requester    User                    @relation("SupportTicketRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  assignedTo   User?                   @relation("SupportTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  conversation SupportConversation?    @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  comments     SupportTicketComment[]
+  history      SupportTicketStatusHistory[]
+
+  @@index([companyId, status, priority, createdAt(sort: Desc)])
+  @@index([assignedToId, status, updatedAt(sort: Desc)])
+  @@map("support_tickets")
+}
+
+model SupportTicketComment {
+  id        String   @id @default(cuid())
+  ticketId  String   @map("ticket_id")
+  authorId  String?  @map("author_id")
+  isInternal Boolean @default(false) @map("is_internal")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?         @relation("SupportCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_comments")
+}
+
+model SupportTicketStatusHistory {
+  id          String                @id @default(cuid())
+  ticketId    String                @map("ticket_id")
+  fromStatus  SupportTicketStatus?  @map("from_status")
+  toStatus    SupportTicketStatus   @map("to_status")
+  changedById String?               @map("changed_by_id")
+  reason      String?
+  createdAt   DateTime              @default(now()) @map("created_at")
+
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedBy User?         @relation("SupportStatusChanger", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_status_history")
+}
+
+model SupportConversation {
+  id            String                    @id @default(cuid())
+  companyId     String?                   @map("company_id")
+  status        SupportConversationStatus @default(OPEN)
+  createdById   String                    @map("created_by_id")
+  assignedToId  String?                   @map("assigned_to_id")
+  subject       String?
+  lastMessageAt DateTime                  @default(now()) @map("last_message_at")
+  createdAt     DateTime                  @default(now()) @map("created_at")
+  updatedAt     DateTime                  @updatedAt @map("updated_at")
+
+  company      Company?                          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy    User                              @relation("SupportConversationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedTo   User?                             @relation("SupportConversationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  participants SupportConversationParticipant[]
+  messages     SupportMessage[]
+  ticket       SupportTicket?
+
+  @@index([companyId, status, lastMessageAt(sort: Desc)])
+  @@map("support_conversations")
+}
+
+model SupportConversationParticipant {
+  id                 String                 @id @default(cuid())
+  conversationId     String                 @map("conversation_id")
+  userId             String                 @map("user_id")
+  role               SupportParticipantRole @default(REQUESTER)
+  lastReadAt         DateTime?              @map("last_read_at")
+  createdAt          DateTime               @default(now()) @map("created_at")
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User                @relation("SupportParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("support_conversation_participants")
+}
+
+model SupportMessage {
+  id             String             @id @default(cuid())
+  conversationId String             @map("conversation_id")
+  senderId       String?            @map("sender_id")
+  type           SupportMessageType @default(TEXT)
+  content        String
+  meta           Json?
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?               @relation("SupportMessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@map("support_messages")
+}
+
+model SupportCategory {
+  id          String      @id @default(cuid())
+  scope       SupportScope @default(GLOBAL)
+  companyId   String?     @map("company_id")
+  name        String
+  slug        String
+  description String?
+  isActive    Boolean     @default(true) @map("is_active")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([scope, companyId, slug])
+  @@index([scope, companyId])
+  @@map("support_categories")
+}
+
+model SupportFaq {
+  id            String       @id @default(cuid())
+  scope         SupportScope @default(GLOBAL)
+  companyId     String?      @map("company_id")
+  question      String
+  answer        String
+  keywords      String[]     @default([])
+  isPublished   Boolean      @default(true) @map("is_published")
+  viewCount     Int          @default(0) @map("view_count")
+  helpfulCount  Int          @default(0) @map("helpful_count")
+  notHelpfulCount Int        @default(0) @map("not_helpful_count")
+  sortOrder     Int          @default(0) @map("sort_order")
+  createdById   String?      @map("created_by_id")
+  updatedById   String?      @map("updated_by_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("SupportFaqCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?    @relation("SupportFaqUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([scope, companyId, isPublished, sortOrder])
+  @@map("support_faqs")
 }
