@@ -28,23 +28,27 @@ import { DistributorsService } from "@/modules/distributors/distributors.service
 import { DiscountsService } from "@/modules/discounts/discounts.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { AuditService } from "@/common/services/audit.service";
+import {
+  buildCsvExport,
+  buildPdfExport,
+  buildXlsxExport,
+  ExportColumn,
+} from "@/common/helpers/export.helper";
 
 type PrismaTx = Omit<
   PrismaClient,
   "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
 >;
 
-function escapeHtml(value: unknown): string {
-  const text = String(value ?? "");
-  const map: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  };
-  return text.replace(/[&<>"']/g, (chr) => map[chr] as string);
-}
+type SaleExportRow = {
+  saleNumber: string;
+  status: string;
+  customer: { firstName: string; lastName: string | null } | null;
+  employee: { firstName: string } | null;
+  totalAmount: unknown;
+  paymentMethod: string;
+  createdAt: Date;
+};
 
 @Injectable()
 export class SalesService {
@@ -146,158 +150,51 @@ export class SalesService {
 
     const format = query.format || "csv";
 
-    if (format === "csv") {
-      return this.generateCsvExport(sales);
-    } else if (format === "excel") {
-      return this.generateExcelExport(sales);
-    } else {
-      return this.generatePdfExport(sales);
-    }
-  }
-
-  private generateCsvExport(
-    sales: Array<{
-      saleNumber: string;
-      status: string;
-      customer: { firstName: string; lastName: string | null } | null;
-      employee: { firstName: string } | null;
-      totalAmount: unknown;
-      paymentMethod: string;
-      createdAt: Date;
-    }>,
-  ) {
-    const headers = [
-      "Numero",
-      "Estado",
-      "Cliente",
-      "Vendedor",
-      "Total",
-      "Metodo de Pago",
-      "Fecha",
+    const columns: ExportColumn<SaleExportRow>[] = [
+      { header: "Numero", value: (s) => s.saleNumber, width: 2.5 },
+      { header: "Estado", value: (s) => s.status, width: 1.5 },
+      {
+        header: "Cliente",
+        value: (s) =>
+          s.customer
+            ? `${s.customer.firstName} ${s.customer.lastName || ""}`.trim()
+            : "General",
+        width: 3,
+      },
+      {
+        header: "Vendedor",
+        value: (s) => s.employee?.firstName || "",
+        width: 2,
+      },
+      {
+        header: "Total",
+        value: (s) => Number(s.totalAmount),
+        pdfValue: (s) => `S/ ${Number(s.totalAmount).toFixed(2)}`,
+        width: 1.5,
+      },
+      { header: "Metodo de Pago", value: (s) => s.paymentMethod, width: 2 },
+      {
+        header: "Fecha",
+        value: (s) => new Date(s.createdAt).toISOString().split("T")[0],
+        width: 1.5,
+      },
     ];
-    const rows = sales.map((s) => [
-      s.saleNumber,
-      s.status,
-      s.customer
-        ? `${s.customer.firstName} ${s.customer.lastName || ""}`
-        : "General",
-      s.employee?.firstName || "",
-      String(s.totalAmount),
-      s.paymentMethod,
-      new Date(s.createdAt).toLocaleDateString(),
-    ]);
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-    const base64 = Buffer.from(csvContent, "utf-8").toString("base64");
+    if (format === "csv") {
+      return buildCsvExport("ventas", columns, sales);
+    }
+    if (format === "excel") {
+      return buildXlsxExport("ventas", "Ventas", columns, sales);
+    }
 
-    return {
-      filename: `ventas_${new Date().toISOString().split("T")[0]}.csv`,
-      contentType: "text/csv",
-      data: base64,
-    };
-  }
-
-  private generateExcelExport(
-    sales: Array<{
-      saleNumber: string;
-      status: string;
-      customer: { firstName: string; lastName: string | null } | null;
-      employee: { firstName: string } | null;
-      totalAmount: unknown;
-      paymentMethod: string;
-      createdAt: Date;
-    }>,
-  ) {
-    const data = sales.map((s) => ({
-      Numero: s.saleNumber,
-      Estado: s.status,
-      Cliente: s.customer
-        ? `${s.customer.firstName} ${s.customer.lastName || ""}`
-        : "General",
-      Vendedor: s.employee?.firstName || "",
-      Total: Number(s.totalAmount),
-      "Metodo de Pago": s.paymentMethod,
-      Fecha: new Date(s.createdAt).toLocaleDateString(),
-    }));
-
-    const jsonStr = JSON.stringify(data);
-    const base64 = Buffer.from(jsonStr, "utf-8").toString("base64");
-
-    return {
-      filename: `ventas_${new Date().toISOString().split("T")[0]}.json`,
-      contentType: "application/json",
-      data: base64,
-    };
-  }
-
-  private generatePdfExport(
-    sales: Array<{
-      saleNumber: string;
-      status: string;
-      customer: { firstName: string; lastName: string | null } | null;
-      employee: { firstName: string } | null;
-      totalAmount: unknown;
-      paymentMethod: string;
-      createdAt: Date;
-    }>,
-  ) {
     const totalSales = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
-
-    const html = `
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #4CAF50; color: white; }
-            tr:nth-child(even) { background-color: #f2f2f2; }
-            .total { font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <h1>Reporte de Ventas</h1>
-          <p>Total de ventas: S/ ${totalSales.toFixed(2)}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Numero</th>
-                <th>Cliente</th>
-                <th>Total</th>
-                <th>Metodo</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sales
-                .map(
-                  (s) => `
-                <tr>
-                  <td>${escapeHtml(s.saleNumber)}</td>
-                  <td>${s.customer ? escapeHtml(`${s.customer.firstName} ${s.customer.lastName || ""}`) : "General"}</td>
-                  <td>S/ ${Number(s.totalAmount).toFixed(2)}</td>
-                  <td>${escapeHtml(s.paymentMethod)}</td>
-                  <td>${new Date(s.createdAt).toLocaleDateString()}</td>
-                </tr>
-              `,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const base64 = Buffer.from(html, "utf-8").toString("base64");
-
-    return {
-      filename: `ventas_${new Date().toISOString().split("T")[0]}.html`,
-      contentType: "text/html",
-      data: base64,
-    };
+    return buildPdfExport(
+      "ventas",
+      "Reporte de Ventas",
+      columns,
+      sales,
+      `Total: S/ ${totalSales.toFixed(2)} en ${sales.length} venta(s)`,
+    );
   }
 
   async createSale(companyId: string, input: CreateSaleDto) {

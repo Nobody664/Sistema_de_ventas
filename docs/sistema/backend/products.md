@@ -25,7 +25,7 @@ plan `categories`.
 ## Endpoints
 
 ### GET /api/products/export
-- **Descripción**: Exporta los productos de la empresa en CSV, Excel (JSON) o PDF (HTML), devolviendo el contenido en base64.
+- **Descripción**: Exporta los productos de la empresa en CSV, Excel (`.xlsx` real) o PDF (binario real), devolviendo el contenido en base64.
 - **Auth**: JWT + `@Roles(['COMPANY_ADMIN','MANAGER'])` + `@Permissions([product:export])`.
 - **Plan**: `@RequireModule('products')`.
 - **Guards extra**: ninguno (guards de clase).
@@ -38,7 +38,7 @@ plan `categories`.
   | `categoryId` | string | No | `@IsString()` | Filtra productos por categoría |
 
 - **Body**: ninguno.
-- **Respuesta**: `{ filename, contentType, data }` donde `data` es el contenido en base64. Para `excel` el `contentType` es `application/json` y el nombre termina en `.json`; para `pdf` es `text/html` y `.html`; para `csv` es `text/csv` y `.csv`. El nombre incluye la fecha `YYYY-MM-DD`.
+- **Respuesta**: `{ filename, contentType, data }` donde `data` es el contenido en base64. Para `csv` el `contentType` es `text/csv` y el nombre termina en `.csv` (UTF-8 con BOM); para `excel` es `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` y `.xlsx` (generado con `exceljs`); para `pdf` es `application/pdf` y `.pdf` (generado con `pdfkit`, A4 horizontal, tabla con paginación). El nombre incluye la fecha `YYYY-MM-DD`.
 - **Efectos secundarios**: solo lectura. No audita, no escribe kardex ni movimientos.
 - **Errores**: los de gating/permisos; no se observa manejo específico adicional.
 
@@ -372,7 +372,7 @@ plan `categories`.
 - **Lanza**: 404 si no existe; 400 (`BadRequestException`) si la imagen no es PNG/JPEG/WebP válida o es demasiado grande.
 
 ### `exportProducts(companyId, query)`
-- **Qué hace**: filtra por `categoryId`, genera CSV/Excel/PDF en base64 según `format`.
+- **Qué hace**: filtra por `categoryId`, define las columnas del reporte y genera CSV/XLSX/PDF real en base64 según `format` (usa `common/helpers/export.helper.ts`).
 - **Escribe en**: nada.
 - **Devuelve**: `{ filename, contentType, data }`.
 - **Lanza**: nada específico.
@@ -383,7 +383,7 @@ plan `categories`.
 - `generateSku(name, categoryName?)` — prefijo de 3 letras de la categoría o `PRD` + 6 dígitos.
 - `generateBarcode()` — EAN-13 con prefijo `7700` y dígito verificador calculado.
 - `calculateEan13CheckDigit(base)` — dígito verificador EAN-13.
-- `generateCsvExport` / `generateExcelExport` / `generatePdfExport` — serializan la salida (el PDF es HTML con valores escapados vía `escapeHtml`).
+- La exportación ya no usa helpers privados: `buildCsvExport` / `buildXlsxExport` / `buildPdfExport` (`common/helpers/export.helper.ts`) reciben las columnas (`{ header, value, pdfValue?, width? }`) y las filas.
 
 ## No verificado en el código
 

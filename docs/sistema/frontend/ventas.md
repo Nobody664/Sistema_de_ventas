@@ -67,7 +67,7 @@ historial a CSV/Excel/PDF e impresión del comprobante de una venta.
 
 - La administración de cupones vive en `/discounts` (ver `docs/sistema/frontend/discounts.md` y `docs/sistema/backend/discounts.md`); esta área solo los consume en el POS.
 - El backend expone `POST /api/sales/:id/cancel` y `POST /api/sales/:id/refund`, pero **el frontend no tiene UI de anulación/reembolso** (no hay botones en `sale-detail-client.tsx` ni en `sales-client.tsx`). Pendiente.
-- Exportación: `GET /api/sales/export?format=csv|excel|pdf`. Según el backend, `excel` produce un `.json` y `pdf` un `.html` (ver `docs/sistema/backend/sales.md`); el frontend solo descarga el base64.
+- Exportación: `GET /api/sales/export?format=csv|excel|pdf`. El backend devuelve archivos reales (`.csv`, `.xlsx`, `.pdf`); el frontend solo descarga el base64.
 - Impresión del comprobante: usa `GET /api/invoices/generate/:id` (ver `docs/sistema/backend/invoices.md`), que devuelve HTML; `sale-detail-client.tsx` no envía `templateId` (usa la plantilla por defecto).
 - `new-sale-modal.tsx` existe pero no se encontró importado desde las páginas del área de ventas (la página de ventas enlaza a `/sales/new` y usa `SaleForm`). No verificado que se renderice en esta área.
 - `sale-detail-client.tsx` importa el icono `Download` pero no lo usa; no implementa exportación (solo impresión).

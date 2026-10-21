@@ -16,16 +16,16 @@ Estado: `⬜` pendiente · `✅` completada · `🔶` parcial
 | 1.3 | URLs placeholder en emails (`https://ventas.example.com/...` en `email.service.ts`) → usar `APP_URL`/env | ✅ `FRONTEND_URL` + `{{signInUrl}}`; también templates `TRIAL_*` (los trial emails usaban WELCOME y perdían el `{{message}}`) |
 | 1.4 | MercadoPago checkout usa `payment_method_id: 'yape'` hardcodeado (`payments.service.ts`) → corregir o eliminar | ✅ migrado a **Preference (Checkout Pro)** con SDK v2; providers manuales (yape/plin/transfer) sirven desde `PaymentSetting`; no soportados → `501` |
 
-## Fase 2 — Exports reales (xlsx/PDF) ⬜
+## Fase 2 — Exports reales (xlsx/PDF) ✅
 *Esfuerzo: 1 día · Impacto: ALTO (funcionalidad mal entregada)*
 
-Hoy `format=excel` devuelve JSON y `format=pdf` devuelve HTML con extensión cambiada (`docs/sistema/backend/products.md`).
+Antes `format=excel` devolvía JSON y `format=pdf` devolvía HTML con extensión cambiada.
 
-- 2.1 Instalar `exceljs` (xlsx real) y `pdfkit` (PDF real).
-- 2.2 `ProductsService.exportProducts` → CSV / XLSX / PDF reales.
-- 2.3 `SalesService.exportSales` → CSV / XLSX / PDF reales.
-- 2.4 Verificar descarga en frontend (`{ filename, contentType, data }` base64) — sin cambios esperados en cliente.
-- 2.5 Tests unitarios del generador.
+- 2.1 `exceljs` y `pdfkit` (+ `@types/pdfkit`) instalados. ✅
+- 2.2 `ProductsService.exportProducts` → CSV / XLSX / PDF reales. ✅
+- 2.3 `SalesService.exportSales` → CSV / XLSX / PDF reales. ✅
+- 2.4 Helper compartido `common/helpers/export.helper.ts` (`buildCsvExport`, `buildXlsxExport`, `buildPdfExport`); misma forma `{ filename, contentType, data }` base64, sin cambios en el cliente. ✅
+- 2.5 Tests `export.helper.spec.ts` (6 casos: BOM/escape CSV, magic bytes `PK` y `%PDF-`, paginación, dataset vacío). ✅ suite 86/86
 
 ## Fase 3 — BullMQ: emails asíncronos ⬜
 *Esfuerzo: medio · Impacto: MEDIA-ALTA (latencia de requests y fiabilidad)*

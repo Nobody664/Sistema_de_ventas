@@ -24,18 +24,12 @@ import {
   parseImageDataUrl,
   parseImageSource,
 } from "@/common/helpers/image.helper";
-
-function escapeHtml(value: unknown): string {
-  const text = String(value ?? "");
-  const map: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  };
-  return text.replace(/[&<>"']/g, (chr) => map[chr] as string);
-}
+import {
+  buildCsvExport,
+  buildPdfExport,
+  buildXlsxExport,
+  ExportColumn,
+} from "@/common/helpers/export.helper";
 
 @Injectable()
 export class ProductsService {
@@ -663,158 +657,55 @@ export class ProductsService {
 
     const format = query.format || "csv";
 
-    if (format === "csv") {
-      return this.generateCsvExport(products);
-    } else if (format === "excel") {
-      return this.generateExcelExport(products);
-    } else {
-      return this.generatePdfExport(products);
-    }
-  }
-
-  private generateCsvExport(
-    products: Array<{
-      name: string;
-      sku: string | null;
-      barcode: string | null;
-      description: string | null;
-      category: { name: string } | null;
-      costPrice: unknown;
-      salePrice: unknown;
-      stockQuantity: Prisma.Decimal;
-      minStock: Prisma.Decimal;
-    }>,
-  ) {
-    const headers = [
-      "Nombre",
-      "SKU",
-      "Codigo de Barras",
-      "Categoria",
-      "Precio Costo",
-      "Precio Venta",
-      "Stock",
-      "Stock Minimo",
+    const columns: ExportColumn<ProductExportRow>[] = [
+      { header: "Nombre", value: (p) => p.name, width: 4 },
+      { header: "SKU", value: (p) => p.sku ?? "", width: 2 },
+      { header: "Codigo de Barras", value: (p) => p.barcode ?? "", width: 3 },
+      { header: "Categoria", value: (p) => p.category?.name ?? "", width: 2 },
+      {
+        header: "Precio Costo",
+        value: (p) => Number(p.costPrice),
+        pdfValue: (p) => `S/ ${Number(p.costPrice).toFixed(2)}`,
+        width: 1.5,
+      },
+      {
+        header: "Precio Venta",
+        value: (p) => Number(p.salePrice),
+        pdfValue: (p) => `S/ ${Number(p.salePrice).toFixed(2)}`,
+        width: 1.5,
+      },
+      { header: "Stock", value: (p) => Number(p.stockQuantity), width: 1 },
+      {
+        header: "Stock Minimo",
+        value: (p) => Number(p.minStock),
+        width: 1.5,
+      },
     ];
-    const rows = products.map((p) => [
-      p.name,
-      p.sku,
-      p.barcode || "",
-      p.category?.name || "",
-      String(p.costPrice),
-      String(p.salePrice),
-      String(p.stockQuantity),
-      String(p.minStock),
-    ]);
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-    const base64 = Buffer.from(csvContent, "utf-8").toString("base64");
-
-    return {
-      filename: `productos_${new Date().toISOString().split("T")[0]}.csv`,
-      contentType: "text/csv",
-      data: base64,
-    };
-  }
-
-  private generateExcelExport(
-    products: Array<{
-      name: string;
-      sku: string | null;
-      barcode: string | null;
-      description: string | null;
-      category: { name: string } | null;
-      costPrice: unknown;
-      salePrice: unknown;
-      stockQuantity: Prisma.Decimal;
-      minStock: Prisma.Decimal;
-    }>,
-  ) {
-    const data = products.map((p) => ({
-      Nombre: p.name,
-      SKU: p.sku,
-      "Codigo de Barras": p.barcode || "",
-      Categoria: p.category?.name || "",
-      "Precio Costo": Number(p.costPrice),
-      "Precio Venta": Number(p.salePrice),
-      Stock: p.stockQuantity,
-      "Stock Minimo": p.minStock,
-    }));
-
-    const jsonStr = JSON.stringify(data);
-    const base64 = Buffer.from(jsonStr, "utf-8").toString("base64");
-
-    return {
-      filename: `productos_${new Date().toISOString().split("T")[0]}.json`,
-      contentType: "application/json",
-      data: base64,
-    };
-  }
-
-  private generatePdfExport(
-    products: Array<{
-      name: string;
-      sku: string | null;
-      barcode: string | null;
-      description: string | null;
-      category: { name: string } | null;
-      costPrice: unknown;
-      salePrice: unknown;
-      stockQuantity: Prisma.Decimal;
-      minStock: Prisma.Decimal;
-    }>,
-  ) {
-    const html = `
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #4CAF50; color: white; }
-            tr:nth-child(even) { background-color: #f2f2f2; }
-          </style>
-        </head>
-        <body>
-          <h1>Reporte de Productos</h1>
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>SKU</th>
-                <th>Categoria</th>
-                <th>Precio</th>
-                <th>Stock</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${products
-                .map(
-                  (p) => `
-                <tr>
-                  <td>${escapeHtml(p.name)}</td>
-                  <td>${escapeHtml(p.sku)}</td>
-                  <td>${escapeHtml(p.category?.name || "")}</td>
-                  <td>S/ ${Number(p.salePrice).toFixed(2)}</td>
-                  <td>${p.stockQuantity}</td>
-                </tr>
-              `,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const base64 = Buffer.from(html, "utf-8").toString("base64");
-
-    return {
-      filename: `productos_${new Date().toISOString().split("T")[0]}.html`,
-      contentType: "text/html",
-      data: base64,
-    };
+    if (format === "csv") {
+      return buildCsvExport("productos", columns, products);
+    }
+    if (format === "excel") {
+      return buildXlsxExport("productos", "Productos", columns, products);
+    }
+    return buildPdfExport(
+      "productos",
+      "Reporte de Productos",
+      columns,
+      products,
+      `Total: ${products.length} producto(s)`,
+    );
   }
 }
+
+type ProductExportRow = {
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  description: string | null;
+  category: { name: string } | null;
+  costPrice: unknown;
+  salePrice: unknown;
+  stockQuantity: Prisma.Decimal;
+  minStock: Prisma.Decimal;
+};

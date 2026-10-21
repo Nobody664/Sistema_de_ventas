@@ -44,13 +44,12 @@ Requiere el módulo de plan `sales`.
   | `customerId` | string | No | `@IsString()` | Filtra por cliente |
   | `channel` | `SaleChannel` | No | `@IsIn(['POS','DISTRIBUTOR','ONLINE'])` | Filtra por canal |
 
-- **Respuesta**: `{ filename, contentType, data }` donde `data` es base64.
-  - `csv` → `filename: ventas_<YYYY-MM-DD>.csv`, `contentType: text/csv` (contenido CSV real).
-  - `excel` → `filename: ventas_<YYYY-MM-DD>.json`, `contentType: application/json` (JSON codificado en base64; no es un .xlsx real).
-  - `pdf` → `filename: ventas_<YYYY-MM-DD>.html`, `contentType: text/html` (HTML codificado en base64).
+- **Respuesta**: `{ filename, contentType, data }` donde `data` es base64 real del formato pedido.
+  - `csv` → `ventas_<YYYY-MM-DD>.csv`, `contentType: text/csv` (UTF-8 con BOM, celdas escapadas).
+  - `excel` → `ventas_<YYYY-MM-DD>.xlsx`, `contentType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (generado con `exceljs`).
+  - `pdf` → `ventas_<YYYY-MM-DD>.pdf`, `contentType: application/pdf` (generado con `pdfkit`, A4 horizontal, con total y paginación).
 - **Efectos secundarios**: solo lectura.
 - **Errores**: ninguno explícito.
-- **Nota**: el HTML del reporte escapa valores con `escapeHtml` (solo en la rama PDF).
 
 ### GET /api/sales/:id
 - **Descripción**: Detalle de una venta con cliente, empleado, cupón aplicado e items (con nombre de producto).
@@ -225,11 +224,10 @@ para no impedir ventas normales.
 
 ### `exportSales(companyId, query)`
 - **Qué hace**: arma el `where` (fechas, `status`, `customerId`, `channel`) y trae las ventas con
-  cliente, empleado e items (con producto completo). Según `format` llama a un generador privado.
+  cliente, empleado e items (con producto completo). Define las columnas y usa `buildCsvExport` / `buildXlsxExport` / `buildPdfExport` (`common/helpers/export.helper.ts`).
 - **Escribe en**: nada.
 - **Devuelve**: `{ filename, contentType, data }` (base64).
 - **Lanza**: nada.
-- **Privados**: `generateCsvExport`, `generateExcelExport`, `generatePdfExport`.
 
 ### `createSale(companyId, input)`
 - **Qué hace**: flujo descrito arriba.

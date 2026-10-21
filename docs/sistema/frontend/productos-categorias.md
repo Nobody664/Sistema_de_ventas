@@ -79,7 +79,7 @@ y por lector tipo teclado).
 ## Notas
 
 - La imagen del producto se guarda como base64 dentro de `imageUrl` al crear/actualizar; no se observó el uso del endpoint `POST /products/:id/image` desde estos componentes (no verificado).
-- La exportación `excel` devuelve JSON y `pdf` devuelve HTML (según `docs/sistema/backend/products.md`); el frontend no lo transforma, solo descarga el base64.
+- La exportación devuelve el archivo real del formato pedido (`csv`, `xlsx` con `exceljs`, `pdf` con `pdfkit`); el frontend no lo transforma, solo descarga el base64.
 - El escáner de `ui/barcode-scanner.tsx` (cámara, `BarcodeDetector`) y el de `components/scanner/*` (lector tipo teclado) son mecanismos distintos; el formulario de producto usa el de cámara.
 - El listado de productos no pagina en el frontend (el backend devuelve hasta 50).
 - `ProductActions` no incluye botón de borrado si el usuario carece de `product:delete`; el enlace de edición no está envuelto en `PermissionGuard`.
