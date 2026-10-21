@@ -36,7 +36,7 @@ function toActor(user: AuthUser): FaqActor {
   };
 }
 
-@UseGuards(JwtAuthGuard, TenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 @Controller("support/faqs")
 export class SupportFaqController {
   constructor(private readonly faqService: SupportFaqService) {}

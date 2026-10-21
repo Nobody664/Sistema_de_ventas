@@ -68,15 +68,15 @@ Antes `format=excel` devolvía JSON y `format=pdf` devolvía HTML con extensión
 - 7.2 Ejecutar checklists Rounds 3–6 (CSRF, idempotencia, vencimientos, boletas).
 - 7.3 Marcar ítems verificados y anotar hallazgos/correcciones.
 
-## Fase 8 — Módulo de soporte / chat ⬜
+## Fase 8 — Módulo de soporte / chat ✅
 *Esfuerzo: alto · Feature nueva · Impacto: ALTO para clientes*
 
 Plan: `docs/plan/plan-modulo-soporte-chat-integrado-2026-03-19.md`
 
-- 8.1 Schema: `SupportTicket`, `SupportMessage` (+ migración).
-- 8.2 Backend: módulo `support` (tickets CRUD, mensajes, SSE propio o reuso de notificaciones).
-- 8.3 Frontend: panel de tickets en dashboard + backoffice `/platform/support`.
-- 8.4 Notificaciones/email al responder.
+- 8.1 Schema: `SupportTicket`, `SupportMessage` (+ migración). ✅ modelos/enums de tickets, comentarios, historial, conversaciones/participantes/mensajes, categorías y FAQ; migración `20261020000000_add_support_module` (RLS por tabla) aplicada (16ª).
+- 8.2 Backend: módulo `support` (tickets CRUD, mensajes, SSE propio o reuso de notificaciones). ✅ `support-tickets.service`, `support-chat.service`, `support-faq.service` + controllers; permisos `SUPPORT_*`; SLA por prioridad; notificaciones reusando `NotificationsModule`; `PermissionsGuard` añadido a los tres controllers. Test `support-tickets.service.spec.ts` (5). Suite 131/131.
+- 8.3 Frontend: panel de tickets en dashboard + backoffice `/platform/support`. ✅ dashboard `/support` (hub con métricas), `/support/tickets` (lista, nuevo, detalle con estados/comentarios), `/support/chat` (lista, nueva, conversación con polling y convertir a ticket) y `/support/faqs` (buscador + feedback). Permisos `support:*` añadidos a `types/permissions.ts` y nav "Soporte" en el sidebar. Backoffice `/platform/support` queda pendiente (subset del plan).
+- 8.4 Notificaciones/email al responder. ✅ notificación in-app a agentes (nuevo ticket), al solicitante (respuesta/estado) y a participantes (chat).
 
 ## Fase 9 — Módulo de proveedores y órdenes de compra ⬜
 *Esfuerzo: alto · Feature nueva · Impacto: MEDIO-ALTO*

@@ -58,7 +58,13 @@ export type Permission =
   | "discount:list"
   | "discount:manage"
   | "finance:list"
-  | "finance:manage";
+  | "finance:manage"
+  | "support:ticket_list"
+  | "support:ticket_create"
+  | "support:ticket_manage"
+  | "support:chat"
+  | "support:faq_view"
+  | "support:faq_manage";
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: [
@@ -174,6 +180,12 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "discount:manage",
     "finance:list",
     "finance:manage",
+    "support:ticket_list",
+    "support:ticket_create",
+    "support:ticket_manage",
+    "support:chat",
+    "support:faq_view",
+    "support:faq_manage",
   ],
 
   MANAGER: [
@@ -212,6 +224,12 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "distributor:transfer",
     "distributor:deliver",
     "discount:list",
+    "support:ticket_list",
+    "support:ticket_create",
+    "support:ticket_manage",
+    "support:chat",
+    "support:faq_view",
+    "support:faq_manage",
   ],
 
   CASHIER: [
@@ -229,6 +247,10 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "company:view",
 
     "discount:list",
+    "support:ticket_list",
+    "support:ticket_create",
+    "support:chat",
+    "support:faq_view",
   ],
 
   VIEWER: [
@@ -251,5 +273,11 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "user:manage",
     "platform:view",
     "platform:audit_view",
+    "support:ticket_list",
+    "support:ticket_create",
+    "support:ticket_manage",
+    "support:chat",
+    "support:faq_view",
+    "support:faq_manage",
   ],
 };

@@ -10,6 +10,7 @@ import {
   Handshake,
   Landmark,
   LayoutDashboard,
+  LifeBuoy,
   Menu,
   Package,
   ShoppingCart,
@@ -143,6 +144,12 @@ const companyItems: NavItem[] = [
     icon: BarChart3,
     module: "reports",
     roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER", "VIEWER"],
+  },
+  {
+    label: "Soporte",
+    href: "/support",
+    icon: LifeBuoy,
+    roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
   },
 ];
 
