@@ -7,6 +7,7 @@ import { KardexModule } from "@/modules/kardex/kardex.module";
 import { ProductBatchesModule } from "@/modules/product-batches/product-batches.module";
 import { DistributorsModule } from "@/modules/distributors/distributors.module";
 import { DiscountsModule } from "@/modules/discounts/discounts.module";
+import { CreditNotesModule } from "@/modules/credit-notes/credit-notes.module";
 import { PrismaModule } from "@/database/prisma/prisma.module";
 
 @Module({
@@ -17,6 +18,7 @@ import { PrismaModule } from "@/database/prisma/prisma.module";
     ProductBatchesModule,
     DistributorsModule,
     DiscountsModule,
+    CreditNotesModule,
     PrismaModule,
   ],
   controllers: [SalesController],

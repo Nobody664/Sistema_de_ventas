@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUiStore } from "@/store/ui-store";
+import { CreditNotesPanel } from "@/components/sales/credit-notes-panel";
 import type { Sale } from "@/types/api";
 
 interface SaleDetailClientProps {
@@ -234,6 +235,8 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
               </div>
             </div>
           </Card>
+
+          <CreditNotesPanel saleId={initialSale.id} />
         </div>
       </div>
     </div>

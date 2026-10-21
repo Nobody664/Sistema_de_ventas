@@ -71,7 +71,10 @@ export type Permission =
   | "supplier:delete"
   | "supplier:view"
   | "supplier_order:list"
-  | "supplier_order:manage";
+  | "supplier_order:manage"
+  | "credit_note:list"
+  | "credit_note:create"
+  | "credit_note:manage";
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: [
@@ -200,6 +203,9 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "supplier:view",
     "supplier_order:list",
     "supplier_order:manage",
+    "credit_note:list",
+    "credit_note:create",
+    "credit_note:manage",
   ],
 
   MANAGER: [
@@ -250,6 +256,9 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "supplier:view",
     "supplier_order:list",
     "supplier_order:manage",
+    "credit_note:list",
+    "credit_note:create",
+    "credit_note:manage",
   ],
 
   CASHIER: [

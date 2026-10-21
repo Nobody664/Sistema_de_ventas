@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bell,
   ClipboardList,
+  ReceiptText,
   CreditCard,
   Handshake,
   Landmark,
@@ -131,6 +132,12 @@ const companyItems: NavItem[] = [
     label: "Órdenes de compra",
     href: "/purchase-orders",
     icon: ClipboardList,
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Notas de crédito",
+    href: "/credit-notes",
+    icon: ReceiptText,
     roles: ["COMPANY_ADMIN", "MANAGER"],
   },
   {

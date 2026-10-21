@@ -51,6 +51,7 @@ import { FinanceModule } from "./modules/finance/finance.module";
 import { PlanCapabilitiesModule } from "./modules/plan-capabilities/plan-capabilities.module";
 import { SupportModule } from "./modules/support/support.module";
 import { SuppliersModule } from "./modules/suppliers/suppliers.module";
+import { CreditNotesModule } from "./modules/credit-notes/credit-notes.module";
 
 @Module({
   imports: [
@@ -142,6 +143,7 @@ import { SuppliersModule } from "./modules/suppliers/suppliers.module";
     PlanCapabilitiesModule,
     SupportModule,
     SuppliersModule,
+    CreditNotesModule,
   ],
   providers: [
     {

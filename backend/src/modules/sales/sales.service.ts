@@ -27,6 +27,7 @@ import { ProductBatchesService } from "@/modules/product-batches/product-batches
 import { DistributorsService } from "@/modules/distributors/distributors.service";
 import { DiscountsService } from "@/modules/discounts/discounts.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
+import { CreditNotesService } from "@/modules/credit-notes/credit-notes.service";
 import { AuditService } from "@/common/services/audit.service";
 import {
   buildCsvExport,
@@ -62,6 +63,7 @@ export class SalesService {
     private readonly distributorsService: DistributorsService,
     private readonly discountsService: DiscountsService,
     private readonly planCapabilities: PlanCapabilitiesService,
+    private readonly creditNotesService: CreditNotesService,
   ) {}
 
   findRecentSales(companyId: string, query: QuerySalesDto = {}) {
@@ -629,6 +631,19 @@ export class SalesService {
         })),
       },
     });
+
+    if (targetStatus === SaleStatus.REFUNDED) {
+      try {
+        await this.creditNotesService.createFromRefund(
+          companyId,
+          userId,
+          id,
+          reason,
+        );
+      } catch {
+        // La emision de la nota de credito no debe bloquear el reembolso.
+      }
+    }
 
     return updated;
   }

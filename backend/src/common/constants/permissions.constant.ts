@@ -117,6 +117,11 @@ export enum Permission {
   SUPPLIER_VIEW = "supplier:view",
   SUPPLIER_ORDER_LIST = "supplier_order:list",
   SUPPLIER_ORDER_MANAGE = "supplier_order:manage",
+
+  // Credit notes
+  CREDIT_NOTE_LIST = "credit_note:list",
+  CREDIT_NOTE_CREATE = "credit_note:create",
+  CREDIT_NOTE_MANAGE = "credit_note:manage",
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -202,6 +207,9 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.SUPPLIER_VIEW,
     Permission.SUPPLIER_ORDER_LIST,
     Permission.SUPPLIER_ORDER_MANAGE,
+    Permission.CREDIT_NOTE_LIST,
+    Permission.CREDIT_NOTE_CREATE,
+    Permission.CREDIT_NOTE_MANAGE,
   ],
 
   MANAGER: [
@@ -268,6 +276,9 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.SUPPLIER_VIEW,
     Permission.SUPPLIER_ORDER_LIST,
     Permission.SUPPLIER_ORDER_MANAGE,
+    Permission.CREDIT_NOTE_LIST,
+    Permission.CREDIT_NOTE_CREATE,
+    Permission.CREDIT_NOTE_MANAGE,
   ],
 
   CASHIER: [
