@@ -8,6 +8,12 @@ import {
 } from "./dto/customer.dto";
 import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
 import { AuditService } from "@/common/services/audit.service";
+import {
+  buildCsvExport,
+  buildPdfExport,
+  buildXlsxExport,
+  ExportColumn,
+} from "@/common/helpers/export.helper";
 
 @Injectable()
 export class CustomersService {
@@ -84,6 +90,68 @@ export class CustomersService {
       skip: (page - 1) * limit,
       take: limit,
     });
+  }
+
+  async exportCustomers(
+    companyId: string,
+    format: "csv" | "excel" | "pdf" = "csv",
+  ) {
+    const customers = await this.prisma.customer.findMany({
+      where: { companyId, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const grouped = await this.prisma.sale.groupBy({
+      by: ["customerId"],
+      where: { companyId, customerId: { not: null } },
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    });
+
+    const statsByCustomer = new Map(
+      grouped.map((entry) => [
+        entry.customerId as string,
+        {
+          count: entry._count._all,
+          total: Number(entry._sum.totalAmount ?? 0),
+        },
+      ]),
+    );
+
+    const rows = customers.map((customer) => ({
+      ...customer,
+      purchaseCount: statsByCustomer.get(customer.id)?.count ?? 0,
+      totalSpent: statsByCustomer.get(customer.id)?.total ?? 0,
+    }));
+
+    const columns: ExportColumn<(typeof rows)[number]>[] = [
+      { header: "Nombres", value: (c) => c.firstName, width: 2.5 },
+      { header: "Apellidos", value: (c) => c.lastName ?? "", width: 2.5 },
+      { header: "Documento", value: (c) => c.documentValue ?? "", width: 2 },
+      { header: "Email", value: (c) => c.email ?? "", width: 3 },
+      { header: "Telefono", value: (c) => c.phone ?? "", width: 1.8 },
+      { header: "Compras", value: (c) => c.purchaseCount, width: 1 },
+      {
+        header: "Total Gastado",
+        value: (c) => c.totalSpent,
+        pdfValue: (c) => `S/ ${c.totalSpent.toFixed(2)}`,
+        width: 1.8,
+      },
+    ];
+
+    if (format === "csv") {
+      return buildCsvExport("clientes", columns, rows);
+    }
+    if (format === "excel") {
+      return buildXlsxExport("clientes", "Clientes", columns, rows);
+    }
+    return buildPdfExport(
+      "clientes",
+      "Reporte de Clientes",
+      columns,
+      rows,
+      `Total: ${rows.length} cliente(s)`,
+    );
   }
 
   async create(companyId: string, input: CreateCustomerDto) {

@@ -8,6 +8,12 @@ import { PrismaService } from "@/database/prisma/prisma.service";
 import { AuditService } from "@/common/services/audit.service";
 import { KardexService } from "@/modules/kardex/kardex.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
+import {
+  buildCsvExport,
+  buildPdfExport,
+  buildXlsxExport,
+  ExportColumn,
+} from "@/common/helpers/export.helper";
 import { CreateInventoryAdjustmentDto } from "./dto/inventory.dto";
 
 @Injectable()
@@ -38,6 +44,74 @@ export class InventoryService {
       orderBy: { createdAt: "desc" },
       take: 50,
     });
+  }
+
+  async exportInventory(
+    companyId: string,
+    format: "csv" | "excel" | "pdf" = "csv",
+  ) {
+    const products = await this.prisma.product.findMany({
+      where: { companyId, isActive: true },
+      include: { category: { select: { name: true } } },
+      orderBy: { name: "asc" },
+    });
+
+    const rows = products.map((product) => {
+      const stock = Number(product.stockQuantity);
+      const cost = Number(product.costPrice ?? 0);
+      return {
+        name: product.name,
+        sku: product.sku,
+        category: product.category?.name ?? "",
+        baseUnit: product.baseUnit,
+        stockQuantity: stock,
+        minStock: Number(product.minStock),
+        costPrice: cost,
+        stockValue: stock * cost,
+        isLowStock: stock <= Number(product.minStock),
+      };
+    });
+
+    const columns: ExportColumn<(typeof rows)[number]>[] = [
+      { header: "Producto", value: (r) => r.name, width: 3 },
+      { header: "SKU", value: (r) => r.sku ?? "", width: 1.8 },
+      { header: "Categoria", value: (r) => r.category, width: 2 },
+      { header: "Unidad", value: (r) => r.baseUnit, width: 1.2 },
+      { header: "Stock", value: (r) => r.stockQuantity, width: 1 },
+      { header: "Stock Minimo", value: (r) => r.minStock, width: 1.4 },
+      {
+        header: "Costo Unitario",
+        value: (r) => r.costPrice,
+        pdfValue: (r) => `S/ ${r.costPrice.toFixed(2)}`,
+        width: 1.6,
+      },
+      {
+        header: "Valor Stock",
+        value: (r) => r.stockValue,
+        pdfValue: (r) => `S/ ${r.stockValue.toFixed(2)}`,
+        width: 1.6,
+      },
+      {
+        header: "Bajo Stock",
+        value: (r) => (r.isLowStock ? "SI" : "NO"),
+        width: 1.2,
+      },
+    ];
+
+    if (format === "csv") {
+      return buildCsvExport("inventario", columns, rows);
+    }
+    if (format === "excel") {
+      return buildXlsxExport("inventario", "Inventario", columns, rows);
+    }
+    const totalValue = rows.reduce((sum, row) => sum + row.stockValue, 0);
+    return buildPdfExport(
+      "inventario",
+      "Reporte de Inventario",
+      columns,
+      rows,
+      `Total: ${rows.length} producto(s) · Valor de stock: S/ ${totalValue.toFixed(2)}`,
+    );
   }
 
   async adjustStock(companyId: string, input: CreateInventoryAdjustmentDto) {

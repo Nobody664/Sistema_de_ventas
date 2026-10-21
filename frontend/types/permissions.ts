@@ -13,6 +13,7 @@ export type Permission =
   | "customer:create"
   | "customer:update"
   | "customer:delete"
+  | "customer:export"
   | "employee:list"
   | "employee:create"
   | "employee:update"
@@ -26,6 +27,7 @@ export type Permission =
   | "inventory:inbound"
   | "inventory:outbound"
   | "inventory:adjust"
+  | "inventory:export"
   | "cash:open_close"
   | "cash:view_report"
   | "dashboard:view"
@@ -92,6 +94,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "customer:create",
     "customer:update",
     "customer:delete",
+    "customer:export",
     "employee:list",
     "employee:create",
     "employee:update",
@@ -105,6 +108,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "inventory:inbound",
     "inventory:outbound",
     "inventory:adjust",
+    "inventory:export",
     "cash:open_close",
     "cash:view_report",
     "dashboard:view",
@@ -155,6 +159,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "customer:create",
     "customer:update",
     "customer:delete",
+    "customer:export",
     "employee:list",
     "employee:create",
     "employee:update",
@@ -168,6 +173,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "inventory:inbound",
     "inventory:outbound",
     "inventory:adjust",
+    "inventory:export",
     "cash:open_close",
     "cash:view_report",
     "dashboard:view",
@@ -220,7 +226,18 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "customer:list",
     "customer:create",
     "customer:update",
+    "customer:export",
     "employee:list",
+    "sale:list",
+    "sale:create",
+    "sale:view_detail",
+    "sale:cancel",
+    "sale:export",
+    "inventory:view",
+    "inventory:inbound",
+    "inventory:outbound",
+    "inventory:export",
+    "cash:open_close",
     "sale:list",
     "sale:create",
     "sale:view_detail",

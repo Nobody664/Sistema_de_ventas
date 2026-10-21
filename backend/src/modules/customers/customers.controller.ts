@@ -23,6 +23,7 @@ import {
 import { RequireModule } from "@/modules/plan-capabilities/decorators/require-module.decorator";
 import {
   CreateCustomerDto,
+  ExportCustomersQueryDto,
   QueryCustomerDto,
   UpdateCustomerDto,
 } from "./dto/customer.dto";
@@ -39,6 +40,19 @@ export class CustomersController {
   @Get("limits")
   getLimits(@Req() request: { tenantId: string }) {
     return this.customersService.getLimitsInfo(request.tenantId);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.CUSTOMER_EXPORT)
+  @Get("export")
+  exportCustomers(
+    @Req() request: { tenantId: string },
+    @Query() query: ExportCustomersQueryDto,
+  ) {
+    return this.customersService.exportCustomers(
+      request.tenantId,
+      query.format,
+    );
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")

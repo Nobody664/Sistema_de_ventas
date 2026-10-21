@@ -6,6 +6,7 @@ import {
   CustomerActions,
   NewCustomerButton,
 } from "@/components/customers/customer-actions";
+import { ExportButtons } from "@/components/common/export-buttons";
 import type { Customer } from "@/types/api";
 import Link from "next/link";
 
@@ -33,7 +34,8 @@ export default async function CustomersPage() {
               su historial de compras.
             </p>
           </div>
-          <div className="w-full shrink-0 animate-fade-in-up delay-150 sm:w-auto">
+          <div className="flex w-full shrink-0 items-center gap-3 animate-fade-in-up delay-150 sm:w-auto">
+            <ExportButtons endpoint="/customers/export" />
             <NewCustomerButton />
           </div>
         </div>

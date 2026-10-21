@@ -13,6 +13,7 @@ import {
   Lock,
 } from "lucide-react";
 import { usePlanCapabilities } from "@/components/plan-capabilities/plan-capabilities-provider";
+import { ExportButtons } from "@/components/common/export-buttons";
 
 interface InventoryPageClientProps {
   totalValue: string;
@@ -106,6 +107,9 @@ export function InventoryPageClient({
               </p>
             </div>
           </div>
+        </div>
+        <div className="mt-5 flex justify-end">
+          <ExportButtons endpoint="/inventory/export" />
         </div>
       </Card>
 

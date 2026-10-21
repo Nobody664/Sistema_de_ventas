@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { Permissions } from "@/common/decorators/permissions.decorator";
 import { Permission } from "@/common/constants/permissions.constant";
@@ -6,7 +14,10 @@ import { TenantGuard } from "@/common/guards/tenant.guard";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "@/common/guards/permissions.guard";
 import { RequireModule } from "@/modules/plan-capabilities/decorators/require-module.decorator";
-import { CreateInventoryAdjustmentDto } from "./dto/inventory.dto";
+import {
+  CreateInventoryAdjustmentDto,
+  ExportInventoryQueryDto,
+} from "./dto/inventory.dto";
 import { InventoryService } from "./inventory.service";
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
@@ -14,6 +25,19 @@ import { InventoryService } from "./inventory.service";
 @Controller("inventory")
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.INVENTORY_EXPORT)
+  @Get("export")
+  exportInventory(
+    @Req() request: { tenantId: string },
+    @Query() query: ExportInventoryQueryDto,
+  ) {
+    return this.inventoryService.exportInventory(
+      request.tenantId,
+      query.format,
+    );
+  }
 
   @Roles("COMPANY_ADMIN", "MANAGER")
   @Permissions(Permission.INVENTORY_VIEW)

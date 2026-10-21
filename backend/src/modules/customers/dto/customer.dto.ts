@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   IsEmail,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -21,6 +22,12 @@ export class QueryCustomerDto {
   @Min(1)
   @Max(100)
   limit?: number = 50;
+}
+
+export class ExportCustomersQueryDto {
+  @IsOptional()
+  @IsIn(["csv", "excel", "pdf"])
+  format?: "csv" | "excel" | "pdf" = "csv";
 }
 
 export class CreateCustomerDto {

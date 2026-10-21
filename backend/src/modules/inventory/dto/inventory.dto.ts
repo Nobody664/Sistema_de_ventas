@@ -1,4 +1,11 @@
-import { IsEnum, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import {
+  IsEnum,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
 import { Type } from "class-transformer";
 import { InventoryMovementType } from "@prisma/client";
 
@@ -26,4 +33,10 @@ export class CreateInventoryAdjustmentDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+export class ExportInventoryQueryDto {
+  @IsOptional()
+  @IsIn(["csv", "excel", "pdf"])
+  format?: "csv" | "excel" | "pdf" = "csv";
 }

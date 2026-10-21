@@ -18,6 +18,7 @@ export enum Permission {
   CUSTOMER_CREATE = "customer:create",
   CUSTOMER_UPDATE = "customer:update",
   CUSTOMER_DELETE = "customer:delete",
+  CUSTOMER_EXPORT = "customer:export",
 
   // Employees
   EMPLOYEE_LIST = "employee:list",
@@ -37,6 +38,7 @@ export enum Permission {
   INVENTORY_INBOUND = "inventory:inbound",
   INVENTORY_OUTBOUND = "inventory:outbound",
   INVENTORY_ADJUST = "inventory:adjust",
+  INVENTORY_EXPORT = "inventory:export",
 
   // Cash
   CASH_OPEN_CLOSE = "cash:open_close",
@@ -144,6 +146,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.CUSTOMER_CREATE,
     Permission.CUSTOMER_UPDATE,
     Permission.CUSTOMER_DELETE,
+    Permission.CUSTOMER_EXPORT,
 
     Permission.EMPLOYEE_LIST,
     Permission.EMPLOYEE_CREATE,
@@ -160,6 +163,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.INVENTORY_INBOUND,
     Permission.INVENTORY_OUTBOUND,
     Permission.INVENTORY_ADJUST,
+    Permission.INVENTORY_EXPORT,
 
     Permission.CASH_OPEN_CLOSE,
     Permission.CASH_VIEW_REPORT,
@@ -226,6 +230,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.CUSTOMER_LIST,
     Permission.CUSTOMER_CREATE,
     Permission.CUSTOMER_UPDATE,
+    Permission.CUSTOMER_EXPORT,
 
     Permission.EMPLOYEE_LIST,
     Permission.EMPLOYEE_CREATE,
@@ -240,6 +245,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.INVENTORY_INBOUND,
     Permission.INVENTORY_OUTBOUND,
     Permission.INVENTORY_ADJUST,
+    Permission.INVENTORY_EXPORT,
 
     Permission.CASH_OPEN_CLOSE,
     Permission.CASH_VIEW_REPORT,
