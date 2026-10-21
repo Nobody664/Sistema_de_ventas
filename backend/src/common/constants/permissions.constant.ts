@@ -108,6 +108,15 @@ export enum Permission {
   SUPPORT_CHAT = "support:chat",
   SUPPORT_FAQ_VIEW = "support:faq_view",
   SUPPORT_FAQ_MANAGE = "support:faq_manage",
+
+  // Suppliers & purchase orders
+  SUPPLIER_LIST = "supplier:list",
+  SUPPLIER_CREATE = "supplier:create",
+  SUPPLIER_UPDATE = "supplier:update",
+  SUPPLIER_DELETE = "supplier:delete",
+  SUPPLIER_VIEW = "supplier:view",
+  SUPPLIER_ORDER_LIST = "supplier_order:list",
+  SUPPLIER_ORDER_MANAGE = "supplier_order:manage",
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
@@ -185,6 +194,14 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.SUPPORT_CHAT,
     Permission.SUPPORT_FAQ_VIEW,
     Permission.SUPPORT_FAQ_MANAGE,
+
+    Permission.SUPPLIER_LIST,
+    Permission.SUPPLIER_CREATE,
+    Permission.SUPPLIER_UPDATE,
+    Permission.SUPPLIER_DELETE,
+    Permission.SUPPLIER_VIEW,
+    Permission.SUPPLIER_ORDER_LIST,
+    Permission.SUPPLIER_ORDER_MANAGE,
   ],
 
   MANAGER: [
@@ -244,6 +261,13 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.SUPPORT_CHAT,
     Permission.SUPPORT_FAQ_VIEW,
     Permission.SUPPORT_FAQ_MANAGE,
+
+    Permission.SUPPLIER_LIST,
+    Permission.SUPPLIER_CREATE,
+    Permission.SUPPLIER_UPDATE,
+    Permission.SUPPLIER_VIEW,
+    Permission.SUPPLIER_ORDER_LIST,
+    Permission.SUPPLIER_ORDER_MANAGE,
   ],
 
   CASHIER: [

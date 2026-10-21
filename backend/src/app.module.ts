@@ -50,6 +50,7 @@ import { DiscountsModule } from "./modules/discounts/discounts.module";
 import { FinanceModule } from "./modules/finance/finance.module";
 import { PlanCapabilitiesModule } from "./modules/plan-capabilities/plan-capabilities.module";
 import { SupportModule } from "./modules/support/support.module";
+import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 
 @Module({
   imports: [
@@ -140,6 +141,7 @@ import { SupportModule } from "./modules/support/support.module";
     FinanceModule,
     PlanCapabilitiesModule,
     SupportModule,
+    SuppliersModule,
   ],
   providers: [
     {
