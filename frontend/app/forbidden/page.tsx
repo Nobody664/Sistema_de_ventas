@@ -1,5 +1,5 @@
-import Link from 'next/link';
-import { ShieldAlert } from 'lucide-react';
+import Link from "next/link";
+import { ShieldAlert } from "lucide-react";
 
 export default function ForbiddenPage() {
   return (
@@ -8,10 +8,12 @@ export default function ForbiddenPage() {
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
           <ShieldAlert className="size-10 text-red-500" />
         </div>
-        <h1 className="mt-6 font-display text-4xl text-foreground">Acceso denegado</h1>
+        <h1 className="mt-6 font-display text-4xl text-foreground">
+          Acceso denegado
+        </h1>
         <p className="mt-3 text-foreground/60 leading-relaxed">
-          No tienes los permisos necesarios para acceder a esta página.
-          Si crees que esto es un error, contacta con el administrador del sistema.
+          No tienes los permisos necesarios para acceder a esta página. Si crees
+          que esto es un error, contacta con el administrador del sistema.
         </p>
         <div className="mt-8 flex items-center justify-center gap-4">
           <Link

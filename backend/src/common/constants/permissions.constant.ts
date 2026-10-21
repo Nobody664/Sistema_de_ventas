@@ -1,105 +1,105 @@
 export enum Permission {
   // Products
-  PRODUCT_LIST = 'product:list',
-  PRODUCT_CREATE = 'product:create',
-  PRODUCT_UPDATE = 'product:update',
-  PRODUCT_DELETE = 'product:delete',
-  PRODUCT_EXPORT = 'product:export',
-  PRODUCT_VIEW_LOW_STOCK = 'product:view_low_stock',
+  PRODUCT_LIST = "product:list",
+  PRODUCT_CREATE = "product:create",
+  PRODUCT_UPDATE = "product:update",
+  PRODUCT_DELETE = "product:delete",
+  PRODUCT_EXPORT = "product:export",
+  PRODUCT_VIEW_LOW_STOCK = "product:view_low_stock",
 
   // Categories
-  CATEGORY_LIST = 'category:list',
-  CATEGORY_CREATE = 'category:create',
-  CATEGORY_UPDATE = 'category:update',
-  CATEGORY_DELETE = 'category:delete',
+  CATEGORY_LIST = "category:list",
+  CATEGORY_CREATE = "category:create",
+  CATEGORY_UPDATE = "category:update",
+  CATEGORY_DELETE = "category:delete",
 
   // Customers
-  CUSTOMER_LIST = 'customer:list',
-  CUSTOMER_CREATE = 'customer:create',
-  CUSTOMER_UPDATE = 'customer:update',
-  CUSTOMER_DELETE = 'customer:delete',
+  CUSTOMER_LIST = "customer:list",
+  CUSTOMER_CREATE = "customer:create",
+  CUSTOMER_UPDATE = "customer:update",
+  CUSTOMER_DELETE = "customer:delete",
 
   // Employees
-  EMPLOYEE_LIST = 'employee:list',
-  EMPLOYEE_CREATE = 'employee:create',
-  EMPLOYEE_UPDATE = 'employee:update',
-  EMPLOYEE_DELETE = 'employee:delete',
+  EMPLOYEE_LIST = "employee:list",
+  EMPLOYEE_CREATE = "employee:create",
+  EMPLOYEE_UPDATE = "employee:update",
+  EMPLOYEE_DELETE = "employee:delete",
 
   // Sales
-  SALE_LIST = 'sale:list',
-  SALE_CREATE = 'sale:create',
-  SALE_VIEW_DETAIL = 'sale:view_detail',
-  SALE_CANCEL = 'sale:cancel',
-  SALE_EXPORT = 'sale:export',
+  SALE_LIST = "sale:list",
+  SALE_CREATE = "sale:create",
+  SALE_VIEW_DETAIL = "sale:view_detail",
+  SALE_CANCEL = "sale:cancel",
+  SALE_EXPORT = "sale:export",
 
   // Inventory
-  INVENTORY_VIEW = 'inventory:view',
-  INVENTORY_INBOUND = 'inventory:inbound',
-  INVENTORY_OUTBOUND = 'inventory:outbound',
-  INVENTORY_ADJUST = 'inventory:adjust',
+  INVENTORY_VIEW = "inventory:view",
+  INVENTORY_INBOUND = "inventory:inbound",
+  INVENTORY_OUTBOUND = "inventory:outbound",
+  INVENTORY_ADJUST = "inventory:adjust",
 
   // Cash
-  CASH_OPEN_CLOSE = 'cash:open_close',
-  CASH_VIEW_REPORT = 'cash:view_report',
+  CASH_OPEN_CLOSE = "cash:open_close",
+  CASH_VIEW_REPORT = "cash:view_report",
 
   // Dashboard & Reports
-  DASHBOARD_VIEW = 'dashboard:view',
-  REPORT_SALES = 'report:sales',
-  REPORT_FINANCIAL = 'report:financial',
+  DASHBOARD_VIEW = "dashboard:view",
+  REPORT_SALES = "report:sales",
+  REPORT_FINANCIAL = "report:financial",
 
   // Company
-  COMPANY_VIEW = 'company:view',
-  COMPANY_UPDATE = 'company:update',
-  COMPANY_MANAGE_PLANS = 'company:manage_plans',
-  COMPANY_VIEW_AUDIT = 'company:view_audit',
-  COMPANY_MANAGE_ALL = 'company:manage_all',
+  COMPANY_VIEW = "company:view",
+  COMPANY_UPDATE = "company:update",
+  COMPANY_MANAGE_PLANS = "company:manage_plans",
+  COMPANY_VIEW_AUDIT = "company:view_audit",
+  COMPANY_MANAGE_ALL = "company:manage_all",
 
   // Subscriptions
-  SUBSCRIPTION_VIEW = 'subscription:view',
-  SUBSCRIPTION_MANAGE = 'subscription:manage',
+  SUBSCRIPTION_VIEW = "subscription:view",
+  SUBSCRIPTION_MANAGE = "subscription:manage",
 
   // Users (admin)
-  USER_MANAGE = 'user:manage',
+  USER_MANAGE = "user:manage",
 
   // Kardex
-  KARDEX_VIEW = 'kardex:view',
-  KARDEX_EXPORT = 'kardex:export',
+  KARDEX_VIEW = "kardex:view",
+  KARDEX_EXPORT = "kardex:export",
 
   // Replenishment
-  REPLENISHMENT_VIEW = 'replenishment:view',
-  REPLENISHMENT_MANAGE = 'replenishment:manage',
+  REPLENISHMENT_VIEW = "replenishment:view",
+  REPLENISHMENT_MANAGE = "replenishment:manage",
 
   // Forecast
-  FORECAST_VIEW = 'forecast:view',
+  FORECAST_VIEW = "forecast:view",
 
   // Branches
-  BRANCH_MANAGE = 'branch:manage',
+  BRANCH_MANAGE = "branch:manage",
 
   // Platform (SUPER_ADMIN / SUPPORT_ADMIN)
-  PLATFORM_VIEW = 'platform:view',
-  PLATFORM_MANAGE_COMPANIES = 'platform:companies_manage',
-  PLATFORM_MANAGE_PLANS = 'platform:plans_manage',
-  PLATFORM_MANAGE_SETTINGS = 'platform:settings_manage',
-  PLATFORM_MANAGE_ADMINS = 'platform:admins_manage',
-  PLATFORM_VIEW_AUDIT = 'platform:audit_view',
+  PLATFORM_VIEW = "platform:view",
+  PLATFORM_MANAGE_COMPANIES = "platform:companies_manage",
+  PLATFORM_MANAGE_PLANS = "platform:plans_manage",
+  PLATFORM_MANAGE_SETTINGS = "platform:settings_manage",
+  PLATFORM_MANAGE_ADMINS = "platform:admins_manage",
+  PLATFORM_VIEW_AUDIT = "platform:audit_view",
 
   // Distributors
-  DISTRIBUTOR_LIST = 'distributor:list',
-  DISTRIBUTOR_CREATE = 'distributor:create',
-  DISTRIBUTOR_UPDATE = 'distributor:update',
-  DISTRIBUTOR_DELETE = 'distributor:delete',
-  DISTRIBUTOR_VIEW = 'distributor:view',
-  DISTRIBUTOR_TRANSFER = 'distributor:transfer',
-  DISTRIBUTOR_DELIVERY = 'distributor:deliver',
-  DISTRIBUTOR_SETTLE = 'distributor:settle',
+  DISTRIBUTOR_LIST = "distributor:list",
+  DISTRIBUTOR_CREATE = "distributor:create",
+  DISTRIBUTOR_UPDATE = "distributor:update",
+  DISTRIBUTOR_DELETE = "distributor:delete",
+  DISTRIBUTOR_VIEW = "distributor:view",
+  DISTRIBUTOR_TRANSFER = "distributor:transfer",
+  DISTRIBUTOR_DELIVERY = "distributor:deliver",
+  DISTRIBUTOR_SETTLE = "distributor:settle",
 
   // Discount coupons
-  DISCOUNT_LIST = 'discount:list',
-  DISCOUNT_MANAGE = 'discount:manage',
+  DISCOUNT_LIST = "discount:list",
+  DISCOUNT_MANAGE = "discount:manage",
 
   // Finance
-  FINANCE_LIST = 'finance:list',
-  FINANCE_MANAGE = 'finance:manage',
+  FINANCE_LIST = "finance:list",
+  FINANCE_MANAGE = "finance:manage",
 }
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {

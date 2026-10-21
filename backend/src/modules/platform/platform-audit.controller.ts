@@ -1,12 +1,12 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { AuditAction } from '@prisma/client';
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { AuditAction } from "@prisma/client";
 
-import { Permissions } from '@/common/decorators/permissions.decorator';
-import { Permission } from '@/common/constants/permissions.constant';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { PlatformGuard } from '@/common/guards/platform.guard';
-import { PermissionsGuard } from '@/common/guards/permissions.guard';
-import { AuditService } from '@/common/services/audit.service';
+import { Permissions } from "@/common/decorators/permissions.decorator";
+import { Permission } from "@/common/constants/permissions.constant";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { PlatformGuard } from "@/common/guards/platform.guard";
+import { PermissionsGuard } from "@/common/guards/permissions.guard";
+import { AuditService } from "@/common/services/audit.service";
 
 interface AuditQueryDto {
   userId?: string;
@@ -18,7 +18,7 @@ interface AuditQueryDto {
   limit?: string;
 }
 
-@Controller('platform/audit')
+@Controller("platform/audit")
 @UseGuards(JwtAuthGuard, PlatformGuard, PermissionsGuard)
 export class PlatformAuditController {
   constructor(private readonly auditService: AuditService) {}

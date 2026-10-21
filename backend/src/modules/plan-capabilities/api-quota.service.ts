@@ -1,6 +1,6 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { PlanCapabilitiesService } from './plan-capabilities.service';
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { PlanCapabilitiesService } from "./plan-capabilities.service";
 
 export interface ApiQuotaResult {
   allowed: boolean;
@@ -19,7 +19,7 @@ export class ApiQuotaService {
 
   private currentPeriod(date = new Date()): string {
     const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
     return `${year}-${month}`;
   }
 
@@ -50,10 +50,10 @@ export class ApiQuotaService {
     if (!capabilities.apiEnabled || capabilities.apiQuota <= 0) {
       throw new HttpException(
         {
-          error: 'FEATURE_NOT_AVAILABLE',
-          message: 'Tu plan no incluye acceso a la API.',
+          error: "FEATURE_NOT_AVAILABLE",
+          message: "Tu plan no incluye acceso a la API.",
           currentPlan: capabilities.planCode,
-          upgradeUrl: '/subscription',
+          upgradeUrl: "/subscription",
         },
         HttpStatus.FORBIDDEN,
       );
@@ -68,13 +68,13 @@ export class ApiQuotaService {
     if (used + amount > capabilities.apiQuota) {
       throw new HttpException(
         {
-          error: 'API_QUOTA_EXCEEDED',
-          message: 'Has superado la cuota mensual de la API de tu plan.',
+          error: "API_QUOTA_EXCEEDED",
+          message: "Has superado la cuota mensual de la API de tu plan.",
           used,
           limit: capabilities.apiQuota,
           period,
           currentPlan: capabilities.planCode,
-          upgradeUrl: '/subscription',
+          upgradeUrl: "/subscription",
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );

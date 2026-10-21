@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Pencil, TicketPercent } from 'lucide-react';
-import { DeleteDialog } from '@/components/common/delete-dialog';
-import { PermissionGuard } from '@/components/auth/permission-guard';
-import type { DiscountCoupon } from '@/types/api';
+import Link from "next/link";
+import { Pencil, TicketPercent } from "lucide-react";
+import { DeleteDialog } from "@/components/common/delete-dialog";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import type { DiscountCoupon } from "@/types/api";
 
 export function NewDiscountButton() {
   return (

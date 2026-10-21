@@ -1,5 +1,16 @@
-import { ArrayMinSize, IsArray, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 class CreateSaleItemDto {
   @IsString()
@@ -30,15 +41,15 @@ export class CreateSaleDto {
   employeeId?: string;
 
   @IsOptional()
-  @IsIn(['POS', 'DISTRIBUTOR', 'ONLINE'])
-  channel?: 'POS' | 'DISTRIBUTOR' | 'ONLINE';
+  @IsIn(["POS", "DISTRIBUTOR", "ONLINE"])
+  channel?: "POS" | "DISTRIBUTOR" | "ONLINE";
 
   @IsOptional()
   @IsString()
   distributorId?: string;
 
-  @IsIn(['CASH', 'CARD', 'TRANSFER'])
-  paymentMethod!: 'CASH' | 'CARD' | 'TRANSFER';
+  @IsIn(["CASH", "CARD", "TRANSFER"])
+  paymentMethod!: "CASH" | "CARD" | "TRANSFER";
 
   @IsOptional()
   @IsNumber()
@@ -83,8 +94,8 @@ export class CancelSaleDto {
 
 export class ExportSalesQueryDto {
   @IsOptional()
-  @IsIn(['csv', 'excel', 'pdf'])
-  format?: 'csv' | 'excel' | 'pdf' = 'csv';
+  @IsIn(["csv", "excel", "pdf"])
+  format?: "csv" | "excel" | "pdf" = "csv";
 
   @IsOptional()
   @IsDateString()
@@ -95,15 +106,14 @@ export class ExportSalesQueryDto {
   endDate?: string;
 
   @IsOptional()
-  @IsIn(['COMPLETED', 'CANCELLED', 'REFUNDED', 'PENDING'])
-  status?: 'COMPLETED' | 'CANCELLED' | 'REFUNDED' | 'PENDING';
+  @IsIn(["COMPLETED", "CANCELLED", "REFUNDED", "PENDING"])
+  status?: "COMPLETED" | "CANCELLED" | "REFUNDED" | "PENDING";
 
   @IsOptional()
   @IsString()
   customerId?: string;
 
   @IsOptional()
-  @IsIn(['POS', 'DISTRIBUTOR', 'ONLINE'])
-  channel?: 'POS' | 'DISTRIBUTOR' | 'ONLINE';
+  @IsIn(["POS", "DISTRIBUTOR", "ONLINE"])
+  channel?: "POS" | "DISTRIBUTOR" | "ONLINE";
 }
-

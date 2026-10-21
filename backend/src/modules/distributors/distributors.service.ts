@@ -1,11 +1,16 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, Prisma, PrismaClient } from '@prisma/client';
-import type { DistributorBalance } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { AuditService } from '@/common/services/audit.service';
-import { KardexService } from '@/modules/kardex/kardex.service';
-import { LowStockService } from '@/modules/low-stock/low-stock.service';
-import { ProductBatchesService } from '@/modules/product-batches/product-batches.service';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { AuditAction, Prisma, PrismaClient } from "@prisma/client";
+import type { DistributorBalance } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { AuditService } from "@/common/services/audit.service";
+import { KardexService } from "@/modules/kardex/kardex.service";
+import { LowStockService } from "@/modules/low-stock/low-stock.service";
+import { ProductBatchesService } from "@/modules/product-batches/product-batches.service";
 import {
   CreateDistributorDeliveryDto,
   CreateDistributorDto,
@@ -14,9 +19,12 @@ import {
   RegisterDistributorSaleDto,
   SettleDistributorDto,
   UpdateDistributorDto,
-} from './dto/distributor.dto';
+} from "./dto/distributor.dto";
 
-type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
+>;
 
 interface StockItem {
   productId: string;
@@ -40,7 +48,10 @@ export class DistributorsService {
       if (existing) {
         existing.quantity += item.quantity;
       } else {
-        map.set(item.productId, { productId: item.productId, quantity: item.quantity });
+        map.set(item.productId, {
+          productId: item.productId,
+          quantity: item.quantity,
+        });
       }
     }
     return [...map.values()];
@@ -57,7 +68,7 @@ export class DistributorsService {
       include: { balances: true },
     });
     if (!distributor) {
-      throw new NotFoundException('Distribuidor no encontrado.');
+      throw new NotFoundException("Distribuidor no encontrado.");
     }
     return this.withBalance(distributor);
   }
@@ -70,16 +81,16 @@ export class DistributorsService {
     }
     if (query.search) {
       where.OR = [
-        { code: { contains: query.search, mode: 'insensitive' } },
-        { name: { contains: query.search, mode: 'insensitive' } },
-        { documentValue: { contains: query.search, mode: 'insensitive' } },
+        { code: { contains: query.search, mode: "insensitive" } },
+        { name: { contains: query.search, mode: "insensitive" } },
+        { documentValue: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
     const rows = await this.prisma.distributor.findMany({
       where,
       include: { balances: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     return rows.map((row) => this.withBalance(row));
@@ -91,7 +102,7 @@ export class DistributorsService {
       select: { id: true },
     });
     if (existing) {
-      throw new ConflictException('Ya existe un distribuidor con ese codigo.');
+      throw new ConflictException("Ya existe un distribuidor con ese codigo.");
     }
 
     const distributor = await this.prisma.distributor.create({
@@ -99,7 +110,7 @@ export class DistributorsService {
         companyId,
         code: dto.code,
         name: dto.name,
-        type: dto.type ?? 'INDIVIDUAL',
+        type: dto.type ?? "INDIVIDUAL",
         documentType: dto.documentType,
         documentValue: dto.documentValue,
         email: dto.email,
@@ -116,7 +127,7 @@ export class DistributorsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.CREATE,
-      entity: 'Distributor',
+      entity: "Distributor",
       entityId: distributor.id,
       changes: { code: distributor.code, name: distributor.name },
     });
@@ -133,7 +144,7 @@ export class DistributorsService {
         select: { id: true },
       });
       if (clash) {
-        throw new ConflictException('Ese codigo ya esta en uso.');
+        throw new ConflictException("Ese codigo ya esta en uso.");
       }
     }
 
@@ -144,13 +155,21 @@ export class DistributorsService {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.type !== undefined ? { type: dto.type } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
-        ...(dto.documentType !== undefined ? { documentType: dto.documentType } : {}),
-        ...(dto.documentValue !== undefined ? { documentValue: dto.documentValue } : {}),
+        ...(dto.documentType !== undefined
+          ? { documentType: dto.documentType }
+          : {}),
+        ...(dto.documentValue !== undefined
+          ? { documentValue: dto.documentValue }
+          : {}),
         ...(dto.email !== undefined ? { email: dto.email } : {}),
         ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
         ...(dto.address !== undefined ? { address: dto.address } : {}),
-        ...(dto.commissionRate !== undefined ? { commissionRate: dto.commissionRate } : {}),
-        ...(dto.priceListId !== undefined ? { priceListId: dto.priceListId } : {}),
+        ...(dto.commissionRate !== undefined
+          ? { commissionRate: dto.commissionRate }
+          : {}),
+        ...(dto.priceListId !== undefined
+          ? { priceListId: dto.priceListId }
+          : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
       },
       include: { balances: true },
@@ -159,7 +178,7 @@ export class DistributorsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'Distributor',
+      entity: "Distributor",
       entityId: distributor.id,
       changes: { ...dto },
     });
@@ -174,7 +193,7 @@ export class DistributorsService {
     const debtAmount = distributor.balance?.debtAmount ?? new Prisma.Decimal(0);
     if (Number(balanceQuantity) > 0 || debtAmount.gt(0)) {
       throw new BadRequestException(
-        'No se puede eliminar un distribuidor con mercaderia o deuda pendiente.',
+        "No se puede eliminar un distribuidor con mercaderia o deuda pendiente.",
       );
     }
 
@@ -186,7 +205,7 @@ export class DistributorsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.DELETE,
-      entity: 'Distributor',
+      entity: "Distributor",
       entityId: id,
       changes: { code: distributor.code },
     });
@@ -214,24 +233,36 @@ export class DistributorsService {
 
   async transfer(companyId: string, id: string, dto: MoveDistributorStockDto) {
     const distributor = await this.getDistributorOrFail(companyId, id);
-    if (distributor.status !== 'ACTIVE') {
-      throw new BadRequestException('El distribuidor no esta activo.');
+    if (distributor.status !== "ACTIVE") {
+      throw new BadRequestException("El distribuidor no esta activo.");
     }
 
     const items = this.mergeItems(dto.items);
     const products = await this.prisma.product.findMany({
       where: { companyId, id: { in: items.map((item) => item.productId) } },
-      select: { id: true, name: true, stockQuantity: true, minStock: true, baseUnit: true },
+      select: {
+        id: true,
+        name: true,
+        stockQuantity: true,
+        minStock: true,
+        baseUnit: true,
+      },
     });
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
 
     for (const item of items) {
       const product = productMap.get(item.productId);
       if (!product) {
-        throw new NotFoundException(`Producto ${item.productId} no encontrado.`);
+        throw new NotFoundException(
+          `Producto ${item.productId} no encontrado.`,
+        );
       }
       if (Number(product.stockQuantity) < item.quantity) {
-        throw new BadRequestException(`Stock insuficiente para ${product.name}.`);
+        throw new BadRequestException(
+          `Stock insuficiente para ${product.name}.`,
+        );
       }
     }
 
@@ -241,7 +272,11 @@ export class DistributorsService {
       async (tx) => {
         for (const item of items) {
           const updated = await tx.product.updateMany({
-            where: { id: item.productId, companyId, stockQuantity: { gte: item.quantity } },
+            where: {
+              id: item.productId,
+              companyId,
+              stockQuantity: { gte: item.quantity },
+            },
             data: { stockQuantity: { decrement: item.quantity } },
           });
           if (updated.count !== 1) {
@@ -266,9 +301,9 @@ export class DistributorsService {
               companyId,
               productId: item.productId,
               distributorId: distributor.id,
-              type: 'TRANSFER',
+              type: "TRANSFER",
               quantity: item.quantity * -1,
-              notes: dto.notes ?? 'Transferencia a distribuidor',
+              notes: dto.notes ?? "Transferencia a distribuidor",
             },
           });
 
@@ -294,7 +329,11 @@ export class DistributorsService {
           },
         });
 
-        return { distributorId: distributor.id, transferredQuantity: totalQuantity, balance };
+        return {
+          distributorId: distributor.id,
+          transferredQuantity: totalQuantity,
+          balance,
+        };
       },
       { maxWait: 10_000, timeout: 15_000 },
     );
@@ -302,9 +341,9 @@ export class DistributorsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'Distributor',
+      entity: "Distributor",
       entityId: distributor.id,
-      changes: { operation: 'TRANSFER', items, totalQuantity },
+      changes: { operation: "TRANSFER", items, totalQuantity },
     });
 
     for (const item of items) {
@@ -327,7 +366,11 @@ export class DistributorsService {
     return result;
   }
 
-  async returnGoods(companyId: string, id: string, dto: MoveDistributorStockDto) {
+  async returnGoods(
+    companyId: string,
+    id: string,
+    dto: MoveDistributorStockDto,
+  ) {
     const distributor = await this.getDistributorOrFail(companyId, id);
 
     const items = this.mergeItems(dto.items);
@@ -335,11 +378,15 @@ export class DistributorsService {
       where: { companyId, id: { in: items.map((item) => item.productId) } },
       select: { id: true, name: true, costPrice: true },
     });
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
 
     for (const item of items) {
       if (!productMap.has(item.productId)) {
-        throw new NotFoundException(`Producto ${item.productId} no encontrado.`);
+        throw new NotFoundException(
+          `Producto ${item.productId} no encontrado.`,
+        );
       }
     }
 
@@ -347,7 +394,7 @@ export class DistributorsService {
     const balanceQuantity = distributor.balance?.balanceQuantity ?? 0;
     if (Number(balanceQuantity) < totalQuantity) {
       throw new BadRequestException(
-        'El distribuidor no tiene mercaderia suficiente para devolver.',
+        "El distribuidor no tiene mercaderia suficiente para devolver.",
       );
     }
 
@@ -367,9 +414,9 @@ export class DistributorsService {
               companyId,
               productId: item.productId,
               distributorId: distributor.id,
-              type: 'RETURN',
+              type: "RETURN",
               quantity: item.quantity,
-              notes: dto.notes ?? 'Devolucion de distribuidor',
+              notes: dto.notes ?? "Devolucion de distribuidor",
             },
           });
           await this.kardexService.recordInMovement(
@@ -398,9 +445,9 @@ export class DistributorsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'Distributor',
+      entity: "Distributor",
       entityId: distributor.id,
-      changes: { operation: 'RETURN', items, totalQuantity },
+      changes: { operation: "RETURN", items, totalQuantity },
     });
 
     return result;
@@ -413,12 +460,16 @@ export class DistributorsService {
       include: {
         items: { include: { product: { select: { name: true, sku: true } } } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 100,
     });
   }
 
-  async registerSale(companyId: string, id: string, dto: RegisterDistributorSaleDto) {
+  async registerSale(
+    companyId: string,
+    id: string,
+    dto: RegisterDistributorSaleDto,
+  ) {
     const distributor = await this.getDistributorOrFail(companyId, id);
 
     const productIds = [...new Set(dto.items.map((item) => item.productId))];
@@ -426,29 +477,43 @@ export class DistributorsService {
       where: { companyId, id: { in: productIds } },
       select: { id: true, name: true, salePrice: true },
     });
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
 
-    const itemMap = new Map<string, { productId: string; quantity: number; unitPrice: number }>();
+    const itemMap = new Map<
+      string,
+      { productId: string; quantity: number; unitPrice: number }
+    >();
     for (const item of dto.items) {
       const product = productMap.get(item.productId);
       if (!product) {
-        throw new NotFoundException(`Producto ${item.productId} no encontrado.`);
+        throw new NotFoundException(
+          `Producto ${item.productId} no encontrado.`,
+        );
       }
       const unitPrice = item.unitPrice ?? Number(product.salePrice);
       const existing = itemMap.get(item.productId);
       if (existing) {
         existing.quantity += item.quantity;
       } else {
-        itemMap.set(item.productId, { productId: item.productId, quantity: item.quantity, unitPrice });
+        itemMap.set(item.productId, {
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice,
+        });
       }
     }
     const saleItems = [...itemMap.values()];
-    const totalQuantity = saleItems.reduce((sum, item) => sum + item.quantity, 0);
+    const totalQuantity = saleItems.reduce(
+      (sum, item) => sum + item.quantity,
+      0,
+    );
 
     const balanceQuantity = distributor.balance?.balanceQuantity ?? 0;
     if (Number(balanceQuantity) < totalQuantity) {
       throw new BadRequestException(
-        'El distribuidor no tiene mercaderia suficiente para reportar esa venta.',
+        "El distribuidor no tiene mercaderia suficiente para reportar esa venta.",
       );
     }
 
@@ -476,7 +541,7 @@ export class DistributorsService {
             companyId,
             customerId: dto.customerId,
             distributorId: distributor.id,
-            channel: 'DISTRIBUTOR',
+            channel: "DISTRIBUTOR",
             saleNumber,
             subtotal,
             taxAmount,
@@ -513,12 +578,12 @@ export class DistributorsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.CREATE,
-      entity: 'Sale',
+      entity: "Sale",
       entityId: sale.id,
       changes: {
         saleNumber: sale.saleNumber,
         distributorId: distributor.id,
-        channel: 'DISTRIBUTOR',
+        channel: "DISTRIBUTOR",
         totalAmount: Number(sale.totalAmount),
         items: itemsData,
       },
@@ -530,12 +595,16 @@ export class DistributorsService {
   findDeliveries(companyId: string, id: string) {
     return this.prisma.distributorDelivery.findMany({
       where: { companyId, distributorId: id },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 100,
     });
   }
 
-  async createDelivery(companyId: string, id: string, dto: CreateDistributorDeliveryDto) {
+  async createDelivery(
+    companyId: string,
+    id: string,
+    dto: CreateDistributorDeliveryDto,
+  ) {
     await this.getDistributorOrFail(companyId, id);
 
     const delivery = await this.prisma.distributorDelivery.create({
@@ -543,7 +612,7 @@ export class DistributorsService {
         companyId,
         distributorId: id,
         deliveryNumber: `DEL-${Date.now()}`,
-        status: dto.status ?? 'PENDING',
+        status: dto.status ?? "PENDING",
         deliveryDate: new Date(),
         amount: dto.amount,
         items: dto.items as unknown as Prisma.InputJsonValue,
@@ -554,7 +623,7 @@ export class DistributorsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.CREATE,
-      entity: 'DistributorDelivery',
+      entity: "DistributorDelivery",
       entityId: delivery.id,
       changes: { distributorId: id, deliveryNumber: delivery.deliveryNumber },
     });
@@ -572,12 +641,14 @@ export class DistributorsService {
         select: { debtAmount: true },
       });
       if (!current) {
-        throw new BadRequestException('El distribuidor no tiene saldo registrado.');
+        throw new BadRequestException(
+          "El distribuidor no tiene saldo registrado.",
+        );
       }
 
       const debt = current.debtAmount ?? new Prisma.Decimal(0);
       if (amount.gt(debt)) {
-        throw new BadRequestException('El monto excede la deuda pendiente.');
+        throw new BadRequestException("El monto excede la deuda pendiente.");
       }
 
       return tx.distributorBalance.update({
@@ -589,9 +660,13 @@ export class DistributorsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'Distributor',
+      entity: "Distributor",
       entityId: distributor.id,
-      changes: { operation: 'SETTLEMENT', amount: Number(amount), notes: dto.notes },
+      changes: {
+        operation: "SETTLEMENT",
+        amount: Number(amount),
+        notes: dto.notes,
+      },
     });
 
     return balance;

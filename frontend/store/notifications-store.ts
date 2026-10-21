@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { apiFetch } from '@/lib/api';
-import { playNotificationChime } from '@/lib/sound';
-import type { Notification } from '@/types/api';
+import { create } from "zustand";
+import { apiFetch } from "@/lib/api";
+import { playNotificationChime } from "@/lib/sound";
+import type { Notification } from "@/types/api";
 
 interface NotificationsState {
   notifications: Notification[];
@@ -9,7 +9,7 @@ interface NotificationsState {
   isLoading: boolean;
   isConnected: boolean;
   eventSource: EventSource | null;
-  
+
   fetchNotifications: (accessToken?: string) => Promise<void>;
   fetchUnreadCount: (accessToken?: string) => Promise<void>;
   markAsRead: (id: string, accessToken?: string) => Promise<void>;
@@ -29,12 +29,17 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   fetchNotifications: async (accessToken?: string) => {
     set({ isLoading: true });
     try {
-      const notifications = await apiFetch<Notification[]>('/notifications', { token: accessToken });
+      const notifications = await apiFetch<Notification[]>("/notifications", {
+        token: accessToken,
+      });
       if (notifications) {
-        set({ notifications, unreadCount: notifications.filter(n => !n.isRead).length });
+        set({
+          notifications,
+          unreadCount: notifications.filter((n) => !n.isRead).length,
+        });
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error("Error fetching notifications:", error);
     } finally {
       set({ isLoading: false });
     }
@@ -42,56 +47,62 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   fetchUnreadCount: async (accessToken?: string) => {
     try {
-      const result = await apiFetch<{ count: number }>('/notifications/unread-count', { token: accessToken });
+      const result = await apiFetch<{ count: number }>(
+        "/notifications/unread-count",
+        { token: accessToken },
+      );
       if (result) {
         set({ unreadCount: result.count });
       }
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      console.error("Error fetching unread count:", error);
     }
   },
 
   markAsRead: async (id: string, accessToken?: string) => {
     try {
       await apiFetch(`/notifications/${id}/read`, {
-        method: 'PATCH',
+        method: "PATCH",
         token: accessToken,
       });
-      
-      const notifications = get().notifications.map(n => 
-        n.id === id ? { ...n, isRead: true } : n
+
+      const notifications = get().notifications.map((n) =>
+        n.id === id ? { ...n, isRead: true } : n,
       );
-      set({ 
-        notifications, 
-        unreadCount: Math.max(0, get().unreadCount - 1) 
+      set({
+        notifications,
+        unreadCount: Math.max(0, get().unreadCount - 1),
       });
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error("Error marking notification as read:", error);
     }
   },
 
   markAllAsRead: async (accessToken?: string) => {
     try {
-      await apiFetch('/notifications/read-all', {
-        method: 'PATCH',
+      await apiFetch("/notifications/read-all", {
+        method: "PATCH",
         token: accessToken,
       });
-      
-      const notifications = get().notifications.map(n => ({ ...n, isRead: true }));
+
+      const notifications = get().notifications.map((n) => ({
+        ...n,
+        isRead: true,
+      }));
       set({ notifications, unreadCount: 0 });
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      console.error("Error marking all notifications as read:", error);
     }
   },
 
   connectToStream: () => {
     const { eventSource, isConnected } = get();
-    
+
     if (eventSource || isConnected) {
       return;
     }
 
-    const es = new EventSource('/api/notifications/stream', {
+    const es = new EventSource("/api/notifications/stream", {
       withCredentials: true,
     });
 
@@ -104,7 +115,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         const notification = JSON.parse(event.data) as Notification;
         get().addNotification(notification);
       } catch (error) {
-        console.error('Error parsing notification:', error);
+        console.error("Error parsing notification:", error);
       }
     };
 

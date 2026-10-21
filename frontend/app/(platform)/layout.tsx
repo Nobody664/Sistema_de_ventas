@@ -1,22 +1,29 @@
-import { redirect } from 'next/navigation';
+import { redirect } from "next/navigation";
 
-import { getServerSession } from '@/lib/session';
-import { AppScope } from '@/components/layout/app-scope';
-import { PlatformSidebar, PlatformMobileNav } from '@/components/layout/platform-sidebar';
-import { AppHeader } from '@/components/layout/app-header';
+import { getServerSession } from "@/lib/session";
+import { AppScope } from "@/components/layout/app-scope";
+import {
+  PlatformSidebar,
+  PlatformMobileNav,
+} from "@/components/layout/platform-sidebar";
+import { AppHeader } from "@/components/layout/app-header";
 
-export default async function PlatformLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function PlatformLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const session = await getServerSession();
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const roles = session.user.roles ?? [];
-  const isPlatformAdmin = roles.some((role) => role === 'SUPER_ADMIN' || role === 'SUPPORT_ADMIN');
+  const isPlatformAdmin = roles.some(
+    (role) => role === "SUPER_ADMIN" || role === "SUPPORT_ADMIN",
+  );
 
   if (!isPlatformAdmin) {
-    redirect('/forbidden');
+    redirect("/forbidden");
   }
 
   return (
@@ -29,7 +36,7 @@ export default async function PlatformLayout({ children }: Readonly<{ children: 
             companyId={session.user.companyId ?? null}
             fullName={session.user.fullName}
             roles={roles}
-            email={session.user.email ?? ''}
+            email={session.user.email ?? ""}
             nav={<PlatformMobileNav roles={roles} />}
           />
           <main className="flex-1 p-5 md:p-8">{children}</main>

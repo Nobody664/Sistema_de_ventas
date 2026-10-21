@@ -1,11 +1,33 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { BarChart3, Bell, CreditCard, Handshake, Landmark, LayoutDashboard, Menu, Package, ShoppingCart, TicketPercent, Users, UserCog, FolderTree, Warehouse, type LucideIcon } from 'lucide-react';
-import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { usePlanCapabilities } from '@/components/plan-capabilities/plan-capabilities-provider';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  BarChart3,
+  Bell,
+  CreditCard,
+  Handshake,
+  Landmark,
+  LayoutDashboard,
+  Menu,
+  Package,
+  ShoppingCart,
+  TicketPercent,
+  Users,
+  UserCog,
+  FolderTree,
+  Warehouse,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { usePlanCapabilities } from "@/components/plan-capabilities/plan-capabilities-provider";
 
 type NavItem = {
   label: string;
@@ -16,22 +38,112 @@ type NavItem = {
 };
 
 const mainItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard', roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
-  { label: 'Notificaciones', href: '/notifications', icon: Bell, module: 'notifications', roles: ['SUPER_ADMIN', 'SUPPORT_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    module: "dashboard",
+    roles: [
+      "SUPER_ADMIN",
+      "SUPPORT_ADMIN",
+      "COMPANY_ADMIN",
+      "MANAGER",
+      "CASHIER",
+      "VIEWER",
+    ],
+  },
+  {
+    label: "Notificaciones",
+    href: "/notifications",
+    icon: Bell,
+    module: "notifications",
+    roles: [
+      "SUPER_ADMIN",
+      "SUPPORT_ADMIN",
+      "COMPANY_ADMIN",
+      "MANAGER",
+      "CASHIER",
+      "VIEWER",
+    ],
+  },
 ];
 
 const companyItems: NavItem[] = [
-  { label: 'Inventario', href: '/inventory', icon: Warehouse, module: 'inventory', roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Productos', href: '/products', icon: Package, module: 'products', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Categorías', href: '/categories', icon: FolderTree, module: 'categories', roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Ventas', href: '/sales', icon: ShoppingCart, module: 'sales', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Cupones', href: '/discounts', icon: TicketPercent, module: 'sales', roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Clientes', href: '/customers', icon: Users, module: 'customers', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER'] },
-  { label: 'Distribuidores', href: '/distributors', icon: Handshake, module: 'distributors', roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Empleados', href: '/employees', icon: UserCog, module: 'employees', roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Pagos', href: '/payments', icon: CreditCard, roles: ['COMPANY_ADMIN', 'MANAGER'] },
-  { label: 'Finanzas', href: '/finance', icon: Landmark, roles: ['COMPANY_ADMIN'] },
-  { label: 'Reportes', href: '/reports', icon: BarChart3, module: 'reports', roles: ['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'] },
+  {
+    label: "Inventario",
+    href: "/inventory",
+    icon: Warehouse,
+    module: "inventory",
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Productos",
+    href: "/products",
+    icon: Package,
+    module: "products",
+    roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
+  },
+  {
+    label: "Categorías",
+    href: "/categories",
+    icon: FolderTree,
+    module: "categories",
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Ventas",
+    href: "/sales",
+    icon: ShoppingCart,
+    module: "sales",
+    roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
+  },
+  {
+    label: "Cupones",
+    href: "/discounts",
+    icon: TicketPercent,
+    module: "sales",
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Clientes",
+    href: "/customers",
+    icon: Users,
+    module: "customers",
+    roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
+  },
+  {
+    label: "Distribuidores",
+    href: "/distributors",
+    icon: Handshake,
+    module: "distributors",
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Empleados",
+    href: "/employees",
+    icon: UserCog,
+    module: "employees",
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Pagos",
+    href: "/payments",
+    icon: CreditCard,
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Finanzas",
+    href: "/finance",
+    icon: Landmark,
+    roles: ["COMPANY_ADMIN"],
+  },
+  {
+    label: "Reportes",
+    href: "/reports",
+    icon: BarChart3,
+    module: "reports",
+    roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER", "VIEWER"],
+  },
 ];
 
 const adminItems: NavItem[] = [];
@@ -49,24 +161,36 @@ function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
   const pathname = usePathname();
   const { can } = usePlanCapabilities();
 
-  const isPlatformAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
+  const isPlatformAdmin =
+    roles.includes("SUPER_ADMIN") || roles.includes("SUPPORT_ADMIN");
 
   const visibleMainItems = mainItems.filter(
-    (item) => item.roles.some((role) => roles.includes(role)) && (!item.module || can(item.module)),
+    (item) =>
+      item.roles.some((role) => roles.includes(role)) &&
+      (!item.module || can(item.module)),
   );
   const visibleCompanyItems = companyItems.filter(
-    (item) => item.roles.some((role) => roles.includes(role)) && (!item.module || can(item.module)),
+    (item) =>
+      item.roles.some((role) => roles.includes(role)) &&
+      (!item.module || can(item.module)),
   );
-  const visibleAdminItems = adminItems.filter((item) => item.roles.some((role) => roles.includes(role)));
+  const visibleAdminItems = adminItems.filter((item) =>
+    item.roles.some((role) => roles.includes(role)),
+  );
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + "/");
 
   return (
     <>
       <div className="flex min-h-0 flex-col gap-6 overflow-hidden">
         <div className="rounded-2xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-sidebar-foreground/40">Huanka-Saas</p>
-          <p className="mt-2 font-display text-2xl text-sidebar-foreground">Control</p>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-sidebar-foreground/40">
+            Huanka-Saas
+          </p>
+          <p className="mt-2 font-display text-2xl text-sidebar-foreground">
+            Control
+          </p>
           <p className="mt-1 text-xs font-medium text-orange-400">Stack</p>
         </div>
 
@@ -81,11 +205,11 @@ function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
                 onClick={onNavigate}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                   active
-                    ? 'bg-orange-500/15 text-orange-400'
-                    : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
+                    ? "bg-orange-500/15 text-orange-400"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground"
                 }`}
               >
-                <Icon className={`size-4 ${active ? 'text-orange-400' : ''}`} />
+                <Icon className={`size-4 ${active ? "text-orange-400" : ""}`} />
                 {item.label}
               </Link>
             );
@@ -94,7 +218,9 @@ function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
 
         {visibleCompanyItems.length > 0 && (
           <nav className="space-y-1 overflow-y-auto py-1">
-            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">Gestión</p>
+            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">
+              Gestión
+            </p>
             {visibleCompanyItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -105,11 +231,13 @@ function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
                   onClick={onNavigate}
                   className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                     active
-                      ? 'bg-orange-500/15 text-orange-400'
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
+                      ? "bg-orange-500/15 text-orange-400"
+                      : "text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground"
                   }`}
                 >
-                  <Icon className={`size-4 ${active ? 'text-orange-400' : ''}`} />
+                  <Icon
+                    className={`size-4 ${active ? "text-orange-400" : ""}`}
+                  />
                   {item.label}
                 </Link>
               );
@@ -119,7 +247,9 @@ function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
 
         {visibleAdminItems.length > 0 && (
           <nav className="space-y-1 overflow-y-auto py-1">
-            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">Sistema</p>
+            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">
+              Sistema
+            </p>
             {visibleAdminItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -130,11 +260,13 @@ function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
                   onClick={onNavigate}
                   className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
                     active
-                      ? 'bg-orange-500/15 text-orange-400'
-                      : 'text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground'
+                      ? "bg-orange-500/15 text-orange-400"
+                      : "text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground"
                   }`}
                 >
-                  <Icon className={`size-4 ${active ? 'text-orange-400' : ''}`} />
+                  <Icon
+                    className={`size-4 ${active ? "text-orange-400" : ""}`}
+                  />
                   {item.label}
                 </Link>
               );
@@ -145,11 +277,17 @@ function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
 
       {isPlatformAdmin && (
         <div className="rounded-xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
-          <Link href="/platform" onClick={onNavigate} className="flex items-center gap-2 text-sm font-medium text-violet-400 hover:text-violet-300">
+          <Link
+            href="/platform"
+            onClick={onNavigate}
+            className="flex items-center gap-2 text-sm font-medium text-violet-400 hover:text-violet-300"
+          >
             <LayoutDashboard className="size-4" />
             Ir a Plataforma
           </Link>
-          <p className="mt-1 text-xs text-sidebar-foreground/50">Panel global del sistema</p>
+          <p className="mt-1 text-xs text-sidebar-foreground/50">
+            Panel global del sistema
+          </p>
         </div>
       )}
     </>
@@ -185,7 +323,9 @@ export function AppMobileNav({ roles }: AppSidebarProps) {
       </SheetTrigger>
       <SheetContent side="left" className="w-72 max-w-[85%] gap-0 p-0">
         <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
-        <SheetDescription className="sr-only">Accesos del sistema</SheetDescription>
+        <SheetDescription className="sr-only">
+          Accesos del sistema
+        </SheetDescription>
         <div className="flex min-h-0 flex-1 flex-col justify-between gap-6 overflow-y-auto px-4 py-6">
           <SidebarContent roles={roles} onNavigate={() => setOpen(false)} />
         </div>

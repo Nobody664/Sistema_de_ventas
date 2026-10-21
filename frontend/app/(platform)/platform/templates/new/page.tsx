@@ -1,7 +1,6 @@
-
-import { redirect } from 'next/navigation';
-import { getServerSession } from '@/lib/session';
-import { TemplateEditor } from '../template-editor';
+import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/session";
+import { TemplateEditor } from "../template-editor";
 
 interface InvoiceTemplate {
   id: string;
@@ -37,42 +36,44 @@ interface NewTemplatePageProps {
   searchParams: Promise<{ type?: string }>;
 }
 
-export default async function NewTemplatePage({ searchParams }: NewTemplatePageProps) {
+export default async function NewTemplatePage({
+  searchParams,
+}: NewTemplatePageProps) {
   const session = await getServerSession();
   const { type } = await searchParams;
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const roles: string[] = session?.user?.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN');
-  
+  const isSuperAdmin = roles.includes("SUPER_ADMIN");
+
   if (!isSuperAdmin) {
-    redirect('/dashboard');
+    redirect("/dashboard");
   }
 
   const presetConfigs: Record<string, Partial<InvoiceTemplate>> = {
     BOLETA: {
-      name: 'Boleta Estándar',
-      type: 'BOLETA',
-      paperSize: 'A4',
+      name: "Boleta Estándar",
+      type: "BOLETA",
+      paperSize: "A4",
       taxPercentage: 18,
       showTax: true,
       showSaleTime: false,
     },
     TICKET: {
-      name: 'Ticket Térmico',
-      type: 'TICKET',
-      paperSize: 'thermal',
+      name: "Ticket Térmico",
+      type: "TICKET",
+      paperSize: "thermal",
       taxPercentage: 0,
       showTax: false,
       showSaleTime: true,
     },
     FACTURA: {
-      name: 'Factura',
-      type: 'FACTURA',
-      paperSize: 'A4',
+      name: "Factura",
+      type: "FACTURA",
+      paperSize: "A4",
       taxPercentage: 18,
       showTax: true,
       showSaleTime: false,

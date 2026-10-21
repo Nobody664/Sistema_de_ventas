@@ -1,12 +1,15 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { CostingStrategy, CostingResult } from './costing.strategy';
+import { Injectable } from "@nestjs/common";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { CostingStrategy, CostingResult } from "./costing.strategy";
 
-type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
+>;
 
 @Injectable()
 export class WeightedAverageStrategy implements CostingStrategy {
-  name = 'WEIGHTED_AVERAGE';
+  name = "WEIGHTED_AVERAGE";
 
   async calculateOutCost(
     productId: string,
@@ -16,7 +19,7 @@ export class WeightedAverageStrategy implements CostingStrategy {
   ): Promise<CostingResult> {
     const lastEntry = await tx.inventoryKardex.findFirst({
       where: { productId, companyId },
-      orderBy: { movementDate: 'desc' },
+      orderBy: { movementDate: "desc" },
     });
 
     if (!lastEntry || lastEntry.balanceQty.lte(0)) {

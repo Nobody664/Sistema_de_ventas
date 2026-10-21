@@ -1,10 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, FinanceCategory, Prisma } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { AuditService } from '@/common/services/audit.service';
-import { CreateFinanceRecordDto, QueryFinanceRecordDto, UpdateFinanceRecordDto } from './dto/finance.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { AuditAction, FinanceCategory, Prisma } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { AuditService } from "@/common/services/audit.service";
+import {
+  CreateFinanceRecordDto,
+  QueryFinanceRecordDto,
+  UpdateFinanceRecordDto,
+} from "./dto/finance.dto";
 
-export type FinanceRecordSource = 'MANUAL' | 'SALE';
+export type FinanceRecordSource = "MANUAL" | "SALE";
 
 export interface FinanceRecordView {
   id: string;
@@ -48,11 +56,17 @@ export interface FinanceSummary {
 }
 
 const DEFAULT_CATEGORY_BY_DIRECTION: Record<string, FinanceCategory> = {
-  ENTRY: 'PURCHASE',
-  EXIT: 'OTHER',
+  ENTRY: "PURCHASE",
+  EXIT: "OTHER",
 };
 
-const EXPENSE_CATEGORIES: readonly string[] = ['PAYROLL', 'ELECTRICITY', 'WATER', 'MAINTENANCE', 'OTHER'];
+const EXPENSE_CATEGORIES: readonly string[] = [
+  "PAYROLL",
+  "ELECTRICITY",
+  "WATER",
+  "MAINTENANCE",
+  "OTHER",
+];
 
 const MAX_MERGED_ROWS = 500;
 
@@ -86,7 +100,10 @@ export class FinanceService {
     private readonly auditService: AuditService,
   ) {}
 
-  async findAll(companyId: string, query: QueryFinanceRecordDto): Promise<{
+  async findAll(
+    companyId: string,
+    query: QueryFinanceRecordDto,
+  ): Promise<{
     items: FinanceRecordView[];
     total: number;
     page: number;
@@ -100,7 +117,8 @@ export class FinanceService {
     const search = query.search?.trim();
 
     const includesSales =
-      (!query.direction || query.direction === 'EXIT') && (!query.category || query.category === 'SALE');
+      (!query.direction || query.direction === "EXIT") &&
+      (!query.category || query.category === "SALE");
 
     const manualWhere: Prisma.FinanceRecordWhereInput = {
       companyId,
@@ -117,9 +135,11 @@ export class FinanceService {
       ...(search
         ? {
             OR: [
-              { description: { contains: search, mode: 'insensitive' as const } },
-              { reference: { contains: search, mode: 'insensitive' as const } },
-              { supplier: { contains: search, mode: 'insensitive' as const } },
+              {
+                description: { contains: search, mode: "insensitive" as const },
+              },
+              { reference: { contains: search, mode: "insensitive" as const } },
+              { supplier: { contains: search, mode: "insensitive" as const } },
             ],
           }
         : {}),
@@ -127,7 +147,7 @@ export class FinanceService {
 
     const saleWhere: Prisma.SaleWhereInput = {
       companyId,
-      status: 'COMPLETED',
+      status: "COMPLETED",
       ...(range.from || range.to
         ? {
             createdAt: {
@@ -136,35 +156,48 @@ export class FinanceService {
             },
           }
         : {}),
-      ...(search ? { saleNumber: { contains: search, mode: 'insensitive' as const } } : {}),
+      ...(search
+        ? { saleNumber: { contains: search, mode: "insensitive" as const } }
+        : {}),
     };
 
     const [manualRows, saleRows, manualCount, saleCount] = await Promise.all([
       this.prisma.financeRecord.findMany({
         where: manualWhere,
-        orderBy: [{ recordDate: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
         take,
         include: { employee: { select: { firstName: true, lastName: true } } },
       }),
       includesSales
         ? this.prisma.sale.findMany({
             where: saleWhere,
-            orderBy: [{ createdAt: 'desc' }],
+            orderBy: [{ createdAt: "desc" }],
             take,
-            select: { id: true, saleNumber: true, totalAmount: true, createdAt: true },
+            select: {
+              id: true,
+              saleNumber: true,
+              totalAmount: true,
+              createdAt: true,
+            },
           })
-        : Promise.resolve([] as Array<{
-            id: string;
-            saleNumber: string;
-            totalAmount: Prisma.Decimal;
-            createdAt: Date;
-          }>),
+        : Promise.resolve(
+            [] as Array<{
+              id: string;
+              saleNumber: string;
+              totalAmount: Prisma.Decimal;
+              createdAt: Date;
+            }>,
+          ),
       this.prisma.financeRecord.count({ where: manualWhere }),
-      includesSales ? this.prisma.sale.count({ where: saleWhere }) : Promise.resolve(0),
+      includesSales
+        ? this.prisma.sale.count({ where: saleWhere })
+        : Promise.resolve(0),
     ]);
 
     const manualItems = manualRows.map((row) => this.mapManual(row));
-    const saleItems = includesSales ? saleRows.map((row) => this.mapSale(row)) : [];
+    const saleItems = includesSales
+      ? saleRows.map((row) => this.mapSale(row))
+      : [];
 
     const merged = [...manualItems, ...saleItems].sort((a, b) => {
       const byDate = b.recordDate.localeCompare(a.recordDate);
@@ -180,7 +213,10 @@ export class FinanceService {
     };
   }
 
-  async getSummary(companyId: string, query: QueryFinanceRecordDto): Promise<FinanceSummary> {
+  async getSummary(
+    companyId: string,
+    query: QueryFinanceRecordDto,
+  ): Promise<FinanceSummary> {
     const range = this.resolveRange(query, 30);
 
     const [manualRows, saleRows] = await Promise.all([
@@ -192,12 +228,17 @@ export class FinanceService {
             ...(range.to ? { lte: range.to } : {}),
           },
         },
-        select: { direction: true, category: true, amount: true, recordDate: true },
+        select: {
+          direction: true,
+          category: true,
+          amount: true,
+          recordDate: true,
+        },
       }),
       this.prisma.sale.findMany({
         where: {
           companyId,
-          status: 'COMPLETED',
+          status: "COMPLETED",
           createdAt: {
             ...(range.from ? { gte: range.from } : {}),
             ...(range.to ? { lte: range.to } : {}),
@@ -244,7 +285,7 @@ export class FinanceService {
       const bucket = bucketFor(row.recordDate);
       byCategory[row.category] = (byCategory[row.category] ?? 0) + amount;
 
-      if (row.direction === 'ENTRY') {
+      if (row.direction === "ENTRY") {
         entriesTotal += amount;
         entriesCount += 1;
         bucket.entries += amount;
@@ -252,7 +293,7 @@ export class FinanceService {
         exitsTotal += amount;
         exitsCount += 1;
         bucket.exits += amount;
-        if (row.category === 'SALE') {
+        if (row.category === "SALE") {
           salesTotal += amount;
           salesCount += 1;
           bucket.sales += amount;
@@ -301,13 +342,17 @@ export class FinanceService {
     });
 
     if (!row) {
-      throw new NotFoundException('Registro financiero no encontrado.');
+      throw new NotFoundException("Registro financiero no encontrado.");
     }
 
     return this.mapManual(row);
   }
 
-  async create(companyId: string, userId: string | undefined, input: CreateFinanceRecordDto) {
+  async create(
+    companyId: string,
+    userId: string | undefined,
+    input: CreateFinanceRecordDto,
+  ) {
     const category = this.resolveCategory(input.direction, input.category);
 
     if (input.employeeId) {
@@ -336,7 +381,7 @@ export class FinanceService {
       companyId,
       userId,
       action: AuditAction.CREATE,
-      entity: 'FinanceRecord',
+      entity: "FinanceRecord",
       entityId: record.id,
       changes: {
         direction: record.direction,
@@ -349,10 +394,16 @@ export class FinanceService {
     return this.mapManual(record);
   }
 
-  async update(companyId: string, id: string, input: UpdateFinanceRecordDto): Promise<FinanceRecordView> {
-    const existing = await this.prisma.financeRecord.findFirst({ where: { id, companyId } });
+  async update(
+    companyId: string,
+    id: string,
+    input: UpdateFinanceRecordDto,
+  ): Promise<FinanceRecordView> {
+    const existing = await this.prisma.financeRecord.findFirst({
+      where: { id, companyId },
+    });
     if (!existing) {
-      throw new NotFoundException('Registro financiero no encontrado.');
+      throw new NotFoundException("Registro financiero no encontrado.");
     }
 
     if (input.employeeId) {
@@ -361,15 +412,22 @@ export class FinanceService {
 
     const category =
       input.direction || input.category
-        ? this.resolveCategory(input.direction ?? existing.direction, input.category ?? existing.category)
+        ? this.resolveCategory(
+            input.direction ?? existing.direction,
+            input.category ?? existing.category,
+          )
         : undefined;
 
     const data: Prisma.FinanceRecordUpdateInput = {
       ...(input.direction ? { direction: input.direction } : {}),
       ...(category ? { category } : {}),
-      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.description !== undefined
+        ? { description: input.description }
+        : {}),
       ...(input.amount !== undefined ? { amount: input.amount } : {}),
-      ...(input.recordDate !== undefined ? { recordDate: new Date(input.recordDate) } : {}),
+      ...(input.recordDate !== undefined
+        ? { recordDate: new Date(input.recordDate) }
+        : {}),
       ...(input.dueDate !== undefined
         ? input.dueDate
           ? { dueDate: new Date(input.dueDate) }
@@ -394,11 +452,17 @@ export class FinanceService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'FinanceRecord',
+      entity: "FinanceRecord",
       entityId: record.id,
       changes: {
-        before: { amount: Number(existing.amount), description: existing.description },
-        after: { amount: Number(record.amount), description: record.description },
+        before: {
+          amount: Number(existing.amount),
+          description: existing.description,
+        },
+        after: {
+          amount: Number(record.amount),
+          description: record.description,
+        },
       },
     });
 
@@ -406,9 +470,11 @@ export class FinanceService {
   }
 
   async remove(companyId: string, id: string): Promise<{ id: string }> {
-    const existing = await this.prisma.financeRecord.findFirst({ where: { id, companyId } });
+    const existing = await this.prisma.financeRecord.findFirst({
+      where: { id, companyId },
+    });
     if (!existing) {
-      throw new NotFoundException('Registro financiero no encontrado.');
+      throw new NotFoundException("Registro financiero no encontrado.");
     }
 
     await this.prisma.financeRecord.delete({ where: { id } });
@@ -416,15 +482,21 @@ export class FinanceService {
     await this.auditService.log({
       companyId,
       action: AuditAction.DELETE,
-      entity: 'FinanceRecord',
+      entity: "FinanceRecord",
       entityId: id,
-      changes: { description: existing.description, amount: Number(existing.amount) },
+      changes: {
+        description: existing.description,
+        amount: Number(existing.amount),
+      },
     });
 
     return { id };
   }
 
-  private resolveRange(query: QueryFinanceRecordDto, defaultDays?: number): {
+  private resolveRange(
+    query: QueryFinanceRecordDto,
+    defaultDays?: number,
+  ): {
     from?: Date;
     to?: Date;
   } {
@@ -441,30 +513,46 @@ export class FinanceService {
     return { from, to };
   }
 
-  private resolveCategory(direction: string, category?: string): FinanceCategory {
-    if (category === 'SALE') {
+  private resolveCategory(
+    direction: string,
+    category?: string,
+  ): FinanceCategory {
+    if (category === "SALE") {
       throw new BadRequestException(
-        'Las ventas se registran automaticamente desde el modulo de Ventas.',
+        "Las ventas se registran automaticamente desde el modulo de Ventas.",
       );
     }
 
-    if (category && direction === 'ENTRY' && EXPENSE_CATEGORIES.includes(category)) {
-      throw new BadRequestException('La categoria seleccionada no aplica para entradas.');
+    if (
+      category &&
+      direction === "ENTRY" &&
+      EXPENSE_CATEGORIES.includes(category)
+    ) {
+      throw new BadRequestException(
+        "La categoria seleccionada no aplica para entradas.",
+      );
     }
 
-    if (category && direction === 'EXIT' && category === 'PURCHASE') {
-      throw new BadRequestException('Las compras se registran como entradas.');
+    if (category && direction === "EXIT" && category === "PURCHASE") {
+      throw new BadRequestException("Las compras se registran como entradas.");
     }
 
-    return (category as FinanceCategory) ?? DEFAULT_CATEGORY_BY_DIRECTION[direction] ?? 'OTHER';
+    return (
+      (category as FinanceCategory) ??
+      DEFAULT_CATEGORY_BY_DIRECTION[direction] ??
+      "OTHER"
+    );
   }
 
-  private async ensureEmployee(companyId: string, employeeId: string): Promise<void> {
+  private async ensureEmployee(
+    companyId: string,
+    employeeId: string,
+  ): Promise<void> {
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId, companyId, deletedAt: null },
     });
     if (!employee) {
-      throw new BadRequestException('El empleado indicado no existe.');
+      throw new BadRequestException("El empleado indicado no existe.");
     }
   }
 
@@ -485,12 +573,12 @@ export class FinanceService {
     employee?: { firstName: string; lastName: string | null } | null;
   }): FinanceRecordView {
     const employeeName = row.employee
-      ? `${row.employee.firstName}${row.employee.lastName ? ` ${row.employee.lastName}` : ''}`
+      ? `${row.employee.firstName}${row.employee.lastName ? ` ${row.employee.lastName}` : ""}`
       : null;
 
     return {
       id: row.id,
-      source: 'MANUAL',
+      source: "MANUAL",
       direction: row.direction,
       category: row.category,
       description: row.description,
@@ -508,15 +596,20 @@ export class FinanceService {
     };
   }
 
-  private mapSale(row: { id: string; saleNumber: string; totalAmount: unknown; createdAt: Date }): FinanceRecordView {
+  private mapSale(row: {
+    id: string;
+    saleNumber: string;
+    totalAmount: unknown;
+    createdAt: Date;
+  }): FinanceRecordView {
     return {
       id: row.id,
-      source: 'SALE',
-      direction: 'EXIT',
-      category: 'SALE',
+      source: "SALE",
+      direction: "EXIT",
+      category: "SALE",
       description: `Venta ${row.saleNumber}`,
       amount: toNumber(row.totalAmount),
-      currency: 'PEN',
+      currency: "PEN",
       recordDate: row.createdAt.toISOString(),
       dueDate: null,
       reference: row.saleNumber,

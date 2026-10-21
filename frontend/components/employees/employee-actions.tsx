@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { MoreHorizontal, Edit, Trash2, UserPlus } from 'lucide-react';
-import { DeleteDialog } from '@/components/common/delete-dialog';
-import { PermissionGuard } from '@/components/auth/permission-guard';
-import type { Employee } from '@/types/api';
+import Link from "next/link";
+import { MoreHorizontal, Edit, Trash2, UserPlus } from "lucide-react";
+import { DeleteDialog } from "@/components/common/delete-dialog";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import type { Employee } from "@/types/api";
 
 export function EmployeeActions({ employee }: { employee: Employee }) {
   return (

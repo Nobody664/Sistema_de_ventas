@@ -1,6 +1,6 @@
-import { Injectable, OnModuleDestroy, Logger, Inject } from '@nestjs/common';
-import Redis from 'ioredis';
-import { REDIS_CLIENT } from './redis.module';
+import { Injectable, OnModuleDestroy, Logger, Inject } from "@nestjs/common";
+import Redis from "ioredis";
+import { REDIS_CLIENT } from "./redis.module";
 
 interface CacheItem<T> {
   value: T;
@@ -24,16 +24,20 @@ export class CacheService implements OnModuleDestroy {
     if (this.redis && !this.useMemory) {
       try {
         await this.redis.connect();
-        this.logger.log('✅ CacheService inicializado con Redis');
+        this.logger.log("✅ CacheService inicializado con Redis");
       } catch (error) {
         const err = error as Error;
-        this.logger.warn(`⚠️ Error connecting to Redis: ${err?.message}, usando memoria`);
+        this.logger.warn(
+          `⚠️ Error connecting to Redis: ${err?.message}, usando memoria`,
+        );
         this.redis = null;
         this.useMemory = true;
       }
     } else {
       this.useMemory = true;
-      this.logger.log('⚠️ CacheService inicializado con memoria local (fallback)');
+      this.logger.log(
+        "⚠️ CacheService inicializado con memoria local (fallback)",
+      );
     }
   }
 
@@ -52,7 +56,7 @@ export class CacheService implements OnModuleDestroy {
     if (this.redis && !this.useMemory) {
       try {
         const value = await this.redis.get(key);
-        return value ? JSON.parse(value) as T : null;
+        return value ? (JSON.parse(value) as T) : null;
       } catch (error) {
         const err = error as Error;
         this.logger.warn(`⚠️ Redis get error: ${err?.message}, usando memoria`);
@@ -74,7 +78,12 @@ export class CacheService implements OnModuleDestroy {
 
     if (this.redis && !this.useMemory) {
       try {
-        await this.redis.set(key, JSON.stringify(value), 'EX', ttl || this.DEFAULT_TTL);
+        await this.redis.set(
+          key,
+          JSON.stringify(value),
+          "EX",
+          ttl || this.DEFAULT_TTL,
+        );
         return;
       } catch (error) {
         const err = error as Error;
@@ -130,13 +139,13 @@ export class CacheService implements OnModuleDestroy {
   }
 
   getMode(): string {
-    return this.useMemory ? 'memory' : 'redis';
+    return this.useMemory ? "memory" : "redis";
   }
 
   async ping(): Promise<string> {
     if (this.redis && !this.useMemory) {
       return this.redis.ping();
     }
-    return 'memory';
+    return "memory";
   }
 }

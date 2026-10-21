@@ -1,10 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Search } from 'lucide-react';
-import { NewFinanceButton, FinanceRowActions } from '@/components/finance/finance-actions';
-import type { FinanceListResponse, FinanceSummary } from '@/types/api';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
+import {
+  NewFinanceButton,
+  FinanceRowActions,
+} from "@/components/finance/finance-actions";
+import type { FinanceListResponse, FinanceSummary } from "@/types/api";
 
 interface FinanceEmployeeOption {
   id: string;
@@ -18,43 +21,52 @@ interface FinancePageClientProps {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  PURCHASE: 'Compra',
-  SALE: 'Venta',
-  PAYROLL: 'Sueldo',
-  ELECTRICITY: 'Luz',
-  WATER: 'Agua',
-  MAINTENANCE: 'Mantenimiento',
-  OTHER: 'Otro',
+  PURCHASE: "Compra",
+  SALE: "Venta",
+  PAYROLL: "Sueldo",
+  ELECTRICITY: "Luz",
+  WATER: "Agua",
+  MAINTENANCE: "Mantenimiento",
+  OTHER: "Otro",
 };
 
 const money = (value: number): string => `S/ ${Number(value).toFixed(2)}`;
 
 const shortDate = (value: string): string =>
-  new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(
-    new Date(value),
-  );
+  new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
 
-export function FinancePageClient({ initialList, initialSummary, employees }: FinancePageClientProps) {
+export function FinancePageClient({
+  initialList,
+  initialSummary,
+  employees,
+}: FinancePageClientProps) {
   const router = useRouter();
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [direction, setDirection] = useState('');
-  const [category, setCategory] = useState('');
-  const [search, setSearch] = useState('');
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [direction, setDirection] = useState("");
+  const [category, setCategory] = useState("");
+  const [search, setSearch] = useState("");
 
   const records = initialList.items;
-  const totalPages = Math.max(Math.ceil(initialList.total / initialList.limit), 1);
+  const totalPages = Math.max(
+    Math.ceil(initialList.total / initialList.limit),
+    1,
+  );
 
   const pushQuery = (page: number) => {
     const params = new URLSearchParams();
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
-    if (direction) params.set('direction', direction);
-    if (category) params.set('category', category);
-    if (search) params.set('search', search);
-    if (page > 1) params.set('page', String(page));
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (direction) params.set("direction", direction);
+    if (category) params.set("category", category);
+    if (search) params.set("search", search);
+    if (page > 1) params.set("page", String(page));
     const query = params.toString();
-    router.push(query ? `/finance?${query}` : '/finance');
+    router.push(query ? `/finance?${query}` : "/finance");
   };
 
   const handleFilter = (event: React.FormEvent<HTMLFormElement>) => {
@@ -67,13 +79,16 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
       <div className="rounded-[34px] bg-gradient-to-br from-emerald-500 to-teal-700 p-6 text-white sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-white/60">Control financiero</p>
+            <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+              Control financiero
+            </p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
               Finanzas
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-              Entradas por compras a proveedores y salidas por ventas, sueldos y gastos de la
-              empresa. Las ventas se registran automáticamente desde el módulo de Ventas.
+              Entradas por compras a proveedores y salidas por ventas, sueldos y
+              gastos de la empresa. Las ventas se registran automáticamente
+              desde el módulo de Ventas.
             </p>
           </div>
           <NewFinanceButton employees={employees} />
@@ -110,10 +125,14 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
       <div className="rounded-[30px] bg-white/85 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.15em] text-slate-400">Balance del periodo</p>
+            <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
+              Balance del periodo
+            </p>
             <p
               className={`font-display text-3xl ${
-                (initialSummary?.balance ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'
+                (initialSummary?.balance ?? 0) >= 0
+                  ? "text-emerald-600"
+                  : "text-red-600"
               }`}
             >
               {money(initialSummary?.balance ?? 0)}
@@ -122,13 +141,16 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
           <p className="text-sm text-slate-500">
             {initialSummary
               ? `${shortDate(initialSummary.from)} — ${shortDate(initialSummary.to)}`
-              : 'Sin datos'}
+              : "Sin datos"}
           </p>
         </div>
       </div>
 
       <div className="rounded-[30px] bg-white/85 p-6">
-        <form onSubmit={handleFilter} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <form
+          onSubmit={handleFilter}
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
+        >
           <div className="space-y-2">
             <p className="text-sm font-semibold text-slate-700">Desde</p>
             <input
@@ -191,12 +213,12 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
             <button
               type="button"
               onClick={() => {
-                setFrom('');
-                setTo('');
-                setDirection('');
-                setCategory('');
-                setSearch('');
-                router.push('/finance');
+                setFrom("");
+                setTo("");
+                setDirection("");
+                setCategory("");
+                setSearch("");
+                router.push("/finance");
               }}
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-500 transition hover:bg-slate-50"
             >
@@ -239,7 +261,9 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
                     <td className="py-3 text-right text-sm text-emerald-600">
                       {money(week.entries)}
                     </td>
-                    <td className="py-3 text-right text-sm text-red-600">{money(week.exits)}</td>
+                    <td className="py-3 text-right text-sm text-red-600">
+                      {money(week.exits)}
+                    </td>
                     <td className="py-3 text-right text-sm text-foreground/60">
                       {money(week.sales)}
                     </td>
@@ -248,7 +272,7 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
                     </td>
                     <td
                       className={`py-3 pr-4 text-right text-sm font-semibold ${
-                        week.balance >= 0 ? 'text-emerald-600' : 'text-red-600'
+                        week.balance >= 0 ? "text-emerald-600" : "text-red-600"
                       }`}
                     >
                       {money(week.balance)}
@@ -257,7 +281,10 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-foreground/50">
+                  <td
+                    colSpan={6}
+                    className="py-10 text-center text-foreground/50"
+                  >
                     Sin movimientos en el rango seleccionado.
                   </td>
                 </tr>
@@ -270,7 +297,9 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
       <div className="rounded-[30px] bg-white/85 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-2xl">Movimientos</h2>
-          <p className="text-sm text-foreground/50">{initialList.total} registros</p>
+          <p className="text-sm text-foreground/50">
+            {initialList.total} registros
+          </p>
         </div>
 
         <div className="mt-4 overflow-auto rounded-xl border border-foreground/10">
@@ -287,25 +316,32 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
             <tbody>
               {records.length > 0 ? (
                 records.map((record) => (
-                  <tr key={`${record.source}-${record.id}`} className="border-b border-foreground/5">
+                  <tr
+                    key={`${record.source}-${record.id}`}
+                    className="border-b border-foreground/5"
+                  >
                     <td className="py-3 pl-4 text-sm text-foreground/60">
                       {shortDate(record.recordDate)}
                     </td>
                     <td className="py-3 text-sm">
                       <span className="font-medium">{record.description}</span>
                       {record.supplier && (
-                        <span className="block text-xs text-slate-400">{record.supplier}</span>
+                        <span className="block text-xs text-slate-400">
+                          {record.supplier}
+                        </span>
                       )}
                       {record.employeeName && (
-                        <span className="block text-xs text-slate-400">{record.employeeName}</span>
+                        <span className="block text-xs text-slate-400">
+                          {record.employeeName}
+                        </span>
                       )}
                     </td>
                     <td className="py-3 text-sm">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          record.direction === 'ENTRY'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-600'
+                          record.direction === "ENTRY"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-red-100 text-red-600"
                         }`}
                       >
                         {CATEGORY_LABELS[record.category] ?? record.category}
@@ -313,20 +349,28 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
                     </td>
                     <td
                       className={`py-3 text-right text-sm font-semibold ${
-                        record.direction === 'ENTRY' ? 'text-emerald-600' : 'text-red-600'
+                        record.direction === "ENTRY"
+                          ? "text-emerald-600"
+                          : "text-red-600"
                       }`}
                     >
-                      {record.direction === 'ENTRY' ? '+' : '−'}
+                      {record.direction === "ENTRY" ? "+" : "−"}
                       {money(record.amount)}
                     </td>
                     <td className="py-3 pr-4 text-right">
-                      <FinanceRowActions record={record} employees={employees} />
+                      <FinanceRowActions
+                        record={record}
+                        employees={employees}
+                      />
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-foreground/50">
+                  <td
+                    colSpan={5}
+                    className="py-12 text-center text-foreground/50"
+                  >
                     No hay registros financieros.
                   </td>
                 </tr>
@@ -346,7 +390,8 @@ export function FinancePageClient({ initialList, initialSummary, employees }: Fi
               Anterior
             </button>
             <span className="text-foreground/50">
-              Página {initialList.page} de {totalPages} · {initialList.total} registros
+              Página {initialList.page} de {totalPages} · {initialList.total}{" "}
+              registros
             </span>
             <button
               type="button"
@@ -372,18 +417,20 @@ function SummaryCard({
   label: string;
   value: string;
   hint: string;
-  tone: 'emerald' | 'red' | 'blue' | 'amber';
+  tone: "emerald" | "red" | "blue" | "amber";
 }) {
   const tones = {
-    emerald: 'from-emerald-500/10 to-emerald-500/5 text-emerald-600',
-    red: 'from-red-500/10 to-red-500/5 text-red-600',
-    blue: 'from-blue-500/10 to-blue-500/5 text-blue-600',
-    amber: 'from-amber-500/10 to-amber-500/5 text-amber-600',
+    emerald: "from-emerald-500/10 to-emerald-500/5 text-emerald-600",
+    red: "from-red-500/10 to-red-500/5 text-red-600",
+    blue: "from-blue-500/10 to-blue-500/5 text-blue-600",
+    amber: "from-amber-500/10 to-amber-500/5 text-amber-600",
   } as const;
 
   return (
     <div className={`rounded-[26px] bg-gradient-to-br p-5 ${tones[tone]}`}>
-      <p className="text-xs uppercase tracking-[0.15em] text-slate-400">{label}</p>
+      <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
+        {label}
+      </p>
       <p className="mt-3 font-display text-2xl">{value}</p>
       <p className="mt-1 text-xs text-slate-400">{hint}</p>
     </div>

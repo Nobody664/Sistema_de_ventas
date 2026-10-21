@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 import {
   login as apiLogin,
   register as apiRegister,
@@ -7,7 +7,7 @@ import {
   updateProfile as apiUpdateProfile,
   refreshToken as apiRefreshToken,
   type AuthUser,
-} from '@/lib/api/auth';
+} from "@/lib/api/auth";
 
 interface AuthState {
   user: AuthUser | null;
@@ -16,7 +16,12 @@ interface AuthState {
   error: string | null;
 
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string, companyName: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    fullName: string,
+    companyName: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (fullName: string) => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -45,16 +50,26 @@ export const useAuthStore = create<AuthState>((set) => ({
         user: null,
         isAuthenticated: false,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Error de login',
+        error: error instanceof Error ? error.message : "Error de login",
       });
       throw error;
     }
   },
 
-  register: async (email: string, password: string, fullName: string, companyName: string) => {
+  register: async (
+    email: string,
+    password: string,
+    fullName: string,
+    companyName: string,
+  ) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiRegister({ email, password, fullName, companyName });
+      const response = await apiRegister({
+        email,
+        password,
+        fullName,
+        companyName,
+      });
       set({
         user: response.user,
         isAuthenticated: true,
@@ -66,7 +81,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         user: null,
         isAuthenticated: false,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Error de registro',
+        error: error instanceof Error ? error.message : "Error de registro",
       });
       throw error;
     }
@@ -99,7 +114,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       const user = await getMe();
       set({ user, isAuthenticated: true, isLoading: false, error: null });
     } catch {
-      set({ user: null, isAuthenticated: false, isLoading: false, error: null });
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
     }
   },
 

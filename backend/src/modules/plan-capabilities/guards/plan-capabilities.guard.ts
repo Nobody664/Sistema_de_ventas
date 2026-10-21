@@ -3,20 +3,20 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
-import { PlanCapabilitiesService } from '../plan-capabilities.service';
-import { REQUIRE_MODULE_KEY } from '../decorators/require-module.decorator';
-import { REQUIRE_FEATURE_KEY } from '../decorators/require-feature.decorator';
-import { REQUIRE_PLAN_KEY } from '../decorators/require-plan.decorator';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { IS_PUBLIC_KEY } from "@/common/decorators/public.decorator";
+import { PlanCapabilitiesService } from "../plan-capabilities.service";
+import { REQUIRE_MODULE_KEY } from "../decorators/require-module.decorator";
+import { REQUIRE_FEATURE_KEY } from "../decorators/require-feature.decorator";
+import { REQUIRE_PLAN_KEY } from "../decorators/require-plan.decorator";
 
 type RequestUser = {
   companyId?: string | null;
   roles?: string[];
 };
 
-const GLOBAL_ADMIN_ROLES = ['SUPER_ADMIN', 'SUPPORT_ADMIN'];
+const GLOBAL_ADMIN_ROLES = ["SUPER_ADMIN", "SUPPORT_ADMIN"];
 
 @Injectable()
 export class PlanCapabilitiesGuard implements CanActivate {
@@ -26,10 +26,10 @@ export class PlanCapabilitiesGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPlan = this.reflector.getAllAndOverride<string>(REQUIRE_PLAN_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredPlan = this.reflector.getAllAndOverride<string>(
+      REQUIRE_PLAN_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     const requiredModules =
       this.reflector.getAllAndOverride<string[]>(REQUIRE_MODULE_KEY, [
         context.getHandler(),
@@ -41,7 +41,11 @@ export class PlanCapabilitiesGuard implements CanActivate {
         context.getClass(),
       ]) ?? [];
 
-    if (!requiredPlan && requiredModules.length === 0 && requiredFeatures.length === 0) {
+    if (
+      !requiredPlan &&
+      requiredModules.length === 0 &&
+      requiredFeatures.length === 0
+    ) {
       return true;
     }
 
@@ -73,11 +77,11 @@ export class PlanCapabilitiesGuard implements CanActivate {
 
     if (requiredPlan && capabilities.planCode !== requiredPlan) {
       throw new ForbiddenException({
-        error: 'PLAN_REQUIRED',
+        error: "PLAN_REQUIRED",
         message: `Esta función requiere el plan ${requiredPlan}.`,
         requiredPlan,
         currentPlan: capabilities.planCode,
-        upgradeUrl: '/subscription',
+        upgradeUrl: "/subscription",
       });
     }
 
@@ -86,11 +90,11 @@ export class PlanCapabilitiesGuard implements CanActivate {
     );
     if (missingModules.length > 0) {
       throw new ForbiddenException({
-        error: 'MODULE_NOT_ENABLED',
-        message: 'El módulo solicitado no está incluido en tu plan actual.',
+        error: "MODULE_NOT_ENABLED",
+        message: "El módulo solicitado no está incluido en tu plan actual.",
         modules: missingModules,
         currentPlan: capabilities.planCode,
-        upgradeUrl: '/subscription',
+        upgradeUrl: "/subscription",
       });
     }
 
@@ -99,11 +103,11 @@ export class PlanCapabilitiesGuard implements CanActivate {
     );
     if (missingFeatures.length > 0) {
       throw new ForbiddenException({
-        error: 'FEATURE_NOT_AVAILABLE',
-        message: 'La función solicitada no está incluida en tu plan actual.',
+        error: "FEATURE_NOT_AVAILABLE",
+        message: "La función solicitada no está incluida en tu plan actual.",
         features: missingFeatures,
         currentPlan: capabilities.planCode,
-        upgradeUrl: '/subscription',
+        upgradeUrl: "/subscription",
       });
     }
 

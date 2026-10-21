@@ -1,29 +1,37 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, X, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import {
+  Loader2,
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingCart,
+  X,
+  Search,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useUiStore } from '@/store/ui-store';
-import { useAuthStore } from '@/stores/auth.store';
-import type { Product, Customer } from '@/types/api';
-import type { ProductPresentation } from '@/types/generated';
+} from "@/components/ui/dialog";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useUiStore } from "@/store/ui-store";
+import { useAuthStore } from "@/stores/auth.store";
+import type { Product, Customer } from "@/types/api";
+import type { ProductPresentation } from "@/types/generated";
 
 const UNIT_SHORT: Record<string, string> = {
-  UNIT: 'und',
-  KG: 'kg',
-  LT: 'lt',
-  MT: 'mt',
+  UNIT: "und",
+  KG: "kg",
+  LT: "lt",
+  MT: "mt",
 };
 
 interface SaleItem {
@@ -51,22 +59,26 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
-  
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [searchProduct, setSearchProduct] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER'>('CASH');
+  const [searchProduct, setSearchProduct] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<
+    "CASH" | "CARD" | "TRANSFER"
+  >("CASH");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [items, setItems] = useState<SaleItem[]>([]);
   const [showProductSearch, setShowProductSearch] = useState(false);
 
   const availableProducts = useMemo(() => {
-    if (!searchProduct) return products.filter(p => Number(p.stockQuantity) > 0);
+    if (!searchProduct)
+      return products.filter((p) => Number(p.stockQuantity) > 0);
     return products.filter(
-      p => Number(p.stockQuantity) > 0 && 
-      (p.name.toLowerCase().includes(searchProduct.toLowerCase()) || 
-       p.sku?.toLowerCase().includes(searchProduct.toLowerCase()))
+      (p) =>
+        Number(p.stockQuantity) > 0 &&
+        (p.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
+          p.sku?.toLowerCase().includes(searchProduct.toLowerCase())),
     );
   }, [products, searchProduct]);
 
@@ -81,14 +93,20 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
   };
 
   const addItem = (product: Product) => {
-    const existing = items.find(i => i.productId === product.id);
+    const existing = items.find((i) => i.productId === product.id);
     if (existing) {
       if (existing.quantity + 1 <= maxQuantityFor(existing)) {
-        setItems(items.map(i =>
-          i.productId === product.id
-            ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
-            : i
-        ));
+        setItems(
+          items.map((i) =>
+            i.productId === product.id
+              ? {
+                  ...i,
+                  quantity: i.quantity + 1,
+                  total: (i.quantity + 1) * i.unitPrice,
+                }
+              : i,
+          ),
+        );
       }
     } else {
       setItems([
@@ -98,7 +116,7 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
           productName: product.name,
           basePrice: Number(product.salePrice),
           presentations: product.presentations ?? [],
-          baseUnit: product.baseUnit ?? 'UNIT',
+          baseUnit: product.baseUnit ?? "UNIT",
           presentationId: undefined,
           presentationName: undefined,
           factor: 1,
@@ -109,15 +127,20 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
         },
       ]);
     }
-    setSearchProduct('');
+    setSearchProduct("");
     setShowProductSearch(false);
   };
 
-  const changeItemPresentation = (productId: string, presentationId: string) => {
+  const changeItemPresentation = (
+    productId: string,
+    presentationId: string,
+  ) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.productId !== productId) return item;
-        const presentation = item.presentations.find((p) => p.id === presentationId);
+        const presentation = item.presentations.find(
+          (p) => p.id === presentationId,
+        );
         const factor = presentation ? Number(presentation.factor) : 1;
         const unitPrice = presentation
           ? presentation.price
@@ -140,28 +163,30 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
   };
 
   const updateQuantity = (productId: string, delta: number) => {
-    const item = items.find(i => i.productId === productId);
+    const item = items.find((i) => i.productId === productId);
     if (!item) return;
 
     const newQty = item.quantity + delta;
     if (newQty <= 0) {
-      setItems(items.filter(i => i.productId !== productId));
+      setItems(items.filter((i) => i.productId !== productId));
     } else if (newQty <= maxQuantityFor(item)) {
-      setItems(items.map(i => 
-        i.productId === productId 
-          ? { ...i, quantity: newQty, total: newQty * i.unitPrice }
-          : i
-      ));
+      setItems(
+        items.map((i) =>
+          i.productId === productId
+            ? { ...i, quantity: newQty, total: newQty * i.unitPrice }
+            : i,
+        ),
+      );
     }
   };
 
   const removeItem = (productId: string) => {
-    setItems(items.filter(i => i.productId !== productId));
+    setItems(items.filter((i) => i.productId !== productId));
   };
 
   const handleSubmit = async () => {
     if (items.length === 0) {
-      addToast('Agrega al menos un producto', 'error');
+      addToast("Agrega al menos un producto", "error");
       return;
     }
 
@@ -172,7 +197,7 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
       paymentMethod,
       discountAmount: discountAmount.toFixed(2),
       taxAmount: taxAmount.toFixed(2),
-      items: items.map(item => ({
+      items: items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         presentationId: item.presentationId,
@@ -180,21 +205,24 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
     };
 
     try {
-      await apiFetch('/sales', {
-        method: 'POST',
+      await apiFetch("/sales", {
+        method: "POST",
         token: getAccessToken(),
         body: JSON.stringify(data),
       });
 
-      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
       router.refresh();
-      addToast('Venta registrada correctamente', 'success');
+      addToast("Venta registrada correctamente", "success");
       setOpen(false);
       setItems([]);
-      setSelectedCustomer('');
+      setSelectedCustomer("");
       setDiscountPercent(0);
     } catch (err) {
-      addToast(err instanceof Error ? err.message : 'Error al registrar venta', 'error');
+      addToast(
+        err instanceof Error ? err.message : "Error al registrar venta",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -203,17 +231,15 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
   const handleClose = () => {
     setOpen(false);
     setItems([]);
-    setSelectedCustomer('');
+    setSelectedCustomer("");
     setDiscountPercent(0);
-    setSearchProduct('');
+    setSearchProduct("");
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button 
-          className="flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-orange-600 shadow-lg transition hover:bg-white/95 hover:shadow-xl"
-        >
+        <button className="flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-orange-600 shadow-lg transition hover:bg-white/95 hover:shadow-xl">
           <ShoppingCart className="size-5" />
           <span className="hidden sm:inline">Nueva venta</span>
         </button>
@@ -226,8 +252,12 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
                 <ShoppingCart className="size-6 text-orange-600" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold text-slate-900">Nueva Venta</DialogTitle>
-                <p className="text-sm text-slate-500">Selecciona los productos</p>
+                <DialogTitle className="text-xl font-bold text-slate-900">
+                  Nueva Venta
+                </DialogTitle>
+                <p className="text-sm text-slate-500">
+                  Selecciona los productos
+                </p>
               </div>
             </div>
           </div>
@@ -236,7 +266,9 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
         <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2 overflow-auto max-h-[calc(90vh-180px)]">
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Buscar producto</label>
+              <label className="text-sm font-semibold text-slate-700">
+                Buscar producto
+              </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -253,61 +285,76 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
               {showProductSearch && searchProduct && (
                 <div className="max-h-60 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                   {availableProducts.length > 0 ? (
-                    availableProducts.slice(0, 8).map(product => (
+                    availableProducts.slice(0, 8).map((product) => (
                       <button
                         key={product.id}
                         onClick={() => addItem(product)}
                         className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-slate-900 truncate">{product.name}</p>
-                          <p className="text-sm text-slate-500">SKU: {product.sku}</p>
+                          <p className="font-semibold text-slate-900 truncate">
+                            {product.name}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            SKU: {product.sku}
+                          </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-bold text-orange-600">S/ {product.salePrice}</p>
-                          <p className="text-sm text-slate-500">Stock: {Number(product.stockQuantity)} {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}</p>
+                          <p className="font-bold text-orange-600">
+                            S/ {product.salePrice}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            Stock: {Number(product.stockQuantity)}{" "}
+                            {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
+                          </p>
                         </div>
                       </button>
                     ))
                   ) : (
-                    <p className="p-4 text-center text-slate-500">No hay productos disponibles</p>
+                    <p className="p-4 text-center text-slate-500">
+                      No hay productos disponibles
+                    </p>
                   )}
                 </div>
               )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Cliente (opcional)</label>
+              <label className="text-sm font-semibold text-slate-700">
+                Cliente (opcional)
+              </label>
               <select
                 value={selectedCustomer}
                 onChange={(e) => setSelectedCustomer(e.target.value)}
                 className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-slate-900"
               >
                 <option value="">Cliente general</option>
-                {customers.map(customer => (
+                {customers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
-                    {customer.firstName} {customer.lastName || ''}
+                    {customer.firstName} {customer.lastName || ""}
                   </option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Método de pago</label>
+              <label className="text-sm font-semibold text-slate-700">
+                Método de pago
+              </label>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {(['CASH', 'CARD', 'TRANSFER'] as const).map(method => (
+                {(["CASH", "CARD", "TRANSFER"] as const).map((method) => (
                   <button
                     key={method}
                     onClick={() => setPaymentMethod(method)}
                     className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${
                       paymentMethod === method
-                        ? 'border-orange-500 bg-orange-50 text-orange-700'
-                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        ? "border-orange-500 bg-orange-50 text-orange-700"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                     }`}
                   >
-                    {method === 'CASH' && 'Efectivo'}
-                    {method === 'CARD' && 'Tarjeta'}
-                    {method === 'TRANSFER' && 'Transferencia'}
+                    {method === "CASH" && "Efectivo"}
+                    {method === "CARD" && "Tarjeta"}
+                    {method === "TRANSFER" && "Transferencia"}
                   </button>
                 ))}
               </div>
@@ -316,7 +363,9 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
 
           <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-900">Productos ({items.length})</span>
+              <span className="font-semibold text-slate-900">
+                Productos ({items.length})
+              </span>
               <button
                 onClick={() => setItems([])}
                 className="text-sm font-medium text-red-600 hover:text-red-700"
@@ -332,16 +381,21 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
                   <p>Agrega productos desde el panel izquierdo</p>
                 </div>
               ) : (
-                items.map(item => (
+                items.map((item) => (
                   <div
                     key={item.productId}
                     className="rounded-lg border border-slate-100 bg-slate-50 p-3"
                   >
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900 truncate">{item.productName}</p>
+                        <p className="font-semibold text-slate-900 truncate">
+                          {item.productName}
+                        </p>
                         <p className="text-sm text-slate-500">
-                          S/ {item.unitPrice.toFixed(2)} / {item.presentationName ?? UNIT_SHORT[item.baseUnit] ?? item.baseUnit}
+                          S/ {item.unitPrice.toFixed(2)} /{" "}
+                          {item.presentationName ??
+                            UNIT_SHORT[item.baseUnit] ??
+                            item.baseUnit}
                         </p>
                       </div>
                       <button
@@ -354,12 +408,15 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
 
                     {item.presentations.length > 0 && (
                       <select
-                        value={item.presentationId ?? ''}
-                        onChange={(e) => changeItemPresentation(item.productId, e.target.value)}
+                        value={item.presentationId ?? ""}
+                        onChange={(e) =>
+                          changeItemPresentation(item.productId, e.target.value)
+                        }
                         className="mt-2 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700"
                       >
                         <option value="">
-                          Unidad base ({UNIT_SHORT[item.baseUnit] ?? item.baseUnit})
+                          Unidad base (
+                          {UNIT_SHORT[item.baseUnit] ?? item.baseUnit})
                         </option>
                         {item.presentations.map((presentation) => (
                           <option key={presentation.id} value={presentation.id}>
@@ -377,7 +434,9 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
                         >
                           <Minus className="size-4 text-slate-600" />
                         </button>
-                        <span className="w-8 text-center font-bold text-slate-900">{item.quantity}</span>
+                        <span className="w-8 text-center font-bold text-slate-900">
+                          {item.quantity}
+                        </span>
                         <button
                           onClick={() => updateQuantity(item.productId, 1)}
                           className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-100"
@@ -385,7 +444,9 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
                           <Plus className="size-4 text-slate-600" />
                         </button>
                       </div>
-                      <p className="font-bold text-slate-900">S/ {item.total.toFixed(2)}</p>
+                      <p className="font-bold text-slate-900">
+                        S/ {item.total.toFixed(2)}
+                      </p>
                     </div>
                   </div>
                 ))
@@ -395,15 +456,23 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
             <div className="space-y-2 border-t border-slate-200 pt-4">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Subtotal</span>
-                <span className="font-semibold text-slate-900">S/ {subtotal.toFixed(2)}</span>
+                <span className="font-semibold text-slate-900">
+                  S/ {subtotal.toFixed(2)}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Descuento ({discountPercent}%)</span>
-                <span className="font-semibold text-red-600">- S/ {discountAmount.toFixed(2)}</span>
+                <span className="text-slate-600">
+                  Descuento ({discountPercent}%)
+                </span>
+                <span className="font-semibold text-red-600">
+                  - S/ {discountAmount.toFixed(2)}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-600">IGV (18%)</span>
-                <span className="font-semibold text-slate-900">S/ {taxAmount.toFixed(2)}</span>
+                <span className="font-semibold text-slate-900">
+                  S/ {taxAmount.toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-lg font-bold">
                 <span className="text-slate-900">Total</span>
@@ -422,11 +491,15 @@ export function NewSaleModal({ products, customers }: NewSaleModalProps) {
         </div>
 
         <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
-          <Button variant="outline" onClick={handleClose} className="rounded-xl">
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            className="rounded-xl"
+          >
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={loading || items.length === 0}
             className="rounded-xl bg-orange-500 px-8 py-3 font-semibold hover:bg-orange-600"
           >

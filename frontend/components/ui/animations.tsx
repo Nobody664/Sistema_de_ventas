@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, ReactNode } from "react";
 
 interface AnimatedSectionProps {
   children: ReactNode;
@@ -8,7 +8,11 @@ interface AnimatedSectionProps {
   delay?: number;
 }
 
-export function AnimatedSection({ children, className = '', delay = 0 }: AnimatedSectionProps) {
+export function AnimatedSection({
+  children,
+  className = "",
+  delay = 0,
+}: AnimatedSectionProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -20,7 +24,7 @@ export function AnimatedSection({ children, className = '', delay = 0 }: Animate
           observer.disconnect();
         }
       },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" },
     );
 
     if (ref.current) {
@@ -36,7 +40,7 @@ export function AnimatedSection({ children, className = '', delay = 0 }: Animate
       className={className}
       style={{
         opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0)' : 'translateY(40px)',
+        transform: isVisible ? "translateY(0)" : "translateY(40px)",
         transition: `opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
       }}
     >
@@ -51,7 +55,11 @@ interface AnimatedCardProps {
   delay?: number;
 }
 
-export function AnimatedCard({ children, className = '', delay = 0 }: AnimatedCardProps) {
+export function AnimatedCard({
+  children,
+  className = "",
+  delay = 0,
+}: AnimatedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -63,7 +71,7 @@ export function AnimatedCard({ children, className = '', delay = 0 }: AnimatedCa
           observer.disconnect();
         }
       },
-      { threshold: 0.1, rootMargin: '0px 0px -30px 0px' }
+      { threshold: 0.1, rootMargin: "0px 0px -30px 0px" },
     );
 
     if (ref.current) {
@@ -79,7 +87,9 @@ export function AnimatedCard({ children, className = '', delay = 0 }: AnimatedCa
       className={`group ${className}`}
       style={{
         opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.95)',
+        transform: isVisible
+          ? "translateY(0) scale(1)"
+          : "translateY(30px) scale(0.95)",
         transition: `all 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
       }}
     >
@@ -88,7 +98,13 @@ export function AnimatedCard({ children, className = '', delay = 0 }: AnimatedCa
   );
 }
 
-export function HoverCard({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function HoverCard({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div
       className={`transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 ${className}`}

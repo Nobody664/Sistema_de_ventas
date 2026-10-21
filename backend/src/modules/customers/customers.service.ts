@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { CreateCustomerDto, QueryCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
-import { SubscriptionLimitService } from '@/common/guards/subscription-limit.service';
-import { AuditService } from '@/common/services/audit.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { AuditAction } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import {
+  CreateCustomerDto,
+  QueryCustomerDto,
+  UpdateCustomerDto,
+} from "./dto/customer.dto";
+import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
+import { AuditService } from "@/common/services/audit.service";
 
 @Injectable()
 export class CustomersService {
@@ -38,10 +42,13 @@ export class CustomersService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    const totalSpent = purchases.reduce((acc, s) => acc + Number(s.totalAmount), 0);
+    const totalSpent = purchases.reduce(
+      (acc, s) => acc + Number(s.totalAmount),
+      0,
+    );
     const purchaseCount = purchases.length;
     const lastPurchase = purchases[0] || null;
     const averageTicket = purchaseCount > 0 ? totalSpent / purchaseCount : 0;
@@ -73,14 +80,14 @@ export class CustomersService {
         documentValue: true,
         createdAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     });
   }
 
   async create(companyId: string, input: CreateCustomerDto) {
-    await this.limitService.validateLimit(companyId, 'customers');
+    await this.limitService.validateLimit(companyId, "customers");
 
     const customer = await this.prisma.customer.create({
       data: {
@@ -92,7 +99,7 @@ export class CustomersService {
     await this.auditService.log({
       companyId,
       action: AuditAction.CREATE,
-      entity: 'Customer',
+      entity: "Customer",
       entityId: customer.id,
       changes: {
         firstName: customer.firstName,
@@ -116,7 +123,7 @@ export class CustomersService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'Customer',
+      entity: "Customer",
       entityId: customer.id,
       changes: {
         before: {
@@ -148,7 +155,7 @@ export class CustomersService {
       await this.auditService.log({
         companyId,
         action: AuditAction.DELETE,
-        entity: 'Customer',
+        entity: "Customer",
         entityId: id,
         changes: { softDelete: true, salesCount },
       });
@@ -161,7 +168,7 @@ export class CustomersService {
     await this.auditService.log({
       companyId,
       action: AuditAction.DELETE,
-      entity: 'Customer',
+      entity: "Customer",
       entityId: id,
       changes: { softDelete: false, firstName: existing.firstName },
     });
@@ -175,7 +182,7 @@ export class CustomersService {
     });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found.');
+      throw new NotFoundException("Customer not found.");
     }
 
     return customer;

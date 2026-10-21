@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { ResetPasswordForm } from '@/components/auth/reset-password-form';
-import { AnimatedSection } from '@/components/ui/animations';
+import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { AnimatedSection } from "@/components/ui/animations";
 
 export function ResetPasswordPageClient() {
   return (
@@ -15,9 +15,12 @@ export function ResetPasswordPageClient() {
           <AnimatedSection>
             <div className="rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 p-6 shadow-2xl shadow-black/50 sm:p-8">
               <div className="mb-8">
-                <h1 className="font-display text-3xl text-white">Crea una nueva contraseña</h1>
+                <h1 className="font-display text-3xl text-white">
+                  Crea una nueva contraseña
+                </h1>
                 <p className="mt-2 text-white/50">
-                  Ingresa y confirma tu nueva contraseña para recuperar el acceso.
+                  Ingresa y confirma tu nueva contraseña para recuperar el
+                  acceso.
                 </p>
               </div>
               <ResetPasswordForm />

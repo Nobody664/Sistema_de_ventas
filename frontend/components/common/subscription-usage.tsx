@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { useSubscriptionLimits } from '@/hooks/use-subscription-limits';
+import { useEffect } from "react";
+import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { useSubscriptionLimits } from "@/hooks/use-subscription-limits";
 
 interface LimitsUsageBarProps {
-  resource: 'products' | 'employees' | 'customers' | 'categories';
+  resource: "products" | "employees" | "customers" | "categories";
   label: string;
   icon?: React.ReactNode;
 }
@@ -14,7 +14,7 @@ function ResourceBar({ resource, label, icon }: LimitsUsageBarProps) {
   const { limits, loading, fetchLimits } = useSubscriptionLimits();
 
   useEffect(() => {
-    fetchLimits(resource === 'categories' ? 'products' : resource);
+    fetchLimits(resource === "categories" ? "products" : resource);
   }, [resource]);
 
   if (loading || !limits) {
@@ -27,13 +27,29 @@ function ResourceBar({ resource, label, icon }: LimitsUsageBarProps) {
   }
 
   const usage = limits.usage[resource];
-  const max = limits.limits[`max${resource.charAt(0).toUpperCase()}${resource.slice(1)}` as keyof typeof limits.limits] as number;
+  const max = limits.limits[
+    `max${resource.charAt(0).toUpperCase()}${resource.slice(1)}` as keyof typeof limits.limits
+  ] as number;
   const percentage = limits.percentages[resource];
 
   const getStatus = () => {
-    if (percentage >= 100) return { icon: XCircle, color: 'text-red-500 dark:text-red-400', bg: 'bg-red-500' };
-    if (percentage >= 80) return { icon: AlertTriangle, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500' };
-    return { icon: CheckCircle, color: 'text-green-500 dark:text-green-400', bg: 'bg-green-500' };
+    if (percentage >= 100)
+      return {
+        icon: XCircle,
+        color: "text-red-500 dark:text-red-400",
+        bg: "bg-red-500",
+      };
+    if (percentage >= 80)
+      return {
+        icon: AlertTriangle,
+        color: "text-amber-500 dark:text-amber-400",
+        bg: "bg-amber-500",
+      };
+    return {
+      icon: CheckCircle,
+      color: "text-green-500 dark:text-green-400",
+      bg: "bg-green-500",
+    };
   };
 
   const status = getStatus();
@@ -57,9 +73,11 @@ function ResourceBar({ resource, label, icon }: LimitsUsageBarProps) {
         />
       </div>
       {percentage >= 80 && (
-        <p className={`text-xs ${percentage >= 100 ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>
+        <p
+          className={`text-xs ${percentage >= 100 ? "text-red-500 dark:text-red-400" : "text-amber-500 dark:text-amber-400"}`}
+        >
           {percentage >= 100
-            ? 'Has alcanzado el límite. Upgrade tu plan para continuar.'
+            ? "Has alcanzado el límite. Upgrade tu plan para continuar."
             : `Casi llegas al límite (${percentage}%)`}
         </p>
       )}

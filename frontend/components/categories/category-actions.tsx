@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Edit, Trash2, AlertTriangle } from 'lucide-react';
-import { DeleteDialog } from '@/components/common/delete-dialog';
-import { PermissionGuard } from '@/components/auth/permission-guard';
-import type { Category } from '@/types/api';
+import Link from "next/link";
+import { Edit, Trash2, AlertTriangle } from "lucide-react";
+import { DeleteDialog } from "@/components/common/delete-dialog";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import type { Category } from "@/types/api";
 
 export function CategoryActions({ category }: { category: Category }) {
   const productCount = category._count?.products ?? 0;
@@ -42,9 +42,12 @@ export function CategoryActions({ category }: { category: Category }) {
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-red-700">No se puede eliminar</p>
+                    <p className="text-sm font-medium text-red-700">
+                      No se puede eliminar
+                    </p>
                     <p className="text-xs text-red-600 mt-1">
-                      Esta categoría tiene {productCount} producto(s). Elimina o reasigna los productos primero.
+                      Esta categoría tiene {productCount} producto(s). Elimina o
+                      reasigna los productos primero.
                     </p>
                   </div>
                 </div>

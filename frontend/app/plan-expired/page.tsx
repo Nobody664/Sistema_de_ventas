@@ -1,6 +1,6 @@
-import { AlertCircle, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
-import { Card } from '@/components/ui/card';
+import { AlertCircle, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { Card } from "@/components/ui/card";
 
 export default function PlanExpiredPage() {
   return (
@@ -10,9 +10,12 @@ export default function PlanExpiredPage() {
           <AlertCircle className="size-8 text-red-400" />
         </div>
 
-        <h1 className="mt-6 font-display text-2xl text-white">Tu prueba gratis ha expirado</h1>
+        <h1 className="mt-6 font-display text-2xl text-white">
+          Tu prueba gratis ha expirado
+        </h1>
         <p className="mt-3 text-sm leading-7 text-white/50">
-          El período de prueba de tu cuenta ha terminado. Para seguir usando el sistema, adquiere uno de nuestros planes.
+          El período de prueba de tu cuenta ha terminado. Para seguir usando el
+          sistema, adquiere uno de nuestros planes.
         </p>
 
         <div className="mt-8 space-y-3">

@@ -1,7 +1,7 @@
-import { getServerSession } from '@/lib/session';
-import { serverApiFetch } from '@/lib/server-api';
-import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { Suspense } from 'react';
+import { getServerSession } from "@/lib/session";
+import { serverApiFetch } from "@/lib/server-api";
+import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { Suspense } from "react";
 
 type GlobalMetrics = {
   totalCompanies: number;
@@ -21,7 +21,11 @@ type SalesAnalytics = {
   totalRevenue: number;
 };
 
-type PaymentMethodStats = Array<{ method: string; count: number; total: number }>;
+type PaymentMethodStats = Array<{
+  method: string;
+  count: number;
+  total: number;
+}>;
 
 type InventoryMetrics = {
   totalValue: number;
@@ -34,7 +38,12 @@ type InventoryMetrics = {
 type CustomerStats = {
   total: number;
   newThisMonth: number;
-  topCustomers: Array<{ customerId: string; name: string; totalPurchases: number; totalSpent: number }>;
+  topCustomers: Array<{
+    customerId: string;
+    name: string;
+    totalPurchases: number;
+    totalSpent: number;
+  }>;
 };
 
 type TenantMetrics = {
@@ -97,36 +106,53 @@ async function DashboardDataLoader() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
   const userRoles = session?.user?.roles ?? [];
-  const isSuperAdmin = userRoles.includes('SUPER_ADMIN') || userRoles.includes('SUPPORT_ADMIN');
+  const isSuperAdmin =
+    userRoles.includes("SUPER_ADMIN") || userRoles.includes("SUPPORT_ADMIN");
 
   let globalMetrics: GlobalMetrics | null = null;
   let auditLogs: AuditLog[] | null = null;
   let recentSubscriptions: Subscription[] | null = null;
 
   const [tenantMetrics] = await Promise.all([
-    serverApiFetch<TenantMetrics | null>('/dashboard/tenant', accessToken ?? undefined),
+    serverApiFetch<TenantMetrics | null>(
+      "/dashboard/tenant",
+      accessToken ?? undefined,
+    ),
   ]);
 
   if (isSuperAdmin) {
     const [globals, logs, subsResponse] = await Promise.all([
-      serverApiFetch<GlobalMetrics | null>('/dashboard/global', accessToken ?? undefined),
-      serverApiFetch<{ items: AuditLog[] } | null>('/audit/global', accessToken ?? undefined),
-      serverApiFetch<PaginatedSubscriptions | null>('/subscriptions/subscribers', accessToken ?? undefined),
+      serverApiFetch<GlobalMetrics | null>(
+        "/dashboard/global",
+        accessToken ?? undefined,
+      ),
+      serverApiFetch<{ items: AuditLog[] } | null>(
+        "/audit/global",
+        accessToken ?? undefined,
+      ),
+      serverApiFetch<PaginatedSubscriptions | null>(
+        "/subscriptions/subscribers",
+        accessToken ?? undefined,
+      ),
     ]);
     globalMetrics = globals;
     auditLogs = logs?.items ?? null;
-    recentSubscriptions = (subsResponse?.data ?? []).flatMap((subscriber): Subscription[] => {
-      if (!subscriber.subscription) return [];
+    recentSubscriptions = (subsResponse?.data ?? []).flatMap(
+      (subscriber): Subscription[] => {
+        if (!subscriber.subscription) return [];
 
-      return [{
-        id: subscriber.subscription.id,
-        status: subscriber.subscription.status,
-        provider: subscriber.subscription.provider,
-        billingCycle: subscriber.subscription.billingCycle,
-        plan: subscriber.subscription.plan,
-        company: { name: subscriber.name },
-      }];
-    });
+        return [
+          {
+            id: subscriber.subscription.id,
+            status: subscriber.subscription.status,
+            provider: subscriber.subscription.provider,
+            billingCycle: subscriber.subscription.billingCycle,
+            plan: subscriber.subscription.plan,
+            company: { name: subscriber.name },
+          },
+        ];
+      },
+    );
   }
 
   return (

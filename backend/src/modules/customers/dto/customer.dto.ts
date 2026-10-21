@@ -1,5 +1,12 @@
-import { Type } from 'class-transformer';
-import { IsEmail, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Type } from "class-transformer";
+import {
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from "class-validator";
 
 export class QueryCustomerDto {
   @IsOptional()
@@ -50,4 +57,3 @@ export class CreateCustomerDto {
 }
 
 export class UpdateCustomerDto extends CreateCustomerDto {}
-

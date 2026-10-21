@@ -1,14 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { BarcodeScannerService } from '@/components/scanner/services/barcode-scanner.service';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { BarcodeScannerService } from "@/components/scanner/services/barcode-scanner.service";
 
 interface UseBarcodeScannerOptions {
   onScan: (barcode: string) => void;
   enabled?: boolean;
 }
 
-export function useBarcodeScanner({ onScan, enabled = true }: UseBarcodeScannerOptions) {
+export function useBarcodeScanner({
+  onScan,
+  enabled = true,
+}: UseBarcodeScannerOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const serviceRef = useRef<BarcodeScannerService | null>(null);
 

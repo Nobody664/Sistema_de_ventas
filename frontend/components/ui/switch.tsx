@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import * as SwitchPrimitives from '@radix-ui/react-switch';
+import * as React from "react";
+import * as SwitchPrimitives from "@radix-ui/react-switch";
 
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitives.Root>,
@@ -13,7 +13,7 @@ const Switch = React.forwardRef<
       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background
       disabled:cursor-not-allowed disabled:opacity-50
       data-[state=checked]:bg-primary data-[state=unchecked]:bg-input
-      ${className ?? ''}
+      ${className ?? ""}
     `}
     {...props}
     ref={ref}

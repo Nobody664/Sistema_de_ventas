@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -15,11 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useUiStore } from '@/store/ui-store';
-import { useAuthStore } from '@/stores/auth.store';
-import type { Category } from '@/types/api';
+} from "@/components/ui/dialog";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useUiStore } from "@/store/ui-store";
+import { useAuthStore } from "@/stores/auth.store";
+import type { Category } from "@/types/api";
 
 interface CategoryModalProps {
   category?: Category | null;
@@ -44,13 +44,15 @@ export function CategoryModal({ category, children }: CategoryModalProps) {
 
     const formData = new FormData(e.currentTarget);
     const data = {
-      name: formData.get('name') as string,
-      description: formData.get('description') || null,
+      name: formData.get("name") as string,
+      description: formData.get("description") || null,
     };
 
     try {
-      const url = isEdit ? `/products/categories/${category.id}` : '/products/categories';
-      const method = isEdit ? 'PATCH' : 'POST';
+      const url = isEdit
+        ? `/products/categories/${category.id}`
+        : "/products/categories";
+      const method = isEdit ? "PATCH" : "POST";
 
       await apiFetch(url, {
         method,
@@ -58,13 +60,21 @@ export function CategoryModal({ category, children }: CategoryModalProps) {
         body: JSON.stringify(data),
       });
 
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
       router.refresh();
-      addToast(isEdit ? 'Categoría actualizada correctamente' : 'Categoría creada correctamente', 'success');
+      addToast(
+        isEdit
+          ? "Categoría actualizada correctamente"
+          : "Categoría creada correctamente",
+        "success",
+      );
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido');
-      addToast(err instanceof Error ? err.message : 'Error al guardar categoría', 'error');
+      setError(err instanceof Error ? err.message : "Error desconocido");
+      addToast(
+        err instanceof Error ? err.message : "Error al guardar categoría",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -75,30 +85,53 @@ export function CategoryModal({ category, children }: CategoryModalProps) {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar categoria' : 'Nueva categoria'}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Editar categoria" : "Nueva categoria"}
+          </DialogTitle>
           <DialogDescription>
-            {isEdit ? 'Actualiza los datos de la categoria' : 'Completa los datos para crear una nueva categoria'}
+            {isEdit
+              ? "Actualiza los datos de la categoria"
+              : "Completa los datos para crear una nueva categoria"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Nombre *</Label>
-              <Input id="name" name="name" required defaultValue={category?.name} placeholder="Electronica" />
+              <Input
+                id="name"
+                name="name"
+                required
+                defaultValue={category?.name}
+                placeholder="Electronica"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Descripcion</Label>
-              <Input id="description" name="description" defaultValue={category?.description || ''} placeholder="Descripcion de la categoria" />
+              <Input
+                id="description"
+                name="description"
+                defaultValue={category?.description || ""}
+                placeholder="Descripcion de la categoria"
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'Guardar cambios' : 'Crear categoria'}
+              {isEdit ? "Guardar cambios" : "Crear categoria"}
             </Button>
           </DialogFooter>
         </form>

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { ForecastService } from './forecast.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { ForecastService } from "./forecast.service";
 
 @Injectable()
 export class ReplenishmentService {
@@ -39,25 +39,33 @@ export class ReplenishmentService {
 
     for (const product of products) {
       const stock = Number(product.stockQuantity);
-      const reorderPoint = product.reorderPoint === null ? 0 : Number(product.reorderPoint);
+      const reorderPoint =
+        product.reorderPoint === null ? 0 : Number(product.reorderPoint);
 
       if (stock >= reorderPoint) continue;
 
-      const demand = await this.forecastService.getDemandAverage(companyId, product.id, 30);
+      const demand = await this.forecastService.getDemandAverage(
+        companyId,
+        product.id,
+        30,
+      );
       const dailyAverage = demand.dailyAverage || 1;
       const leadTime = product.leadTimeDays ?? 7;
-      const safetyStock = product.safetyStock === null ? Math.ceil(dailyAverage * 3) : Number(product.safetyStock);
+      const safetyStock =
+        product.safetyStock === null
+          ? Math.ceil(dailyAverage * 3)
+          : Number(product.safetyStock);
 
       const suggestedOrder = Math.ceil(
         dailyAverage * leadTime + safetyStock - stock,
       );
 
-      const stockoutRisk = stock <= safetyStock ? 'high' : 'medium';
+      const stockoutRisk = stock <= safetyStock ? "high" : "medium";
 
       suggestions.push({
         productId: product.id,
         productName: product.name,
-        sku: product.sku ?? '',
+        sku: product.sku ?? "",
         currentStock: stock,
         reorderPoint,
         suggestedOrder: Math.max(suggestedOrder, 0),
@@ -67,7 +75,10 @@ export class ReplenishmentService {
 
     suggestions.sort((a, b) => {
       const priorityOrder = { high: 0, medium: 1, low: 2 };
-      return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
+      return (
+        priorityOrder[a.priority as keyof typeof priorityOrder] -
+        priorityOrder[b.priority as keyof typeof priorityOrder]
+      );
     });
 
     return suggestions;
@@ -77,14 +88,19 @@ export class ReplenishmentService {
     const product = await this.prisma.product.findFirst({
       where: { id: productId, companyId },
     });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product) throw new NotFoundException("Product not found");
 
-    const demand = await this.forecastService.getDemandAverage(companyId, productId, days);
+    const demand = await this.forecastService.getDemandAverage(
+      companyId,
+      productId,
+      days,
+    );
     const dailyAverage = demand.dailyAverage;
 
-    const coverageDays = dailyAverage > 0
-      ? Math.floor(Number(product.stockQuantity) / dailyAverage)
-      : Infinity;
+    const coverageDays =
+      dailyAverage > 0
+        ? Math.floor(Number(product.stockQuantity) / dailyAverage)
+        : Infinity;
 
     return {
       productId,

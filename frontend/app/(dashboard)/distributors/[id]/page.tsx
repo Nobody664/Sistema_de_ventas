@@ -1,26 +1,37 @@
-import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, MapPin, Package, TrendingUp, Undo2, Wallet } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { serverApiFetch } from '@/lib/server-api';
-import { getServerSession } from '@/lib/session';
-import { DistributorOperations } from '@/components/distributors/distributor-operations';
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
+  Package,
+  TrendingUp,
+  Undo2,
+  Wallet,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { serverApiFetch } from "@/lib/server-api";
+import { getServerSession } from "@/lib/session";
+import { DistributorOperations } from "@/components/distributors/distributor-operations";
 import type {
   Distributor,
   DistributorDelivery,
   DistributorProductOption,
   DistributorSale,
-} from '@/types/distributors';
+} from "@/types/distributors";
 
 interface DetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function DistributorDetailPage({ params }: DetailPageProps) {
+export default async function DistributorDetailPage({
+  params,
+}: DetailPageProps) {
   const session = await getServerSession();
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const { id } = await params;
@@ -28,9 +39,12 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
 
   const [distributor, products, sales, deliveries] = await Promise.all([
     serverApiFetch<Distributor>(`/distributors/${id}`, accessToken),
-    serverApiFetch<DistributorProductOption[]>('/products', accessToken),
+    serverApiFetch<DistributorProductOption[]>("/products", accessToken),
     serverApiFetch<DistributorSale[]>(`/distributors/${id}/sales`, accessToken),
-    serverApiFetch<DistributorDelivery[]>(`/distributors/${id}/deliveries`, accessToken),
+    serverApiFetch<DistributorDelivery[]>(
+      `/distributors/${id}/deliveries`,
+      accessToken,
+    ),
   ]);
 
   if (!distributor) {
@@ -39,15 +53,38 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
 
   const balance = distributor.balance;
   const stats = [
-    { label: 'Consignado', value: balance?.startingQuantity ?? 0, icon: Package, tone: 'text-blue-600 bg-blue-500/15' },
-    { label: 'Vendido', value: balance?.soldQuantity ?? 0, icon: TrendingUp, tone: 'text-emerald-600 bg-emerald-500/15' },
-    { label: 'Devuelto', value: balance?.returnedQuantity ?? 0, icon: Undo2, tone: 'text-amber-600 bg-amber-500/15' },
-    { label: 'Stock actual', value: balance?.balanceQuantity ?? 0, icon: Package, tone: 'text-orange-600 bg-orange-500/15' },
+    {
+      label: "Consignado",
+      value: balance?.startingQuantity ?? 0,
+      icon: Package,
+      tone: "text-blue-600 bg-blue-500/15",
+    },
+    {
+      label: "Vendido",
+      value: balance?.soldQuantity ?? 0,
+      icon: TrendingUp,
+      tone: "text-emerald-600 bg-emerald-500/15",
+    },
+    {
+      label: "Devuelto",
+      value: balance?.returnedQuantity ?? 0,
+      icon: Undo2,
+      tone: "text-amber-600 bg-amber-500/15",
+    },
+    {
+      label: "Stock actual",
+      value: balance?.balanceQuantity ?? 0,
+      icon: Package,
+      tone: "text-orange-600 bg-orange-500/15",
+    },
   ];
 
   return (
     <div className="space-y-6">
-      <Link href="/distributors" className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground">
+      <Link
+        href="/distributors"
+        className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground"
+      >
         <ArrowLeft className="size-4" />
         Volver a distribuidores
       </Link>
@@ -55,8 +92,12 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
       <Card className="rounded-[34px] bg-gradient-to-br from-orange-500 to-amber-600 p-6 text-white sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-white/60">{distributor.code}</p>
-            <h1 className="mt-3 break-words font-display text-3xl leading-tight sm:text-4xl">{distributor.name}</h1>
+            <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+              {distributor.code}
+            </p>
+            <h1 className="mt-3 break-words font-display text-3xl leading-tight sm:text-4xl">
+              {distributor.name}
+            </h1>
             <div className="mt-5 flex flex-wrap gap-4 text-sm text-white/80">
               {distributor.email && (
                 <span className="flex items-center gap-2">
@@ -83,7 +124,9 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
               <Wallet className="size-4" />
               Deuda pendiente
             </p>
-            <p className="mt-1 font-display text-3xl">S/ {Number(balance?.debtAmount ?? 0).toFixed(2)}</p>
+            <p className="mt-1 font-display text-3xl">
+              S/ {Number(balance?.debtAmount ?? 0).toFixed(2)}
+            </p>
           </div>
         </div>
       </Card>
@@ -98,7 +141,9 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
                   <Icon className="size-5" />
                 </div>
                 <div>
-                  <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">{stat.label}</p>
+                  <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                    {stat.label}
+                  </p>
                   <p className="font-display text-3xl">{stat.value}</p>
                 </div>
               </div>
@@ -108,7 +153,10 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
       </div>
 
       <Divider label="Operaciones" />
-      <DistributorOperations distributor={distributor} products={products ?? []} />
+      <DistributorOperations
+        distributor={distributor}
+        products={products ?? []}
+      />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="rounded-[34px] bg-white/85 p-6">
@@ -116,7 +164,10 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
           <div className="mt-5 space-y-3">
             {(sales?.length ?? 0) > 0 ? (
               sales!.map((sale) => (
-                <div key={sale.id} className="flex items-center justify-between gap-3 rounded-2xl border border-foreground/10 p-4">
+                <div
+                  key={sale.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-foreground/10 p-4"
+                >
                   <div className="min-w-0">
                     <p className="font-medium truncate">{sale.saleNumber}</p>
                     <p className="text-sm text-foreground/50">
@@ -124,13 +175,19 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-display text-lg">S/ {Number(sale.totalAmount).toFixed(2)}</p>
-                    <p className="text-xs text-foreground/50">{new Date(sale.createdAt).toLocaleDateString()}</p>
+                    <p className="font-display text-lg">
+                      S/ {Number(sale.totalAmount).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-foreground/50">
+                      {new Date(sale.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="py-6 text-center text-foreground/50">Sin ventas registradas.</p>
+              <p className="py-6 text-center text-foreground/50">
+                Sin ventas registradas.
+              </p>
             )}
           </div>
         </Card>
@@ -140,12 +197,17 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
           <div className="mt-5 space-y-3">
             {(deliveries?.length ?? 0) > 0 ? (
               deliveries!.map((delivery) => (
-                <div key={delivery.id} className="flex items-center justify-between gap-3 rounded-2xl border border-foreground/10 p-4">
+                <div
+                  key={delivery.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-foreground/10 p-4"
+                >
                   <div className="min-w-0">
-                    <p className="font-medium truncate">{delivery.deliveryNumber}</p>
+                    <p className="font-medium truncate">
+                      {delivery.deliveryNumber}
+                    </p>
                     <p className="text-sm text-foreground/50 break-words">
                       {delivery.items?.length ?? 0} producto(s)
-                      {delivery.notes ? ` · ${delivery.notes}` : ''}
+                      {delivery.notes ? ` · ${delivery.notes}` : ""}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-foreground/5 px-3 py-1 text-xs font-medium text-foreground/60">
@@ -154,7 +216,9 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
                 </div>
               ))
             ) : (
-              <p className="py-6 text-center text-foreground/50">Sin despachos registrados.</p>
+              <p className="py-6 text-center text-foreground/50">
+                Sin despachos registrados.
+              </p>
             )}
           </div>
         </Card>
@@ -166,7 +230,9 @@ export default async function DistributorDetailPage({ params }: DetailPageProps)
 function Divider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-4">
-      <p className="text-sm uppercase tracking-[0.18em] text-foreground/40">{label}</p>
+      <p className="text-sm uppercase tracking-[0.18em] text-foreground/40">
+        {label}
+      </p>
       <div className="h-px flex-1 bg-foreground/10" />
     </div>
   );

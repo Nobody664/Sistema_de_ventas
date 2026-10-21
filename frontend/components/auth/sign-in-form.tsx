@@ -1,27 +1,27 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { useAuthStore } from '@/stores/auth.store';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/stores/auth.store";
 
 const signInSchema = z.object({
-  email: z.string().email('Correo electrónico inválido'),
-  password: z.string().min(1, 'La contraseña es requerida'),
+  email: z.string().email("Correo electrónico inválido"),
+  password: z.string().min(1, "La contraseña es requerida"),
 });
 
 type SignInValues = z.infer<typeof signInSchema>;
 
 function safeRedirect(raw: string | null): string {
-  if (!raw) return '/dashboard';
-  if (!raw.startsWith('/')) return '/dashboard';
-  if (raw.startsWith('//')) return '/dashboard';
-  if (raw.startsWith('/sign-in')) return '/dashboard';
+  if (!raw) return "/dashboard";
+  if (!raw.startsWith("/")) return "/dashboard";
+  if (raw.startsWith("//")) return "/dashboard";
+  if (raw.startsWith("/sign-in")) return "/dashboard";
   return raw;
 }
 
@@ -36,8 +36,8 @@ export function SignInForm() {
   const form = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
     },
   });
 
@@ -47,10 +47,10 @@ export function SignInForm() {
 
     try {
       await login(values.email, values.password);
-      router.replace(safeRedirect(searchParams.get('redirect')));
+      router.replace(safeRedirect(searchParams.get("redirect")));
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Credenciales incorrectas');
+      setError(err instanceof Error ? err.message : "Credenciales incorrectas");
     } finally {
       setIsSubmitting(false);
     }
@@ -73,10 +73,12 @@ export function SignInForm() {
           type="email"
           className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:border-violet-500/50 focus:bg-white/10 focus:shadow-lg focus:shadow-violet-500/10"
           placeholder="tu@email.com"
-          {...form.register('email')}
+          {...form.register("email")}
         />
         {form.formState.errors.email ? (
-          <p className="text-xs text-red-400">{form.formState.errors.email.message}</p>
+          <p className="text-xs text-red-400">
+            {form.formState.errors.email.message}
+          </p>
         ) : null}
       </div>
 
@@ -85,46 +87,58 @@ export function SignInForm() {
           <label className="text-sm font-medium text-white" htmlFor="password">
             Contraseña
           </label>
-          <Link href="/forgot-password" className="text-xs text-white/50 hover:text-violet-400 transition-colors">
+          <Link
+            href="/forgot-password"
+            className="text-xs text-white/50 hover:text-violet-400 transition-colors"
+          >
             ¿Olvidaste tu contraseña?
           </Link>
         </div>
         <div className="relative">
           <input
             id="password"
-            type={showPassword ? 'text' : 'password'}
+            type={showPassword ? "text" : "password"}
             className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 pr-12 text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:border-violet-500/50 focus:bg-white/10 focus:shadow-lg focus:shadow-violet-500/10"
             placeholder="••••••••"
-            {...form.register('password')}
+            {...form.register("password")}
           />
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
           >
-            {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+            {showPassword ? (
+              <EyeOff className="size-5" />
+            ) : (
+              <Eye className="size-5" />
+            )}
           </button>
         </div>
         {form.formState.errors.password ? (
-          <p className="text-xs text-red-400">{form.formState.errors.password.message}</p>
+          <p className="text-xs text-red-400">
+            {form.formState.errors.password.message}
+          </p>
         ) : null}
       </div>
 
-      <Button 
-        className="w-full rounded-xl bg-white text-black hover:bg-white/90 hover:shadow-xl hover:shadow-white/20 hover:-translate-y-0.5 h-12 transition-all duration-300" 
-        type="submit" 
+      <Button
+        className="w-full rounded-xl bg-white text-black hover:bg-white/90 hover:shadow-xl hover:shadow-white/20 hover:-translate-y-0.5 h-12 transition-all duration-300"
+        type="submit"
         disabled={isSubmitting}
       >
         {isSubmitting ? (
           <Loader2 className="size-5 animate-spin" />
         ) : (
-          'Iniciar sesión'
+          "Iniciar sesión"
         )}
       </Button>
 
       <p className="text-center text-sm text-white/50">
-        ¿No tienes una cuenta?{' '}
-        <Link href="/sign-up" className="font-medium text-white hover:text-violet-400 transition-colors">
+        ¿No tienes una cuenta?{" "}
+        <Link
+          href="/sign-up"
+          className="font-medium text-white hover:text-violet-400 transition-colors"
+        >
           Crear cuenta
         </Link>
       </p>

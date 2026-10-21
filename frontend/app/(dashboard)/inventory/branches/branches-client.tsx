@@ -1,50 +1,56 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Building2, Plus, MapPin } from 'lucide-react';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Building2, Plus, MapPin } from "lucide-react";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth.store";
 
 interface BranchesPageClientProps {
   initialBranches: Array<Record<string, unknown>>;
 }
 
-export function BranchesPageClient({ initialBranches }: BranchesPageClientProps) {
+export function BranchesPageClient({
+  initialBranches,
+}: BranchesPageClientProps) {
   const user = useAuthStore((state) => state.user);
   const [branches, setBranches] = useState(initialBranches);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', address: '' });
+  const [form, setForm] = useState({ name: "", address: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const isAdmin = user?.roles?.includes('COMPANY_ADMIN') ?? false;
+  const isAdmin = user?.roles?.includes("COMPANY_ADMIN") ?? false;
   const activeBranches = branches.filter((b) => b.isActive !== false);
 
   const handleCreate = async () => {
     try {
-      const created = await apiFetch('/branches', {
-        method: 'POST',
+      const created = await apiFetch("/branches", {
+        method: "POST",
         body: JSON.stringify(form),
         token: getAccessToken(),
       });
       setBranches([...branches, created as Record<string, unknown>]);
       setShowForm(false);
-      setForm({ name: '', address: '' });
+      setForm({ name: "", address: "" });
     } catch (e) {
-      console.error('Error creating branch:', e);
+      console.error("Error creating branch:", e);
     }
   };
 
   const handleToggleActive = async (id: string, current: boolean) => {
     try {
       const updated = await apiFetch(`/branches/${id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         body: JSON.stringify({ isActive: !current }),
         token: getAccessToken(),
       });
-      setBranches(branches.map((b) => (b.id === id ? (updated as Record<string, unknown>) : b)));
+      setBranches(
+        branches.map((b) =>
+          b.id === id ? (updated as Record<string, unknown>) : b,
+        ),
+      );
     } catch (e) {
-      console.error('Error updating branch:', e);
+      console.error("Error updating branch:", e);
     }
   };
 
@@ -53,8 +59,12 @@ export function BranchesPageClient({ initialBranches }: BranchesPageClientProps)
       <Card className="rounded-[34px] bg-gradient-to-br from-amber-500 to-orange-700 p-6 sm:p-8 text-white animate-fade-in-up">
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-white/60">Inventario</p>
-            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Sucursales</h1>
+            <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+              Inventario
+            </p>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
+              Sucursales
+            </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
               Administra múltiples sucursales y almacenes para tu negocio.
             </p>
@@ -76,7 +86,9 @@ export function BranchesPageClient({ initialBranches }: BranchesPageClientProps)
           <h3 className="font-display text-lg mb-4">Nueva sucursal</h3>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-foreground/50 mb-1">Nombre</label>
+              <label className="block text-xs font-medium text-foreground/50 mb-1">
+                Nombre
+              </label>
               <input
                 type="text"
                 value={form.name}
@@ -86,7 +98,9 @@ export function BranchesPageClient({ initialBranches }: BranchesPageClientProps)
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-foreground/50 mb-1">Dirección</label>
+              <label className="block text-xs font-medium text-foreground/50 mb-1">
+                Dirección
+              </label>
               <input
                 type="text"
                 value={form.address}
@@ -127,14 +141,21 @@ export function BranchesPageClient({ initialBranches }: BranchesPageClientProps)
                 </div>
                 {isAdmin && (
                   <button
-                    onClick={() => handleToggleActive(branch.id as string, branch.isActive !== false)}
+                    onClick={() =>
+                      handleToggleActive(
+                        branch.id as string,
+                        branch.isActive !== false,
+                      )
+                    }
                     className="rounded-lg bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
                   >
                     Desactivar
                   </button>
                 )}
               </div>
-              <h3 className="mt-4 font-display text-lg">{String(branch.name)}</h3>
+              <h3 className="mt-4 font-display text-lg">
+                {String(branch.name)}
+              </h3>
               {branch.address ? (
                 <p className="mt-1 flex items-center gap-1 text-sm text-foreground/50">
                   <MapPin className="size-3" />

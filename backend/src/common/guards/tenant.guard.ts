@@ -1,7 +1,13 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Logger } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { PrismaService } from '@/database/prisma/prisma.service';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
+import { PrismaService } from "@/database/prisma/prisma.service";
 
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -23,24 +29,31 @@ export class TenantGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user as { companyId?: string | null; roles?: string[]; companyStatus?: string } | undefined;
+    const user = request.user as
+      | { companyId?: string | null; roles?: string[]; companyStatus?: string }
+      | undefined;
 
     if (user?.companyId) {
       request.tenantId = user.companyId;
     }
 
     const isGlobalAdmin =
-      user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('SUPPORT_ADMIN');
+      user?.roles?.includes("SUPER_ADMIN") ||
+      user?.roles?.includes("SUPPORT_ADMIN");
 
     if (isGlobalAdmin) {
       if (!user?.companyId) {
-        throw new ForbiddenException('Tenant context is required for this resource.');
+        throw new ForbiddenException(
+          "Tenant context is required for this resource.",
+        );
       }
       return true;
     }
 
     if (!user?.companyId) {
-      throw new ForbiddenException('Tenant context is required for this resource.');
+      throw new ForbiddenException(
+        "Tenant context is required for this resource.",
+      );
     }
 
     let companyStatus = user.companyStatus;
@@ -54,12 +67,14 @@ export class TenantGuard implements CanActivate {
     }
 
     const BLOCKED_MESSAGES: Record<string, string> = {
-      SUSPENDED: 'Tu cuenta ha sido suspendida. Contacta al administrador.',
-      INACTIVE: 'Tu período de prueba ha expirado. Adquiere un plan para continuar.',
-      PAST_DUE: 'Tu suscripción está vencida. Realiza el pago para reactivar tu cuenta.',
+      SUSPENDED: "Tu cuenta ha sido suspendida. Contacta al administrador.",
+      INACTIVE:
+        "Tu período de prueba ha expirado. Adquiere un plan para continuar.",
+      PAST_DUE:
+        "Tu suscripción está vencida. Realiza el pago para reactivar tu cuenta.",
     };
 
-    if (BLOCKED_MESSAGES[companyStatus ?? '']) {
+    if (BLOCKED_MESSAGES[companyStatus ?? ""]) {
       throw new ForbiddenException(BLOCKED_MESSAGES[companyStatus!]);
     }
 
@@ -67,4 +82,3 @@ export class TenantGuard implements CanActivate {
     return true;
   }
 }
-

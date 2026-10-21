@@ -1,14 +1,23 @@
 const API_URL = process.env.BACKEND_URL
-  ? `${process.env.BACKEND_URL.replace(/\/$/, '')}/api`
-  : process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
+  ? `${process.env.BACKEND_URL.replace(/\/$/, "")}/api`
+  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api");
 
-export async function serverApiFetch<T>(path: string, accessToken?: string): Promise<T | null> {
+export async function serverApiFetch<T>(
+  path: string,
+  accessToken?: string,
+): Promise<T | null> {
   if (!accessToken) return null;
   try {
-    const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      cache: 'no-store',
-    });
+    const res = await fetch(
+      `${API_URL}${path.startsWith("/") ? path : `/${path}`}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      },
+    );
     if (!res.ok) return null;
     const text = await res.text();
     return text ? (JSON.parse(text) as T) : null;

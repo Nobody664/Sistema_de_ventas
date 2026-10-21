@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
-import { SubscriptionsController } from './subscriptions.controller';
-import { SubscriptionsService } from './subscriptions.service';
-import { PlanUpgradeRequestsController } from './plan-upgrade-requests.controller';
-import { PlanUpgradeRequestsService } from './plan-upgrade-requests.service';
-import { NotificationsModule } from '@/modules/notifications/notifications.module';
-import { EmailModule } from '@/modules/email/email.module';
-import { PrismaModule } from '@/database/prisma/prisma.module';
+import { Module } from "@nestjs/common";
+import { SubscriptionsController } from "./subscriptions.controller";
+import { SubscriptionsService } from "./subscriptions.service";
+import { PlanUpgradeRequestsController } from "./plan-upgrade-requests.controller";
+import { PlanUpgradeRequestsService } from "./plan-upgrade-requests.service";
+import { NotificationsModule } from "@/modules/notifications/notifications.module";
+import { EmailModule } from "@/modules/email/email.module";
+import { PrismaModule } from "@/database/prisma/prisma.module";
 
 @Module({
   imports: [PrismaModule, NotificationsModule, EmailModule],
@@ -14,4 +14,3 @@ import { PrismaModule } from '@/database/prisma/prisma.module';
   exports: [SubscriptionsService, PlanUpgradeRequestsService],
 })
 export class SubscriptionsModule {}
-

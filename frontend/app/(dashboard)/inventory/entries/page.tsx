@@ -1,6 +1,6 @@
-import { serverApiFetch } from '@/lib/server-api';
-import { getServerSession } from '@/lib/session';
-import { StockEntriesClient } from './entries-client';
+import { serverApiFetch } from "@/lib/server-api";
+import { getServerSession } from "@/lib/session";
+import { StockEntriesClient } from "./entries-client";
 
 export interface StockEntryProductOption {
   id: string;
@@ -8,7 +8,12 @@ export interface StockEntryProductOption {
   sku: string | null;
   baseUnit: string;
   stockQuantity: string;
-  presentations: Array<{ id: string; name: string; factor: string; price: string | null }>;
+  presentations: Array<{
+    id: string;
+    name: string;
+    factor: string;
+    price: string | null;
+  }>;
 }
 
 export interface StockEntryDistributorOption {
@@ -57,7 +62,12 @@ export interface PurchaseReceiptDetail extends PurchaseReceiptRecord {
       quantity: string;
       baseQuantity: string;
       unitCost: string;
-      product: { id: string; name: string; sku: string | null; baseUnit: string };
+      product: {
+        id: string;
+        name: string;
+        sku: string | null;
+        baseUnit: string;
+      };
       presentation: { id: string; name: string; factor: string } | null;
     }>;
   }>;
@@ -67,17 +77,30 @@ export default async function StockEntriesPage() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
 
-  const [entries, products, branches, distributors, purchases, receipts] = await Promise.all([
-    serverApiFetch<Array<Record<string, unknown>>>('/stock-entries', accessToken),
-    serverApiFetch<StockEntryProductOption[]>('/products', accessToken),
-    serverApiFetch<Array<{ id: string; name: string }>>('/branches', accessToken),
-    serverApiFetch<StockEntryDistributorOption[]>('/distributors', accessToken),
-    serverApiFetch<DistributorPurchaseSummary[]>(
-      '/stock-entries/purchases/by-distributor',
-      accessToken,
-    ),
-    serverApiFetch<PurchaseReceiptRecord[]>('/stock-entries/receipts', accessToken),
-  ]);
+  const [entries, products, branches, distributors, purchases, receipts] =
+    await Promise.all([
+      serverApiFetch<Array<Record<string, unknown>>>(
+        "/stock-entries",
+        accessToken,
+      ),
+      serverApiFetch<StockEntryProductOption[]>("/products", accessToken),
+      serverApiFetch<Array<{ id: string; name: string }>>(
+        "/branches",
+        accessToken,
+      ),
+      serverApiFetch<StockEntryDistributorOption[]>(
+        "/distributors",
+        accessToken,
+      ),
+      serverApiFetch<DistributorPurchaseSummary[]>(
+        "/stock-entries/purchases/by-distributor",
+        accessToken,
+      ),
+      serverApiFetch<PurchaseReceiptRecord[]>(
+        "/stock-entries/receipts",
+        accessToken,
+      ),
+    ]);
 
   return (
     <StockEntriesClient

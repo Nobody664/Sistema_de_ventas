@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useEffect } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type ErrorProps = {
   error: Error & { digest?: string };
@@ -11,7 +11,7 @@ type ErrorProps = {
 
 export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error('Application error:', error);
+    console.error("Application error:", error);
   }, [error]);
 
   return (
@@ -20,7 +20,9 @@ export default function Error({ error, reset }: ErrorProps) {
         <AlertTriangle className="size-8 text-red-600" />
       </div>
       <div>
-        <h2 className="text-xl font-semibold text-foreground">Algo salió mal</h2>
+        <h2 className="text-xl font-semibold text-foreground">
+          Algo salió mal
+        </h2>
         <p className="mt-1 text-sm text-foreground/60">
           Ha ocurrido un error inesperado. Por favor, intenta de nuevo.
         </p>

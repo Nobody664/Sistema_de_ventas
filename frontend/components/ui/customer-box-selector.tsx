@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { Users, Search, FileText, Check } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import type { Customer } from '@/types/api';
+import { useState, useMemo } from "react";
+import { Users, Search, FileText, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import type { Customer } from "@/types/api";
 
 interface CustomerBoxSelectorProps {
   customers: Customer[];
@@ -12,13 +12,17 @@ interface CustomerBoxSelectorProps {
 }
 
 function getInitials(firstName: string, lastName?: string | null): string {
-  const first = firstName?.charAt(0) ?? '';
-  const last = lastName?.charAt(0) ?? '';
-  return (first + last).toUpperCase().slice(0, 2) || '?';
+  const first = firstName?.charAt(0) ?? "";
+  const last = lastName?.charAt(0) ?? "";
+  return (first + last).toUpperCase().slice(0, 2) || "?";
 }
 
-export function CustomerBoxSelector({ customers, selectedId, onSelect }: CustomerBoxSelectorProps) {
-  const [search, setSearch] = useState('');
+export function CustomerBoxSelector({
+  customers,
+  selectedId,
+  onSelect,
+}: CustomerBoxSelectorProps) {
+  const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
     if (!search.trim()) return customers;
@@ -38,7 +42,9 @@ export function CustomerBoxSelector({ customers, selectedId, onSelect }: Custome
         <p className="text-sm font-semibold text-foreground">
           Clientes frecuentes
         </p>
-        <span className="text-xs text-muted-foreground">{customers.length} registrados</span>
+        <span className="text-xs text-muted-foreground">
+          {customers.length} registrados
+        </span>
       </div>
 
       <div className="relative">
@@ -67,8 +73,8 @@ export function CustomerBoxSelector({ customers, selectedId, onSelect }: Custome
                 onClick={() => onSelect(isSelected ? null : customer)}
                 className={`relative flex items-center gap-3 rounded-xl border p-3 text-left transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-accent bg-accent/5 ring-1 ring-accent/30'
-                    : 'border-border bg-card hover:border-muted-foreground/30 hover:bg-muted/30'
+                    ? "border-accent bg-accent/5 ring-1 ring-accent/30"
+                    : "border-border bg-card hover:border-muted-foreground/30 hover:bg-muted/30"
                 }`}
               >
                 {isSelected && (
@@ -79,8 +85,8 @@ export function CustomerBoxSelector({ customers, selectedId, onSelect }: Custome
                 <div
                   className={`flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                     isSelected
-                      ? 'bg-accent text-white'
-                      : 'bg-muted text-muted-foreground'
+                      ? "bg-accent text-white"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {getInitials(customer.firstName, customer.lastName)}
@@ -91,7 +97,7 @@ export function CustomerBoxSelector({ customers, selectedId, onSelect }: Custome
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     <FileText className="mr-0.5 inline size-3 align-text-bottom" />
-                    {customer.documentValue || '—'}
+                    {customer.documentValue || "—"}
                   </p>
                 </div>
               </button>

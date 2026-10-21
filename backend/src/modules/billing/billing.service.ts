@@ -1,9 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { NotificationsService } from '@/modules/notifications/notifications.service';
-import { EmailService } from '@/modules/email/email.service';
-import { NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { NotificationsService } from "@/modules/notifications/notifications.service";
+import { EmailService } from "@/modules/email/email.service";
+import {
+  NotificationType,
+  NotificationChannel,
+} from "@/modules/notifications/notifications.service";
 
 @Injectable()
 export class BillingService {
@@ -17,7 +20,7 @@ export class BillingService {
 
   @Cron(CronExpression.EVERY_DAY_AT_6AM)
   async processBillingCycle() {
-    this.logger.log('Running billing cycle...');
+    this.logger.log("Running billing cycle...");
     const results = {
       pendingPaymentsCreated: 0,
       markedPastDue: 0,
@@ -42,7 +45,7 @@ export class BillingService {
 
     const subscriptions = await this.prisma.subscription.findMany({
       where: {
-        status: 'ACTIVE',
+        status: "ACTIVE",
         endDate: { lte: threeDaysFromNow, gte: now },
         autoRenew: true,
       },
@@ -51,7 +54,7 @@ export class BillingService {
         company: {
           include: {
             memberships: {
-              where: { role: 'COMPANY_ADMIN' },
+              where: { role: "COMPANY_ADMIN" },
               include: { user: true },
             },
           },
@@ -64,7 +67,7 @@ export class BillingService {
       const existingPending = await this.prisma.payment.findFirst({
         where: {
           subscriptionId: sub.id,
-          status: 'PENDING',
+          status: "PENDING",
         },
       });
       if (existingPending) continue;
@@ -73,31 +76,33 @@ export class BillingService {
         data: {
           subscriptionId: sub.id,
           amount: sub.plan.priceMonthly,
-          currency: 'PEN',
-          status: 'PENDING',
+          currency: "PEN",
+          status: "PENDING",
           provider: sub.provider,
         },
       });
 
       const admin = sub.company.memberships[0]?.user;
       if (admin) {
-        const daysLeft = Math.ceil((sub.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.ceil(
+          (sub.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
         await this.notificationsService.create({
           userId: admin.id,
           companyId: sub.companyId,
-          type: 'PAYMENT' as NotificationType,
-          channel: 'IN_APP' as NotificationChannel,
-          title: 'Pago próximo a vencer',
+          type: "PAYMENT" as NotificationType,
+          channel: "IN_APP" as NotificationChannel,
+          title: "Pago próximo a vencer",
           message: `Tu suscripción del plan ${sub.plan.name} vence en ${daysLeft} día(s). Realiza el pago de S/ ${sub.plan.priceMonthly} para continuar usando el sistema.`,
         });
 
         await this.emailService.sendEmailDirect({
           to: admin.email,
           subject: `Tu suscripción vence en ${daysLeft} día(s)`,
-          template: 'payment-received' as never,
+          template: "payment-received" as never,
           data: {
             companyName: sub.company.name,
-            message: `Tu suscripción al plan ${sub.plan.name} vence el ${sub.endDate.toLocaleDateString('es-PE')}. Realiza el pago de S/ ${sub.plan.priceMonthly} para evitar la suspensión.`,
+            message: `Tu suscripción al plan ${sub.plan.name} vence el ${sub.endDate.toLocaleDateString("es-PE")}. Realiza el pago de S/ ${sub.plan.priceMonthly} para evitar la suspensión.`,
           },
         });
       }
@@ -113,7 +118,7 @@ export class BillingService {
 
     const expired = await this.prisma.subscription.findMany({
       where: {
-        status: 'ACTIVE',
+        status: "ACTIVE",
         endDate: { lt: now },
       },
       include: {
@@ -121,7 +126,7 @@ export class BillingService {
         company: {
           include: {
             memberships: {
-              where: { role: 'COMPANY_ADMIN' },
+              where: { role: "COMPANY_ADMIN" },
               include: { user: true },
             },
           },
@@ -134,11 +139,11 @@ export class BillingService {
       await this.prisma.$transaction(async (tx) => {
         await tx.subscription.update({
           where: { id: sub.id },
-          data: { status: 'PAST_DUE' },
+          data: { status: "PAST_DUE" },
         });
         await tx.company.update({
           where: { id: sub.companyId },
-          data: { status: 'PAST_DUE' },
+          data: { status: "PAST_DUE" },
         });
       });
 
@@ -147,9 +152,9 @@ export class BillingService {
         await this.notificationsService.create({
           userId: admin.id,
           companyId: sub.companyId,
-          type: 'PAYMENT' as NotificationType,
-          channel: 'IN_APP' as NotificationChannel,
-          title: 'Suscripción vencida',
+          type: "PAYMENT" as NotificationType,
+          channel: "IN_APP" as NotificationChannel,
+          title: "Suscripción vencida",
           message: `Tu suscripción al plan ${sub.plan.name} ha vencido. Realiza el pago de S/ ${sub.plan.priceMonthly} para reactivar tu cuenta.`,
         });
       }
@@ -166,14 +171,14 @@ export class BillingService {
 
     const overdue = await this.prisma.subscription.findMany({
       where: {
-        status: 'PAST_DUE',
+        status: "PAST_DUE",
         endDate: { lt: fiveDaysAgo },
       },
       include: {
         company: {
           include: {
             memberships: {
-              where: { role: 'COMPANY_ADMIN' },
+              where: { role: "COMPANY_ADMIN" },
               include: { user: true },
             },
           },
@@ -186,7 +191,7 @@ export class BillingService {
       await this.prisma.$transaction(async (tx) => {
         await tx.company.update({
           where: { id: sub.companyId },
-          data: { status: 'SUSPENDED' },
+          data: { status: "SUSPENDED" },
         });
       });
 
@@ -195,10 +200,11 @@ export class BillingService {
         await this.notificationsService.create({
           userId: admin.id,
           companyId: sub.companyId,
-          type: 'SYSTEM' as NotificationType,
-          channel: 'IN_APP' as NotificationChannel,
-          title: 'Cuenta suspendida',
-          message: 'Tu cuenta ha sido suspendida por falta de pago. Contacta a soporte para reactivarla.',
+          type: "SYSTEM" as NotificationType,
+          channel: "IN_APP" as NotificationChannel,
+          title: "Cuenta suspendida",
+          message:
+            "Tu cuenta ha sido suspendida por falta de pago. Contacta a soporte para reactivarla.",
         });
       }
 
@@ -213,7 +219,7 @@ export class BillingService {
 
     const expiredTrials = await this.prisma.subscription.findMany({
       where: {
-        status: 'TRIALING',
+        status: "TRIALING",
         endDate: { lt: now },
       },
       include: {
@@ -221,7 +227,7 @@ export class BillingService {
         company: {
           include: {
             memberships: {
-              where: { role: 'COMPANY_ADMIN' },
+              where: { role: "COMPANY_ADMIN" },
               include: { user: true },
             },
           },
@@ -234,11 +240,11 @@ export class BillingService {
       await this.prisma.$transaction(async (tx) => {
         await tx.subscription.update({
           where: { id: sub.id },
-          data: { status: 'EXPIRED' },
+          data: { status: "EXPIRED" },
         });
         await tx.company.update({
           where: { id: sub.companyId },
-          data: { status: 'INACTIVE' },
+          data: { status: "INACTIVE" },
         });
       });
 
@@ -247,16 +253,16 @@ export class BillingService {
         await this.notificationsService.create({
           userId: admin.id,
           companyId: sub.companyId,
-          type: 'SYSTEM' as NotificationType,
-          channel: 'IN_APP' as NotificationChannel,
-          title: 'Período de prueba expirado',
+          type: "SYSTEM" as NotificationType,
+          channel: "IN_APP" as NotificationChannel,
+          title: "Período de prueba expirado",
           message: `Tu período de prueba del plan ${sub.plan.name} ha expirado. Adquiere un plan para continuar usando el sistema.`,
         });
 
         await this.emailService.sendEmailDirect({
           to: admin.email,
-          subject: 'Tu período de prueba ha expirado',
-          template: 'welcome' as never,
+          subject: "Tu período de prueba ha expirado",
+          template: "welcome" as never,
           data: {
             companyName: sub.company.name,
             planName: sub.plan.name,
@@ -277,7 +283,7 @@ export class BillingService {
 
     const expiringTrials = await this.prisma.subscription.findMany({
       where: {
-        status: 'TRIALING',
+        status: "TRIALING",
         endDate: { gte: now, lte: threeDaysFromNow },
       },
       include: {
@@ -285,7 +291,7 @@ export class BillingService {
         company: {
           include: {
             memberships: {
-              where: { role: 'COMPANY_ADMIN' },
+              where: { role: "COMPANY_ADMIN" },
               include: { user: true },
             },
           },
@@ -295,7 +301,9 @@ export class BillingService {
 
     let count = 0;
     for (const sub of expiringTrials) {
-      const daysLeft = Math.ceil((sub.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.ceil(
+        (sub.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
       const admin = sub.company.memberships[0]?.user;
       if (!admin) continue;
 
@@ -303,16 +311,16 @@ export class BillingService {
         await this.notificationsService.create({
           userId: admin.id,
           companyId: sub.companyId,
-          type: 'TRIAL_EXPIRING_SOON',
-          channel: 'IN_APP',
-          title: '¡Tu prueba gratis vence mañana!',
+          type: "TRIAL_EXPIRING_SOON",
+          channel: "IN_APP",
+          title: "¡Tu prueba gratis vence mañana!",
           message: `Tu plan ${sub.plan.name} expira en menos de 24 horas. Suscríbete a un plan para no perder el acceso.`,
         });
 
         await this.emailService.sendEmailDirect({
           to: admin.email,
-          subject: 'Tu prueba gratis vence mañana',
-          template: 'welcome' as never,
+          subject: "Tu prueba gratis vence mañana",
+          template: "welcome" as never,
           data: {
             companyName: sub.company.name,
             planName: sub.plan.name,
@@ -323,20 +331,20 @@ export class BillingService {
         await this.notificationsService.create({
           userId: admin.id,
           companyId: sub.companyId,
-          type: 'TRIAL_EXPIRING_SOON',
-          channel: 'IN_APP',
+          type: "TRIAL_EXPIRING_SOON",
+          channel: "IN_APP",
           title: `Tu prueba gratis termina en ${daysLeft} día(s)`,
-          message: `Tu plan ${sub.plan.name} expirará el ${sub.endDate.toLocaleDateString('es-PE')}. Suscríbete a un plan para no perder tu información.`,
+          message: `Tu plan ${sub.plan.name} expirará el ${sub.endDate.toLocaleDateString("es-PE")}. Suscríbete a un plan para no perder tu información.`,
         });
 
         await this.emailService.sendEmailDirect({
           to: admin.email,
           subject: `Tu prueba gratis termina en ${daysLeft} día(s)`,
-          template: 'welcome' as never,
+          template: "welcome" as never,
           data: {
             companyName: sub.company.name,
             planName: sub.plan.name,
-            message: `Tu plan ${sub.plan.name} expirará el ${sub.endDate.toLocaleDateString('es-PE')}. Ingresa a tu panel y suscríbete a un plan para continuar usando el sistema.`,
+            message: `Tu plan ${sub.plan.name} expirará el ${sub.endDate.toLocaleDateString("es-PE")}. Ingresa a tu panel y suscríbete a un plan para continuar usando el sistema.`,
           },
         });
       }
@@ -353,21 +361,25 @@ export class BillingService {
       include: {
         plan: true,
         payments: {
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           take: 12,
         },
         paymentProofs: {
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           take: 12,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!subscription) return null;
 
-    const currentPending = subscription.payments.find(p => p.status === 'PENDING');
-    const lastPayment = subscription.payments.find(p => p.status === 'SUCCEEDED');
+    const currentPending = subscription.payments.find(
+      (p) => p.status === "PENDING",
+    );
+    const lastPayment = subscription.payments.find(
+      (p) => p.status === "SUCCEEDED",
+    );
 
     return {
       subscription: {
@@ -379,19 +391,23 @@ export class BillingService {
         autoRenew: subscription.autoRenew,
         billingCycle: subscription.billingCycle,
       },
-      currentPending: currentPending ? {
-        id: currentPending.id,
-        amount: currentPending.amount.toString(),
-        dueDate: subscription.endDate?.toISOString() ?? null,
-        status: currentPending.status,
-      } : null,
-      lastPayment: lastPayment ? {
-        id: lastPayment.id,
-        amount: lastPayment.amount.toString(),
-        paidAt: lastPayment.paidAt,
-        status: lastPayment.status,
-      } : null,
-      recentPayments: subscription.payments.slice(0, 6).map(p => ({
+      currentPending: currentPending
+        ? {
+            id: currentPending.id,
+            amount: currentPending.amount.toString(),
+            dueDate: subscription.endDate?.toISOString() ?? null,
+            status: currentPending.status,
+          }
+        : null,
+      lastPayment: lastPayment
+        ? {
+            id: lastPayment.id,
+            amount: lastPayment.amount.toString(),
+            paidAt: lastPayment.paidAt,
+            status: lastPayment.status,
+          }
+        : null,
+      recentPayments: subscription.payments.slice(0, 6).map((p) => ({
         id: p.id,
         amount: p.amount.toString(),
         status: p.status,

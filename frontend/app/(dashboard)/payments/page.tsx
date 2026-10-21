@@ -1,7 +1,7 @@
-import { redirect } from 'next/navigation';
-import { getServerSession } from '@/lib/session';
-import { serverApiFetch } from '@/lib/server-api';
-import { PaymentHistoryClient } from '@/components/payments/payment-history';
+import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/session";
+import { serverApiFetch } from "@/lib/server-api";
+import { PaymentHistoryClient } from "@/components/payments/payment-history";
 
 interface BillingStatus {
   subscription: {
@@ -41,17 +41,28 @@ interface BillingStatus {
 export default async function PaymentsPage() {
   const session = await getServerSession();
   if (!session?.user?.companyId) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const accessToken = session?.accessToken;
   const roles: string[] = session?.user?.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN');
+  const isSuperAdmin = roles.includes("SUPER_ADMIN");
 
   const [billingStatus, pendingPayments, paymentHistory] = await Promise.all([
-    serverApiFetch<BillingStatus>('/billing/status', accessToken),
-    serverApiFetch<{ id: string; amount: string; dueDate: string; status: string; subscriptionId: string }[]>('/payments/current-pending', accessToken),
-    serverApiFetch<{ data: unknown[]; total: number }>('/payments/history', accessToken),
+    serverApiFetch<BillingStatus>("/billing/status", accessToken),
+    serverApiFetch<
+      {
+        id: string;
+        amount: string;
+        dueDate: string;
+        status: string;
+        subscriptionId: string;
+      }[]
+    >("/payments/current-pending", accessToken),
+    serverApiFetch<{ data: unknown[]; total: number }>(
+      "/payments/history",
+      accessToken,
+    ),
   ]);
 
   return (

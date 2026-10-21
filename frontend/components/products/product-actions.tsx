@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Edit, Trash2 } from 'lucide-react';
-import { DeleteDialog } from '@/components/common/delete-dialog';
-import { PermissionGuard } from '@/components/auth/permission-guard';
-import type { Product } from '@/types/api';
+import Link from "next/link";
+import { Edit, Trash2 } from "lucide-react";
+import { DeleteDialog } from "@/components/common/delete-dialog";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import type { Product } from "@/types/api";
 
 export function ProductActions({ product }: { product: Product }) {
   return (

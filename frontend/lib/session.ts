@@ -1,9 +1,9 @@
-import { cache } from 'react';
-import { cookies } from 'next/headers';
+import { cache } from "react";
+import { cookies } from "next/headers";
 
 const API_URL = process.env.BACKEND_URL
-  ? `${process.env.BACKEND_URL.replace(/\/$/, '')}/api`
-  : process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
+  ? `${process.env.BACKEND_URL.replace(/\/$/, "")}/api`
+  : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api");
 
 export interface ServerSessionUser {
   id: string;
@@ -23,36 +23,38 @@ export interface ServerSession {
   refreshToken: string | undefined;
 }
 
-const ACCESS_COOKIE = 'access_token';
-const REFRESH_COOKIE = 'refresh_token';
+const ACCESS_COOKIE = "access_token";
+const REFRESH_COOKIE = "refresh_token";
 
-export const getServerSession = cache(async (): Promise<ServerSession | null> => {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
+export const getServerSession = cache(
+  async (): Promise<ServerSession | null> => {
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
 
-  if (!accessToken) {
-    return null;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
+    if (!accessToken) {
       return null;
     }
 
-    const user = await response.json();
-    return {
-      user,
-      accessToken,
-      refreshToken: cookieStore.get(REFRESH_COOKIE)?.value,
-    };
-  } catch {
-    return null;
-  }
-});
+    try {
+      const response = await fetch(`${API_URL}/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const user = await response.json();
+      return {
+        user,
+        accessToken,
+        refreshToken: cookieStore.get(REFRESH_COOKIE)?.value,
+      };
+    } catch {
+      return null;
+    }
+  },
+);

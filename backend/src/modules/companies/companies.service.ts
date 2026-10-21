@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { isProfileComplete } from '@/common/helpers/profile-completeness.helper';
-import { CreateCompanyDto, UpdateCompanyDto, UpdateCompanyStatusDto } from './dto/company.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { isProfileComplete } from "@/common/helpers/profile-completeness.helper";
+import {
+  CreateCompanyDto,
+  UpdateCompanyDto,
+  UpdateCompanyStatusDto,
+} from "./dto/company.dto";
 
 interface ProfileFieldsInput {
   taxId?: string | null;
@@ -29,7 +33,7 @@ export class CompaniesService {
       this.prisma.company.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           subscriptions: { include: { plan: true }, take: 1 },
           _count: { select: { memberships: true, customers: true } },
@@ -52,16 +56,24 @@ export class CompaniesService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
 
     return company;
   }
 
   async create(input: CreateCompanyDto) {
-    const slug = input.slug ?? input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const slug =
+      input.slug ??
+      input.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-");
     const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const freePlan = await this.prisma.plan.findUnique({ where: { code: 'FREE' } });
+    const freePlan = await this.prisma.plan.findUnique({
+      where: { code: "FREE" },
+    });
 
     return this.prisma.company.create({
       data: {
@@ -72,20 +84,22 @@ export class CompaniesService {
         address: input.address,
         email: input.email,
         phone: input.phone,
-        timezone: input.timezone ?? 'America/Lima',
-        currency: input.currency ?? 'PEN',
-        status: 'TRIAL',
+        timezone: input.timezone ?? "America/Lima",
+        currency: input.currency ?? "PEN",
+        status: "TRIAL",
         trialEndsAt,
         ...this.profileSync(input),
-        subscriptions: freePlan ? {
-          create: {
-            planId: freePlan.id,
-            status: 'TRIALING',
-            billingCycle: 'MONTHLY',
-            startDate: new Date(),
-            endDate: trialEndsAt,
-          },
-        } : undefined,
+        subscriptions: freePlan
+          ? {
+              create: {
+                planId: freePlan.id,
+                status: "TRIALING",
+                billingCycle: "MONTHLY",
+                startDate: new Date(),
+                endDate: trialEndsAt,
+              },
+            }
+          : undefined,
       },
       include: {
         subscriptions: { include: { plan: true }, take: 1 },
@@ -94,7 +108,13 @@ export class CompaniesService {
   }
 
   async createWithPlan(input: CreateCompanyDto & { planId: string }) {
-    const slug = input.slug ?? input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const slug =
+      input.slug ??
+      input.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-");
 
     const company = await this.prisma.company.create({
       data: {
@@ -105,15 +125,15 @@ export class CompaniesService {
         address: input.address,
         email: input.email,
         phone: input.phone,
-        timezone: input.timezone ?? 'America/Lima',
-        currency: input.currency ?? 'PEN',
-        status: 'TRIAL',
+        timezone: input.timezone ?? "America/Lima",
+        currency: input.currency ?? "PEN",
+        status: "TRIAL",
         ...this.profileSync(input),
         subscriptions: {
           create: {
             planId: input.planId,
-            status: 'TRIALING',
-            billingCycle: 'MONTHLY',
+            status: "TRIALING",
+            billingCycle: "MONTHLY",
             startDate: new Date(),
             endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           },
@@ -137,7 +157,7 @@ export class CompaniesService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
 
     const activeSubscription = company.subscriptions[0];
@@ -145,11 +165,11 @@ export class CompaniesService {
       return this.prisma.company.update({
         where: { id },
         data: {
-          status: 'ACTIVE',
+          status: "ACTIVE",
           subscriptions: {
             update: {
               where: { id: activeSubscription.id },
-              data: { status: 'ACTIVE' },
+              data: { status: "ACTIVE" },
             },
           },
         },
@@ -164,7 +184,7 @@ export class CompaniesService {
 
     return this.prisma.company.update({
       where: { id },
-      data: { status: 'ACTIVE' },
+      data: { status: "ACTIVE" },
     });
   }
 
@@ -174,12 +194,12 @@ export class CompaniesService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
 
     return this.prisma.company.update({
       where: { id },
-      data: { status: 'SUSPENDED' },
+      data: { status: "SUSPENDED" },
     });
   }
 
@@ -195,7 +215,7 @@ export class CompaniesService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
 
     return company;

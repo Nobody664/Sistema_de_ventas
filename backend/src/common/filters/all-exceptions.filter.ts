@@ -5,9 +5,13 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { PrismaClientInitializationError, PrismaClientKnownRequestError, PrismaClientValidationError } from '@prisma/client/runtime/client';
-import type { Request, Response } from 'express';
+} from "@nestjs/common";
+import {
+  PrismaClientInitializationError,
+  PrismaClientKnownRequestError,
+  PrismaClientValidationError,
+} from "@prisma/client/runtime/client";
+import type { Request, Response } from "express";
 
 type ErrorBody = {
   statusCode: number;
@@ -22,21 +26,35 @@ type ErrorBody = {
  * Errores de Prisma que representan una condicion esperada del cliente, no un
  * fallo del servidor. Sin este mapeo todos llegan como 500.
  */
-const PRISMA_KNOWN_ERRORS: Record<string, { status: number; message: string }> = {
-  P2000: { status: HttpStatus.BAD_REQUEST, message: 'El valor excede el tamano permitido' },
-  P2002: { status: HttpStatus.CONFLICT, message: 'Ya existe un registro con esos datos' },
-  P2003: {
-    status: HttpStatus.CONFLICT,
-    message: 'Operacion invalida: el registro hace referencia a datos inexistentes',
-  },
-  P2011: { status: HttpStatus.BAD_REQUEST, message: 'No se puede filtrar por ese campo' },
-  P2014: {
-    status: HttpStatus.BAD_REQUEST,
-    message: 'Operacion invalida: falta una relacion requerida',
-  },
-  P2025: { status: HttpStatus.NOT_FOUND, message: 'Recurso no encontrado' },
-  P2034: { status: HttpStatus.CONFLICT, message: 'Conflicto de transaccion, reintenta' },
-};
+const PRISMA_KNOWN_ERRORS: Record<string, { status: number; message: string }> =
+  {
+    P2000: {
+      status: HttpStatus.BAD_REQUEST,
+      message: "El valor excede el tamano permitido",
+    },
+    P2002: {
+      status: HttpStatus.CONFLICT,
+      message: "Ya existe un registro con esos datos",
+    },
+    P2003: {
+      status: HttpStatus.CONFLICT,
+      message:
+        "Operacion invalida: el registro hace referencia a datos inexistentes",
+    },
+    P2011: {
+      status: HttpStatus.BAD_REQUEST,
+      message: "No se puede filtrar por ese campo",
+    },
+    P2014: {
+      status: HttpStatus.BAD_REQUEST,
+      message: "Operacion invalida: falta una relacion requerida",
+    },
+    P2025: { status: HttpStatus.NOT_FOUND, message: "Recurso no encontrado" },
+    P2034: {
+      status: HttpStatus.CONFLICT,
+      message: "Conflicto de transaccion, reintenta",
+    },
+  };
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -63,7 +81,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else {
-      this.logger.warn(`${request.method} ${body.path} -> ${resolved.status} ${String(resolved.message)}`);
+      this.logger.warn(
+        `${request.method} ${body.path} -> ${resolved.status} ${String(resolved.message)}`,
+      );
     }
 
     response.status(resolved.status).json(body);
@@ -77,13 +97,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
   } {
     if (exception instanceof PrismaClientKnownRequestError) {
       const mapped = PRISMA_KNOWN_ERRORS[exception.code];
-      if (exception.code === 'P2002') {
+      if (exception.code === "P2002") {
         const target = exception.meta?.target;
         const field = Array.isArray(target)
-          ? target.join(', ')
-          : typeof target === 'string'
+          ? target.join(", ")
+          : typeof target === "string"
             ? target
-            : '';
+            : "";
         const message = field
           ? `Ya existe un registro con ese valor en ${field}.`
           : PRISMA_KNOWN_ERRORS.P2002.message;
@@ -91,7 +111,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
       return {
         status: mapped?.status ?? HttpStatus.INTERNAL_SERVER_ERROR,
-        message: mapped?.message ?? 'Error de base de datos',
+        message: mapped?.message ?? "Error de base de datos",
         code: exception.code,
       };
     }
@@ -99,16 +119,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof PrismaClientValidationError) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'La consulta enviada no es valida',
-        code: 'PRISMA_VALIDATION',
+        message: "La consulta enviada no es valida",
+        code: "PRISMA_VALIDATION",
       };
     }
 
     if (exception instanceof PrismaClientInitializationError) {
       return {
         status: HttpStatus.SERVICE_UNAVAILABLE,
-        message: 'Servicio de datos no disponible',
-        code: 'PRISMA_INIT',
+        message: "Servicio de datos no disponible",
+        code: "PRISMA_INIT",
       };
     }
 
@@ -117,16 +137,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (exception instanceof Error) {
-      const isProduction = process.env.NODE_ENV === 'production';
+      const isProduction = process.env.NODE_ENV === "production";
       return {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: isProduction ? 'Error interno del servidor' : exception.message,
+        message: isProduction
+          ? "Error interno del servidor"
+          : exception.message,
       };
     }
 
     return {
       status: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Error interno del servidor',
+      message: "Error interno del servidor",
     };
   }
 
@@ -138,13 +160,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
   } {
     const status = exception.getStatus();
     const payload = exception.getResponse();
-    const fallback = 'Error interno del servidor';
+    const fallback = "Error interno del servidor";
 
-    if (typeof payload === 'string') {
+    if (typeof payload === "string") {
       return { status, message: payload };
     }
 
-    if (typeof payload !== 'object' || payload === null) {
+    if (typeof payload !== "object" || payload === null) {
       return { status, message: fallback };
     }
 
@@ -154,15 +176,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // ValidationPipe devuelve un array de strings; se preserva tal cual.
     const message = Array.isArray(rawMessage)
       ? (rawMessage as string[])
-      : typeof rawMessage === 'string'
+      : typeof rawMessage === "string"
         ? rawMessage
         : fallback;
 
     return {
       status,
       message,
-      error: typeof obj.error === 'string' ? obj.error : undefined,
-      code: typeof obj.code === 'string' ? obj.code : undefined,
+      error: typeof obj.error === "string" ? obj.error : undefined,
+      code: typeof obj.code === "string" ? obj.code : undefined,
     };
   }
 }

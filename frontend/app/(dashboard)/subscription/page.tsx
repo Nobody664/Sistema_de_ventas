@@ -1,9 +1,8 @@
-
-import { redirect } from 'next/navigation';
-import { getServerSession } from '@/lib/session';
-import { serverApiFetch } from '@/lib/server-api';
-import { SubscriptionPageClient } from '@/components/subscriptions/subscription-page-client';
-import type { Plan, Subscription } from '@/types/api';
+import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/session";
+import { serverApiFetch } from "@/lib/server-api";
+import { SubscriptionPageClient } from "@/components/subscriptions/subscription-page-client";
+import type { Plan, Subscription } from "@/types/api";
 
 interface PlanUpgradeRequest {
   id: string;
@@ -24,29 +23,44 @@ export default async function SubscriptionPage() {
   const session = await getServerSession();
 
   if (!session?.user?.companyId) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const roles: string[] = session?.user?.roles || [];
-  if (!roles.includes('COMPANY_ADMIN')) {
-    redirect('/dashboard');
+  if (!roles.includes("COMPANY_ADMIN")) {
+    redirect("/dashboard");
   }
 
   const accessToken = session?.accessToken;
 
-  const [subscription, plans, pendingRequest, completeness] = await Promise.all([
-    serverApiFetch<Subscription>(`/subscriptions/current`, accessToken),
-    serverApiFetch<Plan[]>('/plans', accessToken),
-    serverApiFetch<PlanUpgradeRequest | null>('/subscriptions/upgrade-requests/my/pending', accessToken),
-    serverApiFetch<ProfileCompleteness>('/company-profile/completeness', accessToken),
-  ]);
+  const [subscription, plans, pendingRequest, completeness] = await Promise.all(
+    [
+      serverApiFetch<Subscription>(`/subscriptions/current`, accessToken),
+      serverApiFetch<Plan[]>("/plans", accessToken),
+      serverApiFetch<PlanUpgradeRequest | null>(
+        "/subscriptions/upgrade-requests/my/pending",
+        accessToken,
+      ),
+      serverApiFetch<ProfileCompleteness>(
+        "/company-profile/completeness",
+        accessToken,
+      ),
+    ],
+  );
 
   return (
-    <SubscriptionPageClient 
-      initialSubscription={subscription} 
+    <SubscriptionPageClient
+      initialSubscription={subscription}
       initialPlans={plans ?? []}
       pendingUpgrade={pendingRequest}
-      initialCompleteness={completeness?.complete ? { complete: true, missingFields: [] } : { complete: false, missingFields: completeness?.missingFields ?? [] }}
+      initialCompleteness={
+        completeness?.complete
+          ? { complete: true, missingFields: [] }
+          : {
+              complete: false,
+              missingFields: completeness?.missingFields ?? [],
+            }
+      }
     />
   );
 }

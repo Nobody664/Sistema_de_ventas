@@ -1,17 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import {
+  NotificationsService,
+  NotificationType,
+} from "@/modules/notifications/notifications.service";
 
 const UNIT_LABELS: Record<string, string> = {
-  UNIT: 'unidades',
-  KG: 'kg',
-  LT: 'litros',
-  MT: 'metros',
+  UNIT: "unidades",
+  KG: "kg",
+  LT: "litros",
+  MT: "metros",
 };
 
-const LOW_STOCK_RECIPIENT_ROLES = ['COMPANY_ADMIN', 'MANAGER'] as const;
+const LOW_STOCK_RECIPIENT_ROLES = ["COMPANY_ADMIN", "MANAGER"] as const;
 
 const EXPIRY_WINDOW_DAYS = 3;
 
@@ -59,7 +62,8 @@ export class LowStockService {
 
     if (!input.force) {
       const previousStock = this.toNumber(input.previousStock);
-      const previousMinStock = this.toNumber(input.previousMinStock) ?? minStock;
+      const previousMinStock =
+        this.toNumber(input.previousMinStock) ?? minStock;
 
       if (previousStock !== null && previousStock <= previousMinStock) {
         return false;
@@ -80,7 +84,9 @@ export class LowStockService {
     const target = new Date(expiryDate);
     target.setHours(0, 0, 0, 0);
 
-    const daysLeft = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+    const daysLeft = Math.round(
+      (target.getTime() - today.getTime()) / 86_400_000,
+    );
     if (daysLeft < 0 || daysLeft > EXPIRY_WINDOW_DAYS) {
       return false;
     }
@@ -128,12 +134,17 @@ export class LowStockService {
       }
 
       if (notified > 0) {
-        this.logger.log(`Alertas de productos por vencer enviadas: ${notified}`);
+        this.logger.log(
+          `Alertas de productos por vencer enviadas: ${notified}`,
+        );
       }
 
       return notified;
     } catch (error) {
-      this.logger.error('Error al escanear productos por vencer', error as Error);
+      this.logger.error(
+        "Error al escanear productos por vencer",
+        error as Error,
+      );
       return 0;
     }
   }
@@ -179,12 +190,19 @@ export class LowStockService {
 
       return notified;
     } catch (error) {
-      this.logger.error('Error al escanear productos con stock bajo', error as Error);
+      this.logger.error(
+        "Error al escanear productos con stock bajo",
+        error as Error,
+      );
       return 0;
     }
   }
 
-  private async dispatch(input: LowStockCheckInput, currentStock: number, minStock: number): Promise<boolean> {
+  private async dispatch(
+    input: LowStockCheckInput,
+    currentStock: number,
+    minStock: number,
+  ): Promise<boolean> {
     const recipients = await this.getRecipients(input.companyId);
     if (recipients.length === 0) {
       return false;
@@ -201,14 +219,26 @@ export class LowStockService {
       return false;
     }
 
-    const title = 'Stock bajo';
-    const message = this.buildMessage(input.productName, currentStock, minStock, input.baseUnit);
-
-    await this.createForUsers(targets, input.companyId, NotificationType.LOW_STOCK, title, message, {
-      productId: input.productId,
-      stockQuantity: currentStock,
+    const title = "Stock bajo";
+    const message = this.buildMessage(
+      input.productName,
+      currentStock,
       minStock,
-    });
+      input.baseUnit,
+    );
+
+    await this.createForUsers(
+      targets,
+      input.companyId,
+      NotificationType.LOW_STOCK,
+      title,
+      message,
+      {
+        productId: input.productId,
+        stockQuantity: currentStock,
+        minStock,
+      },
+    );
 
     return true;
   }
@@ -234,14 +264,21 @@ export class LowStockService {
       return false;
     }
 
-    const title = 'Producto por vencer';
+    const title = "Producto por vencer";
     const message = this.buildExpiringMessage(input.productName, daysLeft);
 
-    await this.createForUsers(targets, input.companyId, NotificationType.PRODUCT_EXPIRING_SOON, title, message, {
-      productId: input.productId,
-      expiryDate: expiryDate.toISOString(),
-      daysLeft,
-    });
+    await this.createForUsers(
+      targets,
+      input.companyId,
+      NotificationType.PRODUCT_EXPIRING_SOON,
+      title,
+      message,
+      {
+        productId: input.productId,
+        expiryDate: expiryDate.toISOString(),
+        daysLeft,
+      },
+    );
 
     return true;
   }
@@ -291,7 +328,7 @@ export class LowStockService {
         type,
         isRead: false,
         userId: { in: userIds },
-        data: { path: ['productId'], equals: productId },
+        data: { path: ["productId"], equals: productId },
       },
       select: { userId: true },
     });
@@ -305,8 +342,9 @@ export class LowStockService {
     minStock: number,
     baseUnit?: string | null,
   ): string {
-    const name = productName?.trim() || 'Producto';
-    const unit = UNIT_LABELS[(baseUnit ?? '').trim().toUpperCase()] ?? 'unidades';
+    const name = productName?.trim() || "Producto";
+    const unit =
+      UNIT_LABELS[(baseUnit ?? "").trim().toUpperCase()] ?? "unidades";
 
     return (
       `El producto "${name}" tiene stock bajo: ` +
@@ -314,8 +352,11 @@ export class LowStockService {
     );
   }
 
-  private buildExpiringMessage(productName: string | null | undefined, daysLeft: number): string {
-    const name = productName?.trim() || 'Producto';
+  private buildExpiringMessage(
+    productName: string | null | undefined,
+    daysLeft: number,
+  ): string {
+    const name = productName?.trim() || "Producto";
 
     if (daysLeft <= 0) {
       return `El producto "${name}" vence hoy.`;
@@ -337,22 +378,24 @@ export class LowStockService {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
-  private toNumber(value: Prisma.Decimal | number | null | undefined): number | null {
+  private toNumber(
+    value: Prisma.Decimal | number | null | undefined,
+  ): number | null {
     if (value === null || value === undefined) {
       return null;
     }
 
-    const parsed = typeof value === 'number' ? value : Number(value.toString());
+    const parsed = typeof value === "number" ? value : Number(value.toString());
     return Number.isFinite(parsed) ? parsed : null;
   }
 
   private format(value: number): string {
     if (!Number.isFinite(value)) {
-      return '0';
+      return "0";
     }
     if (Number.isInteger(value)) {
       return String(value);
     }
-    return value.toFixed(2).replace(/\.?0+$/, '');
+    return value.toFixed(2).replace(/\.?0+$/, "");
   }
 }

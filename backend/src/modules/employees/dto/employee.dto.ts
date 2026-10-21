@@ -1,5 +1,15 @@
-import { Type } from 'class-transformer';
-import { IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import { Type } from "class-transformer";
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+} from "class-validator";
 
 export class QueryEmployeeDto {
   @IsOptional()
@@ -37,15 +47,15 @@ export class CreateEmployeeDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(8, { message: 'El DNI debe tener 8 dígitos' })
+  @MinLength(8, { message: "El DNI debe tener 8 dígitos" })
   dni?: string;
 
   @IsString()
   @MinLength(8)
   password!: string;
 
-  @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'])
-  role!: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'VIEWER';
+  @IsIn(["COMPANY_ADMIN", "MANAGER", "CASHIER", "VIEWER"])
+  role!: "COMPANY_ADMIN" | "MANAGER" | "CASHIER" | "VIEWER";
 
   @IsOptional()
   @IsBoolean()
@@ -84,12 +94,12 @@ export class UpdateEmployeeDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(8, { message: 'El DNI debe tener 8 dígitos' })
+  @MinLength(8, { message: "El DNI debe tener 8 dígitos" })
   dni?: string;
 
   @IsOptional()
-  @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'VIEWER'])
-  role?: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'VIEWER';
+  @IsIn(["COMPANY_ADMIN", "MANAGER", "CASHIER", "VIEWER"])
+  role?: "COMPANY_ADMIN" | "MANAGER" | "CASHIER" | "VIEWER";
 
   @IsOptional()
   @IsBoolean()
@@ -108,4 +118,3 @@ export class UpdateEmployeeDto {
   @Max(31)
   paymentDay?: number | null;
 }
-

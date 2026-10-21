@@ -1,8 +1,19 @@
-
-import { Card } from '@/components/ui/card';
-import { serverApiFetch } from '@/lib/server-api';
-import { getServerSession } from '@/lib/session';
-import { Activity, Filter, Search, Calendar, User, Building2, ShoppingCart, Package, Users, CreditCard, Settings } from 'lucide-react';
+import { Card } from "@/components/ui/card";
+import { serverApiFetch } from "@/lib/server-api";
+import { getServerSession } from "@/lib/session";
+import {
+  Activity,
+  Filter,
+  Search,
+  Calendar,
+  User,
+  Building2,
+  ShoppingCart,
+  Package,
+  Users,
+  CreditCard,
+  Settings,
+} from "lucide-react";
 
 type AuditLog = {
   id: string;
@@ -21,7 +32,8 @@ export default async function AuditPage() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
   const roles: string[] = session?.user?.roles ?? [];
-  const isAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
+  const isAdmin =
+    roles.includes("SUPER_ADMIN") || roles.includes("SUPPORT_ADMIN");
 
   if (!isAdmin) {
     return (
@@ -29,13 +41,18 @@ export default async function AuditPage() {
         <div className="text-center">
           <Activity className="mx-auto size-12 text-foreground/30" />
           <h2 className="mt-4 font-display text-2xl">Acceso restringido</h2>
-          <p className="mt-2 text-foreground/50">No tienes permisos para ver esta página.</p>
+          <p className="mt-2 text-foreground/50">
+            No tienes permisos para ver esta página.
+          </p>
         </div>
       </div>
     );
   }
 
-  const auditResponse = await serverApiFetch<{ items: AuditLog[] }>('/audit/global', accessToken);
+  const auditResponse = await serverApiFetch<{ items: AuditLog[] }>(
+    "/audit/global",
+    accessToken,
+  );
   const auditLogs = auditResponse?.items ?? [];
 
   const entityIcons: Record<string, typeof Building2> = {
@@ -49,12 +66,12 @@ export default async function AuditPage() {
   };
 
   const actionColors: Record<string, string> = {
-    CREATE: 'bg-green-500/20 text-green-700 border-green-500/30',
-    UPDATE: 'bg-blue-500/20 text-blue-700 border-blue-500/30',
-    DELETE: 'bg-red-500/20 text-red-700 border-red-500/30',
-    LOGIN: 'bg-violet-500/20 text-violet-700 border-violet-500/30',
-    LOGOUT: 'bg-slate-500/20 text-slate-700 border-slate-500/30',
-    SEED_BOOTSTRAP: 'bg-amber-500/20 text-amber-700 border-amber-500/30',
+    CREATE: "bg-green-500/20 text-green-700 border-green-500/30",
+    UPDATE: "bg-blue-500/20 text-blue-700 border-blue-500/30",
+    DELETE: "bg-red-500/20 text-red-700 border-red-500/30",
+    LOGIN: "bg-violet-500/20 text-violet-700 border-violet-500/30",
+    LOGOUT: "bg-slate-500/20 text-slate-700 border-slate-500/30",
+    SEED_BOOTSTRAP: "bg-amber-500/20 text-amber-700 border-amber-500/30",
   };
 
   return (
@@ -62,7 +79,9 @@ export default async function AuditPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-4xl">Registro de actividad</h1>
-          <p className="mt-1 text-foreground/50">Auditoría completa de todas las acciones en la plataforma</p>
+          <p className="mt-1 text-foreground/50">
+            Auditoría completa de todas las acciones en la plataforma
+          </p>
         </div>
       </div>
 
@@ -86,8 +105,10 @@ export default async function AuditPage() {
           {auditLogs && auditLogs.length > 0 ? (
             auditLogs.map((log) => {
               const EntityIcon = entityIcons[log.entity] || Activity;
-              const actionColor = actionColors[log.action] || 'bg-slate-500/20 text-slate-700 border-slate-500/30';
-              
+              const actionColor =
+                actionColors[log.action] ||
+                "bg-slate-500/20 text-slate-700 border-slate-500/30";
+
               return (
                 <div
                   key={log.id}
@@ -98,12 +119,16 @@ export default async function AuditPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${actionColor}`}>
+                      <span
+                        className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${actionColor}`}
+                      >
                         {log.action}
                       </span>
                       <span className="font-medium">{log.entity}</span>
                       {log.entityId && (
-                        <span className="text-xs text-foreground/40 font-mono">{log.entityId.slice(0, 8)}...</span>
+                        <span className="text-xs text-foreground/40 font-mono">
+                          {log.entityId.slice(0, 8)}...
+                        </span>
                       )}
                     </div>
                     {log.changes && Object.keys(log.changes).length > 0 && (
@@ -114,7 +139,7 @@ export default async function AuditPage() {
                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground/50">
                       <span className="flex items-center gap-1">
                         <User className="size-3" />
-                        {log.user?.fullName || log.user?.email || 'Sistema'}
+                        {log.user?.fullName || log.user?.email || "Sistema"}
                       </span>
                       {log.company && (
                         <span className="flex items-center gap-1">
@@ -124,7 +149,7 @@ export default async function AuditPage() {
                       )}
                       <span className="flex items-center gap-1">
                         <Calendar className="size-3" />
-                        {new Date(log.createdAt).toLocaleString('es-PE')}
+                        {new Date(log.createdAt).toLocaleString("es-PE")}
                       </span>
                     </div>
                   </div>
@@ -135,7 +160,9 @@ export default async function AuditPage() {
             <div className="flex flex-col items-center justify-center py-16">
               <Activity className="size-16 text-foreground/20" />
               <h3 className="mt-4 font-display text-xl">No hay actividad</h3>
-              <p className="mt-1 text-foreground/50">Los registros de actividad aparecerán aquí.</p>
+              <p className="mt-1 text-foreground/50">
+                Los registros de actividad aparecerán aquí.
+              </p>
             </div>
           )}
         </div>

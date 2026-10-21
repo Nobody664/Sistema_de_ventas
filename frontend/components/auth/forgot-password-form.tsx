@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export function ForgotPasswordForm() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -18,11 +18,11 @@ export function ForgotPasswordForm() {
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
-        credentials: 'include',
+        credentials: "include",
       });
 
       const data = (await response.json().catch(() => ({}))) as {
@@ -31,7 +31,7 @@ export function ForgotPasswordForm() {
       };
 
       if (!response.ok) {
-        throw new Error(data.message || 'No se pudo procesar la solicitud');
+        throw new Error(data.message || "No se pudo procesar la solicitud");
       }
 
       setSent(true);
@@ -39,7 +39,9 @@ export function ForgotPasswordForm() {
         setDevToken(data.devToken);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al enviar la solicitud');
+      setError(
+        err instanceof Error ? err.message : "Error al enviar la solicitud",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -51,8 +53,8 @@ export function ForgotPasswordForm() {
         <div className="flex items-start gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-sm text-emerald-300">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
           <p>
-            Si existe una cuenta con ese correo, enviaremos un enlace para restablecer la
-            contraseña. Revisa tu bandeja de entrada y spam.
+            Si existe una cuenta con ese correo, enviaremos un enlace para
+            restablecer la contraseña. Revisa tu bandeja de entrada y spam.
           </p>
         </div>
 
@@ -110,7 +112,11 @@ export function ForgotPasswordForm() {
         type="submit"
         disabled={isSubmitting}
       >
-        {isSubmitting ? <Loader2 className="size-5 animate-spin" /> : 'Enviar enlace de recuperación'}
+        {isSubmitting ? (
+          <Loader2 className="size-5 animate-spin" />
+        ) : (
+          "Enviar enlace de recuperación"
+        )}
       </Button>
 
       <p className="text-center text-sm text-white/50">

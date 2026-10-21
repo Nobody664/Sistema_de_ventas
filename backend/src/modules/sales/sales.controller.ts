@@ -1,26 +1,44 @@
-import { Body, Controller, Get, Post, Req, UseGuards, Query, Logger, Param } from '@nestjs/common';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { Permissions } from '@/common/decorators/permissions.decorator';
-import { Permission } from '@/common/constants/permissions.constant';
-import { CurrentUser, AuthUser } from '@/common/decorators/current-user.decorator';
-import { TenantGuard } from '@/common/guards/tenant.guard';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { PermissionsGuard } from '@/common/guards/permissions.guard';
-import { RequireModule } from '@/modules/plan-capabilities/decorators/require-module.decorator';
-import { CancelSaleDto, CreateSaleDto, ExportSalesQueryDto, QuerySalesDto } from './dto/sale.dto';
-import { SalesService } from './sales.service';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+  Query,
+  Logger,
+  Param,
+} from "@nestjs/common";
+import { Roles } from "@/common/decorators/roles.decorator";
+import { Permissions } from "@/common/decorators/permissions.decorator";
+import { Permission } from "@/common/constants/permissions.constant";
+import {
+  CurrentUser,
+  AuthUser,
+} from "@/common/decorators/current-user.decorator";
+import { TenantGuard } from "@/common/guards/tenant.guard";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { PermissionsGuard } from "@/common/guards/permissions.guard";
+import { RequireModule } from "@/modules/plan-capabilities/decorators/require-module.decorator";
+import {
+  CancelSaleDto,
+  CreateSaleDto,
+  ExportSalesQueryDto,
+  QuerySalesDto,
+} from "./dto/sale.dto";
+import { SalesService } from "./sales.service";
 
-@Controller('sales')
+@Controller("sales")
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
-@RequireModule('sales')
+@RequireModule("sales")
 export class SalesController {
   private readonly logger = new Logger(SalesController.name);
 
   constructor(private readonly salesService: SalesService) {}
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Roles("COMPANY_ADMIN", "MANAGER")
   @Permissions(Permission.SALE_EXPORT)
-  @Get('export')
+  @Get("export")
   exportSales(
     @Req() request: { tenantId: string },
     @Query() query: ExportSalesQueryDto,
@@ -28,56 +46,77 @@ export class SalesController {
     return this.salesService.exportSales(request.tenantId, query);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Permissions(Permission.SALE_VIEW_DETAIL)
-  @Get(':id')
-  findById(@Req() request: { tenantId: string }, @Param('id') id: string) {
+  @Get(":id")
+  findById(@Req() request: { tenantId: string }, @Param("id") id: string) {
     return this.salesService.findById(request.tenantId, id);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Permissions(Permission.SALE_LIST)
   @Get()
-  async findRecentSales(@Req() request: { tenantId: string }, @Query() query: QuerySalesDto) {
+  async findRecentSales(
+    @Req() request: { tenantId: string },
+    @Query() query: QuerySalesDto,
+  ) {
     try {
-      this.logger.log(`[SalesController] Fetching sales for tenant: ${request.tenantId}`);
-      const sales = await this.salesService.findRecentSales(request.tenantId, query);
+      this.logger.log(
+        `[SalesController] Fetching sales for tenant: ${request.tenantId}`,
+      );
+      const sales = await this.salesService.findRecentSales(
+        request.tenantId,
+        query,
+      );
       this.logger.log(`[SalesController] Found ${sales.length} sales`);
       return sales;
     } catch (error) {
-      this.logger.error('[SalesController] Error fetching sales:', error);
+      this.logger.error("[SalesController] Error fetching sales:", error);
       throw error;
     }
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Permissions(Permission.SALE_CREATE)
   @Post()
-  createSale(@Req() request: { tenantId: string }, @Body() body: CreateSaleDto) {
+  createSale(
+    @Req() request: { tenantId: string },
+    @Body() body: CreateSaleDto,
+  ) {
     return this.salesService.createSale(request.tenantId, body);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Roles("COMPANY_ADMIN", "MANAGER")
   @Permissions(Permission.SALE_CANCEL)
-  @Post(':id/cancel')
+  @Post(":id/cancel")
   cancelSale(
     @Req() request: { tenantId: string },
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthUser,
     @Body() body: CancelSaleDto,
   ) {
-    return this.salesService.cancelSale(request.tenantId, id, user?.sub, body?.reason);
+    return this.salesService.cancelSale(
+      request.tenantId,
+      id,
+      user?.sub,
+      body?.reason,
+    );
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Roles("COMPANY_ADMIN", "MANAGER")
   @Permissions(Permission.SALE_CANCEL)
-  @Post(':id/refund')
+  @Post(":id/refund")
   refundSale(
     @Req() request: { tenantId: string },
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() user: AuthUser,
     @Body() body: CancelSaleDto,
   ) {
-    return this.salesService.refundSale(request.tenantId, id, user?.sub, body?.reason);
+    return this.salesService.refundSale(
+      request.tenantId,
+      id,
+      user?.sub,
+      body?.reason,
+    );
   }
 }

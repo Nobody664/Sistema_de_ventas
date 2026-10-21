@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { ForgotPasswordForm } from '@/components/auth/forgot-password-form';
-import { AnimatedSection } from '@/components/ui/animations';
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
+import { AnimatedSection } from "@/components/ui/animations";
 
 export function ForgotPasswordPageClient() {
   return (
@@ -24,9 +24,12 @@ export function ForgotPasswordPageClient() {
                 Volver
               </Link>
               <div className="mb-6">
-                <h1 className="font-display text-3xl text-white">Recuperar contraseña</h1>
+                <h1 className="font-display text-3xl text-white">
+                  Recuperar contraseña
+                </h1>
                 <p className="mt-2 text-white/50">
-                  Ingresa tu correo y te enviaremos un enlace para restablecerla.
+                  Ingresa tu correo y te enviaremos un enlace para
+                  restablecerla.
                 </p>
               </div>
               <ForgotPasswordForm />
@@ -45,9 +48,12 @@ export function ForgotPasswordPageClient() {
                 V
               </div>
             </div>
-            <h2 className="font-display text-3xl text-white">Recupera el acceso a tu cuenta</h2>
+            <h2 className="font-display text-3xl text-white">
+              Recupera el acceso a tu cuenta
+            </h2>
             <p className="mt-4 text-lg text-white/50">
-              Te enviaremos un enlace seguro para que puedas crear una nueva contraseña.
+              Te enviaremos un enlace seguro para que puedas crear una nueva
+              contraseña.
             </p>
           </AnimatedSection>
         </div>

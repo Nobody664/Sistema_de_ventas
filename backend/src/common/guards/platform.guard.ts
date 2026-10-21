@@ -1,6 +1,11 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
 
-export const PLATFORM_ROLES = ['SUPER_ADMIN', 'SUPPORT_ADMIN'] as const;
+export const PLATFORM_ROLES = ["SUPER_ADMIN", "SUPPORT_ADMIN"] as const;
 
 @Injectable()
 export class PlatformGuard implements CanActivate {
@@ -13,7 +18,7 @@ export class PlatformGuard implements CanActivate {
     );
 
     if (!isPlatformAdmin) {
-      throw new ForbiddenException('Se requieren permisos de plataforma.');
+      throw new ForbiddenException("Se requieren permisos de plataforma.");
     }
 
     return true;

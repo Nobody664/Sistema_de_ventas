@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { CheckCircle2, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { CheckCircle2, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get("token") ?? "";
 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -22,40 +22,48 @@ export function ResetPasswordForm() {
     setError(null);
 
     if (!token) {
-      setError('El enlace no es válido o no contiene el token de recuperación.');
+      setError(
+        "El enlace no es válido o no contiene el token de recuperación.",
+      );
       return;
     }
 
     if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
+      setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden.');
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
-        credentials: 'include',
+        credentials: "include",
       });
 
-      const data = (await response.json().catch(() => ({}))) as { message?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
 
       if (!response.ok) {
-        throw new Error(data.message || 'No se pudo restablecer la contraseña');
+        throw new Error(data.message || "No se pudo restablecer la contraseña");
       }
 
       setDone(true);
-      setTimeout(() => router.push('/sign-in'), 1800);
+      setTimeout(() => router.push("/sign-in"), 1800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al restablecer la contraseña');
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Error al restablecer la contraseña",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -66,7 +74,10 @@ export function ResetPasswordForm() {
       <div className="space-y-5">
         <div className="flex items-start gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-sm text-emerald-300">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
-          <p>Tu contraseña se actualizó correctamente. Redirigiendo al inicio de sesión...</p>
+          <p>
+            Tu contraseña se actualizó correctamente. Redirigiendo al inicio de
+            sesión...
+          </p>
         </div>
         <p className="text-center text-sm text-white/50">
           <Link
@@ -105,7 +116,10 @@ export function ResetPasswordForm() {
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-white" htmlFor="confirmPassword">
+        <label
+          className="text-sm font-medium text-white"
+          htmlFor="confirmPassword"
+        >
           Confirmar contraseña
         </label>
         <input
@@ -124,7 +138,11 @@ export function ResetPasswordForm() {
         type="submit"
         disabled={isSubmitting}
       >
-        {isSubmitting ? <Loader2 className="size-5 animate-spin" /> : 'Restablecer contraseña'}
+        {isSubmitting ? (
+          <Loader2 className="size-5 animate-spin" />
+        ) : (
+          "Restablecer contraseña"
+        )}
       </Button>
 
       <p className="text-center text-sm text-white/50">

@@ -1,9 +1,9 @@
-import { IsDateString, IsIn, IsOptional } from 'class-validator';
+import { IsDateString, IsIn, IsOptional } from "class-validator";
 
 export class ReportsOverviewQueryDto {
   @IsOptional()
-  @IsIn(['POS', 'DISTRIBUTOR', 'ONLINE'])
-  channel?: 'POS' | 'DISTRIBUTOR' | 'ONLINE';
+  @IsIn(["POS", "DISTRIBUTOR", "ONLINE"])
+  channel?: "POS" | "DISTRIBUTOR" | "ONLINE";
 
   @IsOptional()
   @IsDateString()

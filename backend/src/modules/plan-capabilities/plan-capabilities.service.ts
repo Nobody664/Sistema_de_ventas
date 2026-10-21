@@ -1,8 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { CacheService } from '@/cache/cache.service';
-import { CORE_FEATURES, CORE_MODULES, FALLBACK_PLAN_CODE } from './plan-capabilities.constants';
+import { Injectable, Logger } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { CacheService } from "@/cache/cache.service";
+import {
+  CORE_FEATURES,
+  CORE_MODULES,
+  FALLBACK_PLAN_CODE,
+} from "./plan-capabilities.constants";
 
 export interface PlanCapabilities {
   planId: string | null;
@@ -17,7 +21,7 @@ export interface PlanCapabilities {
   maxProducts: number;
 }
 
-const ACTIVE_SUBSCRIPTION_STATUSES = ['ACTIVE', 'TRIALING'];
+const ACTIVE_SUBSCRIPTION_STATUSES = ["ACTIVE", "TRIALING"];
 const CACHE_TTL_SECONDS = 60;
 const CORE_MODULE_SET = new Set(CORE_MODULES);
 
@@ -54,15 +58,21 @@ export class PlanCapabilitiesService {
     return capabilities.features.includes(feature);
   }
 
-  private async resolveCapabilities(companyId: string): Promise<PlanCapabilities> {
+  private async resolveCapabilities(
+    companyId: string,
+  ): Promise<PlanCapabilities> {
     try {
       const subscription = await this.prisma.subscription.findFirst({
         where: { companyId },
         include: { plan: true },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
 
-      if (subscription && ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status) && subscription.plan) {
+      if (
+        subscription &&
+        ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status) &&
+        subscription.plan
+      ) {
         return this.fromPlan(subscription.plan);
       }
 
@@ -75,7 +85,9 @@ export class PlanCapabilitiesService {
       }
     } catch (error) {
       const err = error as Error;
-      this.logger.warn(`No se pudieron resolver capacidades de plan para ${companyId}: ${err.message}`);
+      this.logger.warn(
+        `No se pudieron resolver capacidades de plan para ${companyId}: ${err.message}`,
+      );
     }
 
     return this.fallbackCapabilities();
@@ -111,7 +123,7 @@ export class PlanCapabilitiesService {
     return {
       planId: null,
       planCode: FALLBACK_PLAN_CODE,
-      planName: 'Free',
+      planName: "Free",
       modules: [...CORE_MODULES],
       features: [...CORE_FEATURES],
       apiEnabled: false,
@@ -126,6 +138,6 @@ export class PlanCapabilitiesService {
     if (!Array.isArray(value)) {
       return [];
     }
-    return value.filter((item): item is string => typeof item === 'string');
+    return value.filter((item): item is string => typeof item === "string");
   }
 }

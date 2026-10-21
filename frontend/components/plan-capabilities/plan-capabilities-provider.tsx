@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import {
   hasFeature,
   hasModule,
   type PlanCapabilities,
-} from '@/lib/plan-capabilities';
+} from "@/lib/plan-capabilities";
 
 interface PlanCapabilitiesContextValue {
   capabilities: PlanCapabilities | null;
@@ -15,18 +15,22 @@ interface PlanCapabilitiesContextValue {
   canFeature: (feature: string) => boolean;
 }
 
-const PlanCapabilitiesContext = createContext<PlanCapabilitiesContextValue | null>(null);
+const PlanCapabilitiesContext =
+  createContext<PlanCapabilitiesContextValue | null>(null);
 
 interface PlanCapabilitiesProviderProps {
   capabilities: PlanCapabilities | null;
   children: ReactNode;
 }
 
-export function PlanCapabilitiesProvider({ capabilities, children }: PlanCapabilitiesProviderProps) {
+export function PlanCapabilitiesProvider({
+  capabilities,
+  children,
+}: PlanCapabilitiesProviderProps) {
   const value = useMemo<PlanCapabilitiesContextValue>(
     () => ({
       capabilities,
-      planCode: capabilities?.planCode ?? 'FREE',
+      planCode: capabilities?.planCode ?? "FREE",
       isLoading: false,
       can: (module: string) => hasModule(capabilities, module),
       canFeature: (feature: string) => hasFeature(capabilities, feature),
@@ -34,7 +38,11 @@ export function PlanCapabilitiesProvider({ capabilities, children }: PlanCapabil
     [capabilities],
   );
 
-  return <PlanCapabilitiesContext.Provider value={value}>{children}</PlanCapabilitiesContext.Provider>;
+  return (
+    <PlanCapabilitiesContext.Provider value={value}>
+      {children}
+    </PlanCapabilitiesContext.Provider>
+  );
 }
 
 export function usePlanCapabilities(): PlanCapabilitiesContextValue {
@@ -42,7 +50,7 @@ export function usePlanCapabilities(): PlanCapabilitiesContextValue {
   if (!context) {
     return {
       capabilities: null,
-      planCode: 'FREE',
+      planCode: "FREE",
       isLoading: false,
       can: () => true,
       canFeature: () => true,

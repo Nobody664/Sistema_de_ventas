@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { AuditAction, Prisma } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { AuditContextService } from './audit-context.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { AuditAction, Prisma } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { AuditContextService } from "./audit-context.service";
 
 export type AuditClient = PrismaService | Prisma.TransactionClient;
 
@@ -90,7 +90,7 @@ export class AuditService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.auditLog.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
         include: {

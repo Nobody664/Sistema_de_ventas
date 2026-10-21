@@ -1,17 +1,21 @@
-'use client';
+"use client";
 
-import { Pencil, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { DeleteDialog } from '@/components/common/delete-dialog';
-import type { FinanceRecord } from '@/types/api';
-import { FinanceFormDialog } from './finance-form';
+import { Pencil, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DeleteDialog } from "@/components/common/delete-dialog";
+import type { FinanceRecord } from "@/types/api";
+import { FinanceFormDialog } from "./finance-form";
 
 interface FinanceEmployeeOption {
   id: string;
   name: string;
 }
 
-export function NewFinanceButton({ employees }: { employees: FinanceEmployeeOption[] }) {
+export function NewFinanceButton({
+  employees,
+}: {
+  employees: FinanceEmployeeOption[];
+}) {
   return (
     <FinanceFormDialog
       employees={employees}

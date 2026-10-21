@@ -1,21 +1,21 @@
-'use client';
+"use client";
 
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, CameraOff, Loader2, X } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Camera, CameraOff, Loader2, X } from "lucide-react";
 
 interface BarcodeScannerProps {
   onDetected: (barcode: string) => void;
 }
 
 type BarcodeFormat =
-  | 'ean_13'
-  | 'ean_8'
-  | 'code_128'
-  | 'code_39'
-  | 'upc_a'
-  | 'upc_e'
-  | 'codabar'
-  | 'itf';
+  | "ean_13"
+  | "ean_8"
+  | "code_128"
+  | "code_39"
+  | "upc_a"
+  | "upc_e"
+  | "codabar"
+  | "itf";
 
 declare global {
   interface BarcodeDetector {
@@ -29,8 +29,14 @@ declare global {
 }
 
 const FORMATS: BarcodeFormat[] = [
-  'ean_13', 'ean_8', 'code_128', 'code_39',
-  'upc_a', 'upc_e', 'codabar', 'itf',
+  "ean_13",
+  "ean_8",
+  "code_128",
+  "code_39",
+  "upc_a",
+  "upc_e",
+  "codabar",
+  "itf",
 ];
 
 export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
@@ -44,7 +50,7 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
   const detectingRef = useRef(false);
 
   useEffect(() => {
-    if (!('BarcodeDetector' in window)) {
+    if (!("BarcodeDetector" in window)) {
       setSupported(false);
       return;
     }
@@ -74,7 +80,11 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+        video: {
+          facingMode: "environment",
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
       });
       streamRef.current = stream;
 
@@ -85,7 +95,8 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
 
       detectingRef.current = true;
       const detect = async () => {
-        if (!detectingRef.current || !detectorRef.current || !videoRef.current) return;
+        if (!detectingRef.current || !detectorRef.current || !videoRef.current)
+          return;
         try {
           const barcodes = await detectorRef.current.detect(videoRef.current);
           if (barcodes.length > 0) {
@@ -100,7 +111,7 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
       };
       detect();
     } catch {
-      setError('No se pudo acceder a la cámara. Verifica los permisos.');
+      setError("No se pudo acceder a la cámara. Verifica los permisos.");
       setOpen(false);
     }
   }, [onDetected, stopCamera]);
@@ -137,7 +148,9 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
         <div className="fixed inset-0 z-50 flex flex-col bg-black">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-sm font-medium text-white/70">Escanea el código de barras</span>
+            <span className="text-sm font-medium text-white/70">
+              Escanea el código de barras
+            </span>
             <button
               type="button"
               onClick={stopCamera}
@@ -165,7 +178,9 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
 
           {/* Footer */}
           <div className="px-4 pb-8 text-center">
-            <p className="text-sm text-white/50">Alinea el código de barras dentro del recuadro</p>
+            <p className="text-sm text-white/50">
+              Alinea el código de barras dentro del recuadro
+            </p>
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
           </div>
         </div>

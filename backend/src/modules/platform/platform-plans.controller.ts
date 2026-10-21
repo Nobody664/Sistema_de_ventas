@@ -1,17 +1,29 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { AuditAction } from '@prisma/client';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
+import { AuditAction } from "@prisma/client";
 
-import { Permissions } from '@/common/decorators/permissions.decorator';
-import { Permission } from '@/common/constants/permissions.constant';
-import { AuthUser, CurrentUser } from '@/common/decorators/current-user.decorator';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { PlatformGuard } from '@/common/guards/platform.guard';
-import { PermissionsGuard } from '@/common/guards/permissions.guard';
-import { CreatePlanDto, UpdatePlanDto } from '@/modules/plans/dto/plan.dto';
-import { PlansService } from '@/modules/plans/plans.service';
-import { PlatformAuditService } from './platform-audit.service';
+import { Permissions } from "@/common/decorators/permissions.decorator";
+import { Permission } from "@/common/constants/permissions.constant";
+import {
+  AuthUser,
+  CurrentUser,
+} from "@/common/decorators/current-user.decorator";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { PlatformGuard } from "@/common/guards/platform.guard";
+import { PermissionsGuard } from "@/common/guards/permissions.guard";
+import { CreatePlanDto, UpdatePlanDto } from "@/modules/plans/dto/plan.dto";
+import { PlansService } from "@/modules/plans/plans.service";
+import { PlatformAuditService } from "./platform-audit.service";
 
-@Controller('platform/plans')
+@Controller("platform/plans")
 @UseGuards(JwtAuthGuard, PlatformGuard, PermissionsGuard)
 export class PlatformPlansController {
   constructor(
@@ -32,7 +44,7 @@ export class PlatformPlansController {
     await this.platformAudit.log({
       actorId: user.sub,
       action: AuditAction.CREATE,
-      entity: 'Plan',
+      entity: "Plan",
       entityId: plan.id,
       changes: { code: plan.code, name: plan.name },
     });
@@ -40,13 +52,17 @@ export class PlatformPlansController {
   }
 
   @Permissions(Permission.PLATFORM_MANAGE_PLANS)
-  @Patch(':id')
-  async update(@Param('id') id: string, @Body() body: UpdatePlanDto, @CurrentUser() user: AuthUser) {
+  @Patch(":id")
+  async update(
+    @Param("id") id: string,
+    @Body() body: UpdatePlanDto,
+    @CurrentUser() user: AuthUser,
+  ) {
     const plan = await this.plansService.update(id, body);
     await this.platformAudit.log({
       actorId: user.sub,
       action: AuditAction.UPDATE,
-      entity: 'Plan',
+      entity: "Plan",
       entityId: id,
       changes: body,
     });
@@ -54,13 +70,13 @@ export class PlatformPlansController {
   }
 
   @Permissions(Permission.PLATFORM_MANAGE_PLANS)
-  @Delete(':id')
-  async remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  @Delete(":id")
+  async remove(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     const plan = await this.plansService.remove(id);
     await this.platformAudit.log({
       actorId: user.sub,
       action: AuditAction.DELETE,
-      entity: 'Plan',
+      entity: "Plan",
       entityId: id,
     });
     return plan;

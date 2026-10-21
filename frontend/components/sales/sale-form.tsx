@@ -1,30 +1,52 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { Loader2, Plus, Minus, Trash2, ShoppingCart, Search, ArrowLeft, Banknote, CreditCard, Building2, Check, Receipt, Package, Store, Globe, Truck, TicketPercent, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useUiStore } from '@/store/ui-store';
-import { useAuthStore } from '@/stores/auth.store';
-import { CustomerSearch } from '@/components/ui/customer-search';
-import { CustomerBoxSelector } from '@/components/ui/customer-box-selector';
-import { PermissionGuard } from '@/components/auth/permission-guard';
-import { useBarcodeScanner } from '@/components/scanner/hooks/useBarcodeScanner';
-import { ScannerStatus } from '@/components/scanner/components/scanner-status';
-import { playScanBeep, playErrorBeep } from '@/components/scanner/services/sound';
-import type { Product, Customer } from '@/types/api';
-import type { ProductPresentation } from '@/types/generated';
-import type { Distributor } from '@/types/distributors';
+import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import {
+  Loader2,
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingCart,
+  Search,
+  ArrowLeft,
+  Banknote,
+  CreditCard,
+  Building2,
+  Check,
+  Receipt,
+  Package,
+  Store,
+  Globe,
+  Truck,
+  TicketPercent,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useUiStore } from "@/store/ui-store";
+import { useAuthStore } from "@/stores/auth.store";
+import { CustomerSearch } from "@/components/ui/customer-search";
+import { CustomerBoxSelector } from "@/components/ui/customer-box-selector";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import { useBarcodeScanner } from "@/components/scanner/hooks/useBarcodeScanner";
+import { ScannerStatus } from "@/components/scanner/components/scanner-status";
+import {
+  playScanBeep,
+  playErrorBeep,
+} from "@/components/scanner/services/sound";
+import type { Product, Customer } from "@/types/api";
+import type { ProductPresentation } from "@/types/generated";
+import type { Distributor } from "@/types/distributors";
 
 const UNIT_SHORT: Record<string, string> = {
-  UNIT: 'und',
-  KG: 'kg',
-  LT: 'lt',
-  MT: 'mt',
+  UNIT: "und",
+  KG: "kg",
+  LT: "lt",
+  MT: "mt",
 };
 
 interface SaleItem {
@@ -52,11 +74,11 @@ interface SelectedCustomer {
   phone?: string;
 }
 
-type SaleChannelOption = 'POS' | 'ONLINE' | 'DISTRIBUTOR';
+type SaleChannelOption = "POS" | "ONLINE" | "DISTRIBUTOR";
 
 interface AppliedCoupon {
   code: string;
-  type: 'PERCENTAGE' | 'FIXED';
+  type: "PERCENTAGE" | "FIXED";
   value: number;
 }
 
@@ -66,25 +88,34 @@ interface SaleFormProps {
   distributors?: Distributor[];
 }
 
-export function SaleForm({ products, customers, distributors = [] }: SaleFormProps) {
+export function SaleForm({
+  products,
+  customers,
+  distributors = [],
+}: SaleFormProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
 
   const [loading, setLoading] = useState(false);
-  const [searchProduct, setSearchProduct] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER'>('CASH');
-  const [channel, setChannel] = useState<SaleChannelOption>('POS');
-  const [distributorId, setDistributorId] = useState('');
+  const [searchProduct, setSearchProduct] = useState("");
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<SelectedCustomer | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<
+    "CASH" | "CARD" | "TRANSFER"
+  >("CASH");
+  const [channel, setChannel] = useState<SaleChannelOption>("POS");
+  const [distributorId, setDistributorId] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [items, setItems] = useState<SaleItem[]>([]);
   const [saleCompleted, setSaleCompleted] = useState(false);
-  const [lastSaleNumber, setLastSaleNumber] = useState('');
+  const [lastSaleNumber, setLastSaleNumber] = useState("");
   const [flashProductId, setFlashProductId] = useState<string | null>(null);
-  const [couponInput, setCouponInput] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(
+    null,
+  );
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
 
@@ -100,28 +131,30 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
           playScanBeep();
         } else {
           playErrorBeep();
-          addToast(`"${product.name}" no tiene stock disponible`, 'error');
+          addToast(`"${product.name}" no tiene stock disponible`, "error");
         }
       } else {
         playErrorBeep();
-        addToast(`Código ${barcode} no encontrado`, 'error');
+        addToast(`Código ${barcode} no encontrado`, "error");
       }
     },
   });
 
   const availableProducts = useMemo(() => {
-    if (!searchProduct) return products.filter(p => Number(p.stockQuantity) > 0);
-    return products.filter(p =>
-      Number(p.stockQuantity) > 0 &&
-      (p.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
-       p.sku?.toLowerCase().includes(searchProduct.toLowerCase()))
+    if (!searchProduct)
+      return products.filter((p) => Number(p.stockQuantity) > 0);
+    return products.filter(
+      (p) =>
+        Number(p.stockQuantity) > 0 &&
+        (p.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
+          p.sku?.toLowerCase().includes(searchProduct.toLowerCase())),
     );
   }, [products, searchProduct]);
 
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
   const couponDiscount = appliedCoupon
     ? Math.min(
-        appliedCoupon.type === 'PERCENTAGE'
+        appliedCoupon.type === "PERCENTAGE"
           ? (subtotal * appliedCoupon.value) / 100
           : appliedCoupon.value,
         subtotal,
@@ -136,26 +169,35 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
     const existingItem = items.find((i) => i.productId === product.id);
     if (existingItem) {
       if (existingItem.quantity + 1 > maxQuantityFor(existingItem)) return;
-      setItems(items.map(i =>
-        i.productId === product.id
-          ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.unitPrice }
-          : i
-      ));
+      setItems(
+        items.map((i) =>
+          i.productId === product.id
+            ? {
+                ...i,
+                quantity: i.quantity + 1,
+                total: (i.quantity + 1) * i.unitPrice,
+              }
+            : i,
+        ),
+      );
     } else {
-      setItems([...items, {
-        productId: product.id,
-        productName: product.name,
-        basePrice: Number(product.salePrice),
-        presentations: product.presentations ?? [],
-        baseUnit: product.baseUnit ?? 'UNIT',
-        presentationId: undefined,
-        presentationName: undefined,
-        factor: 1,
-        unitPrice: Number(product.salePrice),
-        quantity: 1,
-        total: Number(product.salePrice),
-        stock: Number(product.stockQuantity),
-      }]);
+      setItems([
+        ...items,
+        {
+          productId: product.id,
+          productName: product.name,
+          basePrice: Number(product.salePrice),
+          presentations: product.presentations ?? [],
+          baseUnit: product.baseUnit ?? "UNIT",
+          presentationId: undefined,
+          presentationName: undefined,
+          factor: 1,
+          unitPrice: Number(product.salePrice),
+          quantity: 1,
+          total: Number(product.salePrice),
+          stock: Number(product.stockQuantity),
+        },
+      ]);
     }
   };
 
@@ -164,11 +206,16 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
     return Math.floor(item.stock / item.factor);
   };
 
-  const changeItemPresentation = (productId: string, presentationId: string) => {
+  const changeItemPresentation = (
+    productId: string,
+    presentationId: string,
+  ) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.productId !== productId) return item;
-        const presentation = item.presentations.find((p) => p.id === presentationId);
+        const presentation = item.presentations.find(
+          (p) => p.id === presentationId,
+        );
         const factor = presentation ? Number(presentation.factor) : 1;
         const unitPrice = presentation
           ? presentation.price
@@ -191,26 +238,28 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
   };
 
   const updateQuantity = (productId: string, delta: number) => {
-    setItems(items.map(item => {
-      if (item.productId === productId) {
-        const newQty = item.quantity + delta;
-        if (newQty < 1) return item;
-        if (newQty > maxQuantityFor(item)) return item;
-        return { ...item, quantity: newQty, total: newQty * item.unitPrice };
-      }
-      return item;
-    }));
+    setItems(
+      items.map((item) => {
+        if (item.productId === productId) {
+          const newQty = item.quantity + delta;
+          if (newQty < 1) return item;
+          if (newQty > maxQuantityFor(item)) return item;
+          return { ...item, quantity: newQty, total: newQty * item.unitPrice };
+        }
+        return item;
+      }),
+    );
   };
 
   const removeItem = (productId: string) => {
-    setItems(items.filter(i => i.productId !== productId));
+    setItems(items.filter((i) => i.productId !== productId));
   };
 
   const handleApplyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
     if (!code) return;
     if (subtotal <= 0) {
-      setCouponError('Agrega productos antes de aplicar un cupón');
+      setCouponError("Agrega productos antes de aplicar un cupón");
       return;
     }
 
@@ -219,20 +268,20 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
 
     try {
       const result = await apiFetch<{
-        coupon: { code: string; type: 'PERCENTAGE' | 'FIXED'; value: number };
+        coupon: { code: string; type: "PERCENTAGE" | "FIXED"; value: number };
         discountAmount: number;
-      }>('/discounts/validate', {
-        method: 'POST',
+      }>("/discounts/validate", {
+        method: "POST",
         token: getAccessToken(),
         body: JSON.stringify({ code, subtotal }),
       });
 
       setAppliedCoupon(result.coupon);
       setDiscountPercent(0);
-      addToast(`Cupón ${result.coupon.code} aplicado`, 'success');
+      addToast(`Cupón ${result.coupon.code} aplicado`, "success");
     } catch (err) {
       setAppliedCoupon(null);
-      setCouponError(err instanceof Error ? err.message : 'Cupón no válido');
+      setCouponError(err instanceof Error ? err.message : "Cupón no válido");
     } finally {
       setCouponLoading(false);
     }
@@ -240,24 +289,27 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
-    setCouponInput('');
+    setCouponInput("");
     setCouponError(null);
   };
 
   const handleSubmit = async () => {
     if (items.length === 0) {
-      addToast('Debe agregar al menos un producto', 'error');
+      addToast("Debe agregar al menos un producto", "error");
       return;
     }
 
-    if (channel === 'DISTRIBUTOR' && !distributorId) {
-      addToast('Selecciona un distribuidor para el canal Distribuidor', 'error');
+    if (channel === "DISTRIBUTOR" && !distributorId) {
+      addToast(
+        "Selecciona un distribuidor para el canal Distribuidor",
+        "error",
+      );
       return;
     }
 
     setLoading(true);
 
-    const saleItems = items.map(i => ({
+    const saleItems = items.map((i) => ({
       productId: i.productId,
       quantity: i.quantity,
       presentationId: i.presentationId,
@@ -266,43 +318,51 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
     try {
       let saleNumber: string;
 
-      if (channel === 'DISTRIBUTOR') {
-        const result = await apiFetch<{ saleNumber: string }>(`/distributors/${distributorId}/sales`, {
-          method: 'POST',
-          token: getAccessToken(),
-          body: JSON.stringify({
-            customerId: selectedCustomer?.id || undefined,
-            paymentMethod,
-            items: saleItems,
-            discountAmount,
-          }),
-        });
+      if (channel === "DISTRIBUTOR") {
+        const result = await apiFetch<{ saleNumber: string }>(
+          `/distributors/${distributorId}/sales`,
+          {
+            method: "POST",
+            token: getAccessToken(),
+            body: JSON.stringify({
+              customerId: selectedCustomer?.id || undefined,
+              paymentMethod,
+              items: saleItems,
+              discountAmount,
+            }),
+          },
+        );
         saleNumber = result.saleNumber;
-        queryClient.invalidateQueries({ queryKey: ['distributors'] });
+        queryClient.invalidateQueries({ queryKey: ["distributors"] });
       } else {
-        const result = await apiFetch<{ saleNumber: string }>('/sales', {
-          method: 'POST',
+        const result = await apiFetch<{ saleNumber: string }>("/sales", {
+          method: "POST",
           token: getAccessToken(),
           body: JSON.stringify({
             customerId: selectedCustomer?.id || undefined,
             paymentMethod,
             channel,
             items: saleItems,
-            ...(appliedCoupon ? { couponCode: appliedCoupon.code } : { discountAmount }),
+            ...(appliedCoupon
+              ? { couponCode: appliedCoupon.code }
+              : { discountAmount }),
           }),
         });
         saleNumber = result.saleNumber;
       }
 
-      queryClient.invalidateQueries({ queryKey: ['sales'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 
       setLastSaleNumber(saleNumber);
       setSaleCompleted(true);
-      addToast('Venta registrada correctamente', 'success');
+      addToast("Venta registrada correctamente", "success");
     } catch (err) {
-      addToast(err instanceof Error ? err.message : 'Error al registrar venta', 'error');
+      addToast(
+        err instanceof Error ? err.message : "Error al registrar venta",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -311,15 +371,15 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
   const handleNewSale = () => {
     setItems([]);
     setSelectedCustomer(null);
-    setPaymentMethod('CASH');
-    setChannel('POS');
-    setDistributorId('');
+    setPaymentMethod("CASH");
+    setChannel("POS");
+    setDistributorId("");
     setDiscountPercent(0);
-    setCouponInput('');
+    setCouponInput("");
     setAppliedCoupon(null);
     setCouponError(null);
     setSaleCompleted(false);
-    setLastSaleNumber('');
+    setLastSaleNumber("");
   };
 
   if (saleCompleted) {
@@ -329,17 +389,23 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
           <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
             <Check className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">Venta registrada</h2>
-          <p className="text-muted-foreground mb-6">La venta se ha completado exitosamente</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">
+            Venta registrada
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            La venta se ha completado exitosamente
+          </p>
 
           <div className="bg-muted rounded-xl p-4 mb-6">
             <p className="text-sm text-muted-foreground">Número de ticket</p>
-            <p className="text-2xl font-bold text-foreground">{lastSaleNumber}</p>
+            <p className="text-2xl font-bold text-foreground">
+              {lastSaleNumber}
+            </p>
           </div>
 
           <div className="space-y-3">
             <Button
-              onClick={() => router.push('/sales')}
+              onClick={() => router.push("/sales")}
               className="w-full h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90"
             >
               Ver ventas
@@ -363,7 +429,7 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
         {/* Header */}
         <div className="mb-6 lg:mb-8">
           <button
-            onClick={() => router.push('/sales')}
+            onClick={() => router.push("/sales")}
             className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -375,8 +441,12 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
               <ShoppingCart className="h-6 w-6 text-accent" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-bold text-foreground tracking-tight">Nueva Venta</h1>
-              <p className="text-sm text-muted-foreground">Punto de venta &mdash; Registra una nueva transacci&oacute;n</p>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                Nueva Venta
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Punto de venta &mdash; Registra una nueva transacci&oacute;n
+              </p>
             </div>
             <ScannerStatus connected={isConnected} />
           </div>
@@ -390,7 +460,10 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
             <div className="bg-card border border-border rounded-xl p-5 space-y-5">
               <div>
                 <Label className="text-sm font-semibold text-foreground mb-3 block">
-                  Cliente <span className="text-muted-foreground font-normal">(opcional)</span>
+                  Cliente{" "}
+                  <span className="text-muted-foreground font-normal">
+                    (opcional)
+                  </span>
                 </Label>
                 <CustomerSearch
                   customers={customers}
@@ -411,7 +484,8 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                               firstName: customer.firstName,
                               lastName: customer.lastName ?? undefined,
                               documentType: customer.documentType ?? undefined,
-                              documentValue: customer.documentValue ?? undefined,
+                              documentValue:
+                                customer.documentValue ?? undefined,
                               email: customer.email ?? undefined,
                               phone: customer.phone ?? undefined,
                             }
@@ -426,9 +500,12 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
             {/* Product grid */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">Productos</h2>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Productos
+                </h2>
                 <span className="text-sm text-muted-foreground">
-                  {products.filter(p => Number(p.stockQuantity) > 0).length} disponibles
+                  {products.filter((p) => Number(p.stockQuantity) > 0).length}{" "}
+                  disponibles
                 </span>
               </div>
 
@@ -451,17 +528,19 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {availableProducts.map(product => (
+                  {availableProducts.map((product) => (
                     <button
                       key={product.id}
                       onClick={() => addItem(product)}
                       className={`bg-card border border-border rounded-xl p-4 text-left hover:border-accent/40 hover:bg-accent/[0.02] transition-colors cursor-pointer min-h-[110px] flex flex-col justify-between ${
-                        flashProductId === product.id ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 ring-2 ring-emerald-400/30 animate-scan-flash' : ''
+                        flashProductId === product.id
+                          ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 ring-2 ring-emerald-400/30 animate-scan-flash"
+                          : ""
                       }`}
                     >
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground font-mono truncate">
-                          {product.sku || '\u2014'}
+                          {product.sku || "\u2014"}
                         </p>
                         <p className="font-medium text-foreground text-sm leading-snug line-clamp-2">
                           {product.name}
@@ -472,15 +551,18 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                           S/ {Number(product.salePrice).toFixed(2)}
                         </p>
                         <div className="flex items-center gap-1.5">
-                          <span className={`h-1.5 w-1.5 rounded-full ${
-                            Number(product.stockQuantity) > 10
-                              ? 'bg-emerald-500'
-                              : Number(product.stockQuantity) > 0
-                                ? 'bg-amber-500'
-                                : 'bg-red-500'
-                          }`} />
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              Number(product.stockQuantity) > 10
+                                ? "bg-emerald-500"
+                                : Number(product.stockQuantity) > 0
+                                  ? "bg-amber-500"
+                                  : "bg-red-500"
+                            }`}
+                          />
                           <span className="text-xs text-muted-foreground">
-                            Stock: {Number(product.stockQuantity)} {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
+                            Stock: {Number(product.stockQuantity)}{" "}
+                            {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
                           </span>
                         </div>
                       </div>
@@ -501,7 +583,9 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                     <ShoppingCart className="h-5 w-5" />
                     Carrito
                   </h2>
-                  <span className="text-sm text-muted-foreground">{items.length} items</span>
+                  <span className="text-sm text-muted-foreground">
+                    {items.length} items
+                  </span>
                 </div>
               </div>
 
@@ -513,13 +597,21 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                     <p className="text-sm">Selecciona productos</p>
                   </div>
                 ) : (
-                  items.map(item => (
-                    <div key={item.productId} className="bg-muted rounded-xl p-3">
+                  items.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="bg-muted rounded-xl p-3"
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0 mr-2">
-                          <p className="font-medium text-sm text-foreground truncate">{item.productName}</p>
+                          <p className="font-medium text-sm text-foreground truncate">
+                            {item.productName}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            S/ {item.unitPrice.toFixed(2)} / {item.presentationName ?? UNIT_SHORT[item.baseUnit] ?? item.baseUnit}
+                            S/ {item.unitPrice.toFixed(2)} /{" "}
+                            {item.presentationName ??
+                              UNIT_SHORT[item.baseUnit] ??
+                              item.baseUnit}
                           </p>
                         </div>
                         <button
@@ -532,16 +624,26 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
 
                       {item.presentations.length > 0 && (
                         <select
-                          value={item.presentationId ?? ''}
-                          onChange={(e) => changeItemPresentation(item.productId, e.target.value)}
+                          value={item.presentationId ?? ""}
+                          onChange={(e) =>
+                            changeItemPresentation(
+                              item.productId,
+                              e.target.value,
+                            )
+                          }
                           className="mb-2 h-9 w-full rounded-lg border border-border bg-background px-2 text-xs text-foreground"
                         >
                           <option value="">
-                            Unidad base ({UNIT_SHORT[item.baseUnit] ?? item.baseUnit})
+                            Unidad base (
+                            {UNIT_SHORT[item.baseUnit] ?? item.baseUnit})
                           </option>
                           {item.presentations.map((presentation) => (
-                            <option key={presentation.id} value={presentation.id}>
-                              {presentation.name} (&times; {Number(presentation.factor)})
+                            <option
+                              key={presentation.id}
+                              value={presentation.id}
+                            >
+                              {presentation.name} (&times;{" "}
+                              {Number(presentation.factor)})
                             </option>
                           ))}
                         </select>
@@ -556,7 +658,9 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                           >
                             <Minus className="h-3.5 w-3.5" />
                           </button>
-                          <span className="w-8 text-center font-semibold text-foreground text-sm">{item.quantity}</span>
+                          <span className="w-8 text-center font-semibold text-foreground text-sm">
+                            {item.quantity}
+                          </span>
                           <button
                             onClick={() => updateQuantity(item.productId, 1)}
                             className="h-8 w-8 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-30"
@@ -565,12 +669,15 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                             <Plus className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <p className="font-bold text-foreground">S/ {item.total.toFixed(2)}</p>
+                        <p className="font-bold text-foreground">
+                          S/ {item.total.toFixed(2)}
+                        </p>
                       </div>
 
                       {item.factor > 1 && (
                         <p className="mt-2 text-xs text-muted-foreground">
-                          = {(item.quantity * item.factor).toFixed(3)} {UNIT_SHORT[item.baseUnit] ?? item.baseUnit} de stock
+                          = {(item.quantity * item.factor).toFixed(3)}{" "}
+                          {UNIT_SHORT[item.baseUnit] ?? item.baseUnit} de stock
                         </p>
                       )}
                     </div>
@@ -580,15 +687,20 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
 
               {/* Channel */}
               <div className="px-5 pb-4">
-                <Label className="text-sm font-semibold text-foreground mb-2 block">Canal de venta</Label>
+                <Label className="text-sm font-semibold text-foreground mb-2 block">
+                  Canal de venta
+                </Label>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {([
-                    ['POS', Store, 'Tienda'],
-                    ['ONLINE', Globe, 'Online'],
-                    ['DISTRIBUTOR', Truck, 'Distribuidor'],
-                  ] as const).map(([value, Icon, label]) => {
+                  {(
+                    [
+                      ["POS", Store, "Tienda"],
+                      ["ONLINE", Globe, "Online"],
+                      ["DISTRIBUTOR", Truck, "Distribuidor"],
+                    ] as const
+                  ).map(([value, Icon, label]) => {
                     const isActive = channel === value;
-                    const isDisabled = value === 'DISTRIBUTOR' && distributors.length === 0;
+                    const isDisabled =
+                      value === "DISTRIBUTOR" && distributors.length === 0;
                     return (
                       <button
                         key={value}
@@ -596,22 +708,26 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                         disabled={isDisabled}
                         onClick={() => {
                           setChannel(value);
-                          if (value === 'DISTRIBUTOR') {
+                          if (value === "DISTRIBUTOR") {
                             setAppliedCoupon(null);
-                            setCouponInput('');
+                            setCouponInput("");
                             setCouponError(null);
                           }
                         }}
                         className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1.5 transition-colors ${
                           isDisabled
-                            ? 'cursor-not-allowed border-border opacity-40'
+                            ? "cursor-not-allowed border-border opacity-40"
                             : isActive
-                              ? 'cursor-pointer border-accent bg-accent/5'
-                              : 'cursor-pointer border-border hover:border-muted-foreground/30'
+                              ? "cursor-pointer border-accent bg-accent/5"
+                              : "cursor-pointer border-border hover:border-muted-foreground/30"
                         }`}
                       >
-                        <Icon className={`h-5 w-5 ${isActive ? 'text-accent' : 'text-muted-foreground'}`} />
-                        <span className={`text-xs font-medium ${isActive ? 'text-accent' : 'text-muted-foreground'}`}>
+                        <Icon
+                          className={`h-5 w-5 ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                        />
+                        <span
+                          className={`text-xs font-medium ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                        >
                           {label}
                         </span>
                       </button>
@@ -619,9 +735,11 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                   })}
                 </div>
 
-                {channel === 'DISTRIBUTOR' && (
+                {channel === "DISTRIBUTOR" && (
                   <div className="mt-3 space-y-2">
-                    <Label className="text-sm font-semibold text-foreground">Distribuidor</Label>
+                    <Label className="text-sm font-semibold text-foreground">
+                      Distribuidor
+                    </Label>
                     <select
                       value={distributorId}
                       onChange={(e) => setDistributorId(e.target.value)}
@@ -630,12 +748,14 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                       <option value="">Selecciona un distribuidor...</option>
                       {distributors.map((d) => (
                         <option key={d.id} value={d.id}>
-                          {d.name} ({d.code}) &mdash; stock {d.balance?.balanceQuantity ?? 0}
+                          {d.name} ({d.code}) &mdash; stock{" "}
+                          {d.balance?.balanceQuantity ?? 0}
                         </option>
                       ))}
                     </select>
                     <p className="text-xs text-muted-foreground">
-                      La venta se registra contra la mercader&iacute;a en consigna del distribuidor y suma a su deuda.
+                      La venta se registra contra la mercader&iacute;a en
+                      consigna del distribuidor y suma a su deuda.
                     </p>
                   </div>
                 )}
@@ -643,9 +763,17 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
 
               {/* Payment method */}
               <div className="px-5 pb-4">
-                <Label className="text-sm font-semibold text-foreground mb-2 block">M&eacute;todo de pago</Label>
+                <Label className="text-sm font-semibold text-foreground mb-2 block">
+                  M&eacute;todo de pago
+                </Label>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {([['CASH', Banknote, 'Efectivo'], ['CARD', CreditCard, 'Tarjeta'], ['TRANSFER', Building2, 'Transferencia']] as const).map(([method, Icon, label]) => {
+                  {(
+                    [
+                      ["CASH", Banknote, "Efectivo"],
+                      ["CARD", CreditCard, "Tarjeta"],
+                      ["TRANSFER", Building2, "Transferencia"],
+                    ] as const
+                  ).map(([method, Icon, label]) => {
                     const isActive = paymentMethod === method;
                     return (
                       <button
@@ -653,12 +781,16 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
                         onClick={() => setPaymentMethod(method)}
                         className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1.5 transition-colors cursor-pointer ${
                           isActive
-                            ? 'border-accent bg-accent/5'
-                            : 'border-border hover:border-muted-foreground/30'
+                            ? "border-accent bg-accent/5"
+                            : "border-border hover:border-muted-foreground/30"
                         }`}
                       >
-                        <Icon className={`h-5 w-5 ${isActive ? 'text-accent' : 'text-muted-foreground'}`} />
-                        <span className={`text-xs font-medium ${isActive ? 'text-accent' : 'text-muted-foreground'}`}>
+                        <Icon
+                          className={`h-5 w-5 ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                        />
+                        <span
+                          className={`text-xs font-medium ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                        >
                           {label}
                         </span>
                       </button>
@@ -668,70 +800,83 @@ export function SaleForm({ products, customers, distributors = [] }: SaleFormPro
               </div>
 
               {/* Coupon */}
-              {channel !== 'DISTRIBUTOR' && (
+              {channel !== "DISTRIBUTOR" && (
                 <PermissionGuard permission="discount:list">
-                <div className="px-5 pb-4 space-y-2">
-                  <Label className="text-sm font-semibold text-foreground mb-2 block">
-                    Cupón de descuento
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={couponInput}
-                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                      placeholder="VERANO10"
-                      maxLength={32}
-                      disabled={!!appliedCoupon}
-                      className="h-10 rounded-lg font-mono uppercase tracking-widest"
-                    />
-                    {appliedCoupon ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleRemoveCoupon}
-                        className="h-10 shrink-0 rounded-lg"
-                      >
-                        <X className="mr-1 h-4 w-4" />
-                        Quitar
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleApplyCoupon}
-                        disabled={couponLoading || !couponInput.trim()}
-                        className="h-10 shrink-0 rounded-lg"
-                      >
-                        {couponLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
-                      </Button>
+                  <div className="px-5 pb-4 space-y-2">
+                    <Label className="text-sm font-semibold text-foreground mb-2 block">
+                      Cupón de descuento
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={couponInput}
+                        onChange={(e) =>
+                          setCouponInput(e.target.value.toUpperCase())
+                        }
+                        placeholder="VERANO10"
+                        maxLength={32}
+                        disabled={!!appliedCoupon}
+                        className="h-10 rounded-lg font-mono uppercase tracking-widest"
+                      />
+                      {appliedCoupon ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleRemoveCoupon}
+                          className="h-10 shrink-0 rounded-lg"
+                        >
+                          <X className="mr-1 h-4 w-4" />
+                          Quitar
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleApplyCoupon}
+                          disabled={couponLoading || !couponInput.trim()}
+                          className="h-10 shrink-0 rounded-lg"
+                        >
+                          {couponLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Aplicar"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    {appliedCoupon && (
+                      <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                        <TicketPercent className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          {appliedCoupon.code} ·{" "}
+                          {appliedCoupon.type === "PERCENTAGE"
+                            ? `${appliedCoupon.value}% de descuento`
+                            : `S/ ${appliedCoupon.value.toFixed(2)} de descuento`}
+                        </span>
+                      </div>
+                    )}
+                    {couponError && (
+                      <p className="text-xs text-red-500">{couponError}</p>
                     )}
                   </div>
-                  {appliedCoupon && (
-                    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-                      <TicketPercent className="h-3.5 w-3.5 shrink-0" />
-                      <span>
-                        {appliedCoupon.code} ·{' '}
-                        {appliedCoupon.type === 'PERCENTAGE'
-                          ? `${appliedCoupon.value}% de descuento`
-                          : `S/ ${appliedCoupon.value.toFixed(2)} de descuento`}
-                      </span>
-                    </div>
-                  )}
-                  {couponError && <p className="text-xs text-red-500">{couponError}</p>}
-                </div>
                 </PermissionGuard>
               )}
 
               {/* Discount */}
               <div className="px-5 pb-4">
                 <Label className="text-sm font-semibold text-foreground mb-2 block">
-                  Descuento <span className="text-muted-foreground font-normal">(%)</span>
+                  Descuento{" "}
+                  <span className="text-muted-foreground font-normal">(%)</span>
                 </Label>
                 <Input
                   type="number"
                   min="0"
                   max="100"
                   value={discountPercent}
-                  onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                  onChange={(e) =>
+                    setDiscountPercent(
+                      Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
+                    )
+                  }
                   disabled={!!appliedCoupon}
                   className="h-10 rounded-lg"
                 />

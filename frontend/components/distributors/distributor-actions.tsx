@@ -1,13 +1,19 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Edit } from 'lucide-react';
-import { DeleteDialog } from '@/components/common/delete-dialog';
-import { PermissionGuard } from '@/components/auth/permission-guard';
-import type { Distributor } from '@/types/distributors';
+import Link from "next/link";
+import { Edit } from "lucide-react";
+import { DeleteDialog } from "@/components/common/delete-dialog";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import type { Distributor } from "@/types/distributors";
 
-export function DistributorActions({ distributor }: { distributor: Distributor }) {
-  const hasDebtOrStock = Number(distributor.balance?.balanceQuantity ?? 0) > 0 || Number(distributor.balance?.debtAmount ?? 0) > 0;
+export function DistributorActions({
+  distributor,
+}: {
+  distributor: Distributor;
+}) {
+  const hasDebtOrStock =
+    Number(distributor.balance?.balanceQuantity ?? 0) > 0 ||
+    Number(distributor.balance?.debtAmount ?? 0) > 0;
 
   return (
     <div className="flex shrink-0 items-center gap-2">
@@ -26,7 +32,7 @@ export function DistributorActions({ distributor }: { distributor: Distributor }
           entity="distributor"
           description={
             hasDebtOrStock
-              ? 'Este distribuidor tiene mercadería o deuda pendiente. Liquida y devuelve el stock antes de eliminarlo.'
+              ? "Este distribuidor tiene mercadería o deuda pendiente. Liquida y devuelve el stock antes de eliminarlo."
               : `¿Eliminar al distribuidor ${distributor.name}? Esta acción no se puede deshacer.`
           }
         />

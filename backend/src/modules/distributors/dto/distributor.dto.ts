@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
@@ -11,7 +11,7 @@ import {
   MaxLength,
   Min,
   ValidateNested,
-} from 'class-validator';
+} from "class-validator";
 
 class DistributorStockItemDto {
   @IsString()
@@ -47,8 +47,8 @@ export class CreateDistributorDto {
   name!: string;
 
   @IsOptional()
-  @IsIn(['INDIVIDUAL', 'COMPANY'])
-  type?: 'INDIVIDUAL' | 'COMPANY';
+  @IsIn(["INDIVIDUAL", "COMPANY"])
+  type?: "INDIVIDUAL" | "COMPANY";
 
   @IsOptional()
   @IsString()
@@ -102,12 +102,12 @@ export class UpdateDistributorDto {
   name?: string;
 
   @IsOptional()
-  @IsIn(['INDIVIDUAL', 'COMPANY'])
-  type?: 'INDIVIDUAL' | 'COMPANY';
+  @IsIn(["INDIVIDUAL", "COMPANY"])
+  type?: "INDIVIDUAL" | "COMPANY";
 
   @IsOptional()
-  @IsIn(['ACTIVE', 'SUSPENDED', 'BLOCKED'])
-  status?: 'ACTIVE' | 'SUSPENDED' | 'BLOCKED';
+  @IsIn(["ACTIVE", "SUSPENDED", "BLOCKED"])
+  status?: "ACTIVE" | "SUSPENDED" | "BLOCKED";
 
   @IsOptional()
   @IsString()
@@ -169,8 +169,8 @@ export class RegisterDistributorSaleDto {
   @Type(() => DistributorSaleItemDto)
   items!: DistributorSaleItemDto[];
 
-  @IsIn(['CASH', 'CARD', 'TRANSFER'])
-  paymentMethod!: 'CASH' | 'CARD' | 'TRANSFER';
+  @IsIn(["CASH", "CARD", "TRANSFER"])
+  paymentMethod!: "CASH" | "CARD" | "TRANSFER";
 
   @IsOptional()
   @IsNumber()
@@ -202,8 +202,8 @@ export class CreateDistributorDeliveryDto {
   items!: DistributorStockItemDto[];
 
   @IsOptional()
-  @IsIn(['PENDING', 'DELIVERED', 'CANCELLED'])
-  status?: 'PENDING' | 'DELIVERED' | 'CANCELLED';
+  @IsIn(["PENDING", "DELIVERED", "CANCELLED"])
+  status?: "PENDING" | "DELIVERED" | "CANCELLED";
 
   @IsOptional()
   @IsNumber()
@@ -231,8 +231,8 @@ export class SettleDistributorDto {
 
 export class QueryDistributorsDto {
   @IsOptional()
-  @IsIn(['ACTIVE', 'SUSPENDED', 'BLOCKED'])
-  status?: 'ACTIVE' | 'SUSPENDED' | 'BLOCKED';
+  @IsIn(["ACTIVE", "SUSPENDED", "BLOCKED"])
+  status?: "ACTIVE" | "SUSPENDED" | "BLOCKED";
 
   @IsOptional()
   @IsString()

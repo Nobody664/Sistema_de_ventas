@@ -14,11 +14,31 @@ export interface ProfileField {
 }
 
 export const PROFILE_FIELDS: ProfileField[] = [
-  { key: 'taxId', label: 'RUC', weight: 30, validate: (v) => !!v && /^\d{11}$/.test(v) },
-  { key: 'legalName', label: 'Razón Social', weight: 25, validate: (v) => !!v && v.length >= 3 },
-  { key: 'address', label: 'Dirección', weight: 20, validate: (v) => !!v && v.length >= 10 },
-  { key: 'phone', label: 'Teléfono', weight: 15, validate: (v) => !!v },
-  { key: 'email', label: 'Email', weight: 10, validate: (v) => !!v && /@/.test(v) },
+  {
+    key: "taxId",
+    label: "RUC",
+    weight: 30,
+    validate: (v) => !!v && /^\d{11}$/.test(v),
+  },
+  {
+    key: "legalName",
+    label: "Razón Social",
+    weight: 25,
+    validate: (v) => !!v && v.length >= 3,
+  },
+  {
+    key: "address",
+    label: "Dirección",
+    weight: 20,
+    validate: (v) => !!v && v.length >= 10,
+  },
+  { key: "phone", label: "Teléfono", weight: 15, validate: (v) => !!v },
+  {
+    key: "email",
+    label: "Email",
+    weight: 10,
+    validate: (v) => !!v && /@/.test(v),
+  },
 ];
 
 export interface ProfileEvaluation {
@@ -29,7 +49,9 @@ export interface ProfileEvaluation {
   complete: boolean;
 }
 
-export function evaluateProfile(company: CompanyProfileShape): ProfileEvaluation {
+export function evaluateProfile(
+  company: CompanyProfileShape,
+): ProfileEvaluation {
   let score = 0;
   let completedFields = 0;
   const missingFields: string[] = [];

@@ -1,16 +1,18 @@
-
-import { redirect } from 'next/navigation';
-import { notFound } from 'next/navigation';
-import { serverApiFetch } from '@/lib/server-api';
-import { getServerSession } from '@/lib/session';
-import { SaleDetailClient } from './sale-detail-client';
-import type { Sale } from '@/types/api';
+import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { serverApiFetch } from "@/lib/server-api";
+import { getServerSession } from "@/lib/session";
+import { SaleDetailClient } from "./sale-detail-client";
+import type { Sale } from "@/types/api";
 
 interface SaleDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-async function getSale(id: string, accessToken: string | undefined): Promise<Sale | null> {
+async function getSale(
+  id: string,
+  accessToken: string | undefined,
+): Promise<Sale | null> {
   try {
     return await serverApiFetch<Sale>(`/sales/${id}`, accessToken);
   } catch {
@@ -23,7 +25,7 @@ export default async function SaleDetailPage({ params }: SaleDetailPageProps) {
   const accessToken = session?.accessToken;
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const { id } = await params;

@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { CostingStrategy, CostingResult } from './costing.strategy';
+import { Injectable } from "@nestjs/common";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { CostingStrategy, CostingResult } from "./costing.strategy";
 
-type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
+>;
 
 interface InventoryLayer {
   qty: number;
@@ -11,7 +14,7 @@ interface InventoryLayer {
 
 @Injectable()
 export class FifoStrategy implements CostingStrategy {
-  name = 'FIFO';
+  name = "FIFO";
 
   async calculateOutCost(
     productId: string,
@@ -21,14 +24,17 @@ export class FifoStrategy implements CostingStrategy {
   ): Promise<CostingResult> {
     const entries = await tx.inventoryKardex.findMany({
       where: { companyId, productId },
-      orderBy: { movementDate: 'asc' },
+      orderBy: { movementDate: "asc" },
     });
 
     const layers: InventoryLayer[] = [];
 
     for (const entry of entries) {
       if (entry.qtyIn.gt(0) && entry.unitCostIn) {
-        layers.push({ qty: entry.qtyIn.toNumber(), unitCost: entry.unitCostIn });
+        layers.push({
+          qty: entry.qtyIn.toNumber(),
+          unitCost: entry.unitCostIn,
+        });
       } else if (entry.qtyOut.gt(0)) {
         let remaining = entry.qtyOut.toNumber();
         while (remaining > 0 && layers.length > 0) {
@@ -54,7 +60,9 @@ export class FifoStrategy implements CostingStrategy {
     }
 
     if (remainingToConsume > 0) {
-      throw new Error(`Insufficient inventory layers for product ${productId}. Needed ${quantity.toString()}, found ${quantity.toNumber() - remainingToConsume}`);
+      throw new Error(
+        `Insufficient inventory layers for product ${productId}. Needed ${quantity.toString()}, found ${quantity.toNumber() - remainingToConsume}`,
+      );
     }
 
     const unitCost = totalCost.div(quantity);

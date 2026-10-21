@@ -1,8 +1,7 @@
-
-import { redirect } from 'next/navigation';
-import { serverApiFetch } from '@/lib/server-api';
-import { getServerSession } from '@/lib/session';
-import { TemplateEditor } from '../template-editor';
+import { redirect } from "next/navigation";
+import { serverApiFetch } from "@/lib/server-api";
+import { getServerSession } from "@/lib/session";
+import { TemplateEditor } from "../template-editor";
 
 interface InvoiceTemplate {
   id: string;
@@ -34,29 +33,33 @@ interface InvoiceTemplate {
   taxPercentage: number;
 }
 
-export default async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditTemplatePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await getServerSession();
   const { id } = await params;
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const roles: string[] = session?.user?.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN');
-  
+  const isSuperAdmin = roles.includes("SUPER_ADMIN");
+
   if (!isSuperAdmin) {
-    redirect('/dashboard');
+    redirect("/dashboard");
   }
 
   let template: InvoiceTemplate | null = null;
-  
-  if (id !== 'new') {
+
+  if (id !== "new") {
     const templates = await serverApiFetch<InvoiceTemplate[]>(
-      '/invoices/templates',
-      session?.accessToken
+      "/invoices/templates",
+      session?.accessToken,
     );
-    template = templates?.find(t => t.id === id) || null;
+    template = templates?.find((t) => t.id === id) || null;
   }
 
   return <TemplateEditor template={template} />;

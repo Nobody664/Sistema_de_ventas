@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { Edit, Trash2, Pause, Play } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '@/stores/auth.store';
-import { CompanyModal } from '@/components/companies/company-modal';
-import { PermissionGuard } from '@/components/auth/permission-guard';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import type { Company } from '@/types/api';
+import { Edit, Trash2, Pause, Play } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/stores/auth.store";
+import { CompanyModal } from "@/components/companies/company-modal";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import type { Company } from "@/types/api";
 
 interface CompanyActionsProps {
   company: Company;
@@ -17,16 +17,16 @@ export function CompanyActions({ company }: CompanyActionsProps) {
   const queryClient = useQueryClient();
 
   const handleToggleStatus = async () => {
-    const newStatus = company.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    const newStatus = company.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
     try {
       await apiFetch(`/companies/${company.id}/status`, {
-        method: 'PATCH',
+        method: "PATCH",
         token: getAccessToken(),
         body: JSON.stringify({ status: newStatus }),
       });
-      queryClient.invalidateQueries({ queryKey: ['companies'] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
     } catch (error) {
-      console.error('Error updating company status:', error);
+      console.error("Error updating company status:", error);
     }
   };
 
@@ -43,9 +43,9 @@ export function CompanyActions({ company }: CompanyActionsProps) {
         <button
           onClick={handleToggleStatus}
           className="rounded-lg p-2 hover:bg-foreground/5"
-          title={company.status === 'ACTIVE' ? 'Suspender' : 'Activar'}
+          title={company.status === "ACTIVE" ? "Suspender" : "Activar"}
         >
-          {company.status === 'ACTIVE' ? (
+          {company.status === "ACTIVE" ? (
             <Pause className="size-4 text-amber-500" />
           ) : (
             <Play className="size-4 text-green-500" />

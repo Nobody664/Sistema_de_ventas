@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
-import { ProductBatchesController } from './product-batches.controller';
-import { ProductBatchesService } from './product-batches.service';
-import { PrismaModule } from '@/database/prisma/prisma.module';
+import { Module } from "@nestjs/common";
+import { ProductBatchesController } from "./product-batches.controller";
+import { ProductBatchesService } from "./product-batches.service";
+import { PrismaModule } from "@/database/prisma/prisma.module";
 
 @Module({
   imports: [PrismaModule],

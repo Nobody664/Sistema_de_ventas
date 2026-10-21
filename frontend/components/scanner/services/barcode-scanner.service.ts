@@ -64,7 +64,7 @@ export class BarcodeScannerService {
     if (this.isListening) return;
     this.isListening = true;
     this.boundHandler = this.handleKeydown.bind(this);
-    document.addEventListener('keydown', this.boundHandler);
+    document.addEventListener("keydown", this.boundHandler);
     this.setConnected(true);
   }
 
@@ -72,7 +72,7 @@ export class BarcodeScannerService {
     if (!this.isListening) return;
     this.isListening = false;
     if (this.boundHandler) {
-      document.removeEventListener('keydown', this.boundHandler);
+      document.removeEventListener("keydown", this.boundHandler);
       this.boundHandler = null;
     }
     this.flushBuffer();
@@ -82,27 +82,28 @@ export class BarcodeScannerService {
   private isEditableTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     const tagName = target.tagName;
-    if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return true;
+    if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT")
+      return true;
     return target.isContentEditable;
   }
 
   private handleKeydown(e: KeyboardEvent): void {
     if (this.isEditableTarget(e.target)) return;
 
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       this.finalizeScan();
       return;
     }
 
     if (e.ctrlKey || e.altKey || e.metaKey) return;
 
-    if (e.key === 'Tab') {
+    if (e.key === "Tab") {
       e.preventDefault();
       this.finalizeScan();
       return;
     }
 
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       this.flushBuffer();
       return;
     }
@@ -146,12 +147,12 @@ export class BarcodeScannerService {
       this.flushTimer = null;
     }
 
-    const raw = this.buffer.join('');
+    const raw = this.buffer.join("");
     this.flushBuffer();
 
     if (raw.length < 3) return;
 
-    const code = this.config.trimSuffix ? raw.replace(/[\s\r\n]+$/, '') : raw;
+    const code = this.config.trimSuffix ? raw.replace(/[\s\r\n]+$/, "") : raw;
 
     if (this.isScannerInput()) {
       this.onScanCallbacks.forEach((cb) => cb(code));

@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { Request } from 'express';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { CacheService } from '@/cache/cache.service';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import { Request } from "express";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { CacheService } from "@/cache/cache.service";
 
 type JwtPayload = {
   sub: string;
@@ -37,7 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         return ExtractJwt.fromAuthHeaderAsBearerToken()(req);
       },
       ignoreExpiration: false,
-      secretOrKey: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      secretOrKey: configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
       passReqToCallback: true,
     });
   }
@@ -67,4 +67,3 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return payload;
   }
 }
-

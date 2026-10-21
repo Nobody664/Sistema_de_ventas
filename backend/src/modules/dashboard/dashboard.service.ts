@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { CacheService } from '@/cache/cache.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { CacheService } from "@/cache/cache.service";
 
 type GlobalMetrics = {
   totalCompanies: number;
@@ -20,9 +20,18 @@ type SalesAnalytics = {
   totalRevenue: number;
 };
 
-type PaymentMethodStats = Array<{ method: string; count: number; total: number }>;
+type PaymentMethodStats = Array<{
+  method: string;
+  count: number;
+  total: number;
+}>;
 
-type TopProduct = { productId: string; name: string; quantity: number; revenue: number };
+type TopProduct = {
+  productId: string;
+  name: string;
+  quantity: number;
+  revenue: number;
+};
 
 type InventoryMetrics = {
   totalValue: number;
@@ -35,7 +44,12 @@ type InventoryMetrics = {
 type CustomerStats = {
   total: number;
   newThisMonth: number;
-  topCustomers: Array<{ customerId: string; name: string; totalPurchases: number; totalSpent: number }>;
+  topCustomers: Array<{
+    customerId: string;
+    name: string;
+    totalPurchases: number;
+    totalSpent: number;
+  }>;
 };
 
 type TenantMetrics = {
@@ -62,22 +76,27 @@ export class DashboardService {
   ) {}
 
   async getGlobalMetrics(): Promise<GlobalMetrics> {
-    const cached = await this.cache.get<GlobalMetrics>('dashboard:global');
+    const cached = await this.cache.get<GlobalMetrics>("dashboard:global");
     if (cached) return cached;
 
-    const [totalCompanies, activeCompanies, suspendedCompanies, activeSubscriptions, succeededPayments] =
-      await Promise.all([
-        this.prisma.company.count(),
-        this.prisma.company.count({ where: { status: 'ACTIVE' } }),
-        this.prisma.company.count({ where: { status: 'SUSPENDED' } }),
-        this.prisma.subscription.findMany({
-          where: { status: 'ACTIVE' },
-          include: { plan: true },
-        }),
-        this.prisma.payment.findMany({
-          where: { status: 'SUCCEEDED' },
-        }),
-      ]);
+    const [
+      totalCompanies,
+      activeCompanies,
+      suspendedCompanies,
+      activeSubscriptions,
+      succeededPayments,
+    ] = await Promise.all([
+      this.prisma.company.count(),
+      this.prisma.company.count({ where: { status: "ACTIVE" } }),
+      this.prisma.company.count({ where: { status: "SUSPENDED" } }),
+      this.prisma.subscription.findMany({
+        where: { status: "ACTIVE" },
+        include: { plan: true },
+      }),
+      this.prisma.payment.findMany({
+        where: { status: "SUCCEEDED" },
+      }),
+    ]);
 
     const subscriptions = activeSubscriptions as Array<{
       plan: { priceMonthly: unknown; priceYearly: unknown };
@@ -85,14 +104,19 @@ export class DashboardService {
     const payments = succeededPayments as Array<{ amount: unknown }>;
 
     const monthlyRecurringRevenue = subscriptions.reduce(
-      (total: number, subscription) => total + Number(subscription.plan.priceMonthly),
+      (total: number, subscription) =>
+        total + Number(subscription.plan.priceMonthly),
       0,
     );
     const annualRecurringRevenue = subscriptions.reduce(
-      (total: number, subscription) => total + Number(subscription.plan.priceYearly),
+      (total: number, subscription) =>
+        total + Number(subscription.plan.priceYearly),
       0,
     );
-    const collectedRevenue = payments.reduce((total: number, payment) => total + Number(payment.amount), 0);
+    const collectedRevenue = payments.reduce(
+      (total: number, payment) => total + Number(payment.amount),
+      0,
+    );
 
     const result = {
       totalCompanies,
@@ -103,7 +127,7 @@ export class DashboardService {
       collectedRevenue,
     };
 
-    await this.cache.set('dashboard:global', result, 120);
+    await this.cache.set("dashboard:global", result, 120);
     return result;
   }
 
@@ -148,7 +172,7 @@ export class DashboardService {
       this.prisma.sale.findMany({
         where: { companyId },
         include: { items: { include: { product: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: 25,
       }),
       this.prisma.company.findUnique({
@@ -167,12 +191,18 @@ export class DashboardService {
           paymentMethod: true,
           customer: { select: { firstName: true, lastName: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: 500,
       }),
       this.prisma.product.findMany({
         where: { companyId },
-        select: { id: true, name: true, stockQuantity: true, minStock: true, salePrice: true },
+        select: {
+          id: true,
+          name: true,
+          stockQuantity: true,
+          minStock: true,
+          salePrice: true,
+        },
         take: 10000,
       }),
       this.prisma.customer.count({
@@ -182,11 +212,21 @@ export class DashboardService {
 
     const todaySales = salesToday as Array<{ totalAmount: unknown }>;
     const salesWithItems = recentSales as unknown as Array<{
-      items: Array<{ productId: string; quantity: number; product: { name: string } }>;
+      items: Array<{
+        productId: string;
+        quantity: number;
+        product: { name: string };
+      }>;
     }>;
 
-    const revenueToday = todaySales.reduce((total, sale) => total + Number(sale.totalAmount), 0);
-    const topProductMap = new Map<string, { productId: string; name: string; quantity: number }>();
+    const revenueToday = todaySales.reduce(
+      (total, sale) => total + Number(sale.totalAmount),
+      0,
+    );
+    const topProductMap = new Map<
+      string,
+      { productId: string; name: string; quantity: number }
+    >();
 
     salesWithItems.forEach((sale) => {
       sale.items.forEach((item) => {
@@ -215,13 +255,19 @@ export class DashboardService {
     const dailyMap = new Map<string, { sales: number; revenue: number }>();
     const weeklyMap = new Map<string, { sales: number; revenue: number }>();
     const monthlyMap = new Map<string, { sales: number; revenue: number }>();
-    const paymentMethodMap = new Map<string, { count: number; total: number }>();
-    const customerPurchaseMap = new Map<string, { customerName: string; totalPurchases: number; totalSpent: number }>();
+    const paymentMethodMap = new Map<
+      string,
+      { count: number; total: number }
+    >();
+    const customerPurchaseMap = new Map<
+      string,
+      { customerName: string; totalPurchases: number; totalSpent: number }
+    >();
 
     let totalRevenue = 0;
 
     allSalesData.forEach((sale) => {
-      const date = sale.createdAt.toISOString().split('T')[0];
+      const date = sale.createdAt.toISOString().split("T")[0];
       const month = sale.createdAt.toISOString().slice(0, 7);
       const amount = Number(sale.totalAmount);
       totalRevenue += amount;
@@ -243,14 +289,22 @@ export class DashboardService {
       monthly.revenue += amount;
       monthlyMap.set(month, monthly);
 
-      const pm = paymentMethodMap.get(sale.paymentMethod) ?? { count: 0, total: 0 };
+      const pm = paymentMethodMap.get(sale.paymentMethod) ?? {
+        count: 0,
+        total: 0,
+      };
       pm.count += 1;
       pm.total += amount;
       paymentMethodMap.set(sale.paymentMethod, pm);
 
       if (sale.customer) {
-        const customerId = sale.customer.firstName + ' ' + sale.customer.lastName;
-        const cust = customerPurchaseMap.get(customerId) ?? { customerName: customerId, totalPurchases: 0, totalSpent: 0 };
+        const customerId =
+          sale.customer.firstName + " " + sale.customer.lastName;
+        const cust = customerPurchaseMap.get(customerId) ?? {
+          customerName: customerId,
+          totalPurchases: 0,
+          totalSpent: 0,
+        };
         cust.totalPurchases += 1;
         cust.totalSpent += amount;
         customerPurchaseMap.set(customerId, cust);
@@ -275,7 +329,12 @@ export class DashboardService {
       .sort((a, b) => b.total - a.total);
 
     const topCustomers = Array.from(customerPurchaseMap.entries())
-      .map(([customerId, data]) => ({ customerId, name: data.customerName, totalPurchases: data.totalPurchases, totalSpent: data.totalSpent }))
+      .map(([customerId, data]) => ({
+        customerId,
+        name: data.customerName,
+        totalPurchases: data.totalPurchases,
+        totalSpent: data.totalSpent,
+      }))
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 5);
 
@@ -287,17 +346,30 @@ export class DashboardService {
       salePrice: unknown;
     }>;
 
-    const totalValue = products.reduce((sum, p) => sum + Number(p.salePrice || 0) * Number(p.stockQuantity), 0);
-    const totalItems = products.reduce((sum, p) => sum + Number(p.stockQuantity), 0);
-    const lowStockCount = products.filter((p) => Number(p.stockQuantity) <= Number(p.minStock)).length;
-    const outOfStockCount = products.filter((p) => Number(p.stockQuantity) === 0).length;
-    const slowMovingCount = products.filter((p) => Number(p.stockQuantity) > 50).length;
+    const totalValue = products.reduce(
+      (sum, p) => sum + Number(p.salePrice || 0) * Number(p.stockQuantity),
+      0,
+    );
+    const totalItems = products.reduce(
+      (sum, p) => sum + Number(p.stockQuantity),
+      0,
+    );
+    const lowStockCount = products.filter(
+      (p) => Number(p.stockQuantity) <= Number(p.minStock),
+    ).length;
+    const outOfStockCount = products.filter(
+      (p) => Number(p.stockQuantity) === 0,
+    ).length;
+    const slowMovingCount = products.filter(
+      (p) => Number(p.stockQuantity) > 50,
+    ).length;
 
     const salesAnalytics = {
       daily,
       weekly,
       monthly,
-      averageTicket: allSalesData.length > 0 ? totalRevenue / allSalesData.length : 0,
+      averageTicket:
+        allSalesData.length > 0 ? totalRevenue / allSalesData.length : 0,
       totalSales: allSalesData.length,
       totalRevenue,
     };

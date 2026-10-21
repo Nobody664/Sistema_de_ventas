@@ -1,17 +1,25 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
-import { Permission, ROLE_PERMISSIONS } from '../constants/permissions.constant';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { PERMISSIONS_KEY } from "../decorators/permissions.decorator";
+import {
+  Permission,
+  ROLE_PERMISSIONS,
+} from "../constants/permissions.constant";
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredPermissions = this.reflector.getAllAndOverride<Permission[]>(PERMISSIONS_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredPermissions = this.reflector.getAllAndOverride<Permission[]>(
+      PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (!requiredPermissions || requiredPermissions.length === 0) {
       return true;
@@ -20,7 +28,7 @@ export class PermissionsGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const userRoles: string[] = request.user?.roles ?? [];
 
-    if (userRoles.includes('SUPER_ADMIN')) {
+    if (userRoles.includes("SUPER_ADMIN")) {
       return true;
     }
 
@@ -37,7 +45,9 @@ export class PermissionsGuard implements CanActivate {
     const hasAll = requiredPermissions.every((p) => userPermissions.has(p));
 
     if (!hasAll) {
-      throw new ForbiddenException('No tienes permisos para realizar esta accion.');
+      throw new ForbiddenException(
+        "No tienes permisos para realizar esta accion.",
+      );
     }
 
     return true;

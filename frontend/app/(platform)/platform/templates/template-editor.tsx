@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Save, FileText, Ticket, Receipt } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useUiStore } from '@/store/ui-store';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Save, FileText, Ticket, Receipt } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useUiStore } from "@/store/ui-store";
 
 interface InvoiceTemplate {
   id: string;
@@ -46,14 +46,14 @@ interface TemplateEditorProps {
   preset?: Partial<InvoiceTemplate>;
 }
 
-const defaultTemplate: Omit<InvoiceTemplate, 'id'> = {
-  name: '',
+const defaultTemplate: Omit<InvoiceTemplate, "id"> = {
+  name: "",
   description: null,
-  type: 'BOLETA',
+  type: "BOLETA",
   isGlobal: true,
   isDefault: false,
-  paperSize: 'A4',
-  fontFamily: 'Arial',
+  paperSize: "A4",
+  fontFamily: "Arial",
   fontSize: 12,
   logoUrl: null,
   companyRuc: null,
@@ -71,22 +71,23 @@ const defaultTemplate: Omit<InvoiceTemplate, 'id'> = {
   showSaleDate: true,
   showSaleTime: false,
   showPaymentMethod: true,
-  footerText: 'Gracias por su preferencia',
+  footerText: "Gracias por su preferencia",
   taxPercentage: 18,
 };
 
 const sampleItems = [
-  { name: 'Producto de ejemplo 1', quantity: 2, unitPrice: 25.00, total: 50.00 },
-  { name: 'Producto de ejemplo 2', quantity: 1, unitPrice: 35.50, total: 35.50 },
-  { name: 'Producto de ejemplo 3', quantity: 3, unitPrice: 15.00, total: 45.00 },
+  { name: "Producto de ejemplo 1", quantity: 2, unitPrice: 25.0, total: 50.0 },
+  { name: "Producto de ejemplo 2", quantity: 1, unitPrice: 35.5, total: 35.5 },
+  { name: "Producto de ejemplo 3", quantity: 3, unitPrice: 15.0, total: 45.0 },
 ];
 
 export function TemplateEditor({ template, preset }: TemplateEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const addToast = useUiStore((state) => state.addToast);
-  
-  const [formData, setFormData] = useState<Omit<InvoiceTemplate, 'id'>>(defaultTemplate);
+
+  const [formData, setFormData] =
+    useState<Omit<InvoiceTemplate, "id">>(defaultTemplate);
 
   useEffect(() => {
     if (template) {
@@ -119,49 +120,49 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
         taxPercentage: template.taxPercentage,
       });
     } else if (preset) {
-      setFormData(prev => ({ ...prev, ...preset }));
+      setFormData((prev) => ({ ...prev, ...preset }));
     }
   }, [template, preset]);
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<InvoiceTemplate>) =>
-      apiFetch<InvoiceTemplate>('/invoices/templates', {
-        method: 'POST',
+      apiFetch<InvoiceTemplate>("/invoices/templates", {
+        method: "POST",
         token: getAccessToken(),
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoice-templates'] });
-      addToast('Plantilla creada correctamente', 'success');
-      router.push('/platform/templates');
+      queryClient.invalidateQueries({ queryKey: ["invoice-templates"] });
+      addToast("Plantilla creada correctamente", "success");
+      router.push("/platform/templates");
     },
     onError: (error: Error) => {
-      addToast(error.message, 'error');
+      addToast(error.message, "error");
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<InvoiceTemplate>) =>
       apiFetch<InvoiceTemplate>(`/invoices/templates/${template?.id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         token: getAccessToken(),
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoice-templates'] });
-      addToast('Plantilla actualizada correctamente', 'success');
-      router.push('/platform/templates');
+      queryClient.invalidateQueries({ queryKey: ["invoice-templates"] });
+      addToast("Plantilla actualizada correctamente", "success");
+      router.push("/platform/templates");
     },
     onError: (error: Error) => {
-      addToast(error.message, 'error');
+      addToast(error.message, "error");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name) {
-      addToast('El nombre es requerido', 'error');
+      addToast("El nombre es requerido", "error");
       return;
     }
 
@@ -173,18 +174,18 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
   };
 
   const updateField = (field: string, value: unknown) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const isTicket = formData.type === 'TICKET';
+  const isTicket = formData.type === "TICKET";
 
   const renderPreview = () => {
-    const isThermal = isTicket || formData.paperSize === 'thermal';
-    
+    const isThermal = isTicket || formData.paperSize === "thermal";
+
     if (isThermal) {
       return <ThermalPreview formData={formData} />;
     }
-    
+
     return <StandardPreview formData={formData} />;
   };
 
@@ -192,9 +193,9 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="mb-6 flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            onClick={() => router.push('/platform/templates')}
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/platform/templates")}
             className="shrink-0 text-foreground hover:text-foreground"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -202,237 +203,307 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
           </Button>
           <div className="h-6 w-px bg-border" />
           <h1 className="min-w-0 truncate text-2xl font-bold text-foreground">
-            {template ? `Editar: ${template.name}` : 'Nueva Plantilla'}
+            {template ? `Editar: ${template.name}` : "Nueva Plantilla"}
           </h1>
         </div>
 
-        <div className={`grid gap-6 ${isTicket ? 'items-start lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]' : 'grid-cols-1'}`}>
-            <Card className="min-w-0 overflow-hidden rounded-2xl shadow-xl">
-                <form onSubmit={handleSubmit} className="space-y-6 p-6">
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    {(['BOLETA', 'TICKET', 'FACTURA'] as const).map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => {
-                          setFormData((current) => ({
-                            ...current,
-                            type,
-                            paperSize: type === 'TICKET'
-                              ? 'thermal'
-                              : current.paperSize === 'thermal'
-                                ? 'A4'
-                                : current.paperSize,
-                          }));
-                        }}
-                        className={`rounded-xl border-2 p-3 text-center transition-all sm:p-4 ${
-                          formData.type === type
-                            ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300'
-                            : 'border-border text-card-foreground hover:border-foreground/30'
-                        }`}
-                      >
-                        {type === 'BOLETA' && <FileText className="mx-auto h-6 w-6 text-blue-500" />}
-                        {type === 'TICKET' && <Ticket className="mx-auto h-6 w-6 text-orange-500" />}
-                        {type === 'FACTURA' && <Receipt className="mx-auto h-6 w-6 text-emerald-500" />}
-                        <span className="mt-2 block text-sm font-medium">{type}</span>
-                      </button>
-                    ))}
-                  </div>
+        <div
+          className={`grid gap-6 ${isTicket ? "items-start lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]" : "grid-cols-1"}`}
+        >
+          <Card className="min-w-0 overflow-hidden rounded-2xl shadow-xl">
+            <form onSubmit={handleSubmit} className="space-y-6 p-6">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {(["BOLETA", "TICKET", "FACTURA"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      setFormData((current) => ({
+                        ...current,
+                        type,
+                        paperSize:
+                          type === "TICKET"
+                            ? "thermal"
+                            : current.paperSize === "thermal"
+                              ? "A4"
+                              : current.paperSize,
+                      }));
+                    }}
+                    className={`rounded-xl border-2 p-3 text-center transition-all sm:p-4 ${
+                      formData.type === type
+                        ? "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                        : "border-border text-card-foreground hover:border-foreground/30"
+                    }`}
+                  >
+                    {type === "BOLETA" && (
+                      <FileText className="mx-auto h-6 w-6 text-blue-500" />
+                    )}
+                    {type === "TICKET" && (
+                      <Ticket className="mx-auto h-6 w-6 text-orange-500" />
+                    )}
+                    {type === "FACTURA" && (
+                      <Receipt className="mx-auto h-6 w-6 text-emerald-500" />
+                    )}
+                    <span className="mt-2 block text-sm font-medium">
+                      {type}
+                    </span>
+                  </button>
+                ))}
+              </div>
 
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">Información General</h3>
-                    <div className="grid gap-4">
-                      <div>
-                        <Label htmlFor="name">Nombre de la plantilla *</Label>
-                        <Input
-                          id="name"
-                          value={formData.name}
-                          onChange={(e) => updateField('name', e.target.value)}
-                          placeholder="Mi Boleta Personalizada"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="description">Descripción</Label>
-                        <Input
-                          id="description"
-                          value={formData.description || ''}
-                          onChange={(e) => updateField('description', e.target.value)}
-                          placeholder="Descripción opcional"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">Formato</h3>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                      <div>
-                        <Label htmlFor="paperSize">Tamaño de papel</Label>
-                        <select
-                          id="paperSize"
-                          value={formData.paperSize}
-                          onChange={(e) => updateField('paperSize', e.target.value)}
-                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
-                        >
-                          <option value="A4">A4 (210×297mm)</option>
-                          <option value="A5">A5 (148×210mm)</option>
-                          <option value="thermal">Thermal (58mm)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <Label htmlFor="fontFamily">Fuente</Label>
-                        <select
-                          id="fontFamily"
-                          value={formData.fontFamily}
-                          onChange={(e) => updateField('fontFamily', e.target.value)}
-                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
-                        >
-                          <option value="Arial">Arial</option>
-                          <option value="Helvetica">Helvetica</option>
-                          <option value="Times New Roman">Times New Roman</option>
-                          <option value="Courier New">Courier New</option>
-                        </select>
-                      </div>
-                      <div>
-                        <Label htmlFor="fontSize">Tamaño de fuente</Label>
-                        <Input
-                          id="fontSize"
-                          type="number"
-                          value={formData.fontSize}
-                          onChange={(e) => updateField('fontSize', parseInt(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">Impuestos</h3>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <Label htmlFor="taxPercentage">IGV (%)</Label>
-                        <Input
-                          id="taxPercentage"
-                          type="number"
-                          step="0.01"
-                          value={formData.taxPercentage}
-                          onChange={(e) => updateField('taxPercentage', parseFloat(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="footerText">Texto de pie</Label>
-                        <Input
-                          id="footerText"
-                          value={formData.footerText || ''}
-                          onChange={(e) => updateField('footerText', e.target.value)}
-                          placeholder="Gracias por su preferencia"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">Campos a mostrar</h3>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-                      {[
-                        { key: 'showLogo', label: 'Logo' },
-                        { key: 'showCompany', label: 'Datos de empresa' },
-                        { key: 'showCustomer', label: 'Datos del cliente' },
-                        { key: 'showEmployee', label: 'Vendedor' },
-                        { key: 'showItems', label: 'Productos' },
-                        { key: 'showSaleNumber', label: 'Número de venta' },
-                        { key: 'showSaleDate', label: 'Fecha' },
-                        { key: 'showSaleTime', label: 'Hora' },
-                        { key: 'showPaymentMethod', label: 'Método de pago' },
-                        { key: 'showSubtotal', label: 'Subtotal' },
-                        { key: 'showTax', label: 'IGV' },
-                        { key: 'showDiscount', label: 'Descuento' },
-                      ].map((field) => (
-                        <label key={field.key} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={formData[field.key as keyof typeof formData] as boolean}
-                            onChange={(e) => updateField(field.key, e.target.checked)}
-                            className="h-4 w-4 rounded border-input text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-foreground/80">{field.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.isDefault}
-                      onChange={(e) => updateField('isDefault', e.target.checked)}
-                      className="h-4 w-4 rounded border-input text-blue-600 focus:ring-blue-500"
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Información General
+                </h3>
+                <div className="grid gap-4">
+                  <div>
+                    <Label htmlFor="name">Nombre de la plantilla *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => updateField("name", e.target.value)}
+                      placeholder="Mi Boleta Personalizada"
                     />
-                    <span className="text-sm font-medium text-foreground/80">Establecer como plantilla por defecto</span>
-                  </label>
-
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => router.push('/platform/templates')}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={createMutation.isPending || updateMutation.isPending}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      {createMutation.isPending || updateMutation.isPending ? 'Guardando...' : 'Guardar Plantilla'}
-                    </Button>
                   </div>
-                </form>
-            </Card>
-
-            <Card className={`min-w-0 overflow-hidden rounded-2xl shadow-xl ${isTicket ? 'lg:sticky lg:top-6' : ''}`}>
-              <div className="p-4 sm:p-6">
-                <h2 className="mb-4 text-lg font-semibold text-card-foreground">
-                  Vista previa · {formData.type === 'TICKET' ? 'Ticket' : formData.type === 'FACTURA' ? 'Factura' : 'Boleta'}
-                </h2>
-                <div className="overflow-x-auto rounded-xl border border-border bg-muted p-2 sm:p-4">
-                  {renderPreview()}
+                  <div>
+                    <Label htmlFor="description">Descripción</Label>
+                    <Input
+                      id="description"
+                      value={formData.description || ""}
+                      onChange={(e) =>
+                        updateField("description", e.target.value)
+                      }
+                      placeholder="Descripción opcional"
+                    />
+                  </div>
                 </div>
               </div>
-            </Card>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Formato
+                </h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div>
+                    <Label htmlFor="paperSize">Tamaño de papel</Label>
+                    <select
+                      id="paperSize"
+                      value={formData.paperSize}
+                      onChange={(e) => updateField("paperSize", e.target.value)}
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
+                    >
+                      <option value="A4">A4 (210×297mm)</option>
+                      <option value="A5">A5 (148×210mm)</option>
+                      <option value="thermal">Thermal (58mm)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="fontFamily">Fuente</Label>
+                    <select
+                      id="fontFamily"
+                      value={formData.fontFamily}
+                      onChange={(e) =>
+                        updateField("fontFamily", e.target.value)
+                      }
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
+                    >
+                      <option value="Arial">Arial</option>
+                      <option value="Helvetica">Helvetica</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Courier New">Courier New</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="fontSize">Tamaño de fuente</Label>
+                    <Input
+                      id="fontSize"
+                      type="number"
+                      value={formData.fontSize}
+                      onChange={(e) =>
+                        updateField("fontSize", parseInt(e.target.value))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Impuestos
+                </h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="taxPercentage">IGV (%)</Label>
+                    <Input
+                      id="taxPercentage"
+                      type="number"
+                      step="0.01"
+                      value={formData.taxPercentage}
+                      onChange={(e) =>
+                        updateField("taxPercentage", parseFloat(e.target.value))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="footerText">Texto de pie</Label>
+                    <Input
+                      id="footerText"
+                      value={formData.footerText || ""}
+                      onChange={(e) =>
+                        updateField("footerText", e.target.value)
+                      }
+                      placeholder="Gracias por su preferencia"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Campos a mostrar
+                </h3>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                  {[
+                    { key: "showLogo", label: "Logo" },
+                    { key: "showCompany", label: "Datos de empresa" },
+                    { key: "showCustomer", label: "Datos del cliente" },
+                    { key: "showEmployee", label: "Vendedor" },
+                    { key: "showItems", label: "Productos" },
+                    { key: "showSaleNumber", label: "Número de venta" },
+                    { key: "showSaleDate", label: "Fecha" },
+                    { key: "showSaleTime", label: "Hora" },
+                    { key: "showPaymentMethod", label: "Método de pago" },
+                    { key: "showSubtotal", label: "Subtotal" },
+                    { key: "showTax", label: "IGV" },
+                    { key: "showDiscount", label: "Descuento" },
+                  ].map((field) => (
+                    <label key={field.key} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={
+                          formData[
+                            field.key as keyof typeof formData
+                          ] as boolean
+                        }
+                        onChange={(e) =>
+                          updateField(field.key, e.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-input text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-foreground/80">
+                        {field.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.isDefault}
+                  onChange={(e) => updateField("isDefault", e.target.checked)}
+                  className="h-4 w-4 rounded border-input text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-foreground/80">
+                  Establecer como plantilla por defecto
+                </span>
+              </label>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/platform/templates")}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    createMutation.isPending || updateMutation.isPending
+                  }
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {createMutation.isPending || updateMutation.isPending
+                    ? "Guardando..."
+                    : "Guardar Plantilla"}
+                </Button>
+              </div>
+            </form>
+          </Card>
+
+          <Card
+            className={`min-w-0 overflow-hidden rounded-2xl shadow-xl ${isTicket ? "lg:sticky lg:top-6" : ""}`}
+          >
+            <div className="p-4 sm:p-6">
+              <h2 className="mb-4 text-lg font-semibold text-card-foreground">
+                Vista previa ·{" "}
+                {formData.type === "TICKET"
+                  ? "Ticket"
+                  : formData.type === "FACTURA"
+                    ? "Factura"
+                    : "Boleta"}
+              </h2>
+              <div className="overflow-x-auto rounded-xl border border-border bg-muted p-2 sm:p-4">
+                {renderPreview()}
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </div>
   );
 }
 
-function ThermalPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> }) {
+function ThermalPreview({
+  formData,
+}: {
+  formData: Omit<InvoiceTemplate, "id">;
+}) {
   const subtotal = sampleItems.reduce((sum, item) => sum + item.total, 0);
   const tax = subtotal * (formData.taxPercentage / 100);
   const total = subtotal + tax;
 
   return (
-    <div className="bg-slate-100 p-4" style={{ fontFamily: 'Courier New, monospace', fontSize: '10px' }}>
-      <div 
+    <div
+      className="bg-slate-100 p-4"
+      style={{ fontFamily: "Courier New, monospace", fontSize: "10px" }}
+    >
+      <div
         data-paper
         className="mx-auto bg-white p-3 shadow-lg"
-        style={{ width: '200px', minHeight: '400px' }}
+        style={{ width: "200px", minHeight: "400px" }}
       >
         <div className="text-center border-b border-dashed border-slate-300 pb-2 mb-2">
           {formData.showLogo && formData.logoUrl && (
-            <img src={formData.logoUrl} alt="Logo" className="mx-auto mb-1" style={{ maxHeight: '30px' }} />
+            <img
+              src={formData.logoUrl}
+              alt="Logo"
+              className="mx-auto mb-1"
+              style={{ maxHeight: "30px" }}
+            />
           )}
           {formData.showCompany && (
             <>
               <div className="font-bold uppercase text-xs">Mi Empresa</div>
-              {formData.companyRuc && <div className="text-xs">RUC: {formData.companyRuc}</div>}
-              {formData.companyAddress && <div className="text-xs">{formData.companyAddress}</div>}
-              {formData.companyPhone && <div className="text-xs">Tel: {formData.companyPhone}</div>}
+              {formData.companyRuc && (
+                <div className="text-xs">RUC: {formData.companyRuc}</div>
+              )}
+              {formData.companyAddress && (
+                <div className="text-xs">{formData.companyAddress}</div>
+              )}
+              {formData.companyPhone && (
+                <div className="text-xs">Tel: {formData.companyPhone}</div>
+              )}
             </>
           )}
           <div className="my-1 border-t border-b border-dashed border-slate-300 py-1">
             <div className="font-bold text-xs">{formData.type} DE VENTA</div>
-            {formData.showSaleNumber && <div className="text-xs">N° 0001-00001</div>}
+            {formData.showSaleNumber && (
+              <div className="text-xs">N° 0001-00001</div>
+            )}
           </div>
         </div>
 
@@ -458,7 +529,9 @@ function ThermalPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> })
               <tr key={i}>
                 <td className="py-0.5">{item.name}</td>
                 <td className="text-center py-0.5">{item.quantity}</td>
-                <td className="text-right py-0.5">S/ {item.total.toFixed(2)}</td>
+                <td className="text-right py-0.5">
+                  S/ {item.total.toFixed(2)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -484,54 +557,77 @@ function ThermalPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> })
         </div>
 
         {formData.showPaymentMethod && (
-          <div className="mt-2 text-center text-xs">
-            Pago: Efectivo
-          </div>
+          <div className="mt-2 text-center text-xs">Pago: Efectivo</div>
         )}
 
         <div className="mt-3 text-center text-xs border-t border-dashed border-slate-300 pt-2">
-          <p>{formData.footerText || 'Gracias por su preferencia'}</p>
+          <p>{formData.footerText || "Gracias por su preferencia"}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function StandardPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> }) {
+function StandardPreview({
+  formData,
+}: {
+  formData: Omit<InvoiceTemplate, "id">;
+}) {
   const subtotal = sampleItems.reduce((sum, item) => sum + item.total, 0);
   const tax = subtotal * (formData.taxPercentage / 100);
   const total = subtotal + tax;
 
-  const paperWidth = formData.paperSize === 'A5' ? '420px' : '600px';
+  const paperWidth = formData.paperSize === "A5" ? "420px" : "600px";
 
   return (
     <div className="bg-slate-100 p-4 overflow-auto">
-      <div 
+      <div
         data-paper
         className="mx-auto bg-white shadow-lg"
-        style={{ width: paperWidth, minHeight: '700px', fontFamily: formData.fontFamily }}
+        style={{
+          width: paperWidth,
+          minHeight: "700px",
+          fontFamily: formData.fontFamily,
+        }}
       >
-        <div 
+        <div
           className="text-center py-4 px-6 border-b-2"
-          style={{ borderColor: '#1a1a2e' }}
+          style={{ borderColor: "#1a1a2e" }}
         >
           {formData.showLogo && formData.logoUrl && (
-            <img src={formData.logoUrl} alt="Logo" className="mx-auto mb-2" style={{ maxHeight: '50px' }} />
+            <img
+              src={formData.logoUrl}
+              alt="Logo"
+              className="mx-auto mb-2"
+              style={{ maxHeight: "50px" }}
+            />
           )}
           {formData.showCompany && (
             <>
-              <div className="text-xl font-bold uppercase" style={{ color: '#1a1a2e' }}>
+              <div
+                className="text-xl font-bold uppercase"
+                style={{ color: "#1a1a2e" }}
+              >
                 Mi Empresa SAC
               </div>
               <div className="text-xs text-slate-500 mt-1">
                 {formData.companyRuc && <span>RUC: {formData.companyRuc}</span>}
-                {formData.companyRuc && formData.companyAddress && <span> | </span>}
-                {formData.companyAddress && <span>{formData.companyAddress}</span>}
-                {formData.companyPhone && <span> | Tel: {formData.companyPhone}</span>}
+                {formData.companyRuc && formData.companyAddress && (
+                  <span> | </span>
+                )}
+                {formData.companyAddress && (
+                  <span>{formData.companyAddress}</span>
+                )}
+                {formData.companyPhone && (
+                  <span> | Tel: {formData.companyPhone}</span>
+                )}
               </div>
             </>
           )}
-          <div className="text-base font-bold mt-3" style={{ color: '#1a1a2e' }}>
+          <div
+            className="text-base font-bold mt-3"
+            style={{ color: "#1a1a2e" }}
+          >
             {formData.type} DE VENTA
           </div>
           {formData.showSaleNumber && (
@@ -556,9 +652,12 @@ function StandardPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> }
           </div>
         )}
 
-        <table className="w-full px-6" style={{ fontSize: `${formData.fontSize}px` }}>
+        <table
+          className="w-full px-6"
+          style={{ fontSize: `${formData.fontSize}px` }}
+        >
           <thead>
-            <tr style={{ backgroundColor: '#1a1a2e', color: 'white' }}>
+            <tr style={{ backgroundColor: "#1a1a2e", color: "white" }}>
               <th className="text-left py-2 px-3">Producto</th>
               <th className="text-center py-2 px-3">Cant.</th>
               <th className="text-right py-2 px-3">P. Unit</th>
@@ -570,8 +669,12 @@ function StandardPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> }
               <tr key={i} className="border-b border-slate-100">
                 <td className="py-2 px-3">{item.name}</td>
                 <td className="text-center py-2 px-3">{item.quantity}</td>
-                <td className="text-right py-2 px-3">S/ {item.unitPrice.toFixed(2)}</td>
-                <td className="text-right py-2 px-3">S/ {item.total.toFixed(2)}</td>
+                <td className="text-right py-2 px-3">
+                  S/ {item.unitPrice.toFixed(2)}
+                </td>
+                <td className="text-right py-2 px-3">
+                  S/ {item.total.toFixed(2)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -583,18 +686,28 @@ function StandardPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> }
               {formData.showSubtotal && (
                 <tr className="border-b border-slate-100">
                   <td className="py-2 text-slate-600">Subtotal</td>
-                  <td className="py-2 text-right font-medium">S/ {subtotal.toFixed(2)}</td>
+                  <td className="py-2 text-right font-medium">
+                    S/ {subtotal.toFixed(2)}
+                  </td>
                 </tr>
               )}
               {formData.showTax && (
                 <tr className="border-b border-slate-100">
-                  <td className="py-2 text-slate-600">IGV ({formData.taxPercentage}%)</td>
-                  <td className="py-2 text-right font-medium">S/ {tax.toFixed(2)}</td>
+                  <td className="py-2 text-slate-600">
+                    IGV ({formData.taxPercentage}%)
+                  </td>
+                  <td className="py-2 text-right font-medium">
+                    S/ {tax.toFixed(2)}
+                  </td>
                 </tr>
               )}
-              <tr style={{ backgroundColor: '#1a1a2e' }}>
-                <td className="py-3 px-2 text-white font-bold">TOTAL A PAGAR</td>
-                <td className="py-3 px-2 text-white text-right font-bold">S/ {total.toFixed(2)}</td>
+              <tr style={{ backgroundColor: "#1a1a2e" }}>
+                <td className="py-3 px-2 text-white font-bold">
+                  TOTAL A PAGAR
+                </td>
+                <td className="py-3 px-2 text-white text-right font-bold">
+                  S/ {total.toFixed(2)}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -603,14 +716,21 @@ function StandardPreview({ formData }: { formData: Omit<InvoiceTemplate, 'id'> }
         {formData.showPaymentMethod && (
           <div className="px-6 py-2">
             <div className="inline-block bg-blue-50 rounded-lg px-4 py-2">
-              <div className="text-xs text-slate-500 uppercase">Forma de Pago</div>
-              <div className="text-sm font-semibold" style={{ color: '#1a1a2e' }}>Efectivo</div>
+              <div className="text-xs text-slate-500 uppercase">
+                Forma de Pago
+              </div>
+              <div
+                className="text-sm font-semibold"
+                style={{ color: "#1a1a2e" }}
+              >
+                Efectivo
+              </div>
             </div>
           </div>
         )}
 
         <div className="px-6 py-4 text-center text-xs text-slate-400 border-t border-slate-100 mt-4">
-          <p>{formData.footerText || 'Gracias por su preferencia'}</p>
+          <p>{formData.footerText || "Gracias por su preferencia"}</p>
           <p className="mt-1">{formData.type} N° 0001-00001 - Mi Empresa SAC</p>
         </div>
       </div>

@@ -1,15 +1,22 @@
-'use client';
+"use client";
 
-import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
-import { Crown, Check, Loader2, Smartphone, Building2, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { compressImage } from '@/lib/image-compression';
-import { useAuthStore } from '@/stores/auth.store';
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Crown,
+  Check,
+  Loader2,
+  Smartphone,
+  Building2,
+  Upload,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { compressImage } from "@/lib/image-compression";
+import { useAuthStore } from "@/stores/auth.store";
 
 interface Plan {
   id: string;
@@ -39,39 +46,52 @@ interface UpgradeResponse {
   requestId: string;
   status: string;
   currentPlan: { code: string; name: string };
-  newPlan: { code: string; name: string; priceMonthly: string; priceYearly: string };
+  newPlan: {
+    code: string;
+    name: string;
+    priceMonthly: string;
+    priceYearly: string;
+  };
   paymentMethod: string;
   paymentSettings: PaymentSettings;
 }
 
 const paymentMethods = [
-  { id: 'YAPE', name: 'Yape', icon: Smartphone, color: 'bg-green-500' },
-  { id: 'PLIN', name: 'Plin', icon: Smartphone, color: 'bg-blue-500' },
-  { id: 'TRANSFER', name: 'Transferencia', icon: Building2, color: 'bg-gray-500' },
+  { id: "YAPE", name: "Yape", icon: Smartphone, color: "bg-green-500" },
+  { id: "PLIN", name: "Plin", icon: Smartphone, color: "bg-blue-500" },
+  {
+    id: "TRANSFER",
+    name: "Transferencia",
+    icon: Building2,
+    color: "bg-gray-500",
+  },
 ];
 
-export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalProps) {
+export function UpgradePlanModal({
+  plans,
+  currentPlanCode,
+}: UpgradePlanModalProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState<'select' | 'payment' | 'success'>('select');
+  const [step, setStep] = useState<"select" | "payment" | "success">("select");
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings[]>([]);
   const [upgradeRequestId, setUpgradeRequestId] = useState<string | null>(null);
-  const [newPlanPrice, setNewPlanPrice] = useState<string>('');
-  
+  const [newPlanPrice, setNewPlanPrice] = useState<string>("");
+
   const [proofImage, setProofImage] = useState<string | null>(null);
   const [proofUploaded, setProofUploaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleOpen = async () => {
     setIsOpen(true);
-    setStep('select');
+    setStep("select");
     setSelectedPlan(null);
     setSelectedPayment(null);
     setProofImage(null);
@@ -82,17 +102,17 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
 
   const fetchPaymentSettings = async () => {
     try {
-      const data = await apiFetch<PaymentSettings[]>('/payment-settings', {
+      const data = await apiFetch<PaymentSettings[]>("/payment-settings", {
         token: getAccessToken(),
       });
       setPaymentSettings(data || []);
     } catch (error) {
-      console.error('Error fetching payment settings:', error);
+      console.error("Error fetching payment settings:", error);
     }
   };
 
   const getPaymentSettings = (provider: string) => {
-    return paymentSettings.find(p => p.provider === provider);
+    return paymentSettings.find((p) => p.provider === provider);
   };
 
   const handleProceedToPayment = async () => {
@@ -102,20 +122,25 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
     setError(null);
 
     try {
-      const data = await apiFetch<UpgradeResponse>('/subscriptions/upgrade-requests', {
-        method: 'POST',
-        token: getAccessToken(),
-        body: JSON.stringify({
-          newPlanCode: selectedPlan,
-          paymentMethod: selectedPayment,
-        }),
-      });
+      const data = await apiFetch<UpgradeResponse>(
+        "/subscriptions/upgrade-requests",
+        {
+          method: "POST",
+          token: getAccessToken(),
+          body: JSON.stringify({
+            newPlanCode: selectedPlan,
+            paymentMethod: selectedPayment,
+          }),
+        },
+      );
 
       setUpgradeRequestId(data.requestId);
       setNewPlanPrice(data.newPlan.priceMonthly);
-      setStep('payment');
+      setStep("payment");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar solicitud');
+      setError(
+        err instanceof Error ? err.message : "Error al iniciar solicitud",
+      );
     } finally {
       setLoading(false);
     }
@@ -126,7 +151,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
       const compressed = await compressImage(file);
       setProofImage(compressed);
     } catch {
-      setError('Error al procesar la imagen');
+      setError("Error al procesar la imagen");
     }
   };
 
@@ -135,21 +160,24 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
 
     setLoading(true);
     try {
-      await apiFetch(`/subscriptions/upgrade-requests/${upgradeRequestId}/proof`, {
-        method: 'POST',
-        token: getAccessToken(),
-        body: JSON.stringify({
-          imageBase64: proofImage,
-        }),
-      });
-      
+      await apiFetch(
+        `/subscriptions/upgrade-requests/${upgradeRequestId}/proof`,
+        {
+          method: "POST",
+          token: getAccessToken(),
+          body: JSON.stringify({
+            imageBase64: proofImage,
+          }),
+        },
+      );
+
       setProofUploaded(true);
-      queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      queryClient.invalidateQueries({ queryKey: ["subscription"] });
       setTimeout(() => {
-        setStep('success');
+        setStep("success");
       }, 2000);
     } catch (err) {
-      setError('Error al subir el comprobante');
+      setError("Error al subir el comprobante");
     } finally {
       setLoading(false);
     }
@@ -161,14 +189,16 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
   };
 
   const planColors: Record<string, string> = {
-    START: 'from-amber-500 to-amber-600',
-    GROWTH: 'from-violet-500 to-violet-600',
-    SCALE: 'from-indigo-500 to-indigo-600',
+    START: "from-amber-500 to-amber-600",
+    GROWTH: "from-violet-500 to-violet-600",
+    SCALE: "from-indigo-500 to-indigo-600",
   };
 
-  const currentPaymentSettings = selectedPayment ? getPaymentSettings(selectedPayment) : null;
+  const currentPaymentSettings = selectedPayment
+    ? getPaymentSettings(selectedPayment)
+    : null;
 
-  if (step === 'success') {
+  if (step === "success") {
     return (
       <>
         <Button onClick={handleOpen} className="gap-2">
@@ -184,7 +214,11 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
               </div>
               <h2 className="font-display text-2xl">¡Solicitud enviada!</h2>
               <p className="mt-3 text-foreground/70">
-                Tu solicitud para cambiar al plan <strong>{plans.find(p => p.code === selectedPlan)?.name}</strong> ha sido recibida.
+                Tu solicitud para cambiar al plan{" "}
+                <strong>
+                  {plans.find((p) => p.code === selectedPlan)?.name}
+                </strong>{" "}
+                ha sido recibida.
               </p>
               {proofUploaded && (
                 <div className="mt-4 rounded-xl bg-green-50 p-4 text-left">
@@ -200,7 +234,10 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                 </p>
                 <ul className="mt-2 list-inside list-decimal text-sm text-blue-700">
                   <li>Recibirás un correo de confirmación</li>
-                  <li>Tu cambio de plan será aprobado en <strong>7 días hábiles</strong></li>
+                  <li>
+                    Tu cambio de plan será aprobado en{" "}
+                    <strong>7 días hábiles</strong>
+                  </li>
                   <li>Te notificaremos cuando esté listo</li>
                 </ul>
               </div>
@@ -214,7 +251,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
     );
   }
 
-  if (step === 'payment' && upgradeRequestId) {
+  if (step === "payment" && upgradeRequestId) {
     return (
       <>
         <Button onClick={handleOpen} className="gap-2">
@@ -234,9 +271,13 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                   ×
                 </button>
               </div>
-              
+
               <p className="mt-2 text-foreground/60">
-                Plan <strong>{plans.find(p => p.code === selectedPlan)?.name}</strong> - S/ {newPlanPrice}/mes
+                Plan{" "}
+                <strong>
+                  {plans.find((p) => p.code === selectedPlan)?.name}
+                </strong>{" "}
+                - S/ {newPlanPrice}/mes
               </p>
 
               <div className="mt-6 space-y-6">
@@ -246,14 +287,16 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                       <Smartphone className="h-5 w-5" />
                       Datos de pago
                     </h3>
-                    
+
                     {currentPaymentSettings.qrImageBase64 && (
                       <div className="mb-4">
-                        <p className="text-sm text-foreground/60 mb-2">Escanea el código QR:</p>
+                        <p className="text-sm text-foreground/60 mb-2">
+                          Escanea el código QR:
+                        </p>
                         <div className="flex justify-center">
-                          <img 
-                            src={currentPaymentSettings.qrImageBase64} 
-                            alt="QR Code" 
+                          <img
+                            src={currentPaymentSettings.qrImageBase64}
+                            alt="QR Code"
                             className="w-48 h-48 object-contain border rounded-xl"
                           />
                         </div>
@@ -262,16 +305,24 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
 
                     {currentPaymentSettings.accountNumber && (
                       <div className="space-y-2 text-sm">
-                        <p><strong>Número:</strong> {currentPaymentSettings.accountNumber}</p>
+                        <p>
+                          <strong>Número:</strong>{" "}
+                          {currentPaymentSettings.accountNumber}
+                        </p>
                         {currentPaymentSettings.accountName && (
-                          <p><strong>Titular:</strong> {currentPaymentSettings.accountName}</p>
+                          <p>
+                            <strong>Titular:</strong>{" "}
+                            {currentPaymentSettings.accountName}
+                          </p>
                         )}
                       </div>
                     )}
 
                     {currentPaymentSettings.instructions && (
                       <div className="mt-4 p-3 bg-foreground/5 rounded-lg">
-                        <p className="text-sm">{currentPaymentSettings.instructions}</p>
+                        <p className="text-sm">
+                          {currentPaymentSettings.instructions}
+                        </p>
                       </div>
                     )}
 
@@ -288,10 +339,12 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                     <Upload className="h-5 w-5" />
                     Subir comprobante de pago
                   </h3>
-                  
+
                   <div className="space-y-4">
                     <div>
-                      <Label>Captura de pantalla o foto del comprobante (obligatorio)</Label>
+                      <Label>
+                        Captura de pantalla o foto del comprobante (obligatorio)
+                      </Label>
                       <div className="mt-2">
                         <input
                           type="file"
@@ -303,20 +356,21 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                             if (file) handleImageUpload(file);
                           }}
                         />
-                        
+
                         {proofImage ? (
                           <div className="space-y-3">
-                            <img 
-                              src={proofImage} 
-                              alt="Comprobante" 
+                            <img
+                              src={proofImage}
+                              alt="Comprobante"
                               className="w-full max-h-64 object-contain border rounded-xl"
                             />
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => {
                                 setProofImage(null);
-                                if (fileInputRef.current) fileInputRef.current.value = '';
+                                if (fileInputRef.current)
+                                  fileInputRef.current.value = "";
                               }}
                             >
                               Cambiar imagen
@@ -325,7 +379,9 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                         ) : (
                           <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-foreground/20 rounded-xl cursor-pointer hover:bg-foreground/5 transition">
                             <Upload className="w-8 h-8 text-foreground/40" />
-                            <span className="mt-2 text-sm text-foreground/60">Haz clic para subir</span>
+                            <span className="mt-2 text-sm text-foreground/60">
+                              Haz clic para subir
+                            </span>
                           </label>
                         )}
                       </div>
@@ -337,8 +393,8 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                       </div>
                     )}
 
-                    <Button 
-                      className="w-full" 
+                    <Button
+                      className="w-full"
                       onClick={handleSubmitProof}
                       disabled={loading || !proofImage || proofUploaded}
                     >
@@ -353,7 +409,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                           Comprobante subido
                         </>
                       ) : (
-                        'Confirmar pago'
+                        "Confirmar pago"
                       )}
                     </Button>
                   </div>
@@ -385,7 +441,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                 ×
               </button>
             </div>
-            
+
             <p className="mt-2 text-foreground/60">
               Selecciona el plan al que deseas actualizar.
             </p>
@@ -394,8 +450,9 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
               {plans.map((plan) => {
                 const isCurrent = plan.code === currentPlanCode;
                 const isSelected = selectedPlan === plan.code;
-                const colorClass = planColors[plan.code] || 'from-gray-500 to-gray-600';
-                
+                const colorClass =
+                  planColors[plan.code] || "from-gray-500 to-gray-600";
+
                 return (
                   <button
                     key={plan.id}
@@ -403,10 +460,10 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                     disabled={isCurrent}
                     className={`relative rounded-[24px] border-2 p-6 text-left transition ${
                       isCurrent
-                        ? 'border-foreground/20 bg-foreground/5 opacity-50'
+                        ? "border-foreground/20 bg-foreground/5 opacity-50"
                         : isSelected
-                        ? 'border-violet-500 bg-violet-50'
-                        : 'border-foreground/10 hover:border-foreground/30'
+                          ? "border-violet-500 bg-violet-50"
+                          : "border-foreground/10 hover:border-foreground/30"
                     }`}
                   >
                     {isCurrent && (
@@ -414,20 +471,25 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                         Actual
                       </span>
                     )}
-                    
+
                     <p className="text-sm uppercase tracking-[0.18em] text-foreground/60">
                       {plan.name}
                     </p>
-                    
+
                     <div className="mt-4 flex items-baseline gap-1">
                       <span className="font-display text-4xl">S/</span>
-                      <span className="font-display text-4xl">{plan.priceMonthly}</span>
+                      <span className="font-display text-4xl">
+                        {plan.priceMonthly}
+                      </span>
                       <span className="text-foreground/50">/mes</span>
                     </div>
-                    
+
                     <div className="mt-4 space-y-2">
                       {plan.features?.map((feature: string, i: number) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 text-sm"
+                        >
                           <Check className="size-4 text-green-500" />
                           <span>{feature}</span>
                         </div>
@@ -441,20 +503,28 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
             {selectedPlan && (
               <div className="mt-6 rounded-2xl bg-violet-50 p-4">
                 <p className="text-sm text-violet-800">
-                  Estás cambiando al plan <strong>{plans.find(p => p.code === selectedPlan)?.name}</strong>.
+                  Estás cambiando al plan{" "}
+                  <strong>
+                    {plans.find((p) => p.code === selectedPlan)?.name}
+                  </strong>
+                  .
                 </p>
               </div>
             )}
 
             {selectedPlan && (
               <div className="mt-6">
-                <Label className="mb-3 block text-sm font-medium">Método de pago</Label>
+                <Label className="mb-3 block text-sm font-medium">
+                  Método de pago
+                </Label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {paymentMethods.map((method) => {
                     const Icon = method.icon;
-                    const isEnabled = paymentSettings.some(p => p.provider === method.id && p.isEnabled);
+                    const isEnabled = paymentSettings.some(
+                      (p) => p.provider === method.id && p.isEnabled,
+                    );
                     const isSelected = selectedPayment === method.id;
-                    
+
                     return (
                       <button
                         key={method.id}
@@ -463,19 +533,26 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                         onClick={() => setSelectedPayment(method.id)}
                         className={`
                           flex flex-col items-center justify-center rounded-xl border-2 p-4 transition
-                          ${isSelected 
-                            ? 'border-violet-500 bg-violet-50' 
-                            : isEnabled 
-                              ? 'border-foreground/10 hover:border-foreground/30' 
-                              : 'border-foreground/5 bg-gray-50 opacity-50 cursor-not-allowed'
+                          ${
+                            isSelected
+                              ? "border-violet-500 bg-violet-50"
+                              : isEnabled
+                                ? "border-foreground/10 hover:border-foreground/30"
+                                : "border-foreground/5 bg-gray-50 opacity-50 cursor-not-allowed"
                           }
                         `}
                       >
                         <div className={`rounded-full p-2 ${method.color}`}>
                           <Icon className="h-5 w-5 text-white" />
                         </div>
-                        <span className="mt-2 text-sm font-medium">{method.name}</span>
-                        {!isEnabled && <span className="text-xs text-red-500 mt-1">No disponible</span>}
+                        <span className="mt-2 text-sm font-medium">
+                          {method.name}
+                        </span>
+                        {!isEnabled && (
+                          <span className="text-xs text-red-500 mt-1">
+                            No disponible
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -504,7 +581,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                     Procesando...
                   </>
                 ) : (
-                  'Continuar'
+                  "Continuar"
                 )}
               </Button>
             </div>

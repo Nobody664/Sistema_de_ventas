@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { Loader2, Key } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { Loader2, Key } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -15,18 +15,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useUiStore } from '@/store/ui-store';
-import { useAuthStore } from '@/stores/auth.store';
-import { 
-  validatePhone, 
-  validateEmail, 
+} from "@/components/ui/dialog";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useUiStore } from "@/store/ui-store";
+import { useAuthStore } from "@/stores/auth.store";
+import {
+  validatePhone,
+  validateEmail,
   validateTextOnly,
   formatPhone,
-  PERU_VALIDATIONS 
-} from '@/lib/validations';
-import type { Employee } from '@/types/api';
+  PERU_VALIDATIONS,
+} from "@/lib/validations";
+import type { Employee } from "@/types/api";
 
 interface EmployeeModalProps {
   employee?: Employee | null;
@@ -46,26 +46,26 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
 
   const validateForm = (formData: FormData): boolean => {
     const newErrors: Record<string, string> = {};
-    
-    const firstName = formData.get('firstName') as string;
-    const lastName = formData.get('lastName') as string;
-    const email = formData.get('email') as string;
-    const phone = formData.get('phone') as string;
-    const password = formData.get('password') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
+
+    const firstName = formData.get("firstName") as string;
+    const lastName = formData.get("lastName") as string;
+    const email = formData.get("email") as string;
+    const phone = formData.get("phone") as string;
+    const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
 
     if (!firstName || firstName.trim().length < 2) {
-      newErrors.firstName = 'El nombre debe tener al menos 2 caracteres';
+      newErrors.firstName = "El nombre debe tener al menos 2 caracteres";
     } else if (!validateTextOnly(firstName)) {
-      newErrors.firstName = 'Solo se permiten letras';
+      newErrors.firstName = "Solo se permiten letras";
     }
 
     if (lastName && !validateTextOnly(lastName)) {
-      newErrors.lastName = 'Solo se permiten letras';
+      newErrors.lastName = "Solo se permiten letras";
     }
 
     if (!email) {
-      newErrors.email = 'El correo es requerido';
+      newErrors.email = "El correo es requerido";
     } else if (!validateEmail(email)) {
       newErrors.email = PERU_VALIDATIONS.email.error;
     }
@@ -76,10 +76,10 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
 
     if (!isEdit) {
       if (!password || password.length < 8) {
-        newErrors.password = 'La contraseña debe tener al menos 8 caracteres';
+        newErrors.password = "La contraseña debe tener al menos 8 caracteres";
       }
       if (password !== confirmPassword) {
-        newErrors.confirmPassword = 'Las contraseñas no coinciden';
+        newErrors.confirmPassword = "Las contraseñas no coinciden";
       }
     }
 
@@ -106,22 +106,22 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
     }
 
     const data: Record<string, unknown> = {
-      firstName: formData.get('firstName'),
-      lastName: formData.get('lastName') || null,
-      email: formData.get('email'),
-      phone: formData.get('phone') || null,
-      role: formData.get('role'),
+      firstName: formData.get("firstName"),
+      lastName: formData.get("lastName") || null,
+      email: formData.get("email"),
+      phone: formData.get("phone") || null,
+      role: formData.get("role"),
     };
 
     if (isEdit) {
-      data.isActive = formData.get('isActive') === 'on';
+      data.isActive = formData.get("isActive") === "on";
     } else {
-      data.password = formData.get('password');
+      data.password = formData.get("password");
     }
 
     try {
-      const url = isEdit ? `/employees/${employee.id}` : '/employees';
-      const method = isEdit ? 'PATCH' : 'POST';
+      const url = isEdit ? `/employees/${employee.id}` : "/employees";
+      const method = isEdit ? "PATCH" : "POST";
 
       await apiFetch(url, {
         method,
@@ -129,13 +129,23 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
         body: JSON.stringify(data),
       });
 
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
       router.refresh();
-      addToast(isEdit ? 'Empleado actualizado correctamente' : 'Empleado creado correctamente', 'success');
+      addToast(
+        isEdit
+          ? "Empleado actualizado correctamente"
+          : "Empleado creado correctamente",
+        "success",
+      );
       setOpen(false);
     } catch (err) {
-      setErrors({ general: err instanceof Error ? err.message : 'Error desconocido' });
-      addToast(err instanceof Error ? err.message : 'Error al guardar empleado', 'error');
+      setErrors({
+        general: err instanceof Error ? err.message : "Error desconocido",
+      });
+      addToast(
+        err instanceof Error ? err.message : "Error al guardar empleado",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -146,63 +156,79 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar empleado' : 'Nuevo empleado'}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Editar empleado" : "Nuevo empleado"}
+          </DialogTitle>
           <DialogDescription>
-            {isEdit ? 'Actualiza los datos del empleado' : 'Completa los datos para registrar un nuevo empleado'}
+            {isEdit
+              ? "Actualiza los datos del empleado"
+              : "Completa los datos para registrar un nuevo empleado"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {errors.general && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{errors.general}</div>}
+            {errors.general && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                {errors.general}
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Nombres *</Label>
-                <Input 
-                  id="firstName" 
-                  name="firstName" 
-                  required 
-                  defaultValue={employee?.firstName} 
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  required
+                  defaultValue={employee?.firstName}
                   placeholder="Juan"
                   maxLength={100}
                 />
-                {errors.firstName && <p className="text-xs text-red-500">{errors.firstName}</p>}
+                {errors.firstName && (
+                  <p className="text-xs text-red-500">{errors.firstName}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Apellidos</Label>
-                <Input 
-                  id="lastName" 
-                  name="lastName" 
-                  defaultValue={employee?.lastName || ''} 
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  defaultValue={employee?.lastName || ""}
                   placeholder="Perez"
                   maxLength={100}
                 />
-                {errors.lastName && <p className="text-xs text-red-500">{errors.lastName}</p>}
+                {errors.lastName && (
+                  <p className="text-xs text-red-500">{errors.lastName}</p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  name="email" 
-                  type="email" 
-                  defaultValue={employee?.email || ''} 
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={employee?.email || ""}
                   placeholder="juan@empresa.com"
                   maxLength={255}
                 />
-                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+                {errors.email && (
+                  <p className="text-xs text-red-500">{errors.email}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefono</Label>
-                <Input 
-                  id="phone" 
-                  name="phone" 
-                  defaultValue={employee?.phone || ''} 
+                <Input
+                  id="phone"
+                  name="phone"
+                  defaultValue={employee?.phone || ""}
                   placeholder="+51 900 000 000"
                   maxLength={15}
                   onChange={handlePhoneChange}
                 />
-                {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+                {errors.phone && (
+                  <p className="text-xs text-red-500">{errors.phone}</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -211,7 +237,7 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
                 id="role"
                 name="role"
                 required
-                defaultValue={employee?.role || 'VIEWER'}
+                defaultValue={employee?.role || "VIEWER"}
                 className="flex h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
               >
                 <option value="COMPANY_ADMIN">Administrador</option>
@@ -231,7 +257,9 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
                     required
                     placeholder="Mínimo 8 caracteres"
                   />
-                  {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+                  {errors.password && (
+                    <p className="text-xs text-red-500">{errors.password}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirmar *</Label>
@@ -242,7 +270,11 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
                     required
                     placeholder="Repite la contraseña"
                   />
-                  {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
+                  {errors.confirmPassword && (
+                    <p className="text-xs text-red-500">
+                      {errors.confirmPassword}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -262,12 +294,16 @@ export function EmployeeModal({ employee, children }: EmployeeModalProps) {
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'Guardar cambios' : 'Crear empleado'}
+              {isEdit ? "Guardar cambios" : "Crear empleado"}
             </Button>
           </DialogFooter>
         </form>

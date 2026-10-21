@@ -1,28 +1,39 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useUiStore } from '@/store/ui-store';
-import { ArrowLeft, ClipboardList, FileText, Loader2, PackagePlus, Plus, Printer, Receipt, Store, Trash2 } from 'lucide-react';
-import Link from 'next/link';
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useUiStore } from "@/store/ui-store";
+import {
+  ArrowLeft,
+  ClipboardList,
+  FileText,
+  Loader2,
+  PackagePlus,
+  Plus,
+  Printer,
+  Receipt,
+  Store,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
 import type {
   DistributorPurchaseSummary,
   PurchaseReceiptDetail,
   PurchaseReceiptRecord,
   StockEntryDistributorOption,
   StockEntryProductOption,
-} from './page';
+} from "./page";
 
 const UNIT_SHORT: Record<string, string> = {
-  UNIT: 'und',
-  KG: 'kg',
-  LT: 'lt',
-  MT: 'mt',
+  UNIT: "und",
+  KG: "kg",
+  LT: "lt",
+  MT: "mt",
 };
 
 interface EntryItem {
@@ -69,33 +80,47 @@ interface StockEntriesClientProps {
 
 const emptyLine = (): Line => ({
   key: Math.random().toString(36).slice(2),
-  productId: '',
-  presentationId: '',
-  quantity: '',
-  unitCost: '',
-  expiryDate: '',
+  productId: "",
+  presentationId: "",
+  quantity: "",
+  unitCost: "",
+  expiryDate: "",
 });
 
-export function StockEntriesClient({ initialEntries, products, branches, distributors, purchases, receipts }: StockEntriesClientProps) {
+export function StockEntriesClient({
+  initialEntries,
+  products,
+  branches,
+  distributors,
+  purchases,
+  receipts,
+}: StockEntriesClientProps) {
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
 
   const entries = initialEntries as unknown as EntryRecord[];
-  const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  const productMap = useMemo(
+    () => new Map(products.map((p) => [p.id, p])),
+    [products],
+  );
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
-  const [branchId, setBranchId] = useState('');
-  const [distributorId, setDistributorId] = useState('');
+  const [branchId, setBranchId] = useState("");
+  const [distributorId, setDistributorId] = useState("");
   const [issuingKey, setIssuingKey] = useState<string | null>(null);
-  const [reference, setReference] = useState('');
-  const [notes, setNotes] = useState('');
-  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reference, setReference] = useState("");
+  const [notes, setNotes] = useState("");
+  const [entryDate, setEntryDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const presentationFactor = (line: Line) => {
     const product = productMap.get(line.productId);
-    const presentation = product?.presentations.find((p) => p.id === line.presentationId);
+    const presentation = product?.presentations.find(
+      (p) => p.id === line.presentationId,
+    );
     return presentation ? Number(presentation.factor) : 1;
   };
 
@@ -103,8 +128,13 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
     setLines((prev) =>
       prev.map((line) => {
         if (line.key !== key) return line;
-        if (field === 'productId') {
-          return { ...line, productId: value, presentationId: '', unitCost: line.unitCost };
+        if (field === "productId") {
+          return {
+            ...line,
+            productId: value,
+            presentationId: "",
+            unitCost: line.unitCost,
+          };
         }
         return { ...line, [field]: value };
       }),
@@ -118,7 +148,12 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
   }, 0);
 
   const historyInvestment = entries.reduce(
-    (sum, entry) => sum + entry.items.reduce((s, item) => s + Number(item.unitCost) * Number(item.quantity), 0),
+    (sum, entry) =>
+      sum +
+      entry.items.reduce(
+        (s, item) => s + Number(item.unitCost) * Number(item.quantity),
+        0,
+      ),
     0,
   );
 
@@ -137,34 +172,37 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
       }));
 
     if (items.length === 0) {
-      setError('Agrega al menos un producto con cantidad mayor a 0.');
+      setError("Agrega al menos un producto con cantidad mayor a 0.");
       return;
     }
 
     setSubmitting(true);
     try {
-      await apiFetch('/stock-entries', {
-        method: 'POST',
+      await apiFetch("/stock-entries", {
+        method: "POST",
         token: getAccessToken(),
         body: JSON.stringify({
           branchId: branchId || undefined,
           distributorId: distributorId || undefined,
           reference: reference || undefined,
           notes: notes || undefined,
-          entryDate: entryDate ? new Date(`${entryDate}T00:00:00`).toISOString() : undefined,
+          entryDate: entryDate
+            ? new Date(`${entryDate}T00:00:00`).toISOString()
+            : undefined,
           items,
         }),
       });
 
-      addToast('Entrada de stock registrada correctamente', 'success');
+      addToast("Entrada de stock registrada correctamente", "success");
       setLines([emptyLine()]);
-      setReference('');
-      setNotes('');
+      setReference("");
+      setNotes("");
       router.refresh();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'No se pudo registrar la entrada.';
+      const message =
+        err instanceof Error ? err.message : "No se pudo registrar la entrada.";
       setError(message);
-      addToast(message, 'error');
+      addToast(message, "error");
     } finally {
       setSubmitting(false);
     }
@@ -173,7 +211,7 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
   const printReceipt = (receipt: PurchaseReceiptDetail) => {
     const title = receipt.distributor
       ? `${receipt.distributor.name} (${receipt.distributor.code})`
-      : 'General / sin distribuidor';
+      : "General / sin distribuidor";
 
     const rows = receipt.entries
       .flatMap((entry) =>
@@ -182,10 +220,10 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
             ? `${item.product.name} (${item.presentation.name})`
             : item.product.name;
           const lineTotal = Number(item.unitCost) * Number(item.quantity);
-          return `<tr><td>${new Date(entry.entryDate).toLocaleDateString()}</td><td>${escapeHtml(entry.reference ?? '—')}</td><td>${escapeHtml(productName)}</td><td style="text-align:right">${Number(item.quantity)}</td><td style="text-align:right">S/ ${Number(item.unitCost).toFixed(2)}</td><td style="text-align:right">S/ ${lineTotal.toFixed(2)}</td></tr>`;
+          return `<tr><td>${new Date(entry.entryDate).toLocaleDateString()}</td><td>${escapeHtml(entry.reference ?? "—")}</td><td>${escapeHtml(productName)}</td><td style="text-align:right">${Number(item.quantity)}</td><td style="text-align:right">S/ ${Number(item.unitCost).toFixed(2)}</td><td style="text-align:right">S/ ${lineTotal.toFixed(2)}</td></tr>`;
         }),
       )
-      .join('');
+      .join("");
 
     const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Boleta interna ${escapeHtml(receipt.fullNumber)}</title>
 <style>
@@ -209,9 +247,12 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
   <p class="total">Total comprado: S/ ${receipt.totalAmount.toFixed(2)}</p>
 </body></html>`;
 
-    const win = window.open('', '_blank', 'width=820,height=900');
+    const win = window.open("", "_blank", "width=820,height=900");
     if (!win) {
-      addToast('Permite las ventanas emergentes para imprimir la boleta.', 'error');
+      addToast(
+        "Permite las ventanas emergentes para imprimir la boleta.",
+        "error",
+      );
       return;
     }
     win.document.write(html);
@@ -221,20 +262,26 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
   };
 
   const issueReceipt = async (group: DistributorPurchaseSummary) => {
-    const key = group.distributor?.id ?? 'general';
+    const key = group.distributor?.id ?? "general";
     setIssuingKey(key);
     try {
-      const detail = await apiFetch<PurchaseReceiptDetail>('/stock-entries/receipts', {
-        method: 'POST',
-        token: getAccessToken(),
-        body: JSON.stringify({ distributorId: group.distributor?.id ?? undefined }),
-      });
-      addToast(`Boleta ${detail.fullNumber} emitida`, 'success');
+      const detail = await apiFetch<PurchaseReceiptDetail>(
+        "/stock-entries/receipts",
+        {
+          method: "POST",
+          token: getAccessToken(),
+          body: JSON.stringify({
+            distributorId: group.distributor?.id ?? undefined,
+          }),
+        },
+      );
+      addToast(`Boleta ${detail.fullNumber} emitida`, "success");
       printReceipt(detail);
       router.refresh();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'No se pudo emitir la boleta.';
-      addToast(message, 'error');
+      const message =
+        err instanceof Error ? err.message : "No se pudo emitir la boleta.";
+      addToast(message, "error");
     } finally {
       setIssuingKey(null);
     }
@@ -242,13 +289,17 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
 
   const reprintReceipt = async (receipt: PurchaseReceiptRecord) => {
     try {
-      const detail = await apiFetch<PurchaseReceiptDetail>(`/stock-entries/receipts/${receipt.id}`, {
-        token: getAccessToken(),
-      });
+      const detail = await apiFetch<PurchaseReceiptDetail>(
+        `/stock-entries/receipts/${receipt.id}`,
+        {
+          token: getAccessToken(),
+        },
+      );
       printReceipt(detail);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'No se pudo cargar la boleta.';
-      addToast(message, 'error');
+      const message =
+        err instanceof Error ? err.message : "No se pudo cargar la boleta.";
+      addToast(message, "error");
     }
   };
 
@@ -267,16 +318,23 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
       <Card className="rounded-[34px] bg-gradient-to-br from-emerald-500 to-teal-700 p-6 sm:p-8 text-white animate-fade-in-up">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.18em] text-white/60">Inventario</p>
-            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Registrar entrada</h1>
+            <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+              Inventario
+            </p>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
+              Registrar entrada
+            </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-              Ingresa mercadería al almacén por unidad o presentación. El kardex y el costo se actualizan automáticamente.
+              Ingresa mercadería al almacén por unidad o presentación. El kardex
+              y el costo se actualizan automáticamente.
             </p>
           </div>
           <div className="flex items-center gap-4 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur-sm">
             <PackagePlus className="size-8 text-emerald-200" />
             <div>
-              <p className="text-xs uppercase tracking-[0.15em] text-white/50">Entradas registradas</p>
+              <p className="text-xs uppercase tracking-[0.15em] text-white/50">
+                Entradas registradas
+              </p>
               <p className="font-display text-2xl">{entries.length}</p>
             </div>
           </div>
@@ -287,7 +345,9 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Fecha de ingreso</Label>
+              <Label className="text-sm font-semibold text-slate-700">
+                Fecha de ingreso
+              </Label>
               <Input
                 type="date"
                 value={entryDate}
@@ -296,7 +356,9 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Sucursal</Label>
+              <Label className="text-sm font-semibold text-slate-700">
+                Sucursal
+              </Label>
               <select
                 value={branchId}
                 onChange={(event) => setBranchId(event.target.value)}
@@ -311,7 +373,9 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
               </select>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Distribuidor / Proveedor</Label>
+              <Label className="text-sm font-semibold text-slate-700">
+                Distribuidor / Proveedor
+              </Label>
               <select
                 value={distributorId}
                 onChange={(event) => setDistributorId(event.target.value)}
@@ -326,7 +390,9 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
               </select>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Referencia</Label>
+              <Label className="text-sm font-semibold text-slate-700">
+                Referencia
+              </Label>
               <Input
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
@@ -335,7 +401,9 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Notas</Label>
+              <Label className="text-sm font-semibold text-slate-700">
+                Notas
+              </Label>
               <Input
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
@@ -367,16 +435,25 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
               const product = productMap.get(line.productId);
               const factor = presentationFactor(line);
               const baseQuantity = (Number(line.quantity) || 0) * factor;
-              const baseUnitShort = product ? UNIT_SHORT[product.baseUnit] ?? product.baseUnit : '';
+              const baseUnitShort = product
+                ? (UNIT_SHORT[product.baseUnit] ?? product.baseUnit)
+                : "";
 
               return (
-                <div key={line.key} className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4">
+                <div
+                  key={line.key}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4"
+                >
                   <div className="grid grid-cols-2 gap-3 lg:grid-cols-12">
                     <div className="col-span-2 space-y-1 lg:col-span-3">
-                      <Label className="text-xs font-semibold text-slate-500">Producto</Label>
+                      <Label className="text-xs font-semibold text-slate-500">
+                        Producto
+                      </Label>
                       <select
                         value={line.productId}
-                        onChange={(event) => updateLine(line.key, 'productId', event.target.value)}
+                        onChange={(event) =>
+                          updateLine(line.key, "productId", event.target.value)
+                        }
                         className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:outline-none"
                       >
                         <option value="">Selecciona un producto</option>
@@ -389,15 +466,26 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
                     </div>
 
                     <div className="col-span-2 space-y-1 lg:col-span-3">
-                      <Label className="text-xs font-semibold text-slate-500">Presentación</Label>
+                      <Label className="text-xs font-semibold text-slate-500">
+                        Presentación
+                      </Label>
                       <select
                         value={line.presentationId}
-                        onChange={(event) => updateLine(line.key, 'presentationId', event.target.value)}
+                        onChange={(event) =>
+                          updateLine(
+                            line.key,
+                            "presentationId",
+                            event.target.value,
+                          )
+                        }
                         disabled={!product}
                         className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:outline-none disabled:bg-slate-100"
                       >
                         <option value="">
-                          Unidad base{product ? ` (${UNIT_SHORT[product.baseUnit] ?? product.baseUnit})` : ''}
+                          Unidad base
+                          {product
+                            ? ` (${UNIT_SHORT[product.baseUnit] ?? product.baseUnit})`
+                            : ""}
                         </option>
                         {product?.presentations.map((presentation) => (
                           <option key={presentation.id} value={presentation.id}>
@@ -408,28 +496,38 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
                     </div>
 
                     <div className="col-span-1 space-y-1 lg:col-span-2">
-                      <Label className="text-xs font-semibold text-slate-500">Cantidad</Label>
+                      <Label className="text-xs font-semibold text-slate-500">
+                        Cantidad
+                      </Label>
                       <Input
                         type="number"
                         step="0.001"
                         min="0"
                         value={line.quantity}
-                        onChange={(event) => updateLine(line.key, 'quantity', event.target.value)}
+                        onChange={(event) =>
+                          updateLine(line.key, "quantity", event.target.value)
+                        }
                         placeholder="0"
                         className="h-11 rounded-lg border-slate-200 bg-white"
                       />
                     </div>
 
                     <div className="col-span-1 space-y-1 lg:col-span-2">
-                      <Label className="text-xs font-semibold text-slate-500">Costo unit.</Label>
+                      <Label className="text-xs font-semibold text-slate-500">
+                        Costo unit.
+                      </Label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">S/</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                          S/
+                        </span>
                         <Input
                           type="number"
                           step="0.0001"
                           min="0"
                           value={line.unitCost}
-                          onChange={(event) => updateLine(line.key, 'unitCost', event.target.value)}
+                          onChange={(event) =>
+                            updateLine(line.key, "unitCost", event.target.value)
+                          }
                           placeholder="0.00"
                           className="h-11 rounded-lg border-slate-200 bg-white pl-9"
                         />
@@ -437,11 +535,15 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
                     </div>
 
                     <div className="col-span-2 space-y-1 lg:col-span-2">
-                      <Label className="text-xs font-semibold text-slate-500">Vencimiento</Label>
+                      <Label className="text-xs font-semibold text-slate-500">
+                        Vencimiento
+                      </Label>
                       <Input
                         type="date"
                         value={line.expiryDate}
-                        onChange={(event) => updateLine(line.key, 'expiryDate', event.target.value)}
+                        onChange={(event) =>
+                          updateLine(line.key, "expiryDate", event.target.value)
+                        }
                         className="h-11 rounded-lg border-slate-200 bg-white"
                       />
                     </div>
@@ -454,7 +556,13 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setLines((prev) => (prev.length > 1 ? prev.filter((l) => l.key !== line.key) : prev))}
+                        onClick={() =>
+                          setLines((prev) =>
+                            prev.length > 1
+                              ? prev.filter((l) => l.key !== line.key)
+                              : prev,
+                          )
+                        }
                         disabled={lines.length === 1}
                         className="h-11 w-11 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
                         aria-label="Eliminar línea"
@@ -466,11 +574,21 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
 
                   {product && (
                     <p className="mt-2 text-xs text-slate-400">
-                      {line.quantity || 0} {line.presentationId ? product.presentations.find((p) => p.id === line.presentationId)?.name : UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
-                      {line.presentationId ? ` × ${factor} = ` : ' = '}
-                      <span className="font-semibold text-slate-600">{baseQuantity.toFixed(3)} {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}</span>
-                      {' · Costo unitario base: S/ '}
-                      {baseQuantity > 0 ? ((Number(line.unitCost) || 0) / factor).toFixed(4) : '0.0000'}
+                      {line.quantity || 0}{" "}
+                      {line.presentationId
+                        ? product.presentations.find(
+                            (p) => p.id === line.presentationId,
+                          )?.name
+                        : (UNIT_SHORT[product.baseUnit] ?? product.baseUnit)}
+                      {line.presentationId ? ` × ${factor} = ` : " = "}
+                      <span className="font-semibold text-slate-600">
+                        {baseQuantity.toFixed(3)}{" "}
+                        {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
+                      </span>
+                      {" · Costo unitario base: S/ "}
+                      {baseQuantity > 0
+                        ? ((Number(line.unitCost) || 0) / factor).toFixed(4)
+                        : "0.0000"}
                     </p>
                   )}
                 </div>
@@ -482,8 +600,12 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
 
           <div className="flex flex-col items-stretch justify-between gap-4 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
             <div>
-              <p className="text-xs uppercase tracking-[0.15em] text-slate-400">Inversión total</p>
-              <p className="font-display text-2xl text-slate-900">S/ {totalInvestment.toFixed(2)}</p>
+              <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                Inversión total
+              </p>
+              <p className="font-display text-2xl text-slate-900">
+                S/ {totalInvestment.toFixed(2)}
+              </p>
             </div>
             <Button
               type="submit"
@@ -509,12 +631,18 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-200">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Historial</p>
+            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+              Historial
+            </p>
             <h2 className="mt-2 font-display text-2xl">Entradas de stock</h2>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-xs uppercase tracking-[0.15em] text-slate-400">Inversión acumulada</p>
-            <p className="font-display text-xl text-slate-900">S/ {historyInvestment.toFixed(2)}</p>
+            <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
+              Inversión acumulada
+            </p>
+            <p className="font-display text-xl text-slate-900">
+              S/ {historyInvestment.toFixed(2)}
+            </p>
           </div>
         </div>
 
@@ -536,47 +664,76 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
               {entries.length > 0 ? (
                 entries.map((entry) =>
                   entry.items.map((item, itemIndex) => (
-                    <tr key={`${entry.id}-${item.id}`} className="border-b border-foreground/5 table-row-hover">
+                    <tr
+                      key={`${entry.id}-${item.id}`}
+                      className="border-b border-foreground/5 table-row-hover"
+                    >
                       {itemIndex === 0 && (
                         <>
-                          <td className="py-3 pl-4 text-sm text-foreground/60" rowSpan={entry.items.length}>
-                            {new Date(entry.entryDate ?? entry.createdAt).toLocaleDateString()}
+                          <td
+                            className="py-3 pl-4 text-sm text-foreground/60"
+                            rowSpan={entry.items.length}
+                          >
+                            {new Date(
+                              entry.entryDate ?? entry.createdAt,
+                            ).toLocaleDateString()}
                           </td>
-                          <td className="py-3 text-sm" rowSpan={entry.items.length}>
-                            {entry.reference ?? '—'}
+                          <td
+                            className="py-3 text-sm"
+                            rowSpan={entry.items.length}
+                          >
+                            {entry.reference ?? "—"}
                           </td>
-                          <td className="py-3 text-sm text-foreground/60" rowSpan={entry.items.length}>
-                            {entry.branch?.name ?? '—'}
+                          <td
+                            className="py-3 text-sm text-foreground/60"
+                            rowSpan={entry.items.length}
+                          >
+                            {entry.branch?.name ?? "—"}
                           </td>
-                          <td className="py-3 text-sm text-foreground/60" rowSpan={entry.items.length}>
-                            {entry.distributor?.name ?? 'General'}
+                          <td
+                            className="py-3 text-sm text-foreground/60"
+                            rowSpan={entry.items.length}
+                          >
+                            {entry.distributor?.name ?? "General"}
                           </td>
                         </>
                       )}
                       <td className="py-3 text-sm font-medium">
                         {item.product.name}
                         {item.presentation ? (
-                          <span className="ml-1 text-xs text-slate-400">({item.presentation.name})</span>
+                          <span className="ml-1 text-xs text-slate-400">
+                            ({item.presentation.name})
+                          </span>
                         ) : null}
                       </td>
                       <td className="py-3 text-right text-sm">
                         {Number(item.quantity)} {unitLabel(item, productMap)}
                         <span className="block text-xs text-slate-400">
-                          {Number(item.baseQuantity).toFixed(3)} {UNIT_SHORT[item.product.baseUnit] ?? item.product.baseUnit}
+                          {Number(item.baseQuantity).toFixed(3)}{" "}
+                          {UNIT_SHORT[item.product.baseUnit] ??
+                            item.product.baseUnit}
                         </span>
                       </td>
                       <td className="py-3 text-center text-sm text-foreground/60">
-                        {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '—'}
+                        {item.expiryDate
+                          ? new Date(item.expiryDate).toLocaleDateString()
+                          : "—"}
                       </td>
                       <td className="py-3 pr-4 text-right text-sm font-medium">
-                        S/ {(Number(item.unitCost) * Number(item.quantity)).toFixed(2)}
+                        S/{" "}
+                        {(
+                          Number(item.unitCost) * Number(item.quantity)
+                        ).toFixed(2)}
                       </td>
                     </tr>
-                  ))
+                  )),
                 )
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-foreground/50">
+                  <td
+                    colSpan={8}
+                    className="py-12 text-center text-foreground/50"
+                  >
                     Aún no hay entradas registradas.
                   </td>
                 </tr>
@@ -589,7 +746,9 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-200">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Compras por proveedor</p>
+            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+              Compras por proveedor
+            </p>
             <h2 className="mt-2 font-display text-2xl">Boletas internas</h2>
           </div>
         </div>
@@ -598,54 +757,75 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {purchases.map((group) => (
               <div
-                key={group.distributor?.id ?? 'general'}
+                key={group.distributor?.id ?? "general"}
                 className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                    {group.distributor ? <Store className="size-5" /> : <PackagePlus className="size-5" />}
+                    {group.distributor ? (
+                      <Store className="size-5" />
+                    ) : (
+                      <PackagePlus className="size-5" />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-slate-900">
-                      {group.distributor?.name ?? 'General (sin distribuidor)'}
+                      {group.distributor?.name ?? "General (sin distribuidor)"}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {group.distributor ? `Código ${group.distributor.code}` : 'Compras sin proveedor'}
+                      {group.distributor
+                        ? `Código ${group.distributor.code}`
+                        : "Compras sin proveedor"}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-3 gap-3">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Total comprado</p>
-                    <p className="font-display text-lg text-slate-900">S/ {group.totalPurchased.toFixed(2)}</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">
+                      Total comprado
+                    </p>
+                    <p className="font-display text-lg text-slate-900">
+                      S/ {group.totalPurchased.toFixed(2)}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Pendiente</p>
-                    <p className={`font-display text-lg ${group.pendingCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">
+                      Pendiente
+                    </p>
+                    <p
+                      className={`font-display text-lg ${group.pendingCount > 0 ? "text-amber-600" : "text-slate-900"}`}
+                    >
                       S/ {group.pendingTotal.toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">Entradas</p>
-                    <p className="font-display text-lg text-slate-900">{group.entryCount}</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">
+                      Entradas
+                    </p>
+                    <p className="font-display text-lg text-slate-900">
+                      {group.entryCount}
+                    </p>
                   </div>
                 </div>
                 <p className="mt-3 text-xs text-slate-400">
                   {group.itemCount} artículos · {group.pendingCount} sin boletar
                   {group.lastEntryDate
                     ? ` · Última: ${new Date(group.lastEntryDate).toLocaleDateString()}`
-                    : ''}
+                    : ""}
                 </p>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={group.pendingCount === 0 || issuingKey === (group.distributor?.id ?? 'general')}
+                  disabled={
+                    group.pendingCount === 0 ||
+                    issuingKey === (group.distributor?.id ?? "general")
+                  }
                   onClick={() => issueReceipt(group)}
                   className="mt-4 h-10 w-full rounded-xl border-slate-200 text-slate-700 hover:bg-white hover:border-emerald-300 disabled:opacity-60"
                 >
-                  {issuingKey === (group.distributor?.id ?? 'general') ? (
+                  {issuingKey === (group.distributor?.id ?? "general") ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Emitiendo...
@@ -653,7 +833,9 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
                   ) : (
                     <>
                       <Printer className="mr-2 h-4 w-4" />
-                      {group.pendingCount > 0 ? 'Emitir boleta interna' : 'Sin compras pendientes'}
+                      {group.pendingCount > 0
+                        ? "Emitir boleta interna"
+                        : "Sin compras pendientes"}
                     </>
                   )}
                 </Button>
@@ -671,7 +853,9 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-200">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Documentos</p>
+            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+              Documentos
+            </p>
             <h2 className="mt-2 font-display text-2xl">Boletas emitidas</h2>
           </div>
         </div>
@@ -691,16 +875,27 @@ export function StockEntriesClient({ initialEntries, products, branches, distrib
               </thead>
               <tbody>
                 {receipts.map((receipt) => (
-                  <tr key={receipt.id} className="border-b border-foreground/5 table-row-hover">
-                    <td className="py-3 pl-4 text-sm font-semibold text-slate-900">{receipt.fullNumber}</td>
+                  <tr
+                    key={receipt.id}
+                    className="border-b border-foreground/5 table-row-hover"
+                  >
+                    <td className="py-3 pl-4 text-sm font-semibold text-slate-900">
+                      {receipt.fullNumber}
+                    </td>
                     <td className="py-3 text-sm text-foreground/70">
-                      {receipt.distributor ? `${receipt.distributor.name} (${receipt.distributor.code})` : 'General'}
+                      {receipt.distributor
+                        ? `${receipt.distributor.name} (${receipt.distributor.code})`
+                        : "General"}
                     </td>
                     <td className="py-3 text-sm text-foreground/60">
                       {new Date(receipt.issuedAt).toLocaleDateString()}
                     </td>
-                    <td className="py-3 text-right text-sm">{receipt.entryCount}</td>
-                    <td className="py-3 text-right text-sm font-medium">S/ {receipt.totalAmount.toFixed(2)}</td>
+                    <td className="py-3 text-right text-sm">
+                      {receipt.entryCount}
+                    </td>
+                    <td className="py-3 text-right text-sm font-medium">
+                      S/ {receipt.totalAmount.toFixed(2)}
+                    </td>
                     <td className="py-3 pr-4 text-right">
                       <Button
                         type="button"
@@ -735,17 +930,17 @@ function unitLabel(
 ): string {
   if (item.presentation) return item.presentation.name;
   const product = productMap.get(item.productId);
-  return product ? UNIT_SHORT[product.baseUnit] ?? product.baseUnit : '';
+  return product ? (UNIT_SHORT[product.baseUnit] ?? product.baseUnit) : "";
 }
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => {
     const map: Record<string, string> = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
     };
     return map[char] as string;
   });

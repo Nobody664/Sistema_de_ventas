@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -14,17 +14,20 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
-import type { Plan } from '@/types/api';
+} from "@/components/ui/dialog";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth.store";
+import type { Plan } from "@/types/api";
 
 interface CompanyWithPlanModalProps {
   plans: Plan[];
   children?: React.ReactNode;
 }
 
-export function CompanyWithPlanModal({ plans, children }: CompanyWithPlanModalProps) {
+export function CompanyWithPlanModal({
+  plans,
+  children,
+}: CompanyWithPlanModalProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -38,26 +41,26 @@ export function CompanyWithPlanModal({ plans, children }: CompanyWithPlanModalPr
 
     const formData = new FormData(e.currentTarget);
     const data = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string || null,
-      phone: formData.get('phone') as string || null,
-      timezone: 'America/Lima',
-      currency: 'PEN',
-      planId: formData.get('planId') as string,
+      name: formData.get("name") as string,
+      email: (formData.get("email") as string) || null,
+      phone: (formData.get("phone") as string) || null,
+      timezone: "America/Lima",
+      currency: "PEN",
+      planId: formData.get("planId") as string,
     };
 
     try {
-      await apiFetch('/companies/with-plan', {
-        method: 'POST',
+      await apiFetch("/companies/with-plan", {
+        method: "POST",
         token: getAccessToken(),
         body: JSON.stringify(data),
       });
 
-      queryClient.invalidateQueries({ queryKey: ['companies'] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
       setOpen(false);
       (e.target as HTMLFormElement).reset();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
@@ -70,20 +73,35 @@ export function CompanyWithPlanModal({ plans, children }: CompanyWithPlanModalPr
         <DialogHeader>
           <DialogTitle>Nueva empresa con plan</DialogTitle>
           <DialogDescription>
-            Registra una nueva empresa y asígnale un plan. La empresa quedará pendiente de aprobación.
+            Registra una nueva empresa y asígnale un plan. La empresa quedará
+            pendiente de aprobación.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Nombre de la empresa *</Label>
-              <Input id="name" name="name" required placeholder="Mi Empresa SAC" />
+              <Input
+                id="name"
+                name="name"
+                required
+                placeholder="Mi Empresa SAC"
+              />
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" placeholder="contacto@empresa.com" />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="contacto@empresa.com"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Teléfono</Label>
@@ -108,7 +126,11 @@ export function CompanyWithPlanModal({ plans, children }: CompanyWithPlanModalPr
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>

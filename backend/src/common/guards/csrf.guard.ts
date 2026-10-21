@@ -1,7 +1,12 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { Request } from 'express';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
+import { Request } from "express";
 
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 @Injectable()
 export class CsrfGuard implements CanActivate {
@@ -12,13 +17,14 @@ export class CsrfGuard implements CanActivate {
       return true;
     }
 
-    const contentType = (request.headers['content-type'] as string | undefined) ?? '';
-    if (contentType.toLowerCase().startsWith('application/json')) {
+    const contentType =
+      (request.headers["content-type"] as string | undefined) ?? "";
+    if (contentType.toLowerCase().startsWith("application/json")) {
       return true;
     }
 
     throw new ForbiddenException(
-      'Operación rechazada (protección CSRF): se requiere Content-Type: application/json',
+      "Operación rechazada (protección CSRF): se requiere Content-Type: application/json",
     );
   }
 }

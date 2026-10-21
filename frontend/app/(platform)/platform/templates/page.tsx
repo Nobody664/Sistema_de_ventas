@@ -1,8 +1,7 @@
-
-import { redirect } from 'next/navigation';
-import { serverApiFetch } from '@/lib/server-api';
-import { getServerSession } from '@/lib/session';
-import { InvoicesTemplatesClient } from './invoices-templates-client';
+import { redirect } from "next/navigation";
+import { serverApiFetch } from "@/lib/server-api";
+import { getServerSession } from "@/lib/session";
+import { InvoicesTemplatesClient } from "./invoices-templates-client";
 
 interface InvoiceTemplate {
   id: string;
@@ -38,17 +37,20 @@ export default async function InvoicesTemplatesPage() {
   const session = await getServerSession();
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const roles: string[] = session?.user?.roles || [];
-  const isSuperAdmin = roles.includes('SUPER_ADMIN');
-  
+  const isSuperAdmin = roles.includes("SUPER_ADMIN");
+
   if (!isSuperAdmin) {
-    redirect('/dashboard');
+    redirect("/dashboard");
   }
 
-  const templates = await serverApiFetch<InvoiceTemplate[]>('/invoices/templates', session?.accessToken);
+  const templates = await serverApiFetch<InvoiceTemplate[]>(
+    "/invoices/templates",
+    session?.accessToken,
+  );
 
   return <InvoicesTemplatesClient templates={templates ?? []} />;
 }

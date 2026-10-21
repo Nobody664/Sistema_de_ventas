@@ -1,14 +1,26 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, DiscountType, Prisma, PrismaClient } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { AuditService } from '@/common/services/audit.service';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  AuditAction,
+  DiscountType,
+  Prisma,
+  PrismaClient,
+} from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { AuditService } from "@/common/services/audit.service";
 import {
   CreateDiscountCouponDto,
   QueryDiscountCouponDto,
   UpdateDiscountCouponDto,
-} from './dto/discount.dto';
+} from "./dto/discount.dto";
 
-type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
+>;
 
 export interface AppliedCoupon {
   couponId: string;
@@ -25,18 +37,24 @@ export class DiscountsService {
     private readonly auditService: AuditService,
   ) {}
 
-  async create(companyId: string, userId: string | undefined, input: CreateDiscountCouponDto) {
+  async create(
+    companyId: string,
+    userId: string | undefined,
+    input: CreateDiscountCouponDto,
+  ) {
     const code = input.code.trim().toUpperCase();
     const startsAt = input.startsAt ? new Date(input.startsAt) : null;
     const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
     this.assertWindow(startsAt, expiresAt);
-    this.assertValue(input.type ?? 'PERCENTAGE', input.value);
+    this.assertValue(input.type ?? "PERCENTAGE", input.value);
 
     const existing = await this.prisma.discountCoupon.findFirst({
       where: { companyId, code },
     });
     if (existing) {
-      throw new BadRequestException(`Ya existe un cupon con el codigo ${code}.`);
+      throw new BadRequestException(
+        `Ya existe un cupon con el codigo ${code}.`,
+      );
     }
 
     const coupon = await this.prisma.discountCoupon.create({
@@ -44,7 +62,7 @@ export class DiscountsService {
         companyId,
         code,
         description: input.description ?? null,
-        type: input.type ?? 'PERCENTAGE',
+        type: input.type ?? "PERCENTAGE",
         value: new Prisma.Decimal(input.value),
         maxUses: input.maxUses ?? null,
         minPurchase:
@@ -62,7 +80,7 @@ export class DiscountsService {
       companyId,
       userId,
       action: AuditAction.CREATE,
-      entity: 'DiscountCoupon',
+      entity: "DiscountCoupon",
       entityId: coupon.id,
       changes: {
         code: coupon.code,
@@ -80,19 +98,19 @@ export class DiscountsService {
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
 
     const where: Prisma.DiscountCouponWhereInput = { companyId };
-    if (query.isActive === 'true') where.isActive = true;
-    if (query.isActive === 'false') where.isActive = false;
+    if (query.isActive === "true") where.isActive = true;
+    if (query.isActive === "false") where.isActive = false;
     if (query.search) {
       where.OR = [
-        { code: { contains: query.search, mode: 'insensitive' } },
-        { description: { contains: query.search, mode: 'insensitive' } },
+        { code: { contains: query.search, mode: "insensitive" } },
+        { description: { contains: query.search, mode: "insensitive" } },
       ];
     }
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.discountCoupon.findMany({
         where,
-        orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -103,9 +121,11 @@ export class DiscountsService {
   }
 
   async findOne(companyId: string, id: string) {
-    const coupon = await this.prisma.discountCoupon.findFirst({ where: { id, companyId } });
+    const coupon = await this.prisma.discountCoupon.findFirst({
+      where: { id, companyId },
+    });
     if (!coupon) {
-      throw new NotFoundException('Cupon de descuento no encontrado.');
+      throw new NotFoundException("Cupon de descuento no encontrado.");
     }
     return coupon;
   }
@@ -134,9 +154,13 @@ export class DiscountsService {
     if (input.code) {
       code = input.code.trim().toUpperCase();
       if (code !== existing.code) {
-        const clash = await this.prisma.discountCoupon.findFirst({ where: { companyId, code } });
+        const clash = await this.prisma.discountCoupon.findFirst({
+          where: { companyId, code },
+        });
         if (clash) {
-          throw new BadRequestException(`Ya existe un cupon con el codigo ${code}.`);
+          throw new BadRequestException(
+            `Ya existe un cupon con el codigo ${code}.`,
+          );
         }
       }
     }
@@ -145,9 +169,13 @@ export class DiscountsService {
       where: { id },
       data: {
         code,
-        description: input.description === undefined ? undefined : input.description,
+        description:
+          input.description === undefined ? undefined : input.description,
         type: input.type,
-        value: input.value !== undefined ? new Prisma.Decimal(input.value) : undefined,
+        value:
+          input.value !== undefined
+            ? new Prisma.Decimal(input.value)
+            : undefined,
         maxUses: input.maxUses === undefined ? undefined : input.maxUses,
         minPurchase:
           input.minPurchase === undefined
@@ -164,9 +192,12 @@ export class DiscountsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'DiscountCoupon',
+      entity: "DiscountCoupon",
       entityId: coupon.id,
-      changes: { before: { code: existing.code, isActive: existing.isActive }, after: input },
+      changes: {
+        before: { code: existing.code, isActive: existing.isActive },
+        after: input,
+      },
     });
 
     return coupon;
@@ -183,7 +214,7 @@ export class DiscountsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.DELETE,
-      entity: 'DiscountCoupon',
+      entity: "DiscountCoupon",
       entityId: id,
       changes: { code: existing.code, deactivated: true },
     });
@@ -193,7 +224,11 @@ export class DiscountsService {
 
   async validate(companyId: string, code: string, subtotal?: number) {
     const base = new Prisma.Decimal(subtotal ?? 0);
-    const { coupon, discountAmount } = await this.evaluate(companyId, code, base);
+    const { coupon, discountAmount } = await this.evaluate(
+      companyId,
+      code,
+      base,
+    );
 
     return {
       coupon: {
@@ -214,20 +249,29 @@ export class DiscountsService {
     code: string,
     subtotal: Prisma.Decimal,
   ): Promise<AppliedCoupon> {
-    const { coupon, discountAmount } = await this.evaluate(companyId, code, subtotal, tx);
+    const { coupon, discountAmount } = await this.evaluate(
+      companyId,
+      code,
+      subtotal,
+      tx,
+    );
 
     const consumed = await tx.discountCoupon.updateMany({
       where: {
         id: coupon.id,
         companyId,
         isActive: true,
-        ...(coupon.maxUses !== null ? { usedCount: { lt: coupon.maxUses } } : {}),
+        ...(coupon.maxUses !== null
+          ? { usedCount: { lt: coupon.maxUses } }
+          : {}),
       },
       data: { usedCount: { increment: 1 } },
     });
 
     if (consumed.count !== 1) {
-      throw new BadRequestException('El cupon de descuento ya no tiene cupos disponibles.');
+      throw new BadRequestException(
+        "El cupon de descuento ya no tiene cupos disponibles.",
+      );
     }
 
     return {
@@ -246,20 +290,22 @@ export class DiscountsService {
     client: PrismaService | PrismaTx = this.prisma,
   ) {
     const code = rawCode.trim().toUpperCase();
-    const coupon = await client.discountCoupon.findFirst({ where: { companyId, code } });
+    const coupon = await client.discountCoupon.findFirst({
+      where: { companyId, code },
+    });
     const now = new Date();
 
     if (!coupon || !coupon.isActive) {
-      throw new BadRequestException('El cupon no existe o no esta activo.');
+      throw new BadRequestException("El cupon no existe o no esta activo.");
     }
     if (coupon.startsAt && coupon.startsAt > now) {
-      throw new BadRequestException('El cupon aun no esta vigente.');
+      throw new BadRequestException("El cupon aun no esta vigente.");
     }
     if (coupon.expiresAt && coupon.expiresAt < now) {
-      throw new BadRequestException('El cupon ha expirado.');
+      throw new BadRequestException("El cupon ha expirado.");
     }
     if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
-      throw new BadRequestException('El cupon ha alcanzado su limite de usos.');
+      throw new BadRequestException("El cupon ha alcanzado su limite de usos.");
     }
     if (coupon.minPurchase && subtotal.lt(coupon.minPurchase)) {
       throw new BadRequestException(
@@ -279,18 +325,27 @@ export class DiscountsService {
     return { coupon, discountAmount };
   }
 
-  private assertValue(type: DiscountType | 'PERCENTAGE' | 'FIXED', value: number) {
+  private assertValue(
+    type: DiscountType | "PERCENTAGE" | "FIXED",
+    value: number,
+  ) {
     if (value <= 0) {
-      throw new BadRequestException('El valor del descuento debe ser mayor a 0.');
+      throw new BadRequestException(
+        "El valor del descuento debe ser mayor a 0.",
+      );
     }
-    if (type === 'PERCENTAGE' && value > 100) {
-      throw new BadRequestException('El porcentaje de descuento no puede ser mayor a 100.');
+    if (type === "PERCENTAGE" && value > 100) {
+      throw new BadRequestException(
+        "El porcentaje de descuento no puede ser mayor a 100.",
+      );
     }
   }
 
   private assertWindow(startsAt?: Date | null, expiresAt?: Date | null) {
     if (startsAt && expiresAt && startsAt > expiresAt) {
-      throw new BadRequestException('La fecha de inicio no puede ser posterior a la de expiracion.');
+      throw new BadRequestException(
+        "La fecha de inicio no puede ser posterior a la de expiracion.",
+      );
     }
   }
 }

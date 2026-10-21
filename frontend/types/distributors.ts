@@ -1,6 +1,6 @@
-export type DistributorType = 'INDIVIDUAL' | 'COMPANY';
+export type DistributorType = "INDIVIDUAL" | "COMPANY";
 
-export type DistributorStatus = 'ACTIVE' | 'SUSPENDED' | 'BLOCKED';
+export type DistributorStatus = "ACTIVE" | "SUSPENDED" | "BLOCKED";
 
 export interface DistributorBalance {
   id: string;
@@ -67,7 +67,7 @@ export interface DistributorDeliveryItem {
 export interface DistributorDelivery {
   id: string;
   deliveryNumber: string;
-  status: 'PENDING' | 'DELIVERED' | 'CANCELLED';
+  status: "PENDING" | "DELIVERED" | "CANCELLED";
   deliveryDate: string;
   amount: string | null;
   items: DistributorDeliveryItem[] | null;

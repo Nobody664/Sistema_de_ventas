@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Type } from "class-transformer";
 import {
   IsDateString,
   IsIn,
@@ -9,17 +9,17 @@ import {
   Max,
   MaxLength,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
-export const FINANCE_DIRECTIONS = ['ENTRY', 'EXIT'] as const;
+export const FINANCE_DIRECTIONS = ["ENTRY", "EXIT"] as const;
 export const FINANCE_CATEGORIES = [
-  'PURCHASE',
-  'SALE',
-  'PAYROLL',
-  'ELECTRICITY',
-  'WATER',
-  'MAINTENANCE',
-  'OTHER',
+  "PURCHASE",
+  "SALE",
+  "PAYROLL",
+  "ELECTRICITY",
+  "WATER",
+  "MAINTENANCE",
+  "OTHER",
 ] as const;
 
 export class CreateFinanceRecordDto {

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useAuthStore } from '@/stores/auth.store';
-import { ROLE_PERMISSIONS, type Permission } from '@/types/permissions';
+import { useAuthStore } from "@/stores/auth.store";
+import { ROLE_PERMISSIONS, type Permission } from "@/types/permissions";
 
 export function usePermissions() {
   const user = useAuthStore((state) => state.user);
@@ -19,10 +19,11 @@ export function usePermissions() {
     return permissions.every((p) => hasPermission(p));
   };
 
-  const isAdmin = roles.includes('COMPANY_ADMIN') || roles.includes('SUPER_ADMIN');
-  const isManager = roles.includes('MANAGER') || isAdmin;
-  const isCashier = roles.includes('CASHIER') || isManager;
-  const isSuperAdmin = roles.includes('SUPER_ADMIN');
+  const isAdmin =
+    roles.includes("COMPANY_ADMIN") || roles.includes("SUPER_ADMIN");
+  const isManager = roles.includes("MANAGER") || isAdmin;
+  const isCashier = roles.includes("CASHIER") || isManager;
+  const isSuperAdmin = roles.includes("SUPER_ADMIN");
 
   return {
     hasPermission,

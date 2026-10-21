@@ -1,12 +1,12 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { ApiQuotaService } from '../api-quota.service';
+import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import { ApiQuotaService } from "../api-quota.service";
 
 type RequestUser = {
   companyId?: string | null;
   roles?: string[];
 };
 
-const GLOBAL_ADMIN_ROLES = ['SUPER_ADMIN', 'SUPPORT_ADMIN'];
+const GLOBAL_ADMIN_ROLES = ["SUPER_ADMIN", "SUPPORT_ADMIN"];
 
 @Injectable()
 export class ApiQuotaGuard implements CanActivate {

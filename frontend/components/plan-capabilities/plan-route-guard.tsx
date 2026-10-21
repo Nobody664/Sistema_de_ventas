@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import {
   getRouteRequirement,
   missingRequirementLabel,
   satisfiesRequirement,
-} from '@/lib/plan-capabilities';
-import { usePlanCapabilities } from './plan-capabilities-provider';
-import { UpgradeRequired } from './upgrade-required';
+} from "@/lib/plan-capabilities";
+import { usePlanCapabilities } from "./plan-capabilities-provider";
+import { UpgradeRequired } from "./upgrade-required";
 
 interface PlanRouteGuardProps {
   roles: string[];
@@ -25,7 +25,12 @@ export function PlanRouteGuard({ roles, children }: PlanRouteGuardProps) {
     return <>{children}</>;
   }
 
-  const canUpgrade = roles.includes('COMPANY_ADMIN');
+  const canUpgrade = roles.includes("COMPANY_ADMIN");
 
-  return <UpgradeRequired featureLabel={missingRequirementLabel(requirement)} canUpgrade={canUpgrade} />;
+  return (
+    <UpgradeRequired
+      featureLabel={missingRequirementLabel(requirement)}
+      canUpgrade={canUpgrade}
+    />
+  );
 }

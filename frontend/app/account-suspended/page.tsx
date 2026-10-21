@@ -1,6 +1,6 @@
-import { ShieldAlert } from 'lucide-react';
-import Link from 'next/link';
-import { Card } from '@/components/ui/card';
+import { ShieldAlert } from "lucide-react";
+import Link from "next/link";
+import { Card } from "@/components/ui/card";
 
 export default function AccountSuspendedPage() {
   return (
@@ -10,9 +10,12 @@ export default function AccountSuspendedPage() {
           <ShieldAlert className="size-8 text-amber-400" />
         </div>
 
-        <h1 className="mt-6 font-display text-2xl text-white">Cuenta suspendida</h1>
+        <h1 className="mt-6 font-display text-2xl text-white">
+          Cuenta suspendida
+        </h1>
         <p className="mt-3 text-sm leading-7 text-white/50">
-          Tu cuenta ha sido suspendida por falta de pago. Contacta a soporte para reactivarla o realiza el pago pendiente.
+          Tu cuenta ha sido suspendida por falta de pago. Contacta a soporte
+          para reactivarla o realiza el pago pendiente.
         </p>
 
         <div className="mt-8 space-y-3">

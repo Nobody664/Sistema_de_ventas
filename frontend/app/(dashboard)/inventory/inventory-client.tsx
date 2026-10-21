@@ -1,9 +1,18 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Card } from '@/components/ui/card';
-import { Package, History, Layers, Building2, Truck, AlertTriangle, PackagePlus, Lock } from 'lucide-react';
-import { usePlanCapabilities } from '@/components/plan-capabilities/plan-capabilities-provider';
+import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import {
+  Package,
+  History,
+  Layers,
+  Building2,
+  Truck,
+  AlertTriangle,
+  PackagePlus,
+  Lock,
+} from "lucide-react";
+import { usePlanCapabilities } from "@/components/plan-capabilities/plan-capabilities-provider";
 
 interface InventoryPageClientProps {
   totalValue: string;
@@ -11,57 +20,63 @@ interface InventoryPageClientProps {
   suggestionsCount: number;
 }
 
-export function InventoryPageClient({ totalValue, expiringCount, suggestionsCount }: InventoryPageClientProps) {
+export function InventoryPageClient({
+  totalValue,
+  expiringCount,
+  suggestionsCount,
+}: InventoryPageClientProps) {
   const { canFeature } = usePlanCapabilities();
   const modules = [
     {
-      title: 'Kardex Valorizado',
-      description: 'Movimientos valorizados con costeo FIFO / Promedio Ponderado',
-      href: '/inventory/kardex',
-      feature: 'inventory.kardex',
+      title: "Kardex Valorizado",
+      description:
+        "Movimientos valorizados con costeo FIFO / Promedio Ponderado",
+      href: "/inventory/kardex",
+      feature: "inventory.kardex",
       icon: History,
-      color: 'from-blue-500 to-indigo-700',
-      iconBg: 'bg-blue-500/20',
-      iconColor: 'text-blue-600',
+      color: "from-blue-500 to-indigo-700",
+      iconBg: "bg-blue-500/20",
+      iconColor: "text-blue-600",
     },
     {
-      title: 'Lotes',
-      description: 'Gestión de lotes por producto con control FEFO',
-      href: '/inventory/batches',
-      feature: 'inventory.batches',
+      title: "Lotes",
+      description: "Gestión de lotes por producto con control FEFO",
+      href: "/inventory/batches",
+      feature: "inventory.batches",
       icon: Layers,
-      color: 'from-emerald-500 to-teal-700',
-      iconBg: 'bg-emerald-500/20',
-      iconColor: 'text-emerald-600',
+      color: "from-emerald-500 to-teal-700",
+      iconBg: "bg-emerald-500/20",
+      iconColor: "text-emerald-600",
       badge: expiringCount > 0 ? `${expiringCount} por vencer` : undefined,
     },
     {
-      title: 'Entradas de stock',
-      description: 'Registra ingreso de mercadería por unidad o presentación',
-      href: '/inventory/entries',
+      title: "Entradas de stock",
+      description: "Registra ingreso de mercadería por unidad o presentación",
+      href: "/inventory/entries",
       icon: PackagePlus,
-      color: 'from-teal-500 to-emerald-700',
-      iconBg: 'bg-teal-500/20',
-      iconColor: 'text-teal-600',
+      color: "from-teal-500 to-emerald-700",
+      iconBg: "bg-teal-500/20",
+      iconColor: "text-teal-600",
     },
     {
-      title: 'Sucursales',
-      description: 'Administra múltiples sucursales y almacenes',
-      href: '/inventory/branches',
+      title: "Sucursales",
+      description: "Administra múltiples sucursales y almacenes",
+      href: "/inventory/branches",
       icon: Building2,
-      color: 'from-amber-500 to-orange-700',
-      iconBg: 'bg-amber-500/20',
-      iconColor: 'text-amber-600',
+      color: "from-amber-500 to-orange-700",
+      iconBg: "bg-amber-500/20",
+      iconColor: "text-amber-600",
     },
     {
-      title: 'Reposición',
-      description: 'Sugerencias de compra y pronóstico de demanda',
-      href: '/inventory/replenishment',
+      title: "Reposición",
+      description: "Sugerencias de compra y pronóstico de demanda",
+      href: "/inventory/replenishment",
       icon: Truck,
-      color: 'from-purple-500 to-pink-700',
-      iconBg: 'bg-purple-500/20',
-      iconColor: 'text-purple-600',
-      badge: suggestionsCount > 0 ? `${suggestionsCount} sugerencias` : undefined,
+      color: "from-purple-500 to-pink-700",
+      iconBg: "bg-purple-500/20",
+      iconColor: "text-purple-600",
+      badge:
+        suggestionsCount > 0 ? `${suggestionsCount} sugerencias` : undefined,
     },
   ];
   return (
@@ -69,17 +84,26 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
       <Card className="rounded-[34px] bg-gradient-to-br from-slate-800 to-slate-950 p-6 sm:p-8 text-white animate-fade-in-up">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.18em] text-white/60">Gestión de inventario</p>
-            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Inventario</h1>
+            <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+              Gestión de inventario
+            </p>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
+              Inventario
+            </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-              Control de stock, kardex valorizado, lotes, sucursales y reposición inteligente.
+              Control de stock, kardex valorizado, lotes, sucursales y
+              reposición inteligente.
             </p>
           </div>
           <div className="hidden lg:flex items-center gap-4 rounded-2xl bg-white/10 px-6 py-4 backdrop-blur-sm">
             <Package className="size-8 text-emerald-400" />
             <div>
-              <p className="text-xs uppercase tracking-[0.15em] text-white/50">Valor inventario</p>
-              <p className="font-display text-2xl">S/ {Number(totalValue).toFixed(2)}</p>
+              <p className="text-xs uppercase tracking-[0.15em] text-white/50">
+                Valor inventario
+              </p>
+              <p className="font-display text-2xl">
+                S/ {Number(totalValue).toFixed(2)}
+              </p>
             </div>
           </div>
         </div>
@@ -88,12 +112,15 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {modules.map((mod, i) => {
           const Icon = mod.icon;
-          const locked = 'feature' in mod && typeof mod.feature === 'string' ? !canFeature(mod.feature) : false;
+          const locked =
+            "feature" in mod && typeof mod.feature === "string"
+              ? !canFeature(mod.feature)
+              : false;
 
           const card = (
             <Card
               className={`group rounded-[30px] bg-white/80 p-6 animate-fade-in-up transition-all ${
-                locked ? 'opacity-60' : 'card-hover hover:scale-[1.02]'
+                locked ? "opacity-60" : "card-hover hover:scale-[1.02]"
               }`}
               style={{ animationDelay: `${(i + 1) * 100}ms` }}
             >
@@ -116,7 +143,9 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
               </div>
               <div className="mt-4">
                 <h3 className="font-display text-lg">{mod.title}</h3>
-                <p className="mt-1 text-sm text-foreground/50">{mod.description}</p>
+                <p className="mt-1 text-sm text-foreground/50">
+                  {mod.description}
+                </p>
               </div>
             </Card>
           );
@@ -143,10 +172,17 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
             {expiringCount > 0 && (
               <div className="flex flex-col items-stretch gap-3 rounded-xl bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-amber-800">Lotes próximos a vencer</p>
-                  <p className="text-xs text-amber-600">{expiringCount} lotes vencen en los próximos 7 días</p>
+                  <p className="text-sm font-medium text-amber-800">
+                    Lotes próximos a vencer
+                  </p>
+                  <p className="text-xs text-amber-600">
+                    {expiringCount} lotes vencen en los próximos 7 días
+                  </p>
                 </div>
-                <Link href="/inventory/batches" className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-center text-xs font-medium text-white hover:bg-amber-600">
+                <Link
+                  href="/inventory/batches"
+                  className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-center text-xs font-medium text-white hover:bg-amber-600"
+                >
                   Revisar
                 </Link>
               </div>
@@ -154,10 +190,17 @@ export function InventoryPageClient({ totalValue, expiringCount, suggestionsCoun
             {suggestionsCount > 0 && (
               <div className="flex flex-col items-stretch gap-3 rounded-xl bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-blue-800">Productos por reabastecer</p>
-                  <p className="text-xs text-blue-600">{suggestionsCount} productos necesitan reposición</p>
+                  <p className="text-sm font-medium text-blue-800">
+                    Productos por reabastecer
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    {suggestionsCount} productos necesitan reposición
+                  </p>
                 </div>
-                <Link href="/inventory/replenishment" className="shrink-0 rounded-lg bg-blue-500 px-4 py-2 text-center text-xs font-medium text-white hover:bg-blue-600">
+                <Link
+                  href="/inventory/replenishment"
+                  className="shrink-0 rounded-lg bg-blue-500 px-4 py-2 text-center text-xs font-medium text-white hover:bg-blue-600"
+                >
                   Revisar
                 </Link>
               </div>

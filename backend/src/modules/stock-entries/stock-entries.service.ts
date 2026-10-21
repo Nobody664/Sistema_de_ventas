@@ -1,10 +1,17 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Prisma, AuditAction } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { KardexService } from '@/modules/kardex/kardex.service';
-import { AuditService } from '@/common/services/audit.service';
-import { LowStockService } from '@/modules/low-stock/low-stock.service';
-import { CreatePurchaseReceiptDto, CreateStockEntryDto } from './dto/stock-entry.dto';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from "@nestjs/common";
+import { Prisma, AuditAction } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { KardexService } from "@/modules/kardex/kardex.service";
+import { AuditService } from "@/common/services/audit.service";
+import { LowStockService } from "@/modules/low-stock/low-stock.service";
+import {
+  CreatePurchaseReceiptDto,
+  CreateStockEntryDto,
+} from "./dto/stock-entry.dto";
 
 @Injectable()
 export class StockEntriesService {
@@ -23,12 +30,14 @@ export class StockEntriesService {
         distributor: { select: { id: true, name: true, code: true } },
         items: {
           include: {
-            product: { select: { id: true, name: true, sku: true, baseUnit: true } },
+            product: {
+              select: { id: true, name: true, sku: true, baseUnit: true },
+            },
             presentation: { select: { id: true, name: true, factor: true } },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 100,
     });
   }
@@ -41,13 +50,15 @@ export class StockEntriesService {
         distributor: { select: { id: true, name: true, code: true } },
         items: {
           include: {
-            product: { select: { id: true, name: true, sku: true, baseUnit: true } },
+            product: {
+              select: { id: true, name: true, sku: true, baseUnit: true },
+            },
             presentation: { select: { id: true, name: true, factor: true } },
           },
         },
       },
     });
-    if (!entry) throw new NotFoundException('Stock entry not found.');
+    if (!entry) throw new NotFoundException("Stock entry not found.");
     return entry;
   }
 
@@ -56,22 +67,26 @@ export class StockEntriesService {
       const branch = await this.prisma.branch.findFirst({
         where: { id: input.branchId, companyId },
       });
-      if (!branch) throw new NotFoundException('Branch not found.');
+      if (!branch) throw new NotFoundException("Branch not found.");
     }
 
     if (input.distributorId) {
       const distributor = await this.prisma.distributor.findFirst({
         where: { id: input.distributorId, companyId },
       });
-      if (!distributor) throw new NotFoundException('Distributor not found.');
+      if (!distributor) throw new NotFoundException("Distributor not found.");
     }
 
-    const productIds = Array.from(new Set(input.items.map((item) => item.productId)));
+    const productIds = Array.from(
+      new Set(input.items.map((item) => item.productId)),
+    );
     const products = await this.prisma.product.findMany({
       where: { companyId, id: { in: productIds } },
       include: { presentations: true },
     });
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
 
     const resolvedItems = input.items.map((item) => {
       const product = productMap.get(item.productId);
@@ -80,18 +95,26 @@ export class StockEntriesService {
       }
 
       const presentation = item.presentationId
-        ? product.presentations.find((entry) => entry.id === item.presentationId)
+        ? product.presentations.find(
+            (entry) => entry.id === item.presentationId,
+          )
         : undefined;
       if (item.presentationId && !presentation) {
-        throw new BadRequestException(`Presentation ${item.presentationId} not found.`);
+        throw new BadRequestException(
+          `Presentation ${item.presentationId} not found.`,
+        );
       }
 
-      const factor = presentation ? new Prisma.Decimal(presentation.factor) : new Prisma.Decimal(1);
+      const factor = presentation
+        ? new Prisma.Decimal(presentation.factor)
+        : new Prisma.Decimal(1);
       const quantity = new Prisma.Decimal(item.quantity);
       const baseQuantity = quantity.mul(factor);
       const unitCost = new Prisma.Decimal(item.unitCost);
       const totalCost = unitCost.mul(quantity);
-      const baseUnitCost = baseQuantity.isZero() ? unitCost : totalCost.div(baseQuantity);
+      const baseUnitCost = baseQuantity.isZero()
+        ? unitCost
+        : totalCost.div(baseQuantity);
 
       return {
         productId: item.productId,
@@ -153,7 +176,7 @@ export class StockEntriesService {
             companyId,
             productId: item.productId,
             presentationId: item.presentationId,
-            type: 'IN',
+            type: "IN",
             quantity: item.baseQuantity,
             unitCost: item.baseUnitCost,
             totalCost: item.totalCost,
@@ -174,7 +197,7 @@ export class StockEntriesService {
       await this.auditService.log({
         companyId,
         action: AuditAction.CREATE,
-        entity: 'StockEntry',
+        entity: "StockEntry",
         entityId: entry.id,
         changes: {
           reference: entry.reference,
@@ -216,7 +239,7 @@ export class StockEntriesService {
         distributor: { select: { id: true, name: true, code: true } },
         items: { select: { quantity: true, unitCost: true } },
       },
-      orderBy: { entryDate: 'desc' },
+      orderBy: { entryDate: "desc" },
       take: 500,
     });
 
@@ -241,26 +264,28 @@ export class StockEntriesService {
     const groups = new Map<string, Group>();
 
     for (const entry of entries) {
-      const key = entry.distributor?.id ?? 'general';
+      const key = entry.distributor?.id ?? "general";
       const total = entry.items.reduce(
         (sum, item) => sum + Number(item.quantity) * Number(item.unitCost),
         0,
       );
 
-      const group =
-        groups.get(key) ??
-        {
-          distributor: entry.distributor
-            ? { id: entry.distributor.id, name: entry.distributor.name, code: entry.distributor.code }
-            : null,
-          entryCount: 0,
-          itemCount: 0,
-          totalPurchased: 0,
-          pendingCount: 0,
-          pendingTotal: 0,
-          lastEntryDate: null,
-          entries: [],
-        };
+      const group = groups.get(key) ?? {
+        distributor: entry.distributor
+          ? {
+              id: entry.distributor.id,
+              name: entry.distributor.name,
+              code: entry.distributor.code,
+            }
+          : null,
+        entryCount: 0,
+        itemCount: 0,
+        totalPurchased: 0,
+        pendingCount: 0,
+        pendingTotal: 0,
+        lastEntryDate: null,
+        entries: [],
+      };
 
       group.entryCount += 1;
       group.itemCount += entry.items.length;
@@ -284,14 +309,18 @@ export class StockEntriesService {
       groups.set(key, group);
     }
 
-    return Array.from(groups.values()).sort((a, b) => b.totalPurchased - a.totalPurchased);
+    return Array.from(groups.values()).sort(
+      (a, b) => b.totalPurchased - a.totalPurchased,
+    );
   }
 
   async listReceipts(companyId: string) {
     const receipts = await this.prisma.purchaseReceipt.findMany({
       where: { companyId },
-      include: { distributor: { select: { id: true, name: true, code: true } } },
-      orderBy: { issuedAt: 'desc' },
+      include: {
+        distributor: { select: { id: true, name: true, code: true } },
+      },
+      orderBy: { issuedAt: "desc" },
       take: 100,
     });
 
@@ -311,30 +340,38 @@ export class StockEntriesService {
             branch: { select: { id: true, name: true } },
             items: {
               include: {
-                product: { select: { id: true, name: true, sku: true, baseUnit: true } },
-                presentation: { select: { id: true, name: true, factor: true } },
+                product: {
+                  select: { id: true, name: true, sku: true, baseUnit: true },
+                },
+                presentation: {
+                  select: { id: true, name: true, factor: true },
+                },
               },
             },
           },
-          orderBy: { entryDate: 'asc' },
+          orderBy: { entryDate: "asc" },
         },
       },
     });
 
-    if (!receipt) throw new NotFoundException('Purchase receipt not found.');
+    if (!receipt) throw new NotFoundException("Purchase receipt not found.");
 
     return { ...receipt, totalAmount: Number(receipt.totalAmount) };
   }
 
-  async createReceipt(companyId: string, userId: string | null, input: CreatePurchaseReceiptDto) {
-    const series = (input.series?.trim() || 'BI').toUpperCase();
+  async createReceipt(
+    companyId: string,
+    userId: string | null,
+    input: CreatePurchaseReceiptDto,
+  ) {
+    const series = (input.series?.trim() || "BI").toUpperCase();
 
     if (input.distributorId) {
       const distributor = await this.prisma.distributor.findFirst({
         where: { id: input.distributorId, companyId },
         select: { id: true },
       });
-      if (!distributor) throw new NotFoundException('Distributor not found.');
+      if (!distributor) throw new NotFoundException("Distributor not found.");
     }
 
     const entries = await this.prisma.stockEntry.findMany({
@@ -347,15 +384,25 @@ export class StockEntriesService {
     });
 
     if (entries.length === 0) {
-      throw new BadRequestException('No hay compras pendientes de boletar para este proveedor.');
+      throw new BadRequestException(
+        "No hay compras pendientes de boletar para este proveedor.",
+      );
     }
 
     const totalAmount = entries.reduce(
       (sum, entry) =>
-        sum + entry.items.reduce((inner, item) => inner + Number(item.quantity) * Number(item.unitCost), 0),
+        sum +
+        entry.items.reduce(
+          (inner, item) =>
+            inner + Number(item.quantity) * Number(item.unitCost),
+          0,
+        ),
       0,
     );
-    const itemCount = entries.reduce((sum, entry) => sum + entry.items.length, 0);
+    const itemCount = entries.reduce(
+      (sum, entry) => sum + entry.items.length,
+      0,
+    );
     const entryIds = entries.map((entry) => entry.id);
 
     let receiptId: string | null = null;
@@ -366,7 +413,7 @@ export class StockEntriesService {
         receiptId = await this.prisma.$transaction(async (tx) => {
           const last = await tx.purchaseReceipt.findFirst({
             where: { companyId, series },
-            orderBy: { number: 'desc' },
+            orderBy: { number: "desc" },
             select: { number: true },
           });
           const number = (last?.number ?? 0) + 1;
@@ -377,7 +424,7 @@ export class StockEntriesService {
               distributorId: input.distributorId ?? null,
               series,
               number,
-              fullNumber: `${series}-${String(number).padStart(6, '0')}`,
+              fullNumber: `${series}-${String(number).padStart(6, "0")}`,
               totalAmount,
               entryCount: entries.length,
               itemCount,
@@ -395,7 +442,10 @@ export class StockEntriesService {
         });
       } catch (error) {
         lastError = error;
-        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        if (
+          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          error.code !== "P2002"
+        ) {
           throw error;
         }
       }
@@ -404,14 +454,14 @@ export class StockEntriesService {
     if (!receiptId) {
       throw lastError instanceof Error
         ? lastError
-        : new BadRequestException('No se pudo generar el folio de la boleta.');
+        : new BadRequestException("No se pudo generar el folio de la boleta.");
     }
 
     await this.auditService.log({
       companyId,
       userId,
       action: AuditAction.CREATE,
-      entity: 'PurchaseReceipt',
+      entity: "PurchaseReceipt",
       entityId: receiptId,
       changes: {
         distributorId: input.distributorId ?? null,

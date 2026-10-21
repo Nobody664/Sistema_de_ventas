@@ -1,5 +1,15 @@
-import { Type } from 'class-transformer';
-import { IsEmail, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { Type } from "class-transformer";
+import {
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from "class-validator";
 
 export class QueryCompanyDto {
   @IsOptional()
@@ -101,6 +111,6 @@ export class UpdateCompanyDto {
 }
 
 export class UpdateCompanyStatusDto {
-  @IsIn(['ACTIVE', 'SUSPENDED', 'TRIAL', 'PAST_DUE'])
-  status!: 'ACTIVE' | 'SUSPENDED' | 'TRIAL' | 'PAST_DUE';
+  @IsIn(["ACTIVE", "SUSPENDED", "TRIAL", "PAST_DUE"])
+  status!: "ACTIVE" | "SUSPENDED" | "TRIAL" | "PAST_DUE";
 }

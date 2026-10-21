@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { HealthController } from './health.controller';
-import { HealthService } from './health.service';
-import { PrismaModule } from '@/database/prisma/prisma.module';
-import { CacheModule } from '@/cache/cache.module';
+import { Module } from "@nestjs/common";
+import { HealthController } from "./health.controller";
+import { HealthService } from "./health.service";
+import { PrismaModule } from "@/database/prisma/prisma.module";
+import { CacheModule } from "@/cache/cache.module";
 
 @Module({
   imports: [PrismaModule, CacheModule],

@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
 
 @Injectable()
 export class ForecastService {
@@ -55,32 +55,50 @@ export class ForecastService {
 
     const products = await this.prisma.product.findMany({
       where: { companyId },
-      select: { id: true, name: true, sku: true, salePrice: true, stockQuantity: true },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        salePrice: true,
+        stockQuantity: true,
+      },
     });
 
     const totals = saleItems.reduce(
       (acc, item) => {
-        const revenue = acc.revenue.get(item.productId) ?? new Prisma.Decimal(0);
+        const revenue =
+          acc.revenue.get(item.productId) ?? new Prisma.Decimal(0);
         acc.revenue.set(item.productId, revenue.plus(item.totalPrice));
         const qty = acc.qty.get(item.productId) ?? 0;
         acc.qty.set(item.productId, qty + Number(item.quantity));
         return acc;
       },
-      { revenue: new Map<string, Prisma.Decimal>(), qty: new Map<string, number>() },
+      {
+        revenue: new Map<string, Prisma.Decimal>(),
+        qty: new Map<string, number>(),
+      },
     );
 
-    const totalRevenue = Array.from(totals.revenue.values()).reduce((s, v) => s.plus(v), new Prisma.Decimal(0));
+    const totalRevenue = Array.from(totals.revenue.values()).reduce(
+      (s, v) => s.plus(v),
+      new Prisma.Decimal(0),
+    );
     const ranked = products
       .map((p) => ({
         id: p.id,
         name: p.name,
-        sku: p.sku ?? '',
+        sku: p.sku ?? "",
         stockQuantity: p.stockQuantity,
         totalSold: totals.qty.get(p.id) ?? 0,
         revenue: totals.revenue.get(p.id) ?? new Prisma.Decimal(0),
         dailyAverage: Number(((totals.qty.get(p.id) ?? 0) / days).toFixed(2)),
         revenueShare: totalRevenue.gt(0)
-          ? Number(((totals.revenue.get(p.id) ?? new Prisma.Decimal(0)).div(totalRevenue).mul(100)).toFixed(2))
+          ? Number(
+              (totals.revenue.get(p.id) ?? new Prisma.Decimal(0))
+                .div(totalRevenue)
+                .mul(100)
+                .toFixed(2),
+            )
           : 0,
       }))
       .sort((a, b) => Number(b.revenue) - Number(a.revenue));
@@ -89,9 +107,9 @@ export class ForecastService {
     return ranked.map((p) => {
       cumulativeShare += p.revenueShare;
       let classification: string;
-      if (cumulativeShare <= 80) classification = 'A';
-      else if (cumulativeShare <= 95) classification = 'B';
-      else classification = 'C';
+      if (cumulativeShare <= 80) classification = "A";
+      else if (cumulativeShare <= 95) classification = "B";
+      else classification = "C";
       return { ...p, classification, revenue: Number(p.revenue) };
     });
   }

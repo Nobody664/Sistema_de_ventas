@@ -1,44 +1,44 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 
 export enum NotificationType {
   // SUPER_ADMIN
-  NEW_COMPANY_REGISTRATION = 'NEW_COMPANY_REGISTRATION',
-  CHECKOUT_REQUEST_PENDING = 'CHECKOUT_REQUEST_PENDING',
-  PLAN_UPGRADE_REQUEST = 'PLAN_UPGRADE_REQUEST',
-  PAYMENT_PROOF_PENDING = 'PAYMENT_PROOF_PENDING',
-  
+  NEW_COMPANY_REGISTRATION = "NEW_COMPANY_REGISTRATION",
+  CHECKOUT_REQUEST_PENDING = "CHECKOUT_REQUEST_PENDING",
+  PLAN_UPGRADE_REQUEST = "PLAN_UPGRADE_REQUEST",
+  PAYMENT_PROOF_PENDING = "PAYMENT_PROOF_PENDING",
+
   // SHARED
-  PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
-  PAYMENT_FAILED = 'PAYMENT_FAILED',
-  ACCOUNT_ACTIVATED = 'ACCOUNT_ACTIVATED',
-  
+  PAYMENT_RECEIVED = "PAYMENT_RECEIVED",
+  PAYMENT_FAILED = "PAYMENT_FAILED",
+  ACCOUNT_ACTIVATED = "ACCOUNT_ACTIVATED",
+
   // COMPANY_ADMIN
-  ACCOUNT_APPROVED = 'ACCOUNT_APPROVED',
-  SUBSCRIPTION_PENDING = 'SUBSCRIPTION_PENDING',
-  SUBSCRIPTION_APPROVED = 'SUBSCRIPTION_APPROVED',
-  SUBSCRIPTION_REJECTED = 'SUBSCRIPTION_REJECTED',
-  TRIAL_EXPIRING_SOON = 'TRIAL_EXPIRING_SOON',
-  TRIAL_EXPIRED = 'TRIAL_EXPIRED',
-  PLAN_UPGRADED = 'PLAN_UPGRADED',
-  
+  ACCOUNT_APPROVED = "ACCOUNT_APPROVED",
+  SUBSCRIPTION_PENDING = "SUBSCRIPTION_PENDING",
+  SUBSCRIPTION_APPROVED = "SUBSCRIPTION_APPROVED",
+  SUBSCRIPTION_REJECTED = "SUBSCRIPTION_REJECTED",
+  TRIAL_EXPIRING_SOON = "TRIAL_EXPIRING_SOON",
+  TRIAL_EXPIRED = "TRIAL_EXPIRED",
+  PLAN_UPGRADED = "PLAN_UPGRADED",
+
   // MANAGER / CASHIER
-  NEW_SALE = 'NEW_SALE',
-  LOW_STOCK = 'LOW_STOCK',
-  PRODUCT_EXPIRING_SOON = 'PRODUCT_EXPIRING_SOON',
-  NEW_CUSTOMER = 'NEW_CUSTOMER',
-  SALE_COMPLETED = 'SALE_COMPLETED',
-  SALE_RETURNED = 'SALE_RETURNED',
-  
+  NEW_SALE = "NEW_SALE",
+  LOW_STOCK = "LOW_STOCK",
+  PRODUCT_EXPIRING_SOON = "PRODUCT_EXPIRING_SOON",
+  NEW_CUSTOMER = "NEW_CUSTOMER",
+  SALE_COMPLETED = "SALE_COMPLETED",
+  SALE_RETURNED = "SALE_RETURNED",
+
   // GENERAL
-  GENERAL = 'GENERAL',
+  GENERAL = "GENERAL",
 }
 
 export enum NotificationChannel {
-  EMAIL = 'EMAIL',
-  IN_APP = 'IN_APP',
-  SMS = 'SMS',
+  EMAIL = "EMAIL",
+  IN_APP = "IN_APP",
+  SMS = "SMS",
 }
 
 export interface CreateNotificationInput {
@@ -106,30 +106,36 @@ export class NotificationsService {
     return notification;
   }
 
-  async findByUser(userId: string, options?: { unreadOnly?: boolean; limit?: number }) {
+  async findByUser(
+    userId: string,
+    options?: { unreadOnly?: boolean; limit?: number },
+  ) {
     const where: Record<string, unknown> = { userId };
-    
+
     if (options?.unreadOnly) {
       where.isRead = false;
     }
 
     return this.prisma.notification.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: options?.limit || 50,
     });
   }
 
-  async findByCompany(companyId: string, options?: { unreadOnly?: boolean; limit?: number }) {
+  async findByCompany(
+    companyId: string,
+    options?: { unreadOnly?: boolean; limit?: number },
+  ) {
     const where: Record<string, unknown> = { companyId };
-    
+
     if (options?.unreadOnly) {
       where.isRead = false;
     }
 
     return this.prisma.notification.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: options?.limit || 50,
     });
   }
@@ -139,7 +145,7 @@ export class NotificationsService {
       where: { id, userId },
     });
     if (!notification) {
-      throw new NotFoundException('Notification not found');
+      throw new NotFoundException("Notification not found");
     }
 
     return this.prisma.notification.update({
@@ -166,7 +172,7 @@ export class NotificationsService {
       where: { id, userId },
     });
     if (!notification) {
-      throw new NotFoundException('Notification not found');
+      throw new NotFoundException("Notification not found");
     }
 
     return this.prisma.notification.delete({ where: { id } });

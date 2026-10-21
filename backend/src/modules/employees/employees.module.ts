@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { EmployeesController } from './employees.controller';
-import { EmployeesService } from './employees.service';
-import { SubscriptionLimitService } from '@/common/guards/subscription-limit.service';
-import { PrismaModule } from '@/database/prisma/prisma.module';
+import { Module } from "@nestjs/common";
+import { EmployeesController } from "./employees.controller";
+import { EmployeesService } from "./employees.service";
+import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
+import { PrismaModule } from "@/database/prisma/prisma.module";
 
 @Module({
   imports: [PrismaModule],
@@ -11,4 +11,3 @@ import { PrismaModule } from '@/database/prisma/prisma.module';
   exports: [EmployeesService],
 })
 export class EmployeesModule {}
-

@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { CacheService } from '@/cache/cache.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { CacheService } from "@/cache/cache.service";
 
 @Injectable()
 export class HealthService {
@@ -21,10 +21,10 @@ export class HealthService {
     uptime: number;
   }> {
     return {
-      status: 'ok',
+      status: "ok",
       timestamp: new Date().toISOString(),
-      service: 'backend',
-      version: process.env.npm_package_version || '1.0.0',
+      service: "backend",
+      version: process.env.npm_package_version || "1.0.0",
       uptime: Math.floor(process.uptime()),
     };
   }
@@ -46,16 +46,16 @@ export class HealthService {
     const memoryCheck = this.checkMemory();
     const uptime = Math.floor(process.uptime());
 
-    const allHealthy = 
-      databaseCheck.status === 'ok' &&
-      redisCheck.status === 'ok' &&
-      memoryCheck.status === 'ok';
+    const allHealthy =
+      databaseCheck.status === "ok" &&
+      redisCheck.status === "ok" &&
+      memoryCheck.status === "ok";
 
     return {
-      status: allHealthy ? 'ok' : 'degraded',
+      status: allHealthy ? "ok" : "degraded",
       timestamp: new Date().toISOString(),
-      service: 'backend',
-      version: process.env.npm_package_version || '1.0.0',
+      service: "backend",
+      version: process.env.npm_package_version || "1.0.0",
       checks: {
         database: databaseCheck,
         redis: redisCheck,
@@ -65,50 +65,58 @@ export class HealthService {
     };
   }
 
-  private async checkDatabase(): Promise<{ status: string; latency: number; error?: string }> {
+  private async checkDatabase(): Promise<{
+    status: string;
+    latency: number;
+    error?: string;
+  }> {
     const start = Date.now();
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return {
-        status: 'ok',
+        status: "ok",
         latency: Date.now() - start,
       };
     } catch (error) {
-      this.logger.error('Database check failed', error);
+      this.logger.error("Database check failed", error);
       return {
-        status: 'error',
+        status: "error",
         latency: Date.now() - start,
-        error: 'Database unavailable',
+        error: "Database unavailable",
       };
     }
   }
 
-  private async checkRedis(): Promise<{ status: string; latency: number; error?: string }> {
-    const redisUrl = this.config.get<string>('REDIS_URL');
+  private async checkRedis(): Promise<{
+    status: string;
+    latency: number;
+    error?: string;
+  }> {
+    const redisUrl = this.config.get<string>("REDIS_URL");
     if (!redisUrl) {
-      return { status: 'ok', latency: 0 };
+      return { status: "ok", latency: 0 };
     }
 
     const start = Date.now();
     try {
       const pong = await this.cache.ping();
-      if (pong !== 'PONG') {
+      if (pong !== "PONG") {
         return {
-          status: 'error',
+          status: "error",
           latency: Date.now() - start,
-          error: 'Redis unavailable, using memory fallback',
+          error: "Redis unavailable, using memory fallback",
         };
       }
       return {
-        status: 'ok',
+        status: "ok",
         latency: Date.now() - start,
       };
     } catch (error) {
-      this.logger.warn('Redis check failed, using fallback', error);
+      this.logger.warn("Redis check failed, using fallback", error);
       return {
-        status: 'error',
+        status: "error",
         latency: Date.now() - start,
-        error: 'Redis unavailable, using memory fallback',
+        error: "Redis unavailable, using memory fallback",
       };
     }
   }
@@ -119,7 +127,7 @@ export class HealthService {
     const totalMB = Math.round(usage.heapTotal / 1024 / 1024);
 
     return {
-      status: usedMB < totalMB * 0.9 ? 'ok' : 'warning',
+      status: usedMB < totalMB * 0.9 ? "ok" : "warning",
       used: usedMB,
       total: totalMB,
     };
@@ -142,8 +150,8 @@ export class HealthService {
     return {
       status,
       timestamp: new Date().toISOString(),
-      service: 'backend',
-      version: process.env.npm_package_version || '1.0.0',
+      service: "backend",
+      version: process.env.npm_package_version || "1.0.0",
       checks: {
         database: checks.database,
         redis: checks.redis,

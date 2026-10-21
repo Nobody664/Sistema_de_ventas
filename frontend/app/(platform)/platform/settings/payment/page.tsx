@@ -1,23 +1,23 @@
-import { redirect } from 'next/navigation';
-import Link from 'next/link';
+import { redirect } from "next/navigation";
+import Link from "next/link";
 
-import { Card } from '@/components/ui/card';
-import { getServerSession } from '@/lib/session';
-import { PaymentSettingsManager } from '@/components/settings/payment-settings';
-import { CreditCard, Shield, ArrowLeft, Settings } from 'lucide-react';
+import { Card } from "@/components/ui/card";
+import { getServerSession } from "@/lib/session";
+import { PaymentSettingsManager } from "@/components/settings/payment-settings";
+import { CreditCard, Shield, ArrowLeft, Settings } from "lucide-react";
 
 export default async function PaymentSettingsPage() {
   const session = await getServerSession();
   const roles: string[] = session?.user?.roles || [];
-  
-  if (!roles.includes('SUPER_ADMIN')) {
-    redirect('/dashboard');
+
+  if (!roles.includes("SUPER_ADMIN")) {
+    redirect("/dashboard");
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link 
+        <Link
           href="/platform"
           className="flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground"
         >
@@ -32,9 +32,15 @@ export default async function PaymentSettingsPage() {
             <CreditCard className="size-8" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-white/60">Administración</p>
-            <h1 className="mt-1 break-words font-display text-3xl leading-tight sm:text-4xl">Métodos de Pago</h1>
-            <p className="mt-1 text-white/60">Configura Yape, Stripe, MercadoPago y más</p>
+            <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+              Administración
+            </p>
+            <h1 className="mt-1 break-words font-display text-3xl leading-tight sm:text-4xl">
+              Métodos de Pago
+            </h1>
+            <p className="mt-1 text-white/60">
+              Configura Yape, Stripe, MercadoPago y más
+            </p>
           </div>
         </div>
       </Card>
@@ -43,9 +49,12 @@ export default async function PaymentSettingsPage() {
         <div className="flex items-start gap-3">
           <Shield className="mt-0.5 h-5 w-5 text-amber-600" />
           <div>
-            <h3 className="font-medium text-amber-800">Solo para SUPER_ADMIN</h3>
+            <h3 className="font-medium text-amber-800">
+              Solo para SUPER_ADMIN
+            </h3>
             <p className="text-sm text-amber-700">
-              Esta configuración es global y afecta a todas las empresas del sistema.
+              Esta configuración es global y afecta a todas las empresas del
+              sistema.
             </p>
           </div>
         </div>

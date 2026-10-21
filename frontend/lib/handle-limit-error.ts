@@ -10,18 +10,18 @@ interface ErrorResult {
 }
 
 const PLAN_UPGRADE_CODES = new Set([
-  'MODULE_NOT_ENABLED',
-  'FEATURE_NOT_AVAILABLE',
-  'PLAN_REQUIRED',
+  "MODULE_NOT_ENABLED",
+  "FEATURE_NOT_AVAILABLE",
+  "PLAN_REQUIRED",
 ]);
 
 function extractCode(err: unknown): string | undefined {
-  if (err && typeof err === 'object') {
+  if (err && typeof err === "object") {
     const direct = (err as LimitError).error;
-    if (typeof direct === 'string') return direct;
+    if (typeof direct === "string") return direct;
 
     const cause = (err as LimitError).cause;
-    if (cause && typeof cause === 'object' && typeof cause.error === 'string') {
+    if (cause && typeof cause === "object" && typeof cause.error === "string") {
       return cause.error;
     }
   }
@@ -29,10 +29,10 @@ function extractCode(err: unknown): string | undefined {
 }
 
 export function handleLimitError(err: unknown): ErrorResult {
-  let message = 'Error desconocido';
+  let message = "Error desconocido";
   let isLimitError = false;
 
-  if (err && typeof err === 'object' && 'message' in err) {
+  if (err && typeof err === "object" && "message" in err) {
     const errorObj = err as LimitError;
     message = errorObj.message || message;
   } else if (err instanceof Error) {
@@ -41,7 +41,11 @@ export function handleLimitError(err: unknown): ErrorResult {
 
   const code = extractCode(err);
 
-  if (code === 'LIMIT_EXCEEDED' || code === 'API_QUOTA_EXCEEDED' || message.includes('límite')) {
+  if (
+    code === "LIMIT_EXCEEDED" ||
+    code === "API_QUOTA_EXCEEDED" ||
+    message.includes("límite")
+  ) {
     isLimitError = true;
     const limitMatch = message.match(/Has alcanzado el límite de ([^.]+)/);
     if (limitMatch) {
@@ -49,7 +53,7 @@ export function handleLimitError(err: unknown): ErrorResult {
     }
   } else if (code && PLAN_UPGRADE_CODES.has(code)) {
     isLimitError = true;
-    if (!message.includes('Mejora tu plan')) {
+    if (!message.includes("Mejora tu plan")) {
       message = `${message} Mejora tu plan para desbloquearlo.`;
     }
   }

@@ -1,26 +1,98 @@
 // Generated types from Prisma Schema
 // DO NOT EDIT - Run `prisma generate` to regenerate
 
-export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonObject
+  | JsonArray;
 export type JsonObject = { [key: string]: JsonValue };
 export type JsonArray = JsonValue[];
 
-export type CompanyStatus = 'ACTIVE' | 'SUSPENDED' | 'TRIAL' | 'PAST_DUE' | 'INACTIVE';
-export type BillingCycle = 'MONTHLY' | 'YEARLY';
-export type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
-export type PaymentStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED' | 'CANCELED';
-export type PaymentProvider = 'STRIPE' | 'MERCADOPAGO' | 'PAYPAL' | 'CASH' | 'CARD' | 'TRANSFER' | 'YAPE' | 'PLIN';
-export type GlobalRole = 'SUPER_ADMIN' | 'ADMIN' | 'USER';
-export type MembershipRole = 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'VIEWER';
-export type SaleStatus = 'COMPLETED' | 'CANCELLED' | 'REFUNDED' | 'PENDING';
-export type NotificationType = 'SALE' | 'PAYMENT' | 'INVENTORY' | 'SUBSCRIPTION' | 'SYSTEM' | 'NEW_COMPANY_REGISTRATION' | 'CHECKOUT_REQUEST_PENDING' | 'PLAN_UPGRADE_REQUEST' | 'SUBSCRIPTION_PENDING' | 'SUBSCRIPTION_APPROVED' | 'SUBSCRIPTION_REJECTED' | 'PAYMENT_RECEIVED' | 'PAYMENT_FAILED' | 'ACCOUNT_ACTIVATED' | 'ACCOUNT_APPROVED' | 'PLAN_UPGRADED' | 'TRIAL_EXPIRING_SOON' | 'TRIAL_EXPIRED' | 'NEW_SALE' | 'LOW_STOCK' | 'PRODUCT_EXPIRING_SOON' | 'NEW_CUSTOMER' | 'SALE_COMPLETED' | 'SALE_RETURNED' | 'GENERAL';
-export type NotificationChannel = 'EMAIL' | 'IN_APP' | 'SMS' | 'WHATSAPP';
-export type PlanUpgradeStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-export type CheckoutRequestStatus = 'DRAFT' | 'SUBMITTED' | 'REVIEWING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'EXPORT';
-export type InventoryMovementType = 'IN' | 'OUT' | 'ADJUSTMENT' | 'RETURN' | 'LOSS' | 'TRANSFER';
-export type InventoryCostMethod = 'FIFO' | 'WEIGHTED_AVERAGE';
-export type ProofStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type CompanyStatus =
+  | "ACTIVE"
+  | "SUSPENDED"
+  | "TRIAL"
+  | "PAST_DUE"
+  | "INACTIVE";
+export type BillingCycle = "MONTHLY" | "YEARLY";
+export type SubscriptionStatus =
+  | "TRIALING"
+  | "ACTIVE"
+  | "PAST_DUE"
+  | "CANCELED"
+  | "EXPIRED";
+export type PaymentStatus =
+  | "PENDING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "REFUNDED"
+  | "CANCELED";
+export type PaymentProvider =
+  | "STRIPE"
+  | "MERCADOPAGO"
+  | "PAYPAL"
+  | "CASH"
+  | "CARD"
+  | "TRANSFER"
+  | "YAPE"
+  | "PLIN";
+export type GlobalRole = "SUPER_ADMIN" | "ADMIN" | "USER";
+export type MembershipRole = "COMPANY_ADMIN" | "MANAGER" | "CASHIER" | "VIEWER";
+export type SaleStatus = "COMPLETED" | "CANCELLED" | "REFUNDED" | "PENDING";
+export type NotificationType =
+  | "SALE"
+  | "PAYMENT"
+  | "INVENTORY"
+  | "SUBSCRIPTION"
+  | "SYSTEM"
+  | "NEW_COMPANY_REGISTRATION"
+  | "CHECKOUT_REQUEST_PENDING"
+  | "PLAN_UPGRADE_REQUEST"
+  | "SUBSCRIPTION_PENDING"
+  | "SUBSCRIPTION_APPROVED"
+  | "SUBSCRIPTION_REJECTED"
+  | "PAYMENT_RECEIVED"
+  | "PAYMENT_FAILED"
+  | "ACCOUNT_ACTIVATED"
+  | "ACCOUNT_APPROVED"
+  | "PLAN_UPGRADED"
+  | "TRIAL_EXPIRING_SOON"
+  | "TRIAL_EXPIRED"
+  | "NEW_SALE"
+  | "LOW_STOCK"
+  | "PRODUCT_EXPIRING_SOON"
+  | "NEW_CUSTOMER"
+  | "SALE_COMPLETED"
+  | "SALE_RETURNED"
+  | "GENERAL";
+export type NotificationChannel = "EMAIL" | "IN_APP" | "SMS" | "WHATSAPP";
+export type PlanUpgradeStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type CheckoutRequestStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "REVIEWING"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED";
+export type AuditAction =
+  | "CREATE"
+  | "UPDATE"
+  | "DELETE"
+  | "LOGIN"
+  | "LOGOUT"
+  | "EXPORT";
+export type InventoryMovementType =
+  | "IN"
+  | "OUT"
+  | "ADJUSTMENT"
+  | "RETURN"
+  | "LOSS"
+  | "TRANSFER";
+export type InventoryCostMethod = "FIFO" | "WEIGHTED_AVERAGE";
+export type ProofStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface User {
   id: string;

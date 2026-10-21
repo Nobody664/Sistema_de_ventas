@@ -4,7 +4,7 @@ function getContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
   }
-  if (audioCtx.state === 'suspended') {
+  if (audioCtx.state === "suspended") {
     audioCtx.resume();
   }
   return audioCtx;
@@ -20,7 +20,7 @@ function playTone(
   const gain = ctx.createGain();
   osc.connect(gain);
   gain.connect(ctx.destination);
-  osc.type = 'sine';
+  osc.type = "sine";
   osc.frequency.value = frequency;
   const start = ctx.currentTime + startOffset;
   gain.gain.setValueAtTime(0.0001, start);

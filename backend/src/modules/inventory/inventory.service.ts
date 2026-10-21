@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { AuditAction, Prisma } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { AuditService } from '@/common/services/audit.service';
-import { KardexService } from '@/modules/kardex/kardex.service';
-import { LowStockService } from '@/modules/low-stock/low-stock.service';
-import { CreateInventoryAdjustmentDto } from './dto/inventory.dto';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { AuditAction, Prisma } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { AuditService } from "@/common/services/audit.service";
+import { KardexService } from "@/modules/kardex/kardex.service";
+import { LowStockService } from "@/modules/low-stock/low-stock.service";
+import { CreateInventoryAdjustmentDto } from "./dto/inventory.dto";
 
 @Injectable()
 export class InventoryService {
@@ -18,7 +22,7 @@ export class InventoryService {
   async findLowStock(companyId: string) {
     const products = await this.prisma.product.findMany({
       where: { companyId, isActive: true },
-      orderBy: { stockQuantity: 'asc' },
+      orderBy: { stockQuantity: "asc" },
       take: 10000,
     });
 
@@ -31,7 +35,7 @@ export class InventoryService {
     return this.prisma.inventoryMovement.findMany({
       where: { companyId },
       include: { product: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 50,
     });
   }
@@ -42,23 +46,25 @@ export class InventoryService {
     });
 
     if (!product) {
-      throw new NotFoundException('Product not found.');
+      throw new NotFoundException("Product not found.");
     }
 
     const quantity = new Prisma.Decimal(input.quantity);
 
     if (quantity.isZero()) {
-      throw new BadRequestException('La cantidad debe ser distinta de cero.');
+      throw new BadRequestException("La cantidad debe ser distinta de cero.");
     }
 
-    if (input.type !== 'ADJUSTMENT' && quantity.lt(0)) {
-      throw new BadRequestException('La cantidad debe ser positiva para este tipo de movimiento.');
+    if (input.type !== "ADJUSTMENT" && quantity.lt(0)) {
+      throw new BadRequestException(
+        "La cantidad debe ser positiva para este tipo de movimiento.",
+      );
     }
 
     let delta: Prisma.Decimal;
-    if (input.type === 'IN') {
+    if (input.type === "IN") {
       delta = quantity;
-    } else if (input.type === 'OUT' || input.type === 'LOSS') {
+    } else if (input.type === "OUT" || input.type === "LOSS") {
       delta = quantity.neg();
     } else {
       delta = quantity;
@@ -71,7 +77,9 @@ export class InventoryService {
       );
     }
 
-    const unitCost = new Prisma.Decimal(input.unitCost ?? Number(product.costPrice ?? 0));
+    const unitCost = new Prisma.Decimal(
+      input.unitCost ?? Number(product.costPrice ?? 0),
+    );
 
     const result = await this.prisma.$transaction(async (tx) => {
       const productUpdate = await tx.product.updateMany({
@@ -79,14 +87,14 @@ export class InventoryService {
         data: { stockQuantity: { increment: delta } },
       });
       if (productUpdate.count === 0) {
-        throw new NotFoundException('Product not found.');
+        throw new NotFoundException("Product not found.");
       }
 
       const updatedProduct = await tx.product.findUnique({
         where: { id: input.productId },
       });
       if (!updatedProduct) {
-        throw new NotFoundException('Product not found.');
+        throw new NotFoundException("Product not found.");
       }
 
       const movement = await tx.inventoryMovement.create({
@@ -96,9 +104,9 @@ export class InventoryService {
           presentationId: input.presentationId,
           type: input.type,
           quantity: delta,
-          unitCost: input.type === 'IN' ? unitCost : undefined,
-          totalCost: input.type === 'IN' ? unitCost.mul(delta) : undefined,
-          reason: input.reason ?? 'Manual adjustment',
+          unitCost: input.type === "IN" ? unitCost : undefined,
+          totalCost: input.type === "IN" ? unitCost.mul(delta) : undefined,
+          reason: input.reason ?? "Manual adjustment",
         },
       });
 
@@ -127,7 +135,7 @@ export class InventoryService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'InventoryMovement',
+      entity: "InventoryMovement",
       entityId: result.movement.id,
       changes: {
         productId: input.productId,

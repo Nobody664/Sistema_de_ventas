@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 
-import { PrismaService } from '@/database/prisma/prisma.service';
+import { PrismaService } from "@/database/prisma/prisma.service";
 
 @Injectable()
 export class PlatformMetricsService {
@@ -20,23 +20,23 @@ export class PlatformMetricsService {
       pendingCheckouts,
       pendingUpgrades,
     ] = await Promise.all([
-      this.prisma.company.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.company.groupBy({ by: ["status"], _count: { _all: true } }),
       this.prisma.user.count(),
       this.prisma.user.count({
-        where: { globalRole: { in: ['SUPER_ADMIN', 'SUPPORT_ADMIN'] } },
+        where: { globalRole: { in: ["SUPER_ADMIN", "SUPPORT_ADMIN"] } },
       }),
       this.prisma.subscription.groupBy({
-        by: ['planId'],
-        where: { status: 'ACTIVE' },
+        by: ["planId"],
+        where: { status: "ACTIVE" },
         _count: { _all: true },
       }),
       this.prisma.plan.count({ where: { isActive: true } }),
       this.prisma.payment.aggregate({
-        where: { status: 'SUCCEEDED', createdAt: { gte: monthStart } },
+        where: { status: "SUCCEEDED", createdAt: { gte: monthStart } },
         _sum: { amount: true },
       }),
-      this.prisma.checkoutRequest.count({ where: { status: 'SUBMITTED' } }),
-      this.prisma.planUpgradeRequest.count({ where: { status: 'PENDING' } }),
+      this.prisma.checkoutRequest.count({ where: { status: "SUBMITTED" } }),
+      this.prisma.planUpgradeRequest.count({ where: { status: "PENDING" } }),
     ]);
 
     const planIds = activeSubscriptionsByPlan.map((entry) => entry.planId);
@@ -86,8 +86,8 @@ export class PlatformMetricsService {
         byPlan: subscriptionsByPlan,
       },
       revenue: {
-        month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
-        currency: 'PEN',
+        month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+        currency: "PEN",
         total: Number(revenue._sum.amount ?? 0),
       },
       requests: {

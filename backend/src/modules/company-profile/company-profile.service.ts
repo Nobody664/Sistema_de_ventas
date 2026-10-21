@@ -1,30 +1,39 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { NotificationsService } from '@/modules/notifications/notifications.service';
-import { NotificationChannel } from '@/modules/notifications/notifications.service';
-import { PROFILE_FIELDS, ProfileField, evaluateProfile } from '@/common/helpers/profile-completeness.helper';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { NotificationsService } from "@/modules/notifications/notifications.service";
+import { NotificationChannel } from "@/modules/notifications/notifications.service";
+import {
+  PROFILE_FIELDS,
+  ProfileField,
+  evaluateProfile,
+} from "@/common/helpers/profile-completeness.helper";
 
 const FIELD_MESSAGES: Record<string, { title: string; message: string }> = {
   taxId: {
-    title: 'Completa tu RUC',
-    message: 'Aún falta conocerte un poco más. Completa tu RUC para que tus clientes tengan más confianza al adquirir tus productos.',
+    title: "Completa tu RUC",
+    message:
+      "Aún falta conocerte un poco más. Completa tu RUC para que tus clientes tengan más confianza al adquirir tus productos.",
   },
   legalName: {
-    title: 'Completa tu Razón Social',
-    message: 'Completa tu Razón Social para que tus facturas y boletas tengan validez legal.',
+    title: "Completa tu Razón Social",
+    message:
+      "Completa tu Razón Social para que tus facturas y boletas tengan validez legal.",
   },
   address: {
-    title: 'Completa tu dirección',
-    message: 'Completa tu dirección así tus clientes podrán encontrarte más rápido.',
+    title: "Completa tu dirección",
+    message:
+      "Completa tu dirección así tus clientes podrán encontrarte más rápido.",
   },
   phone: {
-    title: 'Agrega un teléfono',
-    message: 'Agrega un número de contacto para que tus clientes puedan comunicarse contigo.',
+    title: "Agrega un teléfono",
+    message:
+      "Agrega un número de contacto para que tus clientes puedan comunicarse contigo.",
   },
   email: {
-    title: 'Verifica tu email',
-    message: 'Confirma tu correo electrónico para recibir notificaciones importantes de tu negocio.',
+    title: "Verifica tu email",
+    message:
+      "Confirma tu correo electrónico para recibir notificaciones importantes de tu negocio.",
   },
 };
 
@@ -82,15 +91,18 @@ export class CompanyProfileService {
     });
   }
 
-  private async shouldNotify(companyId: string, field: string): Promise<boolean> {
+  private async shouldNotify(
+    companyId: string,
+    field: string,
+  ): Promise<boolean> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const recent = await this.prisma.notification.findFirst({
       where: {
         companyId,
-        type: 'SYSTEM' as any,
-        data: { path: ['field'], equals: field } as any,
+        type: "SYSTEM" as any,
+        data: { path: ["field"], equals: field } as any,
         createdAt: { gte: thirtyDaysAgo },
       },
     });
@@ -98,7 +110,10 @@ export class CompanyProfileService {
     return !recent;
   }
 
-  async sendCompletionSuggestions(companyId: string, userId: string): Promise<number> {
+  async sendCompletionSuggestions(
+    companyId: string,
+    userId: string,
+  ): Promise<number> {
     const missing = await this.getMissingFields(companyId);
     let sent = 0;
 
@@ -107,18 +122,19 @@ export class CompanyProfileService {
       if (!canNotify) continue;
 
       const msg = FIELD_MESSAGES[field.key] ?? {
-        title: 'Completa tu perfil',
-        message: 'Completa la información de tu empresa para ofrecer una mejor experiencia a tus clientes.',
+        title: "Completa tu perfil",
+        message:
+          "Completa la información de tu empresa para ofrecer una mejor experiencia a tus clientes.",
       };
 
       await this.notificationsService.create({
         userId,
         companyId,
-        type: 'SYSTEM',
+        type: "SYSTEM",
         channel: NotificationChannel.IN_APP,
         title: msg.title,
         message: msg.message,
-        data: { field: field.key, action: '/settings/company' },
+        data: { field: field.key, action: "/settings/company" },
       });
 
       sent++;
@@ -129,13 +145,13 @@ export class CompanyProfileService {
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async checkCompanyProfiles() {
-    this.logger.log('Checking company profiles...');
+    this.logger.log("Checking company profiles...");
 
     const companies = await this.prisma.company.findMany({
-      where: { status: { in: ['ACTIVE', 'TRIAL'] as any } },
+      where: { status: { in: ["ACTIVE", "TRIAL"] as any } },
       include: {
         memberships: {
-          where: { role: 'COMPANY_ADMIN' as any },
+          where: { role: "COMPANY_ADMIN" as any },
           include: { user: true },
           take: 1,
         },

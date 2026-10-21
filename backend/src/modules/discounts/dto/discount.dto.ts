@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsDateString,
@@ -9,14 +9,15 @@ import {
   IsString,
   Matches,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 const COUPON_CODE = /^[A-Za-z0-9_-]{3,32}$/;
 
 export class CreateDiscountCouponDto {
   @IsString()
   @Matches(COUPON_CODE, {
-    message: 'El codigo debe tener entre 3 y 32 caracteres (letras, numeros, guion o guion bajo).',
+    message:
+      "El codigo debe tener entre 3 y 32 caracteres (letras, numeros, guion o guion bajo).",
   })
   code!: string;
 
@@ -25,8 +26,8 @@ export class CreateDiscountCouponDto {
   description?: string | null;
 
   @IsOptional()
-  @IsIn(['PERCENTAGE', 'FIXED'])
-  type?: 'PERCENTAGE' | 'FIXED';
+  @IsIn(["PERCENTAGE", "FIXED"])
+  type?: "PERCENTAGE" | "FIXED";
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
@@ -62,7 +63,8 @@ export class UpdateDiscountCouponDto {
   @IsOptional()
   @IsString()
   @Matches(COUPON_CODE, {
-    message: 'El codigo debe tener entre 3 y 32 caracteres (letras, numeros, guion o guion bajo).',
+    message:
+      "El codigo debe tener entre 3 y 32 caracteres (letras, numeros, guion o guion bajo).",
   })
   code?: string;
 
@@ -71,8 +73,8 @@ export class UpdateDiscountCouponDto {
   description?: string | null;
 
   @IsOptional()
-  @IsIn(['PERCENTAGE', 'FIXED'])
-  type?: 'PERCENTAGE' | 'FIXED';
+  @IsIn(["PERCENTAGE", "FIXED"])
+  type?: "PERCENTAGE" | "FIXED";
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -119,8 +121,8 @@ export class QueryDiscountCouponDto {
   limit?: number = 20;
 
   @IsOptional()
-  @IsIn(['true', 'false'])
-  isActive?: 'true' | 'false';
+  @IsIn(["true", "false"])
+  isActive?: "true" | "false";
 
   @IsOptional()
   @IsString()

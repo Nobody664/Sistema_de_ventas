@@ -1,9 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { CreateProductBatchDto, UpdateProductBatchDto, ReserveBatchDto, QueryProductBatchDto } from './dto/product-batch.dto';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { Prisma, PrismaClient } from "@prisma/client";
+import {
+  CreateProductBatchDto,
+  UpdateProductBatchDto,
+  ReserveBatchDto,
+  QueryProductBatchDto,
+} from "./dto/product-batch.dto";
 
-type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$use' | '$extends'>;
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
+>;
 
 @Injectable()
 export class ProductBatchesService {
@@ -13,13 +25,13 @@ export class ProductBatchesService {
     const product = await this.prisma.product.findFirst({
       where: { id: dto.productId, companyId },
     });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product) throw new NotFoundException("Product not found");
 
     if (dto.branchId) {
       const branch = await this.prisma.branch.findFirst({
         where: { id: dto.branchId, companyId },
       });
-      if (!branch) throw new NotFoundException('Branch not found');
+      if (!branch) throw new NotFoundException("Branch not found");
     }
 
     return this.prisma.productBatch.create({
@@ -31,7 +43,9 @@ export class ProductBatchesService {
         quantityReceived: dto.quantityReceived,
         quantityAvailable: dto.quantityAvailable,
         purchasePrice: dto.purchasePrice,
-        expirationDate: dto.expirationDate ? new Date(dto.expirationDate) : null,
+        expirationDate: dto.expirationDate
+          ? new Date(dto.expirationDate)
+          : null,
       },
     });
   }
@@ -44,16 +58,19 @@ export class ProductBatchesService {
     return this.prisma.productBatch.findMany({
       where,
       include: { product: { select: { name: true, sku: true } } },
-      orderBy: { expirationDate: 'asc' },
+      orderBy: { expirationDate: "asc" },
     });
   }
 
   async findById(companyId: string, id: string) {
     const batch = await this.prisma.productBatch.findFirst({
       where: { id, companyId },
-      include: { product: { select: { name: true, sku: true } }, branch: { select: { name: true } } },
+      include: {
+        product: { select: { name: true, sku: true } },
+        branch: { select: { name: true } },
+      },
     });
-    if (!batch) throw new NotFoundException('Product batch not found');
+    if (!batch) throw new NotFoundException("Product batch not found");
     return batch;
   }
 
@@ -61,21 +78,32 @@ export class ProductBatchesService {
     const result = await this.prisma.productBatch.updateMany({
       where: { id, companyId },
       data: {
-        ...(dto.quantityAvailable !== undefined ? { quantityAvailable: dto.quantityAvailable } : {}),
-        ...(dto.purchasePrice !== undefined ? { purchasePrice: dto.purchasePrice } : {}),
-        ...(dto.expirationDate !== undefined ? { expirationDate: new Date(dto.expirationDate) } : {}),
+        ...(dto.quantityAvailable !== undefined
+          ? { quantityAvailable: dto.quantityAvailable }
+          : {}),
+        ...(dto.purchasePrice !== undefined
+          ? { purchasePrice: dto.purchasePrice }
+          : {}),
+        ...(dto.expirationDate !== undefined
+          ? { expirationDate: new Date(dto.expirationDate) }
+          : {}),
       },
     });
-    if (result.count === 0) throw new NotFoundException('Product batch not found');
+    if (result.count === 0)
+      throw new NotFoundException("Product batch not found");
 
     return this.findById(companyId, id);
   }
 
   async remove(companyId: string, id: string) {
-    const batch = await this.prisma.productBatch.findFirst({ where: { id, companyId } });
-    if (!batch) throw new NotFoundException('Product batch not found');
+    const batch = await this.prisma.productBatch.findFirst({
+      where: { id, companyId },
+    });
+    if (!batch) throw new NotFoundException("Product batch not found");
     if (batch.quantityAvailable.gt(0)) {
-      throw new BadRequestException('Cannot delete a batch with available quantity');
+      throw new BadRequestException(
+        "Cannot delete a batch with available quantity",
+      );
     }
 
     await this.prisma.productBatch.delete({ where: { id } });
@@ -93,11 +121,16 @@ export class ProductBatchesService {
         quantityAvailable: { gt: 0 },
       },
       include: { product: { select: { name: true, sku: true } } },
-      orderBy: { expirationDate: 'asc' },
+      orderBy: { expirationDate: "asc" },
     });
   }
 
-  async findEarliestBatch(companyId: string, productId: string, quantity: Prisma.Decimal, tx?: PrismaTx) {
+  async findEarliestBatch(
+    companyId: string,
+    productId: string,
+    quantity: Prisma.Decimal,
+    tx?: PrismaTx,
+  ) {
     const client = tx ?? this.prisma;
     const batch = await client.productBatch.findFirst({
       where: {
@@ -106,7 +139,7 @@ export class ProductBatchesService {
         quantityAvailable: { gte: quantity },
         expirationDate: { not: null },
       },
-      orderBy: { expirationDate: 'asc' },
+      orderBy: { expirationDate: "asc" },
     });
 
     if (batch) return batch;
@@ -118,7 +151,7 @@ export class ProductBatchesService {
         quantityAvailable: { gte: quantity },
         expirationDate: null,
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
   }
 
@@ -132,13 +165,13 @@ export class ProductBatchesService {
       where: { id: productId, companyId },
       select: { stockQuantity: true, costPrice: true },
     });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product) throw new NotFoundException("Product not found");
 
     const batches = await tx.productBatch.findMany({
       where: { companyId, productId, quantityAvailable: { gt: 0 } },
       orderBy: [
-        { expirationDate: { sort: 'asc', nulls: 'last' } },
-        { createdAt: 'asc' },
+        { expirationDate: { sort: "asc", nulls: "last" } },
+        { createdAt: "asc" },
       ],
     });
     const stockBeforeSale = product.stockQuantity.plus(quantity);
@@ -165,9 +198,9 @@ export class ProductBatchesService {
         data: {
           companyId,
           productId,
-          type: 'ADJUSTMENT',
+          type: "ADJUSTMENT",
           quantity: untrackedStock,
-          reason: 'Legacy stock batch reconciliation',
+          reason: "Legacy stock batch reconciliation",
           notes: `Opening batch ${batchNumber} created during sale`,
         },
       });
@@ -177,7 +210,9 @@ export class ProductBatchesService {
     for (const batch of batches) {
       if (remaining.lte(0)) break;
 
-      const deduct = batch.quantityAvailable.lt(remaining) ? batch.quantityAvailable : remaining;
+      const deduct = batch.quantityAvailable.lt(remaining)
+        ? batch.quantityAvailable
+        : remaining;
       const reservation = await tx.productBatch.updateMany({
         where: {
           id: batch.id,
@@ -197,15 +232,15 @@ export class ProductBatchesService {
     }
   }
 
-  async reserveBatch(
-    companyId: string,
-    id: string,
-    dto: ReserveBatchDto,
-  ) {
-    const batch = await this.prisma.productBatch.findFirst({ where: { id, companyId } });
-    if (!batch) throw new NotFoundException('Product batch not found');
+  async reserveBatch(companyId: string, id: string, dto: ReserveBatchDto) {
+    const batch = await this.prisma.productBatch.findFirst({
+      where: { id, companyId },
+    });
+    if (!batch) throw new NotFoundException("Product batch not found");
     if (batch.quantityAvailable.lt(dto.quantity)) {
-      throw new BadRequestException(`El lote ${batch.batchNumber} solo tiene ${batch.quantityAvailable} unidades disponibles.`);
+      throw new BadRequestException(
+        `El lote ${batch.batchNumber} solo tiene ${batch.quantityAvailable} unidades disponibles.`,
+      );
     }
 
     const result = await this.prisma.productBatch.updateMany({
@@ -217,7 +252,9 @@ export class ProductBatchesService {
       data: { quantityAvailable: { decrement: dto.quantity } },
     });
     if (result.count === 0) {
-      throw new BadRequestException('La disponibilidad del lote cambió. Actualiza el inventario e inténtalo de nuevo.');
+      throw new BadRequestException(
+        "La disponibilidad del lote cambió. Actualiza el inventario e inténtalo de nuevo.",
+      );
     }
 
     return this.findById(companyId, id);

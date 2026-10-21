@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { Card } from '@/components/ui/card';
-import { 
-  Settings, 
-  User, 
-  Building2, 
-  Users, 
-  CreditCard, 
+import { Card } from "@/components/ui/card";
+import {
+  Settings,
+  User,
+  Building2,
+  Users,
+  CreditCard,
   TrendingUp,
   Crown,
   Activity,
-  ChevronRight
-} from 'lucide-react';
-import Link from 'next/link';
+  ChevronRight,
+} from "lucide-react";
+import Link from "next/link";
 
 type DashboardStats = {
   totalCompanies: number;
@@ -38,32 +38,66 @@ type SuperAdminProfileClientProps = {
   companies: Company[];
 };
 
-export function SuperAdminProfileClient({ userName, userEmail, stats, companies }: SuperAdminProfileClientProps) {
-  const fullName = userName || userEmail || 'Administrador';
-  const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+export function SuperAdminProfileClient({
+  userName,
+  userEmail,
+  stats,
+  companies,
+}: SuperAdminProfileClientProps) {
+  const fullName = userName || userEmail || "Administrador";
+  const initials = fullName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   const menuItems = [
-    { label: 'Dashboard', icon: Activity, href: '/dashboard', active: true },
-    { label: 'Empresas', icon: Building2, href: '/platform/companies' },
-    { label: 'Planes', icon: CreditCard, href: '/platform/plans' },
-    { label: 'Usuarios', icon: Users, href: '/platform/subscribers' },
-    { label: 'Configuración', icon: Settings, href: '/platform' },
+    { label: "Dashboard", icon: Activity, href: "/dashboard", active: true },
+    { label: "Empresas", icon: Building2, href: "/platform/companies" },
+    { label: "Planes", icon: CreditCard, href: "/platform/plans" },
+    { label: "Usuarios", icon: Users, href: "/platform/subscribers" },
+    { label: "Configuración", icon: Settings, href: "/platform" },
   ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'ACTIVE':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Activa</span>;
-      case 'TRIAL':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Prueba</span>;
-      case 'PAST_DUE':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">Pago pendiente</span>;
-      case 'SUSPENDED':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">Suspendida</span>;
-      case 'INACTIVE':
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Inactiva</span>;
+      case "ACTIVE":
+        return (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+            Activa
+          </span>
+        );
+      case "TRIAL":
+        return (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+            Prueba
+          </span>
+        );
+      case "PAST_DUE":
+        return (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+            Pago pendiente
+          </span>
+        );
+      case "SUSPENDED":
+        return (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+            Suspendida
+          </span>
+        );
+      case "INACTIVE":
+        return (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+            Inactiva
+          </span>
+        );
       default:
-        return <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">{status}</span>;
+        return (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -78,10 +112,14 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
           </div>
           <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-purple-300">Panel de Administración</p>
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-purple-300">
+                Panel de Administración
+              </p>
               <Crown className="w-5 h-5 text-yellow-400" />
             </div>
-            <h1 className="font-display text-4xl font-semibold tracking-tight">{fullName}</h1>
+            <h1 className="font-display text-4xl font-semibold tracking-tight">
+              {fullName}
+            </h1>
             <p className="text-purple-300">{userEmail}</p>
           </div>
         </div>
@@ -98,9 +136,9 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
                   key={item.label}
                   href={item.href}
                   className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                    item.active 
-                      ? 'bg-purple-900 text-white' 
-                      : 'text-slate-600 hover:bg-slate-100'
+                    item.active
+                      ? "bg-purple-900 text-white"
+                      : "text-slate-600 hover:bg-slate-100"
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -119,8 +157,12 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
             <Card className="rounded-2xl bg-white border-slate-200 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Total Empresas</p>
-                  <p className="font-display text-3xl font-bold text-slate-900 mt-1">{stats?.totalCompanies ?? 0}</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                    Total Empresas
+                  </p>
+                  <p className="font-display text-3xl font-bold text-slate-900 mt-1">
+                    {stats?.totalCompanies ?? 0}
+                  </p>
                 </div>
                 <div className="p-3 rounded-xl bg-purple-100">
                   <Building2 className="w-6 h-6 text-purple-600" />
@@ -131,8 +173,12 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
             <Card className="rounded-2xl bg-white border-slate-200 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Activas</p>
-                  <p className="font-display text-3xl font-bold text-emerald-600 mt-1">{stats?.activeCompanies ?? 0}</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                    Activas
+                  </p>
+                  <p className="font-display text-3xl font-bold text-emerald-600 mt-1">
+                    {stats?.activeCompanies ?? 0}
+                  </p>
                 </div>
                 <div className="p-3 rounded-xl bg-emerald-100">
                   <TrendingUp className="w-6 h-6 text-emerald-600" />
@@ -143,8 +189,12 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
             <Card className="rounded-2xl bg-white border-slate-200 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">En Prueba</p>
-                  <p className="font-display text-3xl font-bold text-amber-600 mt-1">{stats?.trialCompanies ?? 0}</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                    En Prueba
+                  </p>
+                  <p className="font-display text-3xl font-bold text-amber-600 mt-1">
+                    {stats?.trialCompanies ?? 0}
+                  </p>
                 </div>
                 <div className="p-3 rounded-xl bg-amber-100">
                   <CreditCard className="w-6 h-6 text-amber-600" />
@@ -155,8 +205,12 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
             <Card className="rounded-2xl bg-white border-slate-200 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Total Usuarios</p>
-                  <p className="font-display text-3xl font-bold text-slate-900 mt-1">{stats?.totalUsers ?? 0}</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                    Total Usuarios
+                  </p>
+                  <p className="font-display text-3xl font-bold text-slate-900 mt-1">
+                    {stats?.totalUsers ?? 0}
+                  </p>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-100">
                   <Users className="w-6 h-6 text-slate-600" />
@@ -169,8 +223,12 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
           <Card className="rounded-3xl bg-white border-slate-200 p-6">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="font-display text-xl font-semibold text-slate-900">Empresas Recientes</h2>
-                <p className="text-sm text-slate-500 mt-1">Últimas empresas registradas en el sistema</p>
+                <h2 className="font-display text-xl font-semibold text-slate-900">
+                  Empresas Recientes
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Últimas empresas registradas en el sistema
+                </p>
               </div>
               <Link
                 href="/platform/companies"
@@ -191,15 +249,23 @@ export function SuperAdminProfileClient({ userName, userEmail, stats, companies 
                       <Building2 className="w-5 h-5 text-purple-600" />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-900">{company.name}</p>
-                      <p className="truncate text-sm text-slate-500">@{company.slug}</p>
+                      <p className="truncate font-medium text-slate-900">
+                        {company.name}
+                      </p>
+                      <p className="truncate text-sm text-slate-500">
+                        @{company.slug}
+                      </p>
                     </div>
                   </div>
-                  <div className="shrink-0">{getStatusBadge(company.status)}</div>
+                  <div className="shrink-0">
+                    {getStatusBadge(company.status)}
+                  </div>
                 </div>
               ))}
               {companies.length === 0 && (
-                <p className="text-center text-slate-500 py-8">No hay empresas registradas</p>
+                <p className="text-center text-slate-500 py-8">
+                  No hay empresas registradas
+                </p>
               )}
             </div>
           </Card>

@@ -1,17 +1,17 @@
-import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { Card } from '@/components/ui/card';
-import { serverApiFetch } from '@/lib/server-api';
-import { getServerSession } from '@/lib/session';
-import { Percent, Tag, TicketPercent } from 'lucide-react';
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Card } from "@/components/ui/card";
+import { serverApiFetch } from "@/lib/server-api";
+import { getServerSession } from "@/lib/session";
+import { Percent, Tag, TicketPercent } from "lucide-react";
 import {
   DiscountActions,
   DiscountEmptyState,
   NewDiscountButton,
-} from '@/components/discounts/discount-actions';
-import type { DiscountCoupon } from '@/types/api';
+} from "@/components/discounts/discount-actions";
+import type { DiscountCoupon } from "@/types/api";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface DiscountListResponse {
   items: DiscountCoupon[];
@@ -29,61 +29,65 @@ type Status = { label: string; className: string };
 
 function getStatus(coupon: DiscountCoupon): Status {
   if (coupon.isActive === false) {
-    return { label: 'Desactivado', className: 'bg-slate-100 text-slate-500' };
+    return { label: "Desactivado", className: "bg-slate-100 text-slate-500" };
   }
 
   const now = Date.now();
   if (coupon.startsAt && new Date(coupon.startsAt).getTime() > now) {
-    return { label: 'Programado', className: 'bg-amber-100 text-amber-700' };
+    return { label: "Programado", className: "bg-amber-100 text-amber-700" };
   }
   if (coupon.expiresAt && new Date(coupon.expiresAt).getTime() < now) {
-    return { label: 'Expirado', className: 'bg-red-100 text-red-600' };
+    return { label: "Expirado", className: "bg-red-100 text-red-600" };
   }
   if (coupon.maxUses != null && (coupon.usedCount ?? 0) >= coupon.maxUses) {
-    return { label: 'Agotado', className: 'bg-red-100 text-red-600' };
+    return { label: "Agotado", className: "bg-red-100 text-red-600" };
   }
-  return { label: 'Activo', className: 'bg-emerald-100 text-emerald-700' };
+  return { label: "Activo", className: "bg-emerald-100 text-emerald-700" };
 }
 
 function formatDate(value?: string | null): string | null {
   if (!value) return null;
-  return new Intl.DateTimeFormat('es-PE', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
+  return new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   }).format(new Date(value));
 }
 
 function formatValue(coupon: DiscountCoupon): string {
-  return coupon.type === 'PERCENTAGE'
+  return coupon.type === "PERCENTAGE"
     ? `-${Number(coupon.value)}%`
     : `-S/ ${Number(coupon.value).toFixed(2)}`;
 }
 
-export default async function DiscountsPage({ searchParams }: DiscountPageProps) {
+export default async function DiscountsPage({
+  searchParams,
+}: DiscountPageProps) {
   const session = await getServerSession();
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes('COMPANY_ADMIN') && !roles.includes('MANAGER')) {
-    redirect('/dashboard');
+  if (!roles.includes("COMPANY_ADMIN") && !roles.includes("MANAGER")) {
+    redirect("/dashboard");
   }
 
   const { page: pageParam } = await searchParams;
   const page = Math.max(Number(pageParam) || 1, 1);
 
   const response = await serverApiFetch<DiscountListResponse>(
-    page > 1 ? `/discounts?page=${page}` : '/discounts',
+    page > 1 ? `/discounts?page=${page}` : "/discounts",
     session.accessToken,
   );
 
   const coupons = response?.items ?? [];
   const total = response?.total ?? 0;
   const totalPages = response?.totalPages ?? 1;
-  const activeCount = coupons.filter((coupon) => getStatus(coupon).label === 'Activo').length;
+  const activeCount = coupons.filter(
+    (coupon) => getStatus(coupon).label === "Activo",
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -97,8 +101,9 @@ export default async function DiscountsPage({ searchParams }: DiscountPageProps)
               Cupones
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-              Crea códigos de descuento con un cupo de usos, vigencia y compra mínima. Solo
-              aplican en ventas y se consumen al confirmar la venta.
+              Crea códigos de descuento con un cupo de usos, vigencia y compra
+              mínima. Solo aplican en ventas y se consumen al confirmar la
+              venta.
             </p>
           </div>
           <NewDiscountButton />
@@ -121,7 +126,9 @@ export default async function DiscountsPage({ searchParams }: DiscountPageProps)
             const used = coupon.usedCount ?? 0;
             const maxUses = coupon.maxUses ?? null;
             const hasCap = maxUses != null;
-            const progress = hasCap ? Math.min((used / (maxUses || 1)) * 100, 100) : 0;
+            const progress = hasCap
+              ? Math.min((used / (maxUses || 1)) * 100, 100)
+              : 0;
             const from = formatDate(coupon.startsAt);
             const until = formatDate(coupon.expiresAt);
 
@@ -140,7 +147,7 @@ export default async function DiscountsPage({ searchParams }: DiscountPageProps)
                         {coupon.code}
                       </h3>
                       <p className="text-sm text-foreground/50 truncate">
-                        {coupon.description || 'Sin descripción'}
+                        {coupon.description || "Sin descripción"}
                       </p>
                     </div>
                   </div>
@@ -153,7 +160,7 @@ export default async function DiscountsPage({ searchParams }: DiscountPageProps)
 
                 <div className="mt-4 flex items-center gap-3">
                   <span className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-lg font-bold text-emerald-700">
-                    {coupon.type === 'PERCENTAGE' ? (
+                    {coupon.type === "PERCENTAGE" ? (
                       <Percent className="size-4" />
                     ) : (
                       <Tag className="size-4" />
@@ -161,9 +168,10 @@ export default async function DiscountsPage({ searchParams }: DiscountPageProps)
                     {formatValue(coupon)}
                   </span>
                   <span className="text-xs text-foreground/50">
-                    {coupon.minPurchase != null && Number(coupon.minPurchase) > 0
+                    {coupon.minPurchase != null &&
+                    Number(coupon.minPurchase) > 0
                       ? `Desde S/ ${Number(coupon.minPurchase).toFixed(2)}`
-                      : 'Sin compra mínima'}
+                      : "Sin compra mínima"}
                   </span>
                 </div>
 
@@ -185,8 +193,8 @@ export default async function DiscountsPage({ searchParams }: DiscountPageProps)
 
                   <p className="mt-3 text-xs text-foreground/50">
                     {from || until
-                      ? `Vigencia: ${from ?? 'inmediata'}${until ? ` → ${until}` : ' · sin expiración'}`
-                      : 'Vigencia: inmediata · sin expiración'}
+                      ? `Vigencia: ${from ?? "inmediata"}${until ? ` → ${until}` : " · sin expiración"}`
+                      : "Vigencia: inmediata · sin expiración"}
                   </p>
                 </div>
 
@@ -205,7 +213,7 @@ export default async function DiscountsPage({ searchParams }: DiscountPageProps)
         <div className="flex items-center justify-between text-sm">
           {page > 1 ? (
             <Link
-              href={page > 2 ? `/discounts?page=${page - 1}` : '/discounts'}
+              href={page > 2 ? `/discounts?page=${page - 1}` : "/discounts"}
               className="rounded-xl border border-foreground/10 px-4 py-2 transition hover:bg-foreground/5"
             >
               Anterior

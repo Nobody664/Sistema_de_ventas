@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsPositive } from 'class-validator';
+import { IsInt, IsOptional, IsPositive } from "class-validator";
 
 export class ForecastQueryDto {
   @IsOptional()

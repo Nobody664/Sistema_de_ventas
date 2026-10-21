@@ -1,8 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
-import { PrismaService } from '@/database/prisma/prisma.service';
+import { PrismaService } from "@/database/prisma/prisma.service";
 
-const PLATFORM_ROLES = ['SUPER_ADMIN', 'SUPPORT_ADMIN'] as const;
+const PLATFORM_ROLES = ["SUPER_ADMIN", "SUPPORT_ADMIN"] as const;
 
 @Injectable()
 export class PlatformAdminsService {
@@ -19,19 +23,19 @@ export class PlatformAdminsService {
         isActive: true,
         createdAt: true,
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
   }
 
   listCandidates(query?: string) {
     return this.prisma.user.findMany({
       where: {
-        globalRole: 'USER',
+        globalRole: "USER",
         ...(query
           ? {
               OR: [
-                { email: { contains: query, mode: 'insensitive' as const } },
-                { fullName: { contains: query, mode: 'insensitive' as const } },
+                { email: { contains: query, mode: "insensitive" as const } },
+                { fullName: { contains: query, mode: "insensitive" as const } },
               ],
             }
           : {}),
@@ -43,7 +47,7 @@ export class PlatformAdminsService {
         isActive: true,
         createdAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 50,
     });
   }
@@ -53,16 +57,16 @@ export class PlatformAdminsService {
     if (!user) {
       throw new NotFoundException(`Usuario #${userId} no encontrado`);
     }
-    if (user.globalRole === 'SUPER_ADMIN') {
-      throw new BadRequestException('No se puede modificar a un SUPER_ADMIN.');
+    if (user.globalRole === "SUPER_ADMIN") {
+      throw new BadRequestException("No se puede modificar a un SUPER_ADMIN.");
     }
-    if (user.globalRole === 'SUPPORT_ADMIN') {
+    if (user.globalRole === "SUPPORT_ADMIN") {
       return user;
     }
 
     return this.prisma.user.update({
       where: { id: userId },
-      data: { globalRole: 'SUPPORT_ADMIN' },
+      data: { globalRole: "SUPPORT_ADMIN" },
     });
   }
 
@@ -71,19 +75,19 @@ export class PlatformAdminsService {
     if (!user) {
       throw new NotFoundException(`Usuario #${userId} no encontrado`);
     }
-    if (user.globalRole === 'SUPER_ADMIN') {
-      throw new BadRequestException('No se puede revocar a un SUPER_ADMIN.');
+    if (user.globalRole === "SUPER_ADMIN") {
+      throw new BadRequestException("No se puede revocar a un SUPER_ADMIN.");
     }
     if (userId === actorId) {
-      throw new BadRequestException('No puedes revocar tu propio acceso.');
+      throw new BadRequestException("No puedes revocar tu propio acceso.");
     }
-    if (user.globalRole !== 'SUPPORT_ADMIN') {
+    if (user.globalRole !== "SUPPORT_ADMIN") {
       return user;
     }
 
     return this.prisma.user.update({
       where: { id: userId },
-      data: { globalRole: 'USER' },
+      data: { globalRole: "USER" },
     });
   }
 }

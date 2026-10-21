@@ -1,4 +1,11 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 export class RegisterDto {
   @IsString()
@@ -83,4 +90,3 @@ export class AuthSessionDto {
   @IsOptional()
   expiresIn?: string;
 }
-

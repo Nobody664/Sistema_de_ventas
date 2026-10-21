@@ -1,12 +1,19 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { Card } from '@/components/ui/card';
-import { ShoppingCart, CreditCard, Banknote, TrendingUp, Calendar, Download } from 'lucide-react';
-import { apiFetch, getAccessToken } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
-import type { Product, Customer, Sale } from '@/types/api';
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { Card } from "@/components/ui/card";
+import {
+  ShoppingCart,
+  CreditCard,
+  Banknote,
+  TrendingUp,
+  Calendar,
+  Download,
+} from "lucide-react";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth.store";
+import type { Product, Customer, Sale } from "@/types/api";
 
 interface SalesPageClientProps {
   sales: Sale[];
@@ -14,12 +21,16 @@ interface SalesPageClientProps {
   customers?: Customer[];
 }
 
-export function SalesPageClient({ sales: initialSales, products, customers }: SalesPageClientProps) {
+export function SalesPageClient({
+  sales: initialSales,
+  products,
+  customers,
+}: SalesPageClientProps) {
   const user = useAuthStore((state) => state.user);
 
   const { data: salesData, isLoading } = useQuery({
-    queryKey: ['sales'],
-    queryFn: () => apiFetch<Sale[]>('/sales', { token: getAccessToken() }),
+    queryKey: ["sales"],
+    queryFn: () => apiFetch<Sale[]>("/sales", { token: getAccessToken() }),
     initialData: initialSales,
     refetchInterval: 30000,
   });
@@ -29,7 +40,7 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
   const totalRevenue = sales.reduce((acc, s) => acc + Number(s.totalAmount), 0);
   const totalSalesCount = sales.length;
   const avgTicket = totalSalesCount > 0 ? totalRevenue / totalSalesCount : 0;
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const parseSaleDate = (sale: Sale) => {
@@ -40,35 +51,47 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
     return date >= today;
   };
   const salesToday = sales.filter(isTodaySale).length;
-  const revenueToday = sales.filter(isTodaySale).reduce((acc, s) => acc + Number(s.totalAmount), 0);
+  const revenueToday = sales
+    .filter(isTodaySale)
+    .reduce((acc, s) => acc + Number(s.totalAmount), 0);
 
-  const paymentMethods: Record<string, { icon: typeof CreditCard; label: string }> = {
-    CASH: { icon: Banknote, label: 'Efectivo' },
-    CARD: { icon: CreditCard, label: 'Tarjeta' },
-    TRANSFER: { icon: Banknote, label: 'Transferencia' },
+  const paymentMethods: Record<
+    string,
+    { icon: typeof CreditCard; label: string }
+  > = {
+    CASH: { icon: Banknote, label: "Efectivo" },
+    CARD: { icon: CreditCard, label: "Tarjeta" },
+    TRANSFER: { icon: Banknote, label: "Transferencia" },
   };
 
   const channelLabels: Record<string, { label: string; className: string }> = {
-    POS: { label: 'Tienda', className: 'bg-orange-500/15 text-orange-700' },
-    ONLINE: { label: 'Online', className: 'bg-blue-500/15 text-blue-700' },
-    DISTRIBUTOR: { label: 'Distribuidor', className: 'bg-violet-500/15 text-violet-700' },
+    POS: { label: "Tienda", className: "bg-orange-500/15 text-orange-700" },
+    ONLINE: { label: "Online", className: "bg-blue-500/15 text-blue-700" },
+    DISTRIBUTOR: {
+      label: "Distribuidor",
+      className: "bg-violet-500/15 text-violet-700",
+    },
   };
 
-  const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
+  const handleExport = async (format: "csv" | "excel" | "pdf") => {
     try {
       const params = new URLSearchParams({ format });
-      const response = await apiFetch<{ data: string; contentType: string; filename: string }>(`/sales/export?${params}`, {
+      const response = await apiFetch<{
+        data: string;
+        contentType: string;
+        filename: string;
+      }>(`/sales/export?${params}`, {
         token: getAccessToken(),
       });
 
       if (response?.data) {
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = `data:${response.contentType};base64,${response.data}`;
         link.download = response.filename;
         link.click();
       }
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error("Export failed:", error);
     }
   };
 
@@ -77,10 +100,15 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
       <Card className="rounded-[34px] bg-gradient-to-br from-orange-500 to-rose-600 p-6 sm:p-8 text-white animate-fade-in-up">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-white/60">Punto de venta</p>
-            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">Gestion de ventas</h1>
+            <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+              Punto de venta
+            </p>
+            <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
+              Gestion de ventas
+            </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-              Registra nuevas ventas, consulta el historial y gestiona transacciones.
+              Registra nuevas ventas, consulta el historial y gestiona
+              transacciones.
             </p>
           </div>
           <div className="w-full shrink-0 sm:w-auto">
@@ -101,7 +129,9 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
               <ShoppingCart className="size-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Ventas hoy</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                Ventas hoy
+              </p>
               <p className="font-display text-3xl">{salesToday}</p>
             </div>
           </div>
@@ -113,8 +143,12 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
               <Banknote className="size-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Ingresos hoy</p>
-              <p className="font-display text-3xl">S/ {revenueToday.toFixed(2)}</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                Ingresos hoy
+              </p>
+              <p className="font-display text-3xl">
+                S/ {revenueToday.toFixed(2)}
+              </p>
             </div>
           </div>
         </Card>
@@ -125,7 +159,9 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
               <TrendingUp className="size-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Total ventas</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                Total ventas
+              </p>
               <p className="font-display text-3xl">{totalSalesCount}</p>
             </div>
           </div>
@@ -137,7 +173,9 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
               <CreditCard className="size-5 text-violet-600" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Ticket promedio</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                Ticket promedio
+              </p>
               <p className="font-display text-3xl">S/ {avgTicket.toFixed(2)}</p>
             </div>
           </div>
@@ -147,13 +185,19 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-300">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Historial</p>
+            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+              Historial
+            </p>
             <h2 className="mt-2 font-display text-2xl">Ventas recientes</h2>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-foreground/50">
               <Calendar className="size-4" />
-              {new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })}
+              {new Date().toLocaleDateString("es-PE", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
             </div>
             <div className="relative group">
               <button className="flex items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5">
@@ -161,60 +205,97 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
                 Exportar
               </button>
               <div className="absolute right-0 top-full z-10 mt-1 hidden min-w-[140px] rounded-xl border border-foreground/10 bg-white py-1 shadow-lg group-hover:block">
-                <button onClick={() => handleExport('csv')} className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5">CSV</button>
-                <button onClick={() => handleExport('excel')} className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5">Excel</button>
-                <button onClick={() => handleExport('pdf')} className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5">PDF</button>
+                <button
+                  onClick={() => handleExport("csv")}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
+                >
+                  CSV
+                </button>
+                <button
+                  onClick={() => handleExport("excel")}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
+                >
+                  Excel
+                </button>
+                <button
+                  onClick={() => handleExport("pdf")}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
+                >
+                  PDF
+                </button>
               </div>
             </div>
           </div>
         </div>
 
         <div className="space-y-3 max-h-[500px] overflow-auto">
-          {isLoading && <div className="py-8 text-center text-foreground/50">Cargando...</div>}
+          {isLoading && (
+            <div className="py-8 text-center text-foreground/50">
+              Cargando...
+            </div>
+          )}
           {!isLoading && sales.length > 0 ? (
             sales.slice(0, 15).map((sale, index) => {
-              const PaymentIcon = paymentMethods[sale.paymentMethod]?.icon || Banknote;
+              const PaymentIcon =
+                paymentMethods[sale.paymentMethod]?.icon || Banknote;
               const isToday = isTodaySale(sale);
               return (
                 <Link
                   key={sale.id}
                   href={`/sales/${sale.id}`}
                   className={`flex items-center justify-between rounded-2xl border p-4 transition hover:border-orange-500/30 card-hover ${
-                    isToday ? 'bg-orange-50/50 border-orange-200' : 'border-foreground/10'
+                    isToday
+                      ? "bg-orange-50/50 border-orange-200"
+                      : "border-foreground/10"
                   }`}
                 >
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className={`rounded-2xl p-2 ${isToday ? 'bg-orange-100' : 'bg-slate-100'}`}>
-                      <PaymentIcon className={`size-5 ${isToday ? 'text-orange-600' : 'text-slate-600'}`} />
+                    <div
+                      className={`rounded-2xl p-2 ${isToday ? "bg-orange-100" : "bg-slate-100"}`}
+                    >
+                      <PaymentIcon
+                        className={`size-5 ${isToday ? "text-orange-600" : "text-slate-600"}`}
+                      />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{sale.saleNumber}</p>
+                        <p className="font-medium truncate">
+                          {sale.saleNumber}
+                        </p>
                         {(() => {
-                          const info = channelLabels[(sale as { channel?: string }).channel ?? 'POS'] ?? channelLabels.POS;
+                          const info =
+                            channelLabels[
+                              (sale as { channel?: string }).channel ?? "POS"
+                            ] ?? channelLabels.POS;
                           return (
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${info.className}`}>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${info.className}`}
+                            >
                               {info.label}
                             </span>
                           );
                         })()}
                       </div>
                       <p className="text-sm text-foreground/50 truncate">
-                        {sale.customer && sale.customer.firstName 
-                          ? `${sale.customer.firstName} ${sale.customer.lastName || ''}`
-                          : 'Cliente general'}
-                        {sale.employee && sale.employee.firstName && ` • ${sale.employee.firstName}`}
+                        {sale.customer && sale.customer.firstName
+                          ? `${sale.customer.firstName} ${sale.customer.lastName || ""}`
+                          : "Cliente general"}
+                        {sale.employee &&
+                          sale.employee.firstName &&
+                          ` • ${sale.employee.firstName}`}
                       </p>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-display text-xl">S/ {Number(sale.totalAmount || 0).toFixed(2)}</p>
+                    <p className="font-display text-xl">
+                      S/ {Number(sale.totalAmount || 0).toFixed(2)}
+                    </p>
                     <p className="text-sm text-foreground/50">
-                      {new Date(sale.createdAt).toLocaleString('es-PE', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
+                      {new Date(sale.createdAt).toLocaleString("es-PE", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
                       })}
                     </p>
                   </div>

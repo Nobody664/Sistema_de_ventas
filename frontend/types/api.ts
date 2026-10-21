@@ -14,19 +14,27 @@ import type {
   InventoryKardex,
   ProductBatch,
   Branch,
-} from '@/types/generated';
+} from "@/types/generated";
 
-export type ProductApi = Omit<Product, 'costPrice' | 'salePrice'> & {
+export type ProductApi = Omit<Product, "costPrice" | "salePrice"> & {
   costPrice: string;
   salePrice: string;
 };
 
-export type CustomerApi = Omit<Customer, 'documentValue' | 'documentType'> & {
+export type CustomerApi = Omit<Customer, "documentValue" | "documentType"> & {
   documentValue: string | null;
   documentType: string | null;
 };
 
-export type SaleApi = Omit<Sale, 'totalAmount' | 'subtotal' | 'taxAmount' | 'discountAmount' | 'paidAmount' | 'changeAmount'> & {
+export type SaleApi = Omit<
+  Sale,
+  | "totalAmount"
+  | "subtotal"
+  | "taxAmount"
+  | "discountAmount"
+  | "paidAmount"
+  | "changeAmount"
+> & {
   totalAmount: string;
   subtotal: string;
   taxAmount: string;
@@ -35,7 +43,7 @@ export type SaleApi = Omit<Sale, 'totalAmount' | 'subtotal' | 'taxAmount' | 'dis
   changeAmount: string;
 };
 
-export type SaleItemApi = Omit<SaleItem, 'unitPrice' | 'totalPrice'> & {
+export type SaleItemApi = Omit<SaleItem, "unitPrice" | "totalPrice"> & {
   unitPrice: string;
   totalPrice: string;
 };
@@ -49,13 +57,29 @@ export type NotificationApi = Notification;
 export type PaymentSettingApi = PaymentSetting;
 export type CheckoutRequestApi = CheckoutRequest;
 
-export { Product, Customer, Sale, Company, Subscription, Plan, Category, Employee, Notification, PaymentSetting, SaleItem, CheckoutRequest, InventoryKardex, ProductBatch, Branch };
+export {
+  Product,
+  Customer,
+  Sale,
+  Company,
+  Subscription,
+  Plan,
+  Category,
+  Employee,
+  Notification,
+  PaymentSetting,
+  SaleItem,
+  CheckoutRequest,
+  InventoryKardex,
+  ProductBatch,
+  Branch,
+};
 
 export type SubscriberWithCompany = Company & {
   subscription?: {
     id: string;
-    status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
-    billingCycle: 'MONTHLY' | 'YEARLY';
+    status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+    billingCycle: "MONTHLY" | "YEARLY";
     startDate: Date;
     endDate?: Date | null;
     plan?: {
@@ -83,7 +107,7 @@ export interface DiscountCoupon {
   companyId: string;
   code: string;
   description?: string | null;
-  type: 'PERCENTAGE' | 'FIXED';
+  type: "PERCENTAGE" | "FIXED";
   value: number;
   maxUses?: number | null;
   usedCount?: number;
@@ -95,18 +119,18 @@ export interface DiscountCoupon {
   updatedAt?: string;
 }
 
-export type FinanceDirection = 'ENTRY' | 'EXIT';
+export type FinanceDirection = "ENTRY" | "EXIT";
 
 export type FinanceCategory =
-  | 'PURCHASE'
-  | 'SALE'
-  | 'PAYROLL'
-  | 'ELECTRICITY'
-  | 'WATER'
-  | 'MAINTENANCE'
-  | 'OTHER';
+  | "PURCHASE"
+  | "SALE"
+  | "PAYROLL"
+  | "ELECTRICITY"
+  | "WATER"
+  | "MAINTENANCE"
+  | "OTHER";
 
-export type FinanceSource = 'MANUAL' | 'SALE';
+export type FinanceSource = "MANUAL" | "SALE";
 
 export interface FinanceRecord {
   id: string;

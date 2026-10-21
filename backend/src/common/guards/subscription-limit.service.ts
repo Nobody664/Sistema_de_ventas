@@ -1,8 +1,14 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { PlanCapabilitiesService } from '@/modules/plan-capabilities/plan-capabilities.service';
+import { Injectable, ForbiddenException } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 
-export type ResourceType = 'products' | 'users' | 'customers' | 'employees' | 'categories' | 'sales';
+export type ResourceType =
+  | "products"
+  | "users"
+  | "customers"
+  | "employees"
+  | "categories"
+  | "sales";
 
 export interface LimitInfo {
   current: number;
@@ -39,7 +45,9 @@ export class SubscriptionLimitService {
     };
   }
 
-  async getCurrentCounts(companyId: string): Promise<Record<ResourceType, number>> {
+  async getCurrentCounts(
+    companyId: string,
+  ): Promise<Record<ResourceType, number>> {
     const [
       usersCount,
       productsCount,
@@ -66,17 +74,20 @@ export class SubscriptionLimitService {
     };
   }
 
-  async checkLimit(companyId: string, resource: ResourceType): Promise<LimitInfo> {
+  async checkLimit(
+    companyId: string,
+    resource: ResourceType,
+  ): Promise<LimitInfo> {
     const limits = await this.getSubscriptionLimits(companyId);
     const counts = await this.getCurrentCounts(companyId);
 
     const resourceLimitMap: Record<ResourceType, keyof SubscriptionLimits> = {
-      products: 'maxProducts',
-      users: 'maxUsers',
-      customers: 'maxCustomers',
-      employees: 'maxEmployees',
-      categories: 'maxCategories',
-      sales: 'maxProducts',
+      products: "maxProducts",
+      users: "maxUsers",
+      customers: "maxCustomers",
+      employees: "maxEmployees",
+      categories: "maxCategories",
+      sales: "maxProducts",
     };
 
     const limitKey = resourceLimitMap[resource];
@@ -90,29 +101,37 @@ export class SubscriptionLimitService {
     };
   }
 
-  async validateLimit(companyId: string, resource: ResourceType): Promise<void> {
-    const { current, limit, resource: res } = await this.checkLimit(companyId, resource);
+  async validateLimit(
+    companyId: string,
+    resource: ResourceType,
+  ): Promise<void> {
+    const {
+      current,
+      limit,
+      resource: res,
+    } = await this.checkLimit(companyId, resource);
 
     if (current >= limit) {
       const resourceNames: Record<ResourceType, string> = {
-        products: 'productos',
-        users: 'usuarios',
-        customers: 'clientes',
-        employees: 'empleados',
-        categories: 'categorías',
-        sales: 'ventas',
+        products: "productos",
+        users: "usuarios",
+        customers: "clientes",
+        employees: "empleados",
+        categories: "categorías",
+        sales: "ventas",
       };
 
-      const capabilities = await this.planCapabilities.getCapabilities(companyId);
+      const capabilities =
+        await this.planCapabilities.getCapabilities(companyId);
 
       throw new ForbiddenException({
-        error: 'LIMIT_EXCEEDED',
+        error: "LIMIT_EXCEEDED",
         message: `Has alcanzado el límite de ${resourceNames[res]} de tu plan (${limit}).`,
         current,
         limit,
         resource: res,
         planName: capabilities.planName,
-        upgradeUrl: '/subscription',
+        upgradeUrl: "/subscription",
       });
     }
   }
@@ -139,7 +158,9 @@ export class SubscriptionLimitService {
       users: Math.round((counts.users / limits.maxUsers) * 100),
       customers: Math.round((counts.customers / limits.maxCustomers) * 100),
       employees: Math.round((counts.employees / limits.maxEmployees) * 100),
-      categories: Math.round((counts.categories / Math.max(1, limits.maxCategories)) * 100),
+      categories: Math.round(
+        (counts.categories / Math.max(1, limits.maxCategories)) * 100,
+      ),
       sales: 0,
     };
 

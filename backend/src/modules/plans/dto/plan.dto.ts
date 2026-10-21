@@ -1,6 +1,18 @@
-import { IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-import { PLAN_FEATURE_KEYS, PLAN_MODULE_KEYS } from '@/modules/plan-capabilities/plan-capabilities.constants';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
+import { Type } from "class-transformer";
+import {
+  PLAN_FEATURE_KEYS,
+  PLAN_MODULE_KEYS,
+} from "@/modules/plan-capabilities/plan-capabilities.constants";
 
 export class CreatePlanDto {
   @IsString()
@@ -21,8 +33,8 @@ export class CreatePlanDto {
   @Type(() => Number)
   priceYearly!: number;
 
-  @IsIn(['MONTHLY', 'YEARLY'])
-  billingCycle!: 'MONTHLY' | 'YEARLY';
+  @IsIn(["MONTHLY", "YEARLY"])
+  billingCycle!: "MONTHLY" | "YEARLY";
 
   @IsOptional()
   @IsInt()
@@ -85,8 +97,8 @@ export class UpdatePlanDto {
   priceYearly?: number;
 
   @IsOptional()
-  @IsIn(['MONTHLY', 'YEARLY'])
-  billingCycle?: 'MONTHLY' | 'YEARLY';
+  @IsIn(["MONTHLY", "YEARLY"])
+  billingCycle?: "MONTHLY" | "YEARLY";
 
   @IsOptional()
   @IsInt()

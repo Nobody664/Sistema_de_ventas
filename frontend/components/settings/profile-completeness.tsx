@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle, ChevronRight, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { apiFetch } from '@/lib/api';
+import { useState, useEffect } from "react";
+import { CheckCircle, AlertCircle, ChevronRight, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { apiFetch } from "@/lib/api";
 
 type CompletenessData = {
   score: number;
@@ -17,7 +17,7 @@ export function ProfileCompletenessIndicator() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<CompletenessData>('/company-profile/completeness')
+    apiFetch<CompletenessData>("/company-profile/completeness")
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
@@ -33,10 +33,20 @@ export function ProfileCompletenessIndicator() {
           <div className="flex items-center gap-2">
             <div className="relative h-10 w-10 shrink-0">
               <svg className="h-10 w-10 -rotate-90" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="15.5" fill="none" stroke="#fde68a" strokeWidth="2.5" />
                 <circle
-                  cx="18" cy="18" r="15.5"
-                  fill="none" stroke="#d97706"
+                  cx="18"
+                  cy="18"
+                  r="15.5"
+                  fill="none"
+                  stroke="#fde68a"
+                  strokeWidth="2.5"
+                />
+                <circle
+                  cx="18"
+                  cy="18"
+                  r="15.5"
+                  fill="none"
+                  stroke="#d97706"
                   strokeWidth="2.5"
                   strokeDasharray={`${data.score * 0.96} 96`}
                   strokeLinecap="round"
@@ -58,7 +68,10 @@ export function ProfileCompletenessIndicator() {
           {data.missingFields.length > 0 && (
             <ul className="mt-3 space-y-1">
               {data.missingFields.map((field) => (
-                <li key={field} className="flex items-center gap-2 text-sm text-amber-700">
+                <li
+                  key={field}
+                  className="flex items-center gap-2 text-sm text-amber-700"
+                >
                   <AlertCircle className="size-3.5 shrink-0" />
                   <span>Falta: {field}</span>
                 </li>

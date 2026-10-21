@@ -3,11 +3,14 @@ import {
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  NotImplementedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHmac, timingSafeEqual } from "crypto";
 import { IncomingHttpHeaders } from "http";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
+import { PaymentProvider } from "@prisma/client";
+import { MercadoPagoConfig, Preference } from "mercadopago";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import {
   NotificationsService,
@@ -16,6 +19,8 @@ import {
 } from "@/modules/notifications/notifications.service";
 import { EmailService } from "@/modules/email/email.service";
 import { parseImageDataUrl } from "@/common/helpers/image.helper";
+
+const OFFLINE_SESSION_PROVIDERS = new Set(["yape", "plin", "transfer"]);
 
 @Injectable()
 export class PaymentsService {
@@ -323,7 +328,7 @@ export class PaymentsService {
     });
 
     if (!plan) {
-      throw new Error("Plan not found");
+      throw new NotFoundException("Plan not found");
     }
 
     const planData = {
@@ -333,37 +338,46 @@ export class PaymentsService {
       priceMonthly: plan.priceMonthly.toString(),
     };
 
-    if (input.provider === "mercadopago") {
+    const provider = input.provider.toLowerCase();
+
+    if (provider === "mercadopago") {
       return this.createMercadoPagoCheckout(input.companyId, planData);
     }
 
-    if (input.provider === "yape") {
+    if (OFFLINE_SESSION_PROVIDERS.has(provider)) {
+      const setting = await this.prisma.paymentSetting.findFirst({
+        where: {
+          provider: provider.toUpperCase() as PaymentProvider,
+          isEnabled: true,
+          isActive: true,
+        },
+      });
+
+      if (!setting) {
+        throw new BadRequestException("Método de pago no disponible");
+      }
+
       return {
-        provider: "yape",
+        provider,
         planCode: input.planCode,
         companyId: input.companyId,
         status: "pending",
-        instructions: "Transfer to Yape number: 999888777",
+        instructions: setting.instructions,
+        accountNumber: setting.accountNumber,
+        accountName: setting.accountName,
+        qrImageBase64: setting.qrImageBase64,
         amount: planData.priceMonthly,
         currency: "PEN",
       };
     }
 
-    return {
-      provider: input.provider,
-      planCode: input.planCode,
-      companyId: input.companyId,
-      status: "pending",
-      note: "Provider not implemented yet",
-    };
+    throw new NotImplementedException("Proveedor de pago no soportado todavía");
   }
 
   private async createMercadoPagoCheckout(
     companyId: string,
     plan: { id: string; code: string; name: string; priceMonthly: string },
   ) {
-    const Mercadopago = require("mercadopago");
-
     const accessToken = this.configService.get<string>(
       "MERCADOPAGO_ACCESS_TOKEN",
     );
@@ -378,33 +392,52 @@ export class PaymentsService {
       };
     }
 
-    Mercadopago.configure({
-      access_token: accessToken,
-    });
+    const client = new MercadoPagoConfig({ accessToken });
+    const preference = new Preference(client);
 
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
     });
 
-    const paymentData = {
-      transaction_amount: Number(plan.priceMonthly),
-      description: `Suscripción ${plan.name} - Huanka-Saas`,
-      payment_method_id: "yape",
-      payer: {
-        email: company?.email || "customer@example.com",
-      },
-      external_reference: `${companyId}_${plan.code}_${Date.now()}`,
-      notification_url: `${this.configService.get<string>("API_URL")}/payments/webhooks/mercadopago`,
-    };
+    const frontendUrl = (
+      this.configService.get<string>("FRONTEND_URL") || "http://localhost:3000"
+    ).replace(/\/+$/, "");
+    const apiUrl =
+      this.configService.get<string>("API_URL") || `${frontendUrl}/api`;
+    const returnUrl = `${frontendUrl}/subscription`;
 
     try {
-      const payment = await Mercadopago.payment.create(paymentData);
+      const result = await preference.create({
+        body: {
+          items: [
+            {
+              id: plan.code,
+              title: `Suscripción ${plan.name} - Huanka-Saas`,
+              quantity: 1,
+              unit_price: Number(plan.priceMonthly),
+              currency_id: "PEN",
+            },
+          ],
+          payer: {
+            email: company?.email || "customer@example.com",
+          },
+          external_reference: `${companyId}_${plan.code}_${Date.now()}`,
+          notification_url: `${apiUrl}/payments/webhooks/mercadopago`,
+          back_urls: {
+            success: returnUrl,
+            pending: returnUrl,
+            failure: returnUrl,
+          },
+          statement_descriptor: "HUANKA SAAS",
+          metadata: { companyId, planCode: plan.code },
+        },
+      });
 
       return {
         provider: "mercadopago",
         status: "pending",
-        paymentId: payment.body.id,
-        redirectUrl: payment.body.transaction_details?.external_resource_url,
+        preferenceId: result.id,
+        redirectUrl: result.init_point,
         planCode: plan.code,
         companyId,
         amount: plan.priceMonthly,

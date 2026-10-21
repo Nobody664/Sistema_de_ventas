@@ -1,16 +1,28 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Save, ArrowLeft, Loader2, MapPin, Phone, Mail, FileText, Hash, CheckCircle, Sparkles } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
-import { useUiStore } from '@/store/ui-store';
-import { useAuthStore } from '@/stores/auth.store';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Building2,
+  Save,
+  ArrowLeft,
+  Loader2,
+  MapPin,
+  Phone,
+  Mail,
+  FileText,
+  Hash,
+  CheckCircle,
+  Sparkles,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiFetch } from "@/lib/api";
+import { useUiStore } from "@/store/ui-store";
+import { useAuthStore } from "@/stores/auth.store";
 
 interface CompanyData {
   id: string;
@@ -31,34 +43,34 @@ export default function CompanySettingsPage() {
   const addToast = useUiStore((state) => state.addToast);
 
   const userRoles = user?.roles ?? [];
-  const isCompanyAdmin = userRoles.includes('COMPANY_ADMIN');
+  const isCompanyAdmin = userRoles.includes("COMPANY_ADMIN");
 
   const [formData, setFormData] = useState({
-    name: '',
-    legalName: '',
-    taxId: '',
-    address: '',
-    email: '',
-    phone: '',
+    name: "",
+    legalName: "",
+    taxId: "",
+    address: "",
+    email: "",
+    phone: "",
   });
 
   const [isInitialized, setIsInitialized] = useState(false);
 
   const { data: company, isLoading } = useQuery({
-    queryKey: ['company-current'],
-    queryFn: () => apiFetch<CompanyData>('/companies/current'),
+    queryKey: ["company-current"],
+    queryFn: () => apiFetch<CompanyData>("/companies/current"),
     enabled: isCompanyAdmin,
   });
 
   useEffect(() => {
     if (company && !isInitialized) {
       setFormData({
-        name: company.name || '',
-        legalName: company.legalName || '',
-        taxId: company.taxId || '',
-        address: company.address || '',
-        email: company.email || '',
-        phone: company.phone || '',
+        name: company.name || "",
+        legalName: company.legalName || "",
+        taxId: company.taxId || "",
+        address: company.address || "",
+        email: company.email || "",
+        phone: company.phone || "",
       });
       setIsInitialized(true);
     }
@@ -66,29 +78,29 @@ export default function CompanySettingsPage() {
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<CompanyData>) =>
-      apiFetch<CompanyData>('/companies/current', {
-        method: 'PATCH',
+      apiFetch<CompanyData>("/companies/current", {
+        method: "PATCH",
         body: JSON.stringify(data),
       }),
     onSuccess: (data) => {
-      queryClient.setQueryData(['company-current'], data);
-      addToast('Datos de la empresa actualizados correctamente', 'success');
+      queryClient.setQueryData(["company-current"], data);
+      addToast("Datos de la empresa actualizados correctamente", "success");
     },
     onError: (error: Error) => {
-      addToast(error.message, 'error');
+      addToast(error.message, "error");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
-      addToast('El nombre de la empresa es requerido', 'error');
+      addToast("El nombre de la empresa es requerido", "error");
       return;
     }
 
     if (formData.taxId && formData.taxId.length !== 11) {
-      addToast('El RUC debe tener 11 dígitos', 'error');
+      addToast("El RUC debe tener 11 dígitos", "error");
       return;
     }
 
@@ -103,7 +115,7 @@ export default function CompanySettingsPage() {
   };
 
   const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   if (!isCompanyAdmin) {
@@ -113,11 +125,18 @@ export default function CompanySettingsPage() {
           <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
             <Building2 className="w-8 h-8 text-red-500" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900">Acceso restringido</h2>
+          <h2 className="text-xl font-bold text-slate-900">
+            Acceso restringido
+          </h2>
           <p className="text-slate-500 max-w-md">
-            Solo el administrador de la empresa puede editar la información de la organización.
+            Solo el administrador de la empresa puede editar la información de
+            la organización.
           </p>
-          <Button onClick={() => router.push('/dashboard')} variant="outline" className="rounded-xl">
+          <Button
+            onClick={() => router.push("/dashboard")}
+            variant="outline"
+            className="rounded-xl"
+          >
             Volver al inicio
           </Button>
         </div>
@@ -133,7 +152,9 @@ export default function CompanySettingsPage() {
             <div className="h-16 w-16 rounded-full border-4 border-slate-100 border-t-indigo-500 animate-spin"></div>
             <Building2 className="absolute inset-0 m-auto h-6 w-6 text-indigo-500" />
           </div>
-          <p className="mt-4 text-sm text-slate-500">Cargando datos de la empresa...</p>
+          <p className="mt-4 text-sm text-slate-500">
+            Cargando datos de la empresa...
+          </p>
         </div>
       </div>
     );
@@ -154,17 +175,17 @@ export default function CompanySettingsPage() {
 
       <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-2xl sm:p-10">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptLTItNHYyaC0ydi0yaDJ6bTQtOGgydjJoLTJ2LTJ6bS04LTR2MmgtMnYtMmgydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50"></div>
-        
+
         <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 blur-3xl"></div>
         <div className="absolute -bottom-20 -left-20 h-60 w-60 rounded-full bg-gradient-to-br from-amber-500/10 to-orange-500/10 blur-3xl"></div>
-        
+
         <div className="absolute top-4 right-4">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-xs text-white/70">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Configuración</span>
           </div>
         </div>
-        
+
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
           <div className="relative shrink-0">
             <div className="rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 p-5 shadow-2xl shadow-indigo-500/30">
@@ -175,35 +196,46 @@ export default function CompanySettingsPage() {
             </div>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/50">Empresa</p>
-            <h1 className="font-display text-2xl tracking-tight mt-1 sm:text-4xl">Datos de la Empresa</h1>
-            <p className="mt-2 text-white/70">Gestiona la información legal, fiscal y de contacto</p>
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/50">
+              Empresa
+            </p>
+            <h1 className="font-display text-2xl tracking-tight mt-1 sm:text-4xl">
+              Datos de la Empresa
+            </h1>
+            <p className="mt-2 text-white/70">
+              Gestiona la información legal, fiscal y de contacto
+            </p>
           </div>
         </div>
       </div>
 
       <Card className="rounded-3xl border-0 shadow-2xl shadow-slate-200/50 overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500"></div>
-        
+
         <form onSubmit={handleSubmit} className="p-5 space-y-10 sm:p-8">
           <div className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
               <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-500/20 dark:to-indigo-500/5">
                 <Building2 className="h-5 w-5 text-indigo-600" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900">Información Principal</h3>
+              <h3 className="text-base font-semibold text-slate-900">
+                Información Principal
+              </h3>
             </div>
-            
+
             <div className="grid gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor="name" className="text-sm font-semibold text-slate-700">
+                <Label
+                  htmlFor="name"
+                  className="text-sm font-semibold text-slate-700"
+                >
                   Nombre de la Empresa <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative group">
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => updateField('name', e.target.value)}
+                    onChange={(e) => updateField("name", e.target.value)}
                     placeholder="Mi Empresa SAC"
                     className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
                   />
@@ -214,13 +246,16 @@ export default function CompanySettingsPage() {
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor="legalName" className="text-sm font-semibold text-slate-700">
+                <Label
+                  htmlFor="legalName"
+                  className="text-sm font-semibold text-slate-700"
+                >
                   Razón Social
                 </Label>
                 <Input
                   id="legalName"
                   value={formData.legalName}
-                  onChange={(e) => updateField('legalName', e.target.value)}
+                  onChange={(e) => updateField("legalName", e.target.value)}
                   placeholder="Mi Empresa Sociedad Anónima Cerrada"
                   className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all text-base"
                 />
@@ -233,18 +268,31 @@ export default function CompanySettingsPage() {
               <div className="p-2 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-500/20 dark:to-amber-500/5">
                 <Hash className="h-5 w-5 text-amber-600" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900">Identificación Fiscal</h3>
+              <h3 className="text-base font-semibold text-slate-900">
+                Identificación Fiscal
+              </h3>
             </div>
-            
+
             <div className="space-y-2.5">
-              <Label htmlFor="taxId" className="text-sm font-semibold text-slate-700">
-                RUC <span className="text-slate-400 font-normal">(Registro Único de Contribuyente)</span>
+              <Label
+                htmlFor="taxId"
+                className="text-sm font-semibold text-slate-700"
+              >
+                RUC{" "}
+                <span className="text-slate-400 font-normal">
+                  (Registro Único de Contribuyente)
+                </span>
               </Label>
               <div className="relative group">
                 <Input
                   id="taxId"
                   value={formData.taxId}
-                  onChange={(e) => updateField('taxId', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  onChange={(e) =>
+                    updateField(
+                      "taxId",
+                      e.target.value.replace(/\D/g, "").slice(0, 11),
+                    )
+                  }
                   placeholder="10472251271"
                   maxLength={11}
                   className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base font-mono tracking-widest"
@@ -253,7 +301,9 @@ export default function CompanySettingsPage() {
                   <FileText className="h-5 w-5 text-slate-400" />
                 </div>
               </div>
-              <p className="text-xs text-slate-400 pl-1">El RUC debe tener 11 dígitos para ser válido</p>
+              <p className="text-xs text-slate-400 pl-1">
+                El RUC debe tener 11 dígitos para ser válido
+              </p>
             </div>
           </div>
 
@@ -262,18 +312,23 @@ export default function CompanySettingsPage() {
               <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-500/20 dark:to-rose-500/5">
                 <MapPin className="h-5 w-5 text-rose-600" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900">Ubicación</h3>
+              <h3 className="text-base font-semibold text-slate-900">
+                Ubicación
+              </h3>
             </div>
-            
+
             <div className="space-y-2.5">
-              <Label htmlFor="address" className="text-sm font-semibold text-slate-700">
+              <Label
+                htmlFor="address"
+                className="text-sm font-semibold text-slate-700"
+              >
                 Dirección Fiscal
               </Label>
               <div className="relative group">
                 <Input
                   id="address"
                   value={formData.address}
-                  onChange={(e) => updateField('address', e.target.value)}
+                  onChange={(e) => updateField("address", e.target.value)}
                   placeholder="Av. Principal 123, Lima, Perú"
                   className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
                 />
@@ -289,12 +344,17 @@ export default function CompanySettingsPage() {
               <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 dark:from-cyan-500/20 dark:to-cyan-500/5">
                 <Phone className="h-5 w-5 text-cyan-600" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900">Contacto</h3>
+              <h3 className="text-base font-semibold text-slate-900">
+                Contacto
+              </h3>
             </div>
-            
+
             <div className="grid gap-6">
               <div className="space-y-2.5">
-                <Label htmlFor="email" className="text-sm font-semibold text-slate-700">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-semibold text-slate-700"
+                >
                   Correo Electrónico
                 </Label>
                 <div className="relative group">
@@ -302,7 +362,7 @@ export default function CompanySettingsPage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => updateField('email', e.target.value)}
+                    onChange={(e) => updateField("email", e.target.value)}
                     placeholder="contacto@miempresa.com"
                     className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
                   />
@@ -313,14 +373,17 @@ export default function CompanySettingsPage() {
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor="phone" className="text-sm font-semibold text-slate-700">
+                <Label
+                  htmlFor="phone"
+                  className="text-sm font-semibold text-slate-700"
+                >
                   Teléfono
                 </Label>
                 <div className="relative group">
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => updateField('phone', e.target.value)}
+                    onChange={(e) => updateField("phone", e.target.value)}
                     placeholder="+51 999 999 999"
                     className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
                   />

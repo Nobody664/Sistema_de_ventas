@@ -1,10 +1,17 @@
-import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, Calendar, Edit, FolderTree, Package, Tag } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { serverApiFetch } from '@/lib/server-api';
-import { getServerSession } from '@/lib/session';
-import type { Category } from '@/types/api';
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import {
+  ArrowLeft,
+  Calendar,
+  Edit,
+  FolderTree,
+  Package,
+  Tag,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { serverApiFetch } from "@/lib/server-api";
+import { getServerSession } from "@/lib/session";
+import type { Category } from "@/types/api";
 
 interface DetailPageProps {
   params: Promise<{ id: string }>;
@@ -14,11 +21,14 @@ export default async function CategoryDetailPage({ params }: DetailPageProps) {
   const session = await getServerSession();
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   const { id } = await params;
-  const category = await serverApiFetch<Category>(`/products/categories/${id}`, session.accessToken);
+  const category = await serverApiFetch<Category>(
+    `/products/categories/${id}`,
+    session.accessToken,
+  );
 
   if (!category) {
     notFound();
@@ -26,31 +36,37 @@ export default async function CategoryDetailPage({ params }: DetailPageProps) {
 
   const productCount = category._count?.products;
   const details = [
-    { label: 'Nombre', value: category.name },
-    { label: 'Slug', value: category.slug },
-    { label: 'Descripción', value: category.description || 'Sin descripción' },
+    { label: "Nombre", value: category.name },
+    { label: "Slug", value: category.slug },
+    { label: "Descripción", value: category.description || "Sin descripción" },
     {
-      label: 'Creado',
-      value: new Date(category.createdAt).toLocaleDateString('es-PE', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
+      label: "Creado",
+      value: new Date(category.createdAt).toLocaleDateString("es-PE", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
       }),
     },
     {
-      label: 'Actualizado',
-      value: new Date(category.updatedAt).toLocaleDateString('es-PE', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
+      label: "Actualizado",
+      value: new Date(category.updatedAt).toLocaleDateString("es-PE", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
       }),
     },
-    { label: 'Productos asociados', value: productCount != null ? String(productCount) : '—' },
+    {
+      label: "Productos asociados",
+      value: productCount != null ? String(productCount) : "—",
+    },
   ];
 
   return (
     <div className="space-y-6">
-      <Link href="/categories" className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground">
+      <Link
+        href="/categories"
+        className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground"
+      >
         <ArrowLeft className="size-4" />
         Volver a categorías
       </Link>
@@ -58,7 +74,9 @@ export default async function CategoryDetailPage({ params }: DetailPageProps) {
       <Card className="rounded-[34px] bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0">
-            <p className="text-sm uppercase tracking-[0.18em] text-white/60">Categoría</p>
+            <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+              Categoría
+            </p>
             <h1 className="mt-3 break-words font-display text-3xl leading-tight sm:text-4xl">
               {category.name}
             </h1>
@@ -69,7 +87,9 @@ export default async function CategoryDetailPage({ params }: DetailPageProps) {
               <Package className="size-4" />
               Productos
             </p>
-            <p className="mt-1 font-display text-3xl">{productCount != null ? productCount : '—'}</p>
+            <p className="mt-1 font-display text-3xl">
+              {productCount != null ? productCount : "—"}
+            </p>
           </div>
         </div>
       </Card>
@@ -81,8 +101,12 @@ export default async function CategoryDetailPage({ params }: DetailPageProps) {
               <FolderTree className="size-5" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Nombre</p>
-              <p className="font-display text-3xl break-words">{category.name}</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                Nombre
+              </p>
+              <p className="font-display text-3xl break-words">
+                {category.name}
+              </p>
             </div>
           </div>
         </Card>
@@ -92,7 +116,9 @@ export default async function CategoryDetailPage({ params }: DetailPageProps) {
               <Tag className="size-5" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Slug</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                Slug
+              </p>
               <p className="font-display text-3xl break-all">{category.slug}</p>
             </div>
           </div>
@@ -103,12 +129,14 @@ export default async function CategoryDetailPage({ params }: DetailPageProps) {
               <Calendar className="size-5" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Creado</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                Creado
+              </p>
               <p className="font-display text-3xl">
-                {new Date(category.createdAt).toLocaleDateString('es-PE', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
+                {new Date(category.createdAt).toLocaleDateString("es-PE", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
                 })}
               </p>
             </div>
@@ -135,8 +163,12 @@ export default async function CategoryDetailPage({ params }: DetailPageProps) {
         <dl className="mt-5 grid gap-4 sm:grid-cols-2">
           {details.map((detail) => (
             <div key={detail.label}>
-              <dt className="text-xs uppercase tracking-[0.18em] text-foreground/40">{detail.label}</dt>
-              <dd className="mt-1 break-words text-sm text-foreground/80">{detail.value}</dd>
+              <dt className="text-xs uppercase tracking-[0.18em] text-foreground/40">
+                {detail.label}
+              </dt>
+              <dd className="mt-1 break-words text-sm text-foreground/80">
+                {detail.value}
+              </dd>
             </div>
           ))}
         </dl>

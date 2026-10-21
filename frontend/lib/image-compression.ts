@@ -2,24 +2,24 @@ export interface CompressOptions {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
-  format?: 'image/jpeg' | 'image/webp';
+  format?: "image/jpeg" | "image/webp";
 }
 
 export function compressImage(
   file: File,
   options: CompressOptions = {},
 ): Promise<string> {
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-    return Promise.reject(new Error('Selecciona una imagen PNG, JPEG o WebP'));
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+    return Promise.reject(new Error("Selecciona una imagen PNG, JPEG o WebP"));
   }
   if (file.size > 10 * 1024 * 1024) {
-    return Promise.reject(new Error('La imagen no debe exceder 10MB'));
+    return Promise.reject(new Error("La imagen no debe exceder 10MB"));
   }
   const {
     maxWidth = 1200,
     maxHeight = 1200,
     quality = 0.8,
-    format = 'image/jpeg',
+    format = "image/jpeg",
   } = options;
 
   return new Promise((resolve, reject) => {
@@ -29,7 +29,13 @@ export function compressImage(
     img.onload = () => {
       URL.revokeObjectURL(url);
       try {
-        const resolved = resolveCompressed(img, maxWidth, maxHeight, quality, format);
+        const resolved = resolveCompressed(
+          img,
+          maxWidth,
+          maxHeight,
+          quality,
+          format,
+        );
         resolve(resolved);
       } catch (err) {
         reject(err);
@@ -38,7 +44,7 @@ export function compressImage(
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('Error al cargar la imagen'));
+      reject(new Error("Error al cargar la imagen"));
     };
 
     img.src = url;
@@ -60,18 +66,19 @@ function resolveCompressed(
     height = Math.round(height * ratio);
   }
 
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
 
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('No se pudo crear el contexto 2D');
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo crear el contexto 2D");
 
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, 0, 0, width, height);
 
   const result = canvas.toDataURL(format, quality);
-  if (result.length > 2_000_000) throw new Error('La imagen es demasiado grande; reduce su resolución');
+  if (result.length > 2_000_000)
+    throw new Error("La imagen es demasiado grande; reduce su resolución");
   return result;
 }
