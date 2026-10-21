@@ -43,6 +43,10 @@ export class CreateStockEntryDto {
 
   @IsOptional()
   @IsString()
+  supplierId?: string;
+
+  @IsOptional()
+  @IsString()
   reference?: string;
 
   @IsOptional()
@@ -64,6 +68,10 @@ export class CreatePurchaseReceiptDto {
   @IsOptional()
   @IsString()
   distributorId?: string;
+
+  @IsOptional()
+  @IsString()
+  supplierId?: string;
 
   @IsOptional()
   @IsString()

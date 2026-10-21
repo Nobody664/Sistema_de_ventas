@@ -37,6 +37,7 @@ export enum Permission {
   INVENTORY_VIEW = "inventory:view",
   INVENTORY_INBOUND = "inventory:inbound",
   INVENTORY_OUTBOUND = "inventory:outbound",
+  INVENTORY_OUTBOUND = "inventory:outbound",
   INVENTORY_ADJUST = "inventory:adjust",
   INVENTORY_EXPORT = "inventory:export",
 

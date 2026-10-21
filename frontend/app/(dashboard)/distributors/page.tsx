@@ -31,7 +31,7 @@ export default async function DistributorsPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">
-              Canal distribuidores
+              A quién le vendes / consignas
             </p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
               Gestión de distribuidores

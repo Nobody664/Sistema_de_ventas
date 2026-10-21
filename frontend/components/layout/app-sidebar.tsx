@@ -39,6 +39,7 @@ type NavItem = {
   icon: LucideIcon;
   roles: string[];
   module?: string;
+  hint?: string;
 };
 
 const mainItems: NavItem[] = [
@@ -121,12 +122,14 @@ const companyItems: NavItem[] = [
     icon: Handshake,
     module: "distributors",
     roles: ["COMPANY_ADMIN", "MANAGER"],
+    hint: "A quién le vendes / consignas",
   },
   {
     label: "Proveedores",
     href: "/suppliers",
     icon: Truck,
     roles: ["COMPANY_ADMIN", "MANAGER"],
+    hint: "De quién compras",
   },
   {
     label: "Órdenes de compra",
@@ -266,7 +269,14 @@ function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
                   <Icon
                     className={`size-4 ${active ? "text-orange-400" : ""}`}
                   />
-                  {item.label}
+                  <span className="flex flex-col">
+                    <span>{item.label}</span>
+                    {item.hint && (
+                      <span className="text-[10px] font-normal text-sidebar-foreground/40">
+                        {item.hint}
+                      </span>
+                    )}
+                  </span>
                 </Link>
               );
             })}

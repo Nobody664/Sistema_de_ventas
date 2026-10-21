@@ -30,7 +30,8 @@ export default async function SuppliersPage() {
             <div>
               <h1 className="font-display text-3xl sm:text-4xl">Proveedores</h1>
               <p className="mt-1 text-sm text-white/70">
-                Gestiona proveedores y sus productos asociados
+                De quién compras: gestiona proveedores, productos asociados y
+                órdenes de compra
               </p>
             </div>
           </div>

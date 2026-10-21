@@ -28,6 +28,7 @@ export class StockEntriesService {
       include: {
         branch: { select: { id: true, name: true } },
         distributor: { select: { id: true, name: true, code: true } },
+        supplier: { select: { id: true, name: true, code: true } },
         items: {
           include: {
             product: {
@@ -48,7 +49,7 @@ export class StockEntriesService {
       include: {
         branch: { select: { id: true, name: true } },
         distributor: { select: { id: true, name: true, code: true } },
-        items: {
+        supplier: { select: { id: true, name: true, code: true } },
           include: {
             product: {
               select: { id: true, name: true, sku: true, baseUnit: true },
@@ -75,6 +76,13 @@ export class StockEntriesService {
         where: { id: input.distributorId, companyId },
       });
       if (!distributor) throw new NotFoundException("Distributor not found.");
+    }
+
+    if (input.supplierId) {
+      const supplier = await this.prisma.supplier.findFirst({
+        where: { id: input.supplierId, companyId, deletedAt: null },
+      });
+      if (!supplier) throw new NotFoundException("Proveedor no encontrado.");
     }
 
     const productIds = Array.from(
@@ -135,6 +143,7 @@ export class StockEntriesService {
           companyId,
           branchId: input.branchId,
           distributorId: input.distributorId,
+          supplierId: input.supplierId,
           reference: input.reference,
           notes: input.notes,
           entryDate: input.entryDate ? new Date(input.entryDate) : undefined,
@@ -203,6 +212,7 @@ export class StockEntriesService {
           reference: entry.reference,
           branchId: entry.branchId,
           distributorId: entry.distributorId,
+          supplierId: entry.supplierId,
           items: resolvedItems.map((item) => ({
             productId: item.productId,
             productName: item.productName,
@@ -237,6 +247,7 @@ export class StockEntriesService {
       where: { companyId },
       include: {
         distributor: { select: { id: true, name: true, code: true } },
+        supplier: { select: { id: true, name: true, code: true } },
         items: { select: { quantity: true, unitCost: true } },
       },
       orderBy: { entryDate: "desc" },
@@ -244,6 +255,7 @@ export class StockEntriesService {
     });
 
     type Group = {
+      supplier: { id: string; name: string; code: string | null } | null;
       distributor: { id: string; name: string; code: string } | null;
       entryCount: number;
       itemCount: number;
@@ -264,13 +276,24 @@ export class StockEntriesService {
     const groups = new Map<string, Group>();
 
     for (const entry of entries) {
-      const key = entry.distributor?.id ?? "general";
+      const key = entry.supplier?.id
+        ? `supplier:${entry.supplier.id}`
+        : entry.distributor?.id
+          ? `distributor:${entry.distributor.id}`
+          : "general";
       const total = entry.items.reduce(
         (sum, item) => sum + Number(item.quantity) * Number(item.unitCost),
         0,
       );
 
       const group = groups.get(key) ?? {
+        supplier: entry.supplier
+          ? {
+              id: entry.supplier.id,
+              name: entry.supplier.name,
+              code: entry.supplier.code,
+            }
+          : null,
         distributor: entry.distributor
           ? {
               id: entry.distributor.id,
@@ -366,6 +389,14 @@ export class StockEntriesService {
   ) {
     const series = (input.series?.trim() || "BI").toUpperCase();
 
+    if (input.supplierId) {
+      const supplier = await this.prisma.supplier.findFirst({
+        where: { id: input.supplierId, companyId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!supplier) throw new NotFoundException("Proveedor no encontrado.");
+    }
+
     if (input.distributorId) {
       const distributor = await this.prisma.distributor.findFirst({
         where: { id: input.distributorId, companyId },
@@ -378,7 +409,9 @@ export class StockEntriesService {
       where: {
         companyId,
         receiptId: null,
-        distributorId: input.distributorId ?? null,
+        ...(input.supplierId
+          ? { supplierId: input.supplierId }
+          : { distributorId: input.distributorId ?? null }),
       },
       include: { items: { select: { quantity: true, unitCost: true } } },
     });

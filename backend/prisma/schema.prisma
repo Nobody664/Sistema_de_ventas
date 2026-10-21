@@ -646,6 +646,7 @@ model StockEntry {
   companyId String   @map("company_id")
   branchId  String?  @map("branch_id")
   distributorId String? @map("distributor_id")
+  supplierId String? @map("supplier_id")
   receiptId String?  @map("receipt_id")
   reference String?
   notes     String?
@@ -656,12 +657,14 @@ model StockEntry {
   company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   branch  Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
   distributor Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  supplier Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   receipt PurchaseReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
   items   StockEntryItem[]
 
   @@index([companyId, createdAt])
   @@index([branchId])
   @@index([distributorId])
+  @@index([supplierId])
   @@index([receiptId])
   @@map("stock_entries")
 }
@@ -690,6 +693,7 @@ model PurchaseReceipt {
   id            String   @id @default(cuid())
   companyId     String   @map("company_id")
   distributorId String?  @map("distributor_id")
+  supplierId    String?  @map("supplier_id")
   series        String   @default("BI")
   number        Int
   fullNumber    String   @map("full_number")
@@ -703,11 +707,13 @@ model PurchaseReceipt {
 
   company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   distributor Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  supplier    Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   entries     StockEntry[]
 
   @@unique([companyId, series, number])
   @@index([companyId, issuedAt])
   @@index([distributorId])
+  @@index([supplierId])
   @@map("purchase_receipts")
 }
 
@@ -1398,6 +1404,8 @@ model Supplier {
   company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   products SupplierProduct[]
   orders   SupplierOrder[]
+  stockEntries StockEntry[]
+  purchaseReceipts PurchaseReceipt[]
 
   @@unique([companyId, name])
   @@index([companyId, isActive])
