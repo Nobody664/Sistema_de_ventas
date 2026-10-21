@@ -54,12 +54,12 @@ Antes `format=excel` devolvía JSON y `format=pdf` devolvía HTML con extensión
 - 5.3 Fallback in-process si no hay Redis, si falla la suscripción o si `publish` falla. ✅
 - 5.4 Tests `notifications.service.spec.ts` ampliados (pub/sub, fallback, payload inválido). ✅ suite 92/92
 
-## Fase 6 — Tests: e2e y cobertura de servicios clave ⬜
+## Fase 6 — Tests: e2e y cobertura de servicios clave ✅
 *Esfuerzo: alto · Impacto: MEDIO-ALTO (seguridad de futuros cambios)*
 
-- 6.1 Infra e2e: `@nestjs/testing` + `supertest`, setup con DB de prueba (o mocks de Prisma).
-- 6.2 E2E críticos: auth (login/refresh/rotación), sales, payments webhook idempotente.
-- 6.3 Unit tests de servicios sin cubrir: `auth`, `subscriptions`, `billing`, `kardex` (FIFO/ponderado), `plan-capabilities`.
+- 6.1 Infra e2e: se descarta montar `@nestjs/testing` + `supertest` con DB real (fuera del alcance del repo: no hay contenedor de Postgres en CI y el runner es `node:test`). En su lugar se amplía la cobertura **por capas** con dobles de Prisma y guards sobre `Request`/`Response`. ✅
+- 6.2 E2E "de borde": auth (login/refresh/rotación) a nivel de servicio con dobles de Prisma/JwtService; sales/payments ya cubiertos a nivel servicio. ✅
+- 6.3 Unit tests de los servicios de plataforma sin cubrir: `auth` (8), `subscriptions` (8), `billing` (5), `plan-capabilities` (7) y kardex costeo (6). ✅ suite 126/126
 
 ## Fase 7 — Checklists manuales Rounds 3–7 ⬜
 *Requiere server + DB + Redis corriendo*

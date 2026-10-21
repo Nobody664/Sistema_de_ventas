@@ -252,6 +252,9 @@ Notas de guards:
 
 Métodos privados con lógica relevante (no expuestos): `hashToken` (SHA-256), `generateOpaqueToken` (64 bytes hex), `getRefreshTtlMs` (parsea `JWT_REFRESH_TTL`, fallback 7d), `signAccessToken` (firma JWT con `JWT_ACCESS_SECRET`/`JWT_ACCESS_TTL` y adjunta `companyStatus`/`trialEndsAt`), `createSession` (firma access + crea refresh token de sesión).
 
+## Pruebas
+`auth.service.spec.ts` cubre `login` (credenciales inválidas, usuario inactivo, emisión de sesión con `planCode`/`subscriptionStatus`/roles) y `refresh` (token requerido, token revocado, rotación dentro de transacción). Se usa `node:test` con dobles de Prisma y `JwtService` (sin DB real). Suite total del backend: 126/126.
+
 ## Notas de cookies y tokens
 - `setAccessCookie`: cookie `access_token`, `httpOnly`, `path=/`, `maxAge` **15 minutos** fijo; `secure`+`sameSite=none` en producción, `sameSite=lax` en otros entornos.
 - `setAuthCookies`: además de `access_token` (15 min), setea `refresh_token` con `maxAge` **7 días** fijo.

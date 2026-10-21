@@ -7,10 +7,9 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
-import type { StringValue } from "ms";
 import * as argon2 from "argon2";
 import { randomBytes, createHash } from "crypto";
-import { RefreshTokenType, type Prisma } from "@prisma/client";
+import { RefreshTokenType } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { UsersService } from "@/modules/users/users.service";
 import { EmailService } from "@/modules/email/email.service";
@@ -539,7 +538,7 @@ export class AuthService {
         secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
         expiresIn: this.configService.getOrThrow<string>(
           "JWT_ACCESS_TTL",
-        ) as StringValue,
+        ) as import("ms").StringValue,
       },
     );
 
