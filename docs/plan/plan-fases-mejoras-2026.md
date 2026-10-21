@@ -78,15 +78,15 @@ Plan: `docs/plan/plan-modulo-soporte-chat-integrado-2026-03-19.md`
 - 8.3 Frontend: panel de tickets en dashboard + backoffice `/platform/support`. ✅ dashboard `/support` (hub con métricas), `/support/tickets` (lista, nuevo, detalle con estados/comentarios), `/support/chat` (lista, nueva, conversación con polling y convertir a ticket) y `/support/faqs` (buscador + feedback). Permisos `support:*` añadidos a `types/permissions.ts` y nav "Soporte" en el sidebar. Backoffice `/platform/support` queda pendiente (subset del plan).
 - 8.4 Notificaciones/email al responder. ✅ notificación in-app a agentes (nuevo ticket), al solicitante (respuesta/estado) y a participantes (chat).
 
-## Fase 9 — Módulo de proveedores y órdenes de compra ⬜
+## Fase 9 — Módulo de proveedores y órdenes de compra ✅
 *Esfuerzo: alto · Feature nueva · Impacto: MEDIO-ALTO*
 
 Plan: `docs/plan/plan-modulo-proveedores-ordenes-automaticas-2026-03-20.md`
 
-- 9.1 Schema: `Supplier`, `PurchaseOrder`, `PurchaseOrderItem` (+ migración).
-- 9.2 Backend: CRUD proveedores, órdenes, recepción → `StockEntry`.
-- 9.3 Sugerencias automáticas desde `ReplenishmentService` → borrador de orden.
-- 9.4 Frontend: `/suppliers`, `/purchase-orders`.
+- 9.1 Schema: `Supplier`, `PurchaseOrder`, `PurchaseOrderItem` (+ migración). ✅ modelos `Supplier`, `SupplierProduct` (pivote preferido/costo), `SupplierOrder`, `SupplierOrderItem` + enum `SupplierOrderStatus`; migración `20261021000000_add_suppliers_orders` (RLS por tabla) aplicada (17ª). Nota: se implementó como `SupplierOrder` en lugar de `PurchaseOrder`.
+- 9.2 Backend: CRUD proveedores, órdenes, recepción → `StockEntry`. ✅ `suppliers.controller/service` (CRUD, asignación de productos con preferido/cantidad mínima, órdenes manuales, cambio de estado, recepción que crea `StockEntry` y actualiza `lastCost`); permisos `SUPPLIER_*`/`SUPPLIER_ORDER_*`; `suppliers.service.spec.ts` (7). Suite 138/138.
+- 9.3 Sugerencias automáticas desde `ReplenishmentService` → borrador de orden. ✅ `getAutoOrdersPreview` agrupa productos con stock ≤ mínimo por proveedor preferido (cantidad sugerida = max(faltante, mín. pedido)) y `generateAutoOrders` crea órdenes `DRAFT` auto-generadas, listando los productos sin proveedor asignado.
+- 9.4 Frontend: `/suppliers`, `/purchase-orders`. ✅ `/suppliers` (lista + métricas, alta/edición, detalle con gestión de productos), `/purchase-orders` (lista + panel de sugerencias automáticas y generación, detalle con cambio de estado y recepción con costos). Permisos `supplier:*`/`supplier_order:*` y nav en el sidebar.
 
 ## Fase 10 — Pendientes de `plan-mejoras.md` ⬜
 *Impacto: MEDIO · El más largo al final*

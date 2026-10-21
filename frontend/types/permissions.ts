@@ -64,7 +64,14 @@ export type Permission =
   | "support:ticket_manage"
   | "support:chat"
   | "support:faq_view"
-  | "support:faq_manage";
+  | "support:faq_manage"
+  | "supplier:list"
+  | "supplier:create"
+  | "supplier:update"
+  | "supplier:delete"
+  | "supplier:view"
+  | "supplier_order:list"
+  | "supplier_order:manage";
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: [
@@ -186,6 +193,13 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "support:chat",
     "support:faq_view",
     "support:faq_manage",
+    "supplier:list",
+    "supplier:create",
+    "supplier:update",
+    "supplier:delete",
+    "supplier:view",
+    "supplier_order:list",
+    "supplier_order:manage",
   ],
 
   MANAGER: [
@@ -230,6 +244,12 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "support:chat",
     "support:faq_view",
     "support:faq_manage",
+    "supplier:list",
+    "supplier:create",
+    "supplier:update",
+    "supplier:view",
+    "supplier_order:list",
+    "supplier_order:manage",
   ],
 
   CASHIER: [

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   Bell,
+  ClipboardList,
   CreditCard,
   Handshake,
   Landmark,
@@ -15,6 +16,7 @@ import {
   Package,
   ShoppingCart,
   TicketPercent,
+  Truck,
   Users,
   UserCog,
   FolderTree,
@@ -117,6 +119,18 @@ const companyItems: NavItem[] = [
     href: "/distributors",
     icon: Handshake,
     module: "distributors",
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Proveedores",
+    href: "/suppliers",
+    icon: Truck,
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
+  {
+    label: "Órdenes de compra",
+    href: "/purchase-orders",
+    icon: ClipboardList,
     roles: ["COMPANY_ADMIN", "MANAGER"],
   },
   {
