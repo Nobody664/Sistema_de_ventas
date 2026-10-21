@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Search, Loader2, Check, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiFetch, getAccessToken } from "@/lib/api";
-import { useAuthStore } from "@/stores/auth.store";
 
 interface DniResult {
   dni: string;
@@ -27,90 +26,115 @@ interface DniSearchProps {
 }
 
 export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
-  const user = useAuthStore((state) => state.user);
   const [documentNumber, setDocumentNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<DniResult | null>(null);
+  const lastSearched = useRef<string>("");
 
-  const searchDocument = useCallback(async () => {
-    if (!documentNumber || documentNumber.length < 8) {
-      return;
-    }
+  const isValidLength =
+    documentType === "DNI"
+      ? documentNumber.length === 8
+      : documentNumber.length === 11;
 
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-    setResult(null);
-
-    try {
-      if (documentType === "DNI") {
-        const data = await apiFetch<DniResult>(`/dni/${documentNumber}`, {
-          token: getAccessToken(),
-        });
-
-        if (data) {
-          setResult(data);
-          setSuccess(true);
-
-          const fullName = data.nombres || data.apellidoPaterno || "";
-          const lastName =
-            data.apellidoPaterno && data.apellidoMaterno
-              ? `${data.apellidoPaterno} ${data.apellidoMaterno}`
-              : data.apellidoPaterno || "";
-
-          onResult?.({
-            firstName: fullName,
-            lastName: lastName,
-            phone: data.telefono,
-            address: data.direccion,
-          });
-        }
-      } else {
-        const data = await apiFetch<DniResult>(`/dni/ruc/${documentNumber}`, {
-          token: getAccessToken(),
-        });
-
-        if (data) {
-          setResult(data);
-          setSuccess(true);
-
-          onResult?.({
-            firstName: data.nombre || "",
-            lastName: "",
-            phone: data.telefono,
-            address: data.direccion,
-          });
-        }
+  const searchDocument = useCallback(
+    async (value?: string) => {
+      const target = value ?? documentNumber;
+      const valid =
+        documentType === "DNI" ? target.length === 8 : target.length === 11;
+      if (!target || !valid) {
+        return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se encontraron datos");
-    } finally {
-      setLoading(false);
-    }
-  }, [documentNumber, documentType, onResult]);
+
+      setLoading(true);
+      setError(null);
+      setSuccess(false);
+      setResult(null);
+
+      try {
+        if (documentType === "DNI") {
+          const data = await apiFetch<DniResult>(`/dni/${target}`, {
+            token: getAccessToken(),
+          });
+
+          if (data) {
+            setResult(data);
+            setSuccess(true);
+
+            const fullName = data.nombres || data.apellidoPaterno || "";
+            const lastName =
+              data.apellidoPaterno && data.apellidoMaterno
+                ? `${data.apellidoPaterno} ${data.apellidoMaterno}`
+                : data.apellidoPaterno || "";
+
+            onResult?.({
+              firstName: fullName,
+              lastName: lastName,
+              phone: data.telefono,
+              address: data.direccion,
+            });
+          }
+        } else {
+          const data = await apiFetch<DniResult>(`/dni/ruc/${target}`, {
+            token: getAccessToken(),
+          });
+
+          if (data) {
+            setResult(data);
+            setSuccess(true);
+
+            onResult?.({
+              firstName: data.nombre || "",
+              lastName: "",
+              phone: data.telefono,
+              address: data.direccion,
+            });
+          }
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "No se encontraron datos",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [documentNumber, documentType, onResult],
+  );
+
+  useEffect(() => {
+    if (!isValidLength) return;
+    if (lastSearched.current === documentNumber) return;
+
+    const timer = setTimeout(() => {
+      lastSearched.current = documentNumber;
+      void searchDocument(documentNumber);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [documentNumber, isValidLength, searchDocument]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      searchDocument();
+      lastSearched.current = documentNumber;
+      void searchDocument();
     }
   };
 
   const handleChange = (value: string) => {
     const numericValue = value.replace(/\D/g, "");
     const maxLength = documentType === "DNI" ? 8 : 11;
-    setDocumentNumber(numericValue.slice(0, maxLength));
+    const next = numericValue.slice(0, maxLength);
+    setDocumentNumber(next);
     setSuccess(false);
     setResult(null);
     setError(null);
+    if (next.length < maxLength) {
+      lastSearched.current = "";
+    }
   };
-
-  const isValidLength =
-    documentType === "DNI"
-      ? documentNumber.length === 8
-      : documentNumber.length === 11;
 
   return (
     <div className="space-y-2">
@@ -149,7 +173,10 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
         </div>
         <button
           type="button"
-          onClick={searchDocument}
+          onClick={() => {
+            lastSearched.current = documentNumber;
+            void searchDocument();
+          }}
           disabled={loading || !isValidLength}
           className="h-12 px-4 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >

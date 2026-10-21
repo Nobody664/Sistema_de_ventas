@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { CacheService } from "@/cache/cache.service";
 
 export interface DniResponse {
   dni: string;
@@ -29,7 +30,10 @@ export class DniService {
   private readonly reniecToken: string;
   private readonly sunatUrl: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly cache: CacheService,
+  ) {
     this.reniecUrl =
       this.configService.get<string>("RENIEC_API_URL") ||
       "https://api.reniec.cloud/dni";
@@ -43,6 +47,10 @@ export class DniService {
     if (!dni || dni.length !== 8 || !/^\d{8}$/.test(dni)) {
       throw new BadRequestException("DNI debe tener 8 dígitos");
     }
+
+    const cacheKey = `dni:${dni}`;
+    const cached = await this.cache.get<DniResponse>(cacheKey);
+    if (cached) return cached;
 
     try {
       const headers: Record<string, string> = {};
@@ -75,7 +83,7 @@ export class DniService {
       const data = (await response.json()) as DniResponse;
 
       if (data) {
-        return {
+        const result: DniResponse = {
           dni: data.dni || dni,
           nombres: data.nombres || "",
           apellidoPaterno: data.apellidoPaterno || "",
@@ -84,6 +92,8 @@ export class DniService {
           sexo: data.sexo,
           fechaNacimiento: data.fechaNacimiento,
         };
+        await this.cache.set(cacheKey, result, 86400);
+        return result;
       }
 
       throw new NotFoundException("DNI no encontrado");
@@ -107,6 +117,10 @@ export class DniService {
       throw new BadRequestException("RUC debe tener 11 dígitos");
     }
 
+    const cacheKey = `ruc:${ruc}`;
+    const cached = await this.cache.get<RucResponse>(cacheKey);
+    if (cached) return cached;
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -129,13 +143,15 @@ export class DniService {
       const data = (await response.json()) as RucResponse;
 
       if (data) {
-        return {
+        const result: RucResponse = {
           ruc: data.ruc || ruc,
           nombre: data.nombre || "",
           estado: data.estado,
           direccion: data.direccion,
           telefono: data.telefono,
         };
+        await this.cache.set(cacheKey, result, 86400);
+        return result;
       }
 
       throw new NotFoundException("RUC no encontrado");

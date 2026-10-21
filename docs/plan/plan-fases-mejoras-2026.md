@@ -92,7 +92,7 @@ Plan: `docs/plan/plan-modulo-proveedores-ordenes-automaticas-2026-03-20.md`
 *Impacto: MEDIO · El más largo al final*
 
 - 10.1 Métricas de dashboard: ventas por período, ticket promedio, top productos, rotación (endpoint agregado + widgets). ✅ endpoint agregado `GET /dashboard/metrics?days&granularity` (resumen del período + comparativa con el período anterior, serie temporal día/semana/mes, top productos e índice de rotación por producto); panel `DashboardMetricsPanel` con selector 7/30/90/365 días, gráfico de ingresos, tiles con variación % y tabla de rotación, integrado en el dashboard de tenants.
-- 10.2 Búsqueda DNI/RUC con autocompletado en frontend (el backend `dni` ya existe con cuota).
+- 10.2 Búsqueda DNI/RUC con autocompletado en frontend (el backend `dni` ya existe con cuota). ✅ `DniService` ahora cachea resultados (DNI/RUC, TTL 24h) reutilizando `CacheService`; `DniSearch` autocompleta al alcanzar la longitud válida (debounce 350ms) además del botón manual; validaciones peruanas compartidas en `lib/validations/pe-document.ts` (DNI 8, RUC 11 + dígito verificador, teléfono y email) integradas al esquema de clientes.
 - 10.3 Notas de crédito/débito por devolución.
 - 10.4 Reportes PDF/Excel de inventario y clientes (reutiliza Fase 2).
 
