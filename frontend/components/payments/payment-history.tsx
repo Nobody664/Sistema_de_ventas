@@ -236,7 +236,7 @@ export function PaymentHistoryClient({ billingStatus, isSuperAdmin }: PaymentHis
                           <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 px-6 py-8 transition hover:bg-amber-100/50">
                             <Upload className="size-8 text-amber-400" />
                             <span className="mt-2 text-sm text-amber-600">Haz clic para subir tu comprobante</span>
-                            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }} />
+                            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }} />
                           </label>
                         )}
                       </div>

@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
-import { AuditAction, Prisma } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
+import { AuditAction, Prisma } from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
 import {
   CreateCategoryDto,
   CreatePresentationDto,
@@ -10,19 +16,23 @@ import {
   UpdatePresentationDto,
   UpdateProductDto,
   ExportProductsQueryDto,
-} from './dto/product.dto';
-import { SubscriptionLimitService } from '@/common/guards/subscription-limit.service';
-import { LowStockService } from '@/modules/low-stock/low-stock.service';
-import { AuditService } from '@/common/services/audit.service';
+} from "./dto/product.dto";
+import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
+import { LowStockService } from "@/modules/low-stock/low-stock.service";
+import { AuditService } from "@/common/services/audit.service";
+import {
+  parseImageDataUrl,
+  parseImageSource,
+} from "@/common/helpers/image.helper";
 
 function escapeHtml(value: unknown): string {
-  const text = String(value ?? '');
+  const text = String(value ?? "");
   const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
   };
   return text.replace(/[&<>"']/g, (chr) => map[chr] as string);
 }
@@ -43,7 +53,10 @@ export class ProductsService {
   findProductById(companyId: string, id: string) {
     return this.prisma.product.findFirst({
       where: { id, companyId },
-      include: { category: true, presentations: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        category: true,
+        presentations: { orderBy: { createdAt: "asc" } },
+      },
     });
   }
 
@@ -76,9 +89,11 @@ export class ProductsService {
         createdAt: true,
         expiryDate: true,
         category: { select: { id: true, name: true } },
-        presentations: { select: { id: true, name: true, factor: true, price: true } },
+        presentations: {
+          select: { id: true, name: true, factor: true, price: true },
+        },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -92,7 +107,7 @@ export class ProductsService {
           select: { products: true },
         },
       },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
   }
 
@@ -103,9 +118,13 @@ export class ProductsService {
   }
 
   async createCategory(companyId: string, input: CreateCategoryDto) {
-    await this.limitService.validateLimit(companyId, 'categories');
+    await this.limitService.validateLimit(companyId, "categories");
 
-    const slug = input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const slug = input.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-");
 
     const existingCategory = await this.prisma.category.findFirst({
       where: {
@@ -115,7 +134,9 @@ export class ProductsService {
     });
 
     if (existingCategory) {
-      throw new ConflictException(`Ya existe una categoría con el nombre "${input.name}".`);
+      throw new ConflictException(
+        `Ya existe una categoría con el nombre "${input.name}".`,
+      );
     }
 
     const category = await this.prisma.category.create({
@@ -130,7 +151,7 @@ export class ProductsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.CREATE,
-      entity: 'Category',
+      entity: "Category",
       entityId: category.id,
       changes: { name: category.name, slug: category.slug },
     });
@@ -138,10 +159,18 @@ export class ProductsService {
     return category;
   }
 
-  async updateCategory(companyId: string, id: string, input: UpdateCategoryDto) {
+  async updateCategory(
+    companyId: string,
+    id: string,
+    input: UpdateCategoryDto,
+  ) {
     const existing = await this.ensureCategory(companyId, id);
     const slug = input.name
-      ? input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-')
+      ? input.name
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .replace(/\s+/g, "-")
       : undefined;
 
     const category = await this.prisma.category.updateMany({
@@ -152,20 +181,20 @@ export class ProductsService {
       },
     });
     if (category.count === 0) {
-      throw new NotFoundException('Category not found.');
+      throw new NotFoundException("Category not found.");
     }
 
     const categoryRecord = await this.prisma.category.findFirst({
       where: { id, companyId },
     });
     if (!categoryRecord) {
-      throw new NotFoundException('Category not found.');
+      throw new NotFoundException("Category not found.");
     }
 
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'Category',
+      entity: "Category",
       entityId: categoryRecord.id,
       changes: {
         before: { name: existing.name, slug: existing.slug },
@@ -178,14 +207,14 @@ export class ProductsService {
 
   async removeCategory(companyId: string, id: string) {
     const existing = await this.ensureCategory(companyId, id);
-    
+
     const productsCount = await this.prisma.product.count({
       where: { categoryId: id, companyId },
     });
 
     if (productsCount > 0) {
       throw new BadRequestException(
-        `No se puede eliminar la categoría porque tiene ${productsCount} producto(s) asociado(s). Primero debes eliminar o reasignar los productos.`
+        `No se puede eliminar la categoría porque tiene ${productsCount} producto(s) asociado(s). Primero debes eliminar o reasignar los productos.`,
       );
     }
 
@@ -193,13 +222,13 @@ export class ProductsService {
       where: { id, companyId },
     });
     if (category.count === 0) {
-      throw new NotFoundException('Category not found.');
+      throw new NotFoundException("Category not found.");
     }
 
     await this.auditService.log({
       companyId,
       action: AuditAction.DELETE,
-      entity: 'Category',
+      entity: "Category",
       entityId: id,
       changes: { name: existing.name, slug: existing.slug },
     });
@@ -208,7 +237,7 @@ export class ProductsService {
   }
 
   async createProduct(companyId: string, input: CreateProductDto) {
-    await this.limitService.validateLimit(companyId, 'products');
+    await this.limitService.validateLimit(companyId, "products");
 
     let categoryCode: string | undefined;
     if (input.categoryId) {
@@ -217,7 +246,7 @@ export class ProductsService {
     }
 
     const sku = input.sku ?? this.generateSku(input.name, categoryCode);
-    
+
     const barcode = input.barcode ?? this.generateBarcode();
 
     const product = await this.prisma.product.create({
@@ -228,8 +257,8 @@ export class ProductsService {
         barcode,
         name: input.name,
         description: input.description,
-        imageUrl: input.imageUrl,
-        baseUnit: input.baseUnit ?? 'UNIT',
+        imageUrl: await parseImageSource(input.imageUrl),
+        baseUnit: input.baseUnit ?? "UNIT",
         costPrice: input.costPrice,
         salePrice: input.salePrice,
         stockQuantity: input.stockQuantity ?? 0,
@@ -279,14 +308,15 @@ export class ProductsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.CREATE,
-      entity: 'Product',
+      entity: "Product",
       entityId: product.id,
       changes: {
         name: product.name,
         sku: product.sku,
         barcode: product.barcode,
         salePrice: Number(product.salePrice),
-        costPrice: product.costPrice === null ? null : Number(product.costPrice),
+        costPrice:
+          product.costPrice === null ? null : Number(product.costPrice),
         stockQuantity: Number(product.stockQuantity),
       },
     });
@@ -305,6 +335,7 @@ export class ProductsService {
       where: { id, companyId },
       data: {
         ...input,
+        imageUrl: await parseImageSource(input.imageUrl),
         categoryId: input.categoryId ?? undefined,
         isActive: input.isActive ?? true,
         deletedAt: input.isActive === false ? undefined : null,
@@ -317,14 +348,14 @@ export class ProductsService {
       },
     });
     if (product.count === 0) {
-      throw new NotFoundException('Product not found.');
+      throw new NotFoundException("Product not found.");
     }
 
     const updatedProduct = await this.prisma.product.findFirst({
       where: { id, companyId },
     });
     if (!updatedProduct) {
-      throw new NotFoundException('Product not found.');
+      throw new NotFoundException("Product not found.");
     }
 
     if (input.minStock !== undefined || input.expiryDate !== undefined) {
@@ -354,7 +385,7 @@ export class ProductsService {
     await this.auditService.log({
       companyId,
       action: AuditAction.UPDATE,
-      entity: 'Product',
+      entity: "Product",
       entityId: updatedProduct.id,
       changes: {
         before: {
@@ -374,11 +405,12 @@ export class ProductsService {
   async removeProduct(companyId: string, id: string) {
     const existing = await this.ensureProduct(companyId, id);
 
-    const [saleItemsCount, movementsCount, stockEntryItemsCount] = await Promise.all([
-      this.prisma.saleItem.count({ where: { productId: id } }),
-      this.prisma.inventoryMovement.count({ where: { productId: id } }),
-      this.prisma.stockEntryItem.count({ where: { productId: id } }),
-    ]);
+    const [saleItemsCount, movementsCount, stockEntryItemsCount] =
+      await Promise.all([
+        this.prisma.saleItem.count({ where: { productId: id } }),
+        this.prisma.inventoryMovement.count({ where: { productId: id } }),
+        this.prisma.stockEntryItem.count({ where: { productId: id } }),
+      ]);
 
     const hasHistory =
       saleItemsCount > 0 || movementsCount > 0 || stockEntryItemsCount > 0;
@@ -389,19 +421,19 @@ export class ProductsService {
         data: { deletedAt: new Date(), isActive: false },
       });
       if (productUpdate.count === 0) {
-        throw new NotFoundException('Product not found.');
+        throw new NotFoundException("Product not found.");
       }
       const product = await this.prisma.product.findFirst({
         where: { id, companyId },
       });
       if (!product) {
-        throw new NotFoundException('Product not found.');
+        throw new NotFoundException("Product not found.");
       }
 
       await this.auditService.log({
         companyId,
         action: AuditAction.DELETE,
-        entity: 'Product',
+        entity: "Product",
         entityId: id,
         changes: {
           softDelete: true,
@@ -419,13 +451,13 @@ export class ProductsService {
       where: { id, companyId },
     });
     if (product.count === 0) {
-      throw new NotFoundException('Product not found.');
+      throw new NotFoundException("Product not found.");
     }
 
     await this.auditService.log({
       companyId,
       action: AuditAction.DELETE,
-      entity: 'Product',
+      entity: "Product",
       entityId: id,
       changes: { softDelete: false, name: existing.name, sku: existing.sku },
     });
@@ -437,11 +469,15 @@ export class ProductsService {
     await this.ensureProduct(companyId, productId);
     return this.prisma.productPresentation.findMany({
       where: { companyId, productId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
   }
 
-  async createPresentation(companyId: string, productId: string, input: CreatePresentationDto) {
+  async createPresentation(
+    companyId: string,
+    productId: string,
+    input: CreatePresentationDto,
+  ) {
     await this.ensureProduct(companyId, productId);
 
     if (input.barcode) {
@@ -449,7 +485,9 @@ export class ProductsService {
         where: { companyId, barcode: input.barcode },
       });
       if (existing) {
-        throw new ConflictException('Ya existe una presentación con ese código de barras.');
+        throw new ConflictException(
+          "Ya existe una presentación con ese código de barras.",
+        );
       }
     }
 
@@ -466,12 +504,16 @@ export class ProductsService {
     });
   }
 
-  async updatePresentation(companyId: string, presentationId: string, input: UpdatePresentationDto) {
+  async updatePresentation(
+    companyId: string,
+    presentationId: string,
+    input: UpdatePresentationDto,
+  ) {
     const presentation = await this.prisma.productPresentation.findFirst({
       where: { id: presentationId, companyId },
     });
     if (!presentation) {
-      throw new NotFoundException('Presentation not found.');
+      throw new NotFoundException("Presentation not found.");
     }
 
     if (input.barcode && input.barcode !== presentation.barcode) {
@@ -479,7 +521,9 @@ export class ProductsService {
         where: { companyId, barcode: input.barcode },
       });
       if (existing) {
-        throw new ConflictException('Ya existe una presentación con ese código de barras.');
+        throw new ConflictException(
+          "Ya existe una presentación con ese código de barras.",
+        );
       }
     }
 
@@ -500,10 +544,12 @@ export class ProductsService {
       where: { id: presentationId, companyId },
     });
     if (!presentation) {
-      throw new NotFoundException('Presentation not found.');
+      throw new NotFoundException("Presentation not found.");
     }
 
-    await this.prisma.productPresentation.deleteMany({ where: { id: presentationId, companyId } });
+    await this.prisma.productPresentation.deleteMany({
+      where: { id: presentationId, companyId },
+    });
     return presentation;
   }
 
@@ -513,7 +559,7 @@ export class ProductsService {
     });
 
     if (!product) {
-      throw new NotFoundException('Product not found.');
+      throw new NotFoundException("Product not found.");
     }
 
     return product;
@@ -525,29 +571,31 @@ export class ProductsService {
     });
 
     if (!category) {
-      throw new NotFoundException('Category not found.');
+      throw new NotFoundException("Category not found.");
     }
 
     return category;
   }
 
   private generateSku(name: string, categoryName?: string) {
-    let prefix = 'PRD';
+    let prefix = "PRD";
     if (categoryName) {
       const normalized = categoryName
         .toUpperCase()
-        .replace(/[^A-Z0-9]/g, '')
+        .replace(/[^A-Z0-9]/g, "")
         .trim()
         .slice(0, 3);
-      prefix = normalized || 'PRD';
+      prefix = normalized || "PRD";
     }
     const random = Math.floor(100000 + Math.random() * 900000).toString();
     return `${prefix}-${random}`;
   }
 
   private generateBarcode(): string {
-    const prefix = '7700';
-    const randomDigits = Math.floor(10000000 + Math.random() * 90000000).toString();
+    const prefix = "7700";
+    const randomDigits = Math.floor(
+      10000000 + Math.random() * 90000000,
+    ).toString();
     const base = prefix + randomDigits;
     const checkDigit = this.calculateEan13CheckDigit(base);
     return base + checkDigit;
@@ -576,7 +624,7 @@ export class ProductsService {
         minStock: true,
         category: { select: { name: true } },
       },
-      orderBy: { stockQuantity: 'asc' },
+      orderBy: { stockQuantity: "asc" },
       take: 10000,
     });
 
@@ -585,12 +633,18 @@ export class ProductsService {
       .slice(0, 100);
   }
 
-  async uploadProductImage(companyId: string, productId: string, imageBase64: string) {
+  async uploadProductImage(
+    companyId: string,
+    productId: string,
+    imageBase64: string,
+  ) {
     await this.ensureProduct(companyId, productId);
+
+    const image = await parseImageDataUrl(imageBase64);
 
     return this.prisma.product.update({
       where: { id: productId },
-      data: { imageUrl: imageBase64 },
+      data: { imageUrl: image.dataUrl },
     });
   }
 
@@ -604,66 +658,113 @@ export class ProductsService {
     const products = await this.prisma.product.findMany({
       where,
       include: { category: true },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
 
-    const format = query.format || 'csv';
+    const format = query.format || "csv";
 
-    if (format === 'csv') {
+    if (format === "csv") {
       return this.generateCsvExport(products);
-    } else if (format === 'excel') {
+    } else if (format === "excel") {
       return this.generateExcelExport(products);
     } else {
       return this.generatePdfExport(products);
     }
   }
 
-  private generateCsvExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: Prisma.Decimal; minStock: Prisma.Decimal }>) {
-    const headers = ['Nombre', 'SKU', 'Codigo de Barras', 'Categoria', 'Precio Costo', 'Precio Venta', 'Stock', 'Stock Minimo'];
+  private generateCsvExport(
+    products: Array<{
+      name: string;
+      sku: string | null;
+      barcode: string | null;
+      description: string | null;
+      category: { name: string } | null;
+      costPrice: unknown;
+      salePrice: unknown;
+      stockQuantity: Prisma.Decimal;
+      minStock: Prisma.Decimal;
+    }>,
+  ) {
+    const headers = [
+      "Nombre",
+      "SKU",
+      "Codigo de Barras",
+      "Categoria",
+      "Precio Costo",
+      "Precio Venta",
+      "Stock",
+      "Stock Minimo",
+    ];
     const rows = products.map((p) => [
       p.name,
       p.sku,
-      p.barcode || '',
-      p.category?.name || '',
+      p.barcode || "",
+      p.category?.name || "",
       String(p.costPrice),
       String(p.salePrice),
       String(p.stockQuantity),
       String(p.minStock),
     ]);
 
-    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
-    const base64 = Buffer.from(csvContent, 'utf-8').toString('base64');
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+    const base64 = Buffer.from(csvContent, "utf-8").toString("base64");
 
     return {
-      filename: `productos_${new Date().toISOString().split('T')[0]}.csv`,
-      contentType: 'text/csv',
+      filename: `productos_${new Date().toISOString().split("T")[0]}.csv`,
+      contentType: "text/csv",
       data: base64,
     };
   }
 
-  private generateExcelExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: Prisma.Decimal; minStock: Prisma.Decimal }>) {
+  private generateExcelExport(
+    products: Array<{
+      name: string;
+      sku: string | null;
+      barcode: string | null;
+      description: string | null;
+      category: { name: string } | null;
+      costPrice: unknown;
+      salePrice: unknown;
+      stockQuantity: Prisma.Decimal;
+      minStock: Prisma.Decimal;
+    }>,
+  ) {
     const data = products.map((p) => ({
       Nombre: p.name,
       SKU: p.sku,
-      'Codigo de Barras': p.barcode || '',
-      Categoria: p.category?.name || '',
-      'Precio Costo': Number(p.costPrice),
-      'Precio Venta': Number(p.salePrice),
+      "Codigo de Barras": p.barcode || "",
+      Categoria: p.category?.name || "",
+      "Precio Costo": Number(p.costPrice),
+      "Precio Venta": Number(p.salePrice),
       Stock: p.stockQuantity,
-      'Stock Minimo': p.minStock,
+      "Stock Minimo": p.minStock,
     }));
 
     const jsonStr = JSON.stringify(data);
-    const base64 = Buffer.from(jsonStr, 'utf-8').toString('base64');
+    const base64 = Buffer.from(jsonStr, "utf-8").toString("base64");
 
     return {
-      filename: `productos_${new Date().toISOString().split('T')[0]}.json`,
-      contentType: 'application/json',
+      filename: `productos_${new Date().toISOString().split("T")[0]}.json`,
+      contentType: "application/json",
       data: base64,
     };
   }
 
-  private generatePdfExport(products: Array<{ name: string; sku: string | null; barcode: string | null; description: string | null; category: { name: string } | null; costPrice: unknown; salePrice: unknown; stockQuantity: Prisma.Decimal; minStock: Prisma.Decimal }>) {
+  private generatePdfExport(
+    products: Array<{
+      name: string;
+      sku: string | null;
+      barcode: string | null;
+      description: string | null;
+      category: { name: string } | null;
+      costPrice: unknown;
+      salePrice: unknown;
+      stockQuantity: Prisma.Decimal;
+      minStock: Prisma.Decimal;
+    }>,
+  ) {
     const html = `
       <html>
         <head>
@@ -689,26 +790,30 @@ export class ProductsService {
               </tr>
             </thead>
             <tbody>
-              ${products.map((p) => `
+              ${products
+                .map(
+                  (p) => `
                 <tr>
                   <td>${escapeHtml(p.name)}</td>
                   <td>${escapeHtml(p.sku)}</td>
-                  <td>${escapeHtml(p.category?.name || '')}</td>
+                  <td>${escapeHtml(p.category?.name || "")}</td>
                   <td>S/ ${Number(p.salePrice).toFixed(2)}</td>
                   <td>${p.stockQuantity}</td>
                 </tr>
-              `).join('')}
+              `,
+                )
+                .join("")}
             </tbody>
           </table>
         </body>
       </html>
     `;
 
-    const base64 = Buffer.from(html, 'utf-8').toString('base64');
+    const base64 = Buffer.from(html, "utf-8").toString("base64");
 
     return {
-      filename: `productos_${new Date().toISOString().split('T')[0]}.html`,
-      contentType: 'text/html',
+      filename: `productos_${new Date().toISOString().split("T")[0]}.html`,
+      contentType: "text/html",
       data: base64,
     };
   }

@@ -70,7 +70,7 @@ El `tenantId` proviene del guard (`request.tenantId`).
 | `description` | string | no | `@IsString()` | Descripción (no se usa en `create`, sí en `update`). |
 | `type` | string | no | `@IsString()` | Tipo de comprobante (defecto `BOLETA`). |
 | `headerText` | string | no | `@IsString()` | Texto de encabezado. |
-| `logoUrl` | string | no | `@IsString()` | URL del logo. |
+| `logoUrl` | string | no | `@IsString() @MaxLength(2_000_000)` | Data URL PNG/JPEG/WebP saneada con `sharp`; otro formato → 400 |
 | `companyRuc` | string | no | `@IsString()` | RUC mostrado. |
 | `companyAddress` | string | no | `@IsString()` | Dirección mostrada. |
 | `companyPhone` | string | no | `@IsString()` | Teléfono mostrado. |

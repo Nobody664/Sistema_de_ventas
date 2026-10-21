@@ -1,12 +1,30 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { PaymentProvider, PlanUpgradeStatus, SubscriptionStatus } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { evaluateProfile } from '@/common/helpers/profile-completeness.helper';
-import { EmailService } from '@/modules/email/email.service';
-import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
-import { PlanCapabilitiesService } from '@/modules/plan-capabilities/plan-capabilities.service';
-import { CreatePlanUpgradeRequestDto, SubmitUpgradeProofDto, ReviewPlanUpgradeDto } from './dto/plan-upgrade.dto';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  PaymentProvider,
+  PlanUpgradeStatus,
+  SubscriptionStatus,
+} from "@prisma/client";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { evaluateProfile } from "@/common/helpers/profile-completeness.helper";
+import { EmailService } from "@/modules/email/email.service";
+import {
+  NotificationsService,
+  NotificationType,
+  NotificationChannel,
+} from "@/modules/notifications/notifications.service";
+import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
+import { parseImageDataUrl } from "@/common/helpers/image.helper";
+import {
+  CreatePlanUpgradeRequestDto,
+  SubmitUpgradeProofDto,
+  ReviewPlanUpgradeDto,
+} from "./dto/plan-upgrade.dto";
 
 const OFFLINE_PROVIDERS: PaymentProvider[] = [
   PaymentProvider.YAPE,
@@ -50,11 +68,19 @@ export class PlanUpgradeRequestsService {
     };
   }
 
-  private async createOrReuse(create: () => Promise<any>, idempotencyKey: string | undefined, companyId: string) {
+  private async createOrReuse(
+    create: () => Promise<any>,
+    idempotencyKey: string | undefined,
+    companyId: string,
+  ) {
     try {
       return { request: await create() };
     } catch (err) {
-      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002' && idempotencyKey) {
+      if (
+        err instanceof PrismaClientKnownRequestError &&
+        err.code === "P2002" &&
+        idempotencyKey
+      ) {
         const existing = await this.prisma.planUpgradeRequest.findFirst({
           where: { idempotencyKey, companyId },
           include: { plan: true },
@@ -74,7 +100,9 @@ export class PlanUpgradeRequestsService {
 
   async createRequest(companyId: string, input: CreatePlanUpgradeRequestDto) {
     if (!OFFLINE_PROVIDERS.includes(input.paymentMethod)) {
-      throw new BadRequestException('Método de pago no soportado para upgrade offline');
+      throw new BadRequestException(
+        "Método de pago no soportado para upgrade offline",
+      );
     }
 
     const company = await this.prisma.company.findUnique({
@@ -83,12 +111,14 @@ export class PlanUpgradeRequestsService {
     });
 
     if (!company) {
-      throw new NotFoundException('Empresa no encontrada');
+      throw new NotFoundException("Empresa no encontrada");
     }
 
     const currentSubscription = company.subscriptions?.[0];
     if (!currentSubscription) {
-      throw new BadRequestException('La empresa no tiene una suscripción activa');
+      throw new BadRequestException(
+        "La empresa no tiene una suscripción activa",
+      );
     }
 
     const newPlan = await this.prisma.plan.findUnique({
@@ -96,14 +126,14 @@ export class PlanUpgradeRequestsService {
     });
 
     if (!newPlan) {
-      throw new NotFoundException('Plan no encontrado');
+      throw new NotFoundException("Plan no encontrado");
     }
 
     if (newPlan.id === currentSubscription.planId) {
-      throw new ConflictException('Ya tienes ese plan activo');
+      throw new ConflictException("Ya tienes ese plan activo");
     }
 
-    if (newPlan.code !== 'FREE') {
+    if (newPlan.code !== "FREE") {
       const profile = evaluateProfile({
         taxId: company.taxId,
         legalName: company.legalName,
@@ -113,7 +143,7 @@ export class PlanUpgradeRequestsService {
       });
       if (!profile.complete) {
         throw new BadRequestException(
-          `Para contratar un plan de pago tu empresa debe tener el perfil completo (RUC, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(', ')}.`,
+          `Para contratar un plan de pago tu empresa debe tener el perfil completo (RUC, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(", ")}.`,
         );
       }
     }
@@ -123,22 +153,28 @@ export class PlanUpgradeRequestsService {
     });
 
     if (!settings) {
-      throw new ConflictException('Método de pago no disponible');
+      throw new ConflictException("Método de pago no disponible");
     }
 
-    const billingCycle = input.billingCycle || 'MONTHLY';
-    const price = billingCycle === 'MONTHLY' ? newPlan.priceMonthly : newPlan.priceYearly;
+    const billingCycle = input.billingCycle || "MONTHLY";
+    const price =
+      billingCycle === "MONTHLY" ? newPlan.priceMonthly : newPlan.priceYearly;
 
-    const existingPendingRequest = await this.prisma.planUpgradeRequest.findFirst({
-      where: {
-        companyId,
-        status: PlanUpgradeStatus.PENDING,
-      },
-      include: { plan: true },
-    });
+    const existingPendingRequest =
+      await this.prisma.planUpgradeRequest.findFirst({
+        where: {
+          companyId,
+          status: PlanUpgradeStatus.PENDING,
+        },
+        include: { plan: true },
+      });
 
     if (existingPendingRequest) {
-      return this.buildUpgradeResponse(currentSubscription.plan, existingPendingRequest, settings);
+      return this.buildUpgradeResponse(
+        currentSubscription.plan,
+        existingPendingRequest,
+        settings,
+      );
     }
 
     const result = await this.createOrReuse(
@@ -150,7 +186,7 @@ export class PlanUpgradeRequestsService {
             planId: newPlan.id,
             provider: input.paymentMethod,
             amount: price.toString(),
-            currency: 'PEN',
+            currency: "PEN",
             status: PlanUpgradeStatus.PENDING,
             idempotencyKey: input.idempotencyKey ?? undefined,
           },
@@ -160,13 +196,19 @@ export class PlanUpgradeRequestsService {
       companyId,
     );
 
-    return this.buildUpgradeResponse(currentSubscription.plan, result.request, result.existingSettings ?? settings);
+    return this.buildUpgradeResponse(
+      currentSubscription.plan,
+      result.request,
+      result.existingSettings ?? settings,
+    );
   }
 
-  async submitProof(requestId: string, companyId: string, input: SubmitUpgradeProofDto) {
-    if (!input.imageBase64.startsWith('data:image/')) {
-      throw new BadRequestException('Formato de comprobante inválido');
-    }
+  async submitProof(
+    requestId: string,
+    companyId: string,
+    input: SubmitUpgradeProofDto,
+  ) {
+    const proofImage = (await parseImageDataUrl(input.imageBase64)).dataUrl;
 
     const request = await this.prisma.planUpgradeRequest.findFirst({
       where: { id: requestId, companyId },
@@ -174,28 +216,30 @@ export class PlanUpgradeRequestsService {
     });
 
     if (!request) {
-      throw new NotFoundException('Solicitud no encontrada');
+      throw new NotFoundException("Solicitud no encontrada");
     }
 
     if (request.status !== PlanUpgradeStatus.PENDING) {
-      throw new ConflictException('La solicitud ya fue enviada o revisada');
+      throw new ConflictException("La solicitud ya fue enviada o revisada");
     }
 
     const updated = await this.prisma.planUpgradeRequest.updateMany({
       where: { id: requestId, companyId, status: PlanUpgradeStatus.PENDING },
       data: {
-        proofImageBase64: input.imageBase64,
-        paymentDate: input.paymentDate ? new Date(input.paymentDate) : new Date(),
+        proofImageBase64: proofImage,
+        paymentDate: input.paymentDate
+          ? new Date(input.paymentDate)
+          : new Date(),
         submittedAt: new Date(),
       },
     });
     if (updated.count === 0) {
-      throw new ConflictException('La solicitud ya fue enviada o revisada');
+      throw new ConflictException("La solicitud ya fue enviada o revisada");
     }
 
     const adminUsers = await this.prisma.user.findMany({
       where: {
-        globalRole: 'SUPER_ADMIN',
+        globalRole: "SUPER_ADMIN",
         isActive: true,
       },
     });
@@ -206,7 +250,7 @@ export class PlanUpgradeRequestsService {
         companyId: request.companyId,
         type: NotificationType.PLAN_UPGRADED,
         channel: NotificationChannel.IN_APP,
-        title: 'Nueva solicitud de upgrade de plan',
+        title: "Nueva solicitud de upgrade de plan",
         message: `${request.company.name} solicitó cambio al plan ${request.plan.name}. Requiere revisión.`,
       });
     }
@@ -220,7 +264,7 @@ export class PlanUpgradeRequestsService {
   async getPending() {
     return this.prisma.planUpgradeRequest.findMany({
       where: { status: PlanUpgradeStatus.PENDING },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       include: {
         company: {
           select: {
@@ -237,24 +281,28 @@ export class PlanUpgradeRequestsService {
   async getByCompany(companyId: string) {
     return this.prisma.planUpgradeRequest.findMany({
       where: { companyId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: { plan: true },
     });
   }
 
   async getPendingRequest(companyId: string) {
     const request = await this.prisma.planUpgradeRequest.findFirst({
-      where: { 
+      where: {
         companyId,
-        status: 'PENDING',
+        status: "PENDING",
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: { plan: true },
     });
     return request;
   }
 
-  async review(requestId: string, reviewerId: string, input: ReviewPlanUpgradeDto) {
+  async review(
+    requestId: string,
+    reviewerId: string,
+    input: ReviewPlanUpgradeDto,
+  ) {
     const request = await this.prisma.planUpgradeRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -262,7 +310,7 @@ export class PlanUpgradeRequestsService {
           include: {
             memberships: {
               include: { user: true },
-              where: { role: 'COMPANY_ADMIN' },
+              where: { role: "COMPANY_ADMIN" },
             },
           },
         },
@@ -271,16 +319,16 @@ export class PlanUpgradeRequestsService {
     });
 
     if (!request) {
-      throw new NotFoundException('Solicitud no encontrada');
+      throw new NotFoundException("Solicitud no encontrada");
     }
 
     if (request.status !== PlanUpgradeStatus.PENDING) {
-      throw new ConflictException('La solicitud no está pendiente de revisión');
+      throw new ConflictException("La solicitud no está pendiente de revisión");
     }
 
     const adminUser = request.company.memberships[0]?.user;
 
-    if (input.status === 'REJECTED') {
+    if (input.status === "REJECTED") {
       const rejected = await this.prisma.planUpgradeRequest.updateMany({
         where: { id: requestId, status: PlanUpgradeStatus.PENDING },
         data: {
@@ -291,16 +339,21 @@ export class PlanUpgradeRequestsService {
         },
       });
       if (rejected.count === 0) {
-        throw new ConflictException('La solicitud no está pendiente de revisión');
+        throw new ConflictException(
+          "La solicitud no está pendiente de revisión",
+        );
       }
 
       if (adminUser) {
-        await this.emailService.sendSubscriptionRejected(adminUser.email, request.company.name);
+        await this.emailService.sendSubscriptionRejected(
+          adminUser.email,
+          request.company.name,
+        );
       }
 
       return {
         requestId: requestId,
-        status: 'REJECTED',
+        status: "REJECTED",
       };
     }
 
@@ -315,10 +368,12 @@ export class PlanUpgradeRequestsService {
         },
       });
       if (claimed.count === 0) {
-        throw new ConflictException('La solicitud no está pendiente de revisión');
+        throw new ConflictException(
+          "La solicitud no está pendiente de revisión",
+        );
       }
 
-      if (request.plan.code !== 'FREE') {
+      if (request.plan.code !== "FREE") {
         const profile = evaluateProfile({
           taxId: request.company.taxId,
           legalName: request.company.legalName,
@@ -328,7 +383,7 @@ export class PlanUpgradeRequestsService {
         });
         if (!profile.complete) {
           throw new BadRequestException(
-            `No se puede aprobar: la empresa no tiene el perfil completo (pendientes: ${profile.missingFields.join(', ')}).`,
+            `No se puede aprobar: la empresa no tiene el perfil completo (pendientes: ${profile.missingFields.join(", ")}).`,
           );
         }
       }
@@ -338,7 +393,7 @@ export class PlanUpgradeRequestsService {
       });
 
       if (!currentSubscription) {
-        throw new NotFoundException('Suscripción no encontrada');
+        throw new NotFoundException("Suscripción no encontrada");
       }
 
       const plan = await tx.plan.findUnique({
@@ -347,13 +402,15 @@ export class PlanUpgradeRequestsService {
 
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + (plan?.billingCycle === 'YEARLY' ? 12 : 1));
+      endDate.setMonth(
+        endDate.getMonth() + (plan?.billingCycle === "YEARLY" ? 12 : 1),
+      );
 
       const subscription = await tx.subscription.update({
         where: { id: currentSubscription.id },
         data: {
           planId: request.planId,
-          billingCycle: plan?.billingCycle || 'MONTHLY',
+          billingCycle: plan?.billingCycle || "MONTHLY",
           startDate,
           endDate,
           status: SubscriptionStatus.ACTIVE,
@@ -363,7 +420,7 @@ export class PlanUpgradeRequestsService {
 
       await tx.company.update({
         where: { id: request.companyId },
-        data: { status: 'ACTIVE' },
+        data: { status: "ACTIVE" },
       });
 
       await tx.payment.create({
@@ -371,9 +428,9 @@ export class PlanUpgradeRequestsService {
           subscriptionId: subscription.id,
           provider: request.provider || PaymentProvider.CASH,
           transactionId: `upgrade-${request.id}`,
-          amount: request.amount || '0',
-          currency: request.currency || 'PEN',
-          status: 'SUCCEEDED',
+          amount: request.amount || "0",
+          currency: request.currency || "PEN",
+          status: "SUCCEEDED",
           providerPayload: {
             planUpgradeRequestId: request.id,
           },
@@ -391,16 +448,19 @@ export class PlanUpgradeRequestsService {
         companyId: request.companyId,
         type: NotificationType.SUBSCRIPTION_APPROVED,
         channel: NotificationChannel.IN_APP,
-        title: 'Plan actualizado',
+        title: "Plan actualizado",
         message: `Tu cambio al plan ${request.plan.name} ha sido aprobado.`,
       });
 
-      await this.emailService.sendSubscriptionApproved(adminUser.email, request.company.name);
+      await this.emailService.sendSubscriptionApproved(
+        adminUser.email,
+        request.company.name,
+      );
     }
 
     return {
       requestId: requestId,
-      status: 'APPROVED',
+      status: "APPROVED",
     };
   }
 }

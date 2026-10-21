@@ -9,6 +9,12 @@ export function compressImage(
   file: File,
   options: CompressOptions = {},
 ): Promise<string> {
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    return Promise.reject(new Error('Selecciona una imagen PNG, JPEG o WebP'));
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    return Promise.reject(new Error('La imagen no debe exceder 10MB'));
+  }
   const {
     maxWidth = 1200,
     maxHeight = 1200,
@@ -65,5 +71,7 @@ function resolveCompressed(
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, 0, 0, width, height);
 
-  return canvas.toDataURL(format, quality);
+  const result = canvas.toDataURL(format, quality);
+  if (result.length > 2_000_000) throw new Error('La imagen es demasiado grande; reduce su resolución');
+  return result;
 }

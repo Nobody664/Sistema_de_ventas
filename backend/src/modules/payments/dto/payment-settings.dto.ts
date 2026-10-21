@@ -6,9 +6,12 @@ import {
   IsString,
   Matches,
   MaxLength,
-} from 'class-validator';
-import { PaymentProvider } from '@prisma/client';
-import { Type } from 'class-transformer';
+  ValidateIf,
+  IsDate,
+} from "class-validator";
+import { PaymentProvider } from "@prisma/client";
+import { Type } from "class-transformer";
+import { ALLOWED_IMAGE_MIME_PATTERN } from "@/common/helpers/image.helper";
 
 export class UpdatePaymentSettingsDto {
   @IsOptional()
@@ -18,6 +21,10 @@ export class UpdatePaymentSettingsDto {
   @IsOptional()
   @IsString()
   @MaxLength(500000)
+  @ValidateIf((_object: unknown, value: unknown) => value !== "")
+  @Matches(ALLOWED_IMAGE_MIME_PATTERN, {
+    message: "qrImageBase64 debe ser una imagen PNG, JPEG o WebP",
+  })
   qrImageBase64?: string;
 
   @IsOptional()
@@ -64,19 +71,23 @@ export class PaymentSettingsPublicResponseDto {
   instructions?: string | null;
 }
 
-export class UploadPaymentProofDto {
+export class UploadPaymentImageDto {
   @IsString()
   @MaxLength(2_000_000)
-  @Matches(/^data:image\//, {
-    message: 'imageBase64 debe ser una imagen Base64 válida (data:image/...)',
+  @Matches(ALLOWED_IMAGE_MIME_PATTERN, {
+    message: "imageBase64 debe ser una imagen PNG, JPEG o WebP",
   })
   imageBase64!: string;
 
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  paymentDate?: Date;
+}
+
+export class UploadPaymentProofDto extends UploadPaymentImageDto {
   @IsString()
   amount!: string;
-
-  @IsOptional()
-  paymentDate?: Date;
 }
 
 export class PaymentProofResponseDto {
@@ -94,8 +105,8 @@ export class PaymentProofResponseDto {
 }
 
 export class ReviewPaymentProofDto {
-  @IsEnum(['APPROVED', 'REJECTED'])
-  status!: 'APPROVED' | 'REJECTED';
+  @IsEnum(["APPROVED", "REJECTED"])
+  status!: "APPROVED" | "REJECTED";
 
   @IsOptional()
   @IsString()

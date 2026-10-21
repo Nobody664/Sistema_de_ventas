@@ -110,7 +110,7 @@ por lo que cualquier admin de plataforma (`SUPER_ADMIN` o `SUPPORT_ADMIN`) acced
   | Campo | Tipo | Requerido | Validación | Descripción |
   |-------|------|-----------|------------|-------------|
   | `isEnabled` | boolean | no | `@IsBoolean` | Habilita/deshabilita la pasarela |
-  | `qrImageBase64` | string | no | `@IsString`, `@MaxLength(500000)` | Imagen QR en Base64 |
+  | `qrImageBase64` | string | no | `@IsString`, `@MaxLength(500000)`, `@Matches(/data:image\/(png\|jpe?g\|webp);base64,/)` | Imagen QR: data URL PNG/JPEG/WebP saneada con `sharp` (límite 500KB) |
   | `accountNumber` | string | no | `@IsString`, `@MaxLength(50)` | Número de cuenta |
   | `accountName` | string | no | `@IsString`, `@MaxLength(100)` | Titular |
   | `instructions` | string | no | `@IsString`, `@MaxLength(1000)` | Instrucciones de pago |

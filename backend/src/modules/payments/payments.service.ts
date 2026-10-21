@@ -1,11 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createHmac, timingSafeEqual } from 'crypto';
-import { IncomingHttpHeaders } from 'http';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
-import { EmailService } from '@/modules/email/email.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { createHmac, timingSafeEqual } from "crypto";
+import { IncomingHttpHeaders } from "http";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import {
+  NotificationsService,
+  NotificationType,
+  NotificationChannel,
+} from "@/modules/notifications/notifications.service";
+import { EmailService } from "@/modules/email/email.service";
+import { parseImageDataUrl } from "@/common/helpers/image.helper";
 
 @Injectable()
 export class PaymentsService {
@@ -21,11 +31,11 @@ export class PaymentsService {
       where: { companyId },
       include: {
         payments: {
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         },
         plan: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 1,
     });
 
@@ -41,7 +51,8 @@ export class PaymentsService {
       where: { companyId },
       select: { id: true },
     });
-    if (!subscription) return { data: [], total: 0, page, limit, totalPages: 0 };
+    if (!subscription)
+      return { data: [], total: 0, page, limit, totalPages: 0 };
 
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
@@ -49,7 +60,7 @@ export class PaymentsService {
         where: { subscriptionId: subscription.id },
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       this.prisma.payment.count({ where: { subscriptionId: subscription.id } }),
     ]);
@@ -67,13 +78,18 @@ export class PaymentsService {
     return this.prisma.payment.findFirst({
       where: {
         subscriptionId: subscription.id,
-        status: 'PENDING',
+        status: "PENDING",
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
-  async uploadProofForPayment(paymentId: string, companyId: string, imageBase64: string, paymentDate?: Date) {
+  async uploadProofForPayment(
+    paymentId: string,
+    companyId: string,
+    imageBase64: string,
+    paymentDate?: Date,
+  ) {
     const payment = await this.prisma.payment.findFirst({
       where: {
         id: paymentId,
@@ -83,35 +99,33 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Pago no encontrado');
+      throw new NotFoundException("Pago no encontrado");
     }
 
-    if (payment.status !== 'PENDING') {
-      throw new BadRequestException('Este pago ya fue procesado');
+    if (payment.status !== "PENDING") {
+      throw new BadRequestException("Este pago ya fue procesado");
     }
 
-    if (!imageBase64.startsWith('data:image/')) {
-      throw new BadRequestException('Formato de comprobante inválido');
-    }
+    const proofImage = await parseImageDataUrl(imageBase64);
 
     return this.prisma.paymentProof.create({
       data: {
         subscriptionId: payment.subscriptionId,
-        imageBase64,
+        imageBase64: proofImage.dataUrl,
         amount: payment.amount.toString(),
         paymentDate: paymentDate ?? new Date(),
-        status: 'PENDING',
+        status: "PENDING",
       },
     });
   }
 
   async findPendingByCompany(companyId: string) {
     const subscription = await this.prisma.subscription.findFirst({
-      where: { companyId, status: 'ACTIVE' },
+      where: { companyId, status: "ACTIVE" },
       include: {
         payments: {
-          where: { status: 'PENDING' },
-          orderBy: { createdAt: 'desc' },
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "desc" },
         },
         plan: true,
         company: true,
@@ -139,7 +153,7 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Pago no encontrado');
+      throw new NotFoundException("Pago no encontrado");
     }
 
     return payment;
@@ -147,7 +161,7 @@ export class PaymentsService {
 
   async generateReceipt(id: string, companyId: string) {
     const payment = await this.findOne(id, companyId);
-    
+
     const subscription = payment.subscription;
     const company = subscription.company;
     const plan = subscription.plan;
@@ -155,12 +169,13 @@ export class PaymentsService {
     const receipt = {
       id: `RCP-${payment.id.slice(-8).toUpperCase()}`,
       generatedAt: new Date().toISOString(),
-      dueDate: payment.status === 'PENDING' 
-        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        : null,
+      dueDate:
+        payment.status === "PENDING"
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          : null,
       company: {
         name: company.name,
-        taxId: company.taxId || 'Sin RUC',
+        taxId: company.taxId || "Sin RUC",
       },
       plan: {
         name: plan.name,
@@ -185,8 +200,8 @@ export class PaymentsService {
   async markAsPaid(id: string, companyId: string, paymentDate?: string) {
     const payment = await this.findOne(id, companyId);
 
-    if (payment.status !== 'PENDING') {
-      throw new BadRequestException('Este pago ya fue procesado');
+    if (payment.status !== "PENDING") {
+      throw new BadRequestException("Este pago ya fue procesado");
     }
 
     const now = new Date();
@@ -194,13 +209,13 @@ export class PaymentsService {
     const updated = await this.prisma.payment.updateMany({
       where: { id, subscription: { companyId } },
       data: {
-        status: 'SUCCEEDED',
+        status: "SUCCEEDED",
         paidAt: now,
         providerPaymentId,
       },
     });
     if (updated.count === 0) {
-      throw new NotFoundException('Pago no encontrado');
+      throw new NotFoundException("Pago no encontrado");
     }
 
     const updatedPayment = await this.prisma.payment.findFirst({
@@ -212,30 +227,32 @@ export class PaymentsService {
       },
     });
     if (!updatedPayment) {
-      throw new NotFoundException('Pago no encontrado');
+      throw new NotFoundException("Pago no encontrado");
     }
 
     const subscription = updatedPayment.subscription;
 
     const newEndDate = new Date();
-    newEndDate.setMonth(newEndDate.getMonth() + (subscription.billingCycle === 'YEARLY' ? 12 : 1));
+    newEndDate.setMonth(
+      newEndDate.getMonth() + (subscription.billingCycle === "YEARLY" ? 12 : 1),
+    );
 
     await this.prisma.subscription.update({
       where: { id: subscription.id },
       data: {
-        status: 'ACTIVE',
+        status: "ACTIVE",
         endDate: newEndDate,
       },
     });
 
     await this.prisma.company.update({
       where: { id: companyId },
-      data: { status: 'ACTIVE' },
+      data: { status: "ACTIVE" },
     });
 
     return {
       ...updatedPayment,
-      message: 'Pago marcado como completado',
+      message: "Pago marcado como completado",
     };
   }
 
@@ -243,7 +260,7 @@ export class PaymentsService {
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
       this.prisma.payment.findMany({
-        where: { status: 'PENDING' },
+        where: { status: "PENDING" },
         skip,
         take: limit,
         include: {
@@ -251,22 +268,22 @@ export class PaymentsService {
             include: { plan: true, company: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
-      this.prisma.payment.count({ where: { status: 'PENDING' } }),
+      this.prisma.payment.count({ where: { status: "PENDING" } }),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async getStats() {
     const totalPending = await this.prisma.payment.aggregate({
-      where: { status: 'PENDING' },
+      where: { status: "PENDING" },
       _sum: { amount: true },
       _count: true,
     });
 
     const totalSucceeded = await this.prisma.payment.aggregate({
-      where: { status: 'SUCCEEDED' },
+      where: { status: "SUCCEEDED" },
       _sum: { amount: true },
       _count: true,
     });
@@ -277,7 +294,7 @@ export class PaymentsService {
 
     const monthlyRevenue = await this.prisma.payment.aggregate({
       where: {
-        status: 'SUCCEEDED',
+        status: "SUCCEEDED",
         createdAt: { gte: thisMonth },
       },
       _sum: { amount: true },
@@ -286,23 +303,27 @@ export class PaymentsService {
     return {
       pending: {
         count: totalPending._count || 0,
-        amount: totalPending._sum.amount?.toString() || '0',
+        amount: totalPending._sum.amount?.toString() || "0",
       },
       succeeded: {
         count: totalSucceeded._count || 0,
-        amount: totalSucceeded._sum.amount?.toString() || '0',
+        amount: totalSucceeded._sum.amount?.toString() || "0",
       },
-      monthlyRevenue: monthlyRevenue._sum.amount?.toString() || '0',
+      monthlyRevenue: monthlyRevenue._sum.amount?.toString() || "0",
     };
   }
 
-  async createCheckoutSession(input: { companyId: string; planCode: string; provider: string }) {
+  async createCheckoutSession(input: {
+    companyId: string;
+    planCode: string;
+    provider: string;
+  }) {
     const plan = await this.prisma.plan.findUnique({
       where: { code: input.planCode },
     });
 
     if (!plan) {
-      throw new Error('Plan not found');
+      throw new Error("Plan not found");
     }
 
     const planData = {
@@ -312,19 +333,19 @@ export class PaymentsService {
       priceMonthly: plan.priceMonthly.toString(),
     };
 
-    if (input.provider === 'mercadopago') {
+    if (input.provider === "mercadopago") {
       return this.createMercadoPagoCheckout(input.companyId, planData);
     }
 
-    if (input.provider === 'yape') {
+    if (input.provider === "yape") {
       return {
-        provider: 'yape',
+        provider: "yape",
         planCode: input.planCode,
         companyId: input.companyId,
-        status: 'pending',
-        instructions: 'Transfer to Yape number: 999888777',
+        status: "pending",
+        instructions: "Transfer to Yape number: 999888777",
         amount: planData.priceMonthly,
-        currency: 'PEN',
+        currency: "PEN",
       };
     }
 
@@ -332,21 +353,26 @@ export class PaymentsService {
       provider: input.provider,
       planCode: input.planCode,
       companyId: input.companyId,
-      status: 'pending',
-      note: 'Provider not implemented yet',
+      status: "pending",
+      note: "Provider not implemented yet",
     };
   }
 
-  private async createMercadoPagoCheckout(companyId: string, plan: { id: string; code: string; name: string; priceMonthly: string }) {
-    const Mercadopago = require('mercadopago');
-    
-    const accessToken = this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN');
+  private async createMercadoPagoCheckout(
+    companyId: string,
+    plan: { id: string; code: string; name: string; priceMonthly: string },
+  ) {
+    const Mercadopago = require("mercadopago");
+
+    const accessToken = this.configService.get<string>(
+      "MERCADOPAGO_ACCESS_TOKEN",
+    );
 
     if (!accessToken) {
       return {
-        provider: 'mercadopago',
-        status: 'error',
-        error: 'MercadoPago access token not configured',
+        provider: "mercadopago",
+        status: "error",
+        error: "MercadoPago access token not configured",
         planCode: plan.code,
         companyId,
       };
@@ -363,35 +389,36 @@ export class PaymentsService {
     const paymentData = {
       transaction_amount: Number(plan.priceMonthly),
       description: `Suscripción ${plan.name} - Huanka-Saas`,
-      payment_method_id: 'yape',
+      payment_method_id: "yape",
       payer: {
-        email: company?.email || 'customer@example.com',
+        email: company?.email || "customer@example.com",
       },
       external_reference: `${companyId}_${plan.code}_${Date.now()}`,
-      notification_url: `${this.configService.get<string>('API_URL')}/payments/webhooks/mercadopago`,
+      notification_url: `${this.configService.get<string>("API_URL")}/payments/webhooks/mercadopago`,
     };
 
     try {
       const payment = await Mercadopago.payment.create(paymentData);
-      
+
       return {
-        provider: 'mercadopago',
-        status: 'pending',
+        provider: "mercadopago",
+        status: "pending",
         paymentId: payment.body.id,
         redirectUrl: payment.body.transaction_details?.external_resource_url,
         planCode: plan.code,
         companyId,
         amount: plan.priceMonthly,
-        currency: 'PEN',
+        currency: "PEN",
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('MercadoPago error:', errorMessage);
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      console.error("MercadoPago error:", errorMessage);
+
       return {
-        provider: 'mercadopago',
-        status: 'error',
-        error: 'No se pudo iniciar el pago con MercadoPago',
+        provider: "mercadopago",
+        status: "error",
+        error: "No se pudo iniciar el pago con MercadoPago",
         planCode: plan.code,
         companyId,
       };
@@ -404,16 +431,26 @@ export class PaymentsService {
     headers: IncomingHttpHeaders,
     query: Record<string, unknown>,
   ) {
-    if (provider === 'mercadopago') {
+    if (provider === "mercadopago") {
       this.verifyMercadoPagoSignature(headers, query);
 
-      const payment = payload as { status: string; external_reference?: string; id?: string };
+      const payment = payload as {
+        status: string;
+        external_reference?: string;
+        id?: string;
+      };
 
-      if (payment.status === 'approved') {
-        const [companyId, planCode] = (payment.external_reference || '').split('_');
+      if (payment.status === "approved") {
+        const [companyId, planCode] = (payment.external_reference || "").split(
+          "_",
+        );
 
         if (companyId && planCode) {
-          await this.activateSubscription(companyId, planCode, payment.id?.toString());
+          await this.activateSubscription(
+            companyId,
+            planCode,
+            payment.id?.toString(),
+          );
         }
       }
     }
@@ -429,57 +466,69 @@ export class PaymentsService {
     headers: IncomingHttpHeaders,
     query: Record<string, unknown>,
   ): boolean {
-    const secret = this.configService.get<string>('MERCADOPAGO_WEBHOOK_SECRET');
+    const secret = this.configService.get<string>("MERCADOPAGO_WEBHOOK_SECRET");
     if (!secret) {
-      throw new UnauthorizedException('Suscripciones por webhook no disponibles: secreto no configurado.');
+      throw new UnauthorizedException(
+        "Suscripciones por webhook no disponibles: secreto no configurado.",
+      );
     }
 
-    const signatureHeader = headers['x-signature'];
-    if (typeof signatureHeader !== 'string') {
-      throw new UnauthorizedException('Firma de webhook ausente.');
+    const signatureHeader = headers["x-signature"];
+    if (typeof signatureHeader !== "string") {
+      throw new UnauthorizedException("Firma de webhook ausente.");
     }
 
     const parts: Record<string, string> = {};
-    for (const pair of signatureHeader.split(',')) {
-      const index = pair.indexOf('=');
+    for (const pair of signatureHeader.split(",")) {
+      const index = pair.indexOf("=");
       if (index === -1) continue;
       parts[pair.slice(0, index).trim()] = pair.slice(index + 1).trim();
     }
 
-    const ts = parts['ts'];
-    const v1 = parts['v1'];
+    const ts = parts["ts"];
+    const v1 = parts["v1"];
 
-    const flatDataId = query?.['data.id'];
+    const flatDataId = query?.["data.id"];
     const nestedDataId =
-      query?.data && typeof query.data === 'object'
-        ? (query.data as Record<string, unknown>)['id']
+      query?.data && typeof query.data === "object"
+        ? (query.data as Record<string, unknown>)["id"]
         : undefined;
-    const dataId = typeof flatDataId === 'string' ? flatDataId : nestedDataId;
+    const dataId = typeof flatDataId === "string" ? flatDataId : nestedDataId;
 
-    if (!ts || !v1 || typeof dataId !== 'string' || dataId.length === 0) {
-      throw new UnauthorizedException('Firma de webhook inválida.');
+    if (!ts || !v1 || typeof dataId !== "string" || dataId.length === 0) {
+      throw new UnauthorizedException("Firma de webhook inválida.");
     }
 
     const tsNumber = Number(ts);
     const MAX_WEBHOOK_AGE_MS = 10 * 60 * 1000;
-    if (!Number.isFinite(tsNumber) || Math.abs(Date.now() - tsNumber * 1000) > MAX_WEBHOOK_AGE_MS) {
-      throw new UnauthorizedException('Firma de webhook expirada.');
+    if (
+      !Number.isFinite(tsNumber) ||
+      Math.abs(Date.now() - tsNumber * 1000) > MAX_WEBHOOK_AGE_MS
+    ) {
+      throw new UnauthorizedException("Firma de webhook expirada.");
     }
 
     const manifest = `${dataId}.${ts}`;
-    const digest = createHmac('sha256', secret).update(manifest).digest('hex');
+    const digest = createHmac("sha256", secret).update(manifest).digest("hex");
 
     const expected = Buffer.from(digest);
     const received = Buffer.from(v1);
 
-    if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
-      throw new UnauthorizedException('Firma de webhook inválida.');
+    if (
+      expected.length !== received.length ||
+      !timingSafeEqual(expected, received)
+    ) {
+      throw new UnauthorizedException("Firma de webhook inválida.");
     }
 
     return true;
   }
 
-  private async activateSubscription(companyId: string, planCode: string, transactionId?: string) {
+  private async activateSubscription(
+    companyId: string,
+    planCode: string,
+    transactionId?: string,
+  ) {
     if (transactionId) {
       const existingPayment = await this.prisma.payment.findFirst({
         where: { providerPaymentId: transactionId },
@@ -502,7 +551,7 @@ export class PaymentsService {
       include: {
         memberships: {
           include: { user: true },
-          where: { role: 'COMPANY_ADMIN' },
+          where: { role: "COMPANY_ADMIN" },
         },
       },
     });
@@ -512,18 +561,18 @@ export class PaymentsService {
     const subscription = await this.prisma.subscription.upsert({
       where: { companyId },
       update: {
-        status: 'ACTIVE',
+        status: "ACTIVE",
         planId: plan.id,
-        provider: 'MERCADOPAGO',
+        provider: "MERCADOPAGO",
         providerSubscriptionId: transactionId,
       },
       create: {
         companyId,
         planId: plan.id,
-        status: 'ACTIVE',
-        provider: 'MERCADOPAGO',
+        status: "ACTIVE",
+        provider: "MERCADOPAGO",
         providerSubscriptionId: transactionId,
-        billingCycle: 'MONTHLY',
+        billingCycle: "MONTHLY",
         startDate: new Date(),
         endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
@@ -532,7 +581,7 @@ export class PaymentsService {
     if (company) {
       await this.prisma.company.update({
         where: { id: companyId },
-        data: { status: 'ACTIVE' },
+        data: { status: "ACTIVE" },
       });
 
       const key = transactionId || `mp-${subscription.id}`;
@@ -542,16 +591,19 @@ export class PaymentsService {
         await this.prisma.payment.create({
           data: {
             subscriptionId: subscription.id,
-            provider: 'MERCADOPAGO',
+            provider: "MERCADOPAGO",
             providerPaymentId: key,
             amount: plan.priceMonthly,
-            currency: 'PEN',
-            status: 'SUCCEEDED',
+            currency: "PEN",
+            status: "SUCCEEDED",
           },
         });
         created = true;
       } catch (err) {
-        if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
+        if (
+          err instanceof PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
           const dup = await this.prisma.payment.findFirst({
             where: { providerPaymentId: key },
             select: { id: true },
@@ -569,15 +621,18 @@ export class PaymentsService {
           companyId,
           type: NotificationType.PAYMENT_RECEIVED,
           channel: NotificationChannel.IN_APP,
-          title: 'Pago recibido',
+          title: "Pago recibido",
           message: `Tu pago de S/ ${plan.priceMonthly} ha sido procesado correctamente. Tu suscripción está activa.`,
         });
 
         await this.emailService.sendEmailDirect({
           to: adminUser.email,
-          subject: '',
-          template: 'payment-received' as never,
-          data: { companyName: company.name, amount: plan.priceMonthly.toString() },
+          subject: "",
+          template: "payment-received" as never,
+          data: {
+            companyName: company.name,
+            amount: plan.priceMonthly.toString(),
+          },
         });
       }
     }

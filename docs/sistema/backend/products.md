@@ -202,7 +202,7 @@ plan `categories`.
   | `barcode` | string | No | `@IsString()` | Si no se envía se genera EAN-13 (`7700...`) |
   | `name` | string | Sí | `@IsString()` | Nombre |
   | `description` | string | No | `@IsString()` | Descripción |
-  | `imageUrl` | string | No | `@IsString()` | URL/base64 de imagen |
+  | `imageUrl` | string | No | `@IsString() @MaxLength(2_000_000)` | Data URL PNG/JPEG/WebP; se sanea con `sharp` (píxeles revalidados, metadatos eliminados). Cualquier otra cosa → 400 |
   | `baseUnit` | `UnitOfMeasure` | No (def. `UNIT`) | `@IsEnum(UnitOfMeasure)` | Unidad base (`UNIT`, `KG`, `LT`, `MT`) |
   | `costPrice` | number | Sí | `@IsNumber()` | Precio de costo |
   | `salePrice` | number | Sí | `@IsNumber()` | Precio de venta |
@@ -228,7 +228,7 @@ plan `categories`.
   | `barcode` | string | No | `@IsString()` | Código de barras |
   | `name` | string | No | `@IsString()` | Nombre |
   | `description` | string | No | `@IsString()` | Descripción |
-  | `imageUrl` | string | No | `@IsString()` | Imagen |
+  | `imageUrl` | string | No | `@IsString() @MaxLength(2_000_000)` | Data URL PNG/JPEG/WebP saneada con `sharp`; otro formato → 400 |
   | `baseUnit` | `UnitOfMeasure` | No | `@IsEnum(UnitOfMeasure)` | Unidad base |
   | `costPrice` | number | No | `@IsNumber()` | Precio de costo |
   | `salePrice` | number | No | `@IsNumber()` | Precio de venta |
@@ -258,11 +258,11 @@ plan `categories`.
 
   | Campo | Tipo | Requerido | Validación | Descripción |
   |-------|------|-----------|------------|-------------|
-  | `imageBase64` | string | Sí | `@IsString()` | Imagen en base64 |
+  | `imageBase64` | string | Sí | `@IsString() @MaxLength(2_000_000) @Matches(/data:image\/(png\|jpe?g\|webp);base64,/)` | Data URL PNG/JPEG/WebP |
 
-- **Respuesta**: producto actualizado con `imageUrl=imageBase64`.
+- **Respuesta**: producto actualizado con `imageUrl` = imagen saneada (regenerada desde píxeles con `sharp`).
 - **Efectos secundarios**: escribe `products.imageUrl`. No audita.
-- **Errores**: 404 si el producto no existe.
+- **Errores**: 404 si el producto no existe; 400 si la imagen es inválida, excede 2MB o el resultado saneado supera el límite.
 
 ## Funciones del servicio (`ProductsService`)
 
@@ -366,10 +366,10 @@ plan `categories`.
 - **Devuelve**: array `{ id, name, stockQuantity, minStock, category }`.
 
 ### `uploadProductImage(companyId, productId, imageBase64)`
-- **Qué hace**: asegura producto y actualiza `imageUrl`.
+- **Qué hace**: asegura producto, valida y sanea la imagen (`parseImageDataUrl`) y actualiza `imageUrl`.
 - **Escribe en**: `products.imageUrl`.
 - **Devuelve**: producto actualizado.
-- **Lanza**: 404 si no existe.
+- **Lanza**: 404 si no existe; 400 (`BadRequestException`) si la imagen no es PNG/JPEG/WebP válida o es demasiado grande.
 
 ### `exportProducts(companyId, query)`
 - **Qué hace**: filtra por `categoryId`, genera CSV/Excel/PDF en base64 según `format`.

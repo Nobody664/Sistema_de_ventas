@@ -12,18 +12,18 @@
     "start:prod": "npm run build && npm run start",
     "build": "tsc && tsc-alias",
     "build:prod": "tsc",
-"lint":  "tsc --noEmit",
-    "test":  "node -r ts-node/register -r tsconfig-paths/register --test \"src/**/*.spec.ts\"",
-    "format":  "prettier --check \"src/**/*.ts\"",
+    "lint": "tsc --noEmit",
+    "test": "node -r ts-node/register -r tsconfig-paths/register --test \"src/**/*.spec.ts\"",
+    "format": "prettier --check \"src/**/*.ts\"",
     "format:fix": "prettier --write \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-"db:seed":  "prisma db seed",
+    "db:seed": "prisma db seed",
     "db:seed:demo": "ts-node -r tsconfig-paths/register -r dotenv/config prisma/seed-demo.ts",
     "db:reset:demo": "ts-node -r tsconfig-paths/register -r dotenv/config prisma/reset-demo.ts --confirm",
     "db:reset:all": "ts-node -r tsconfig-paths/register -r dotenv/config prisma/reset-demo.ts --confirm --all",
-    "clean":  "rm -rf dist"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.0",
@@ -57,6 +57,7 @@
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sharp": "^0.35.5",
     "tsconfig-paths": "^4.2.0",
     "zod": "^3.24.0"
   },

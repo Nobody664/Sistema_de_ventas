@@ -1,13 +1,26 @@
-import { Body, Controller, Get, Param, Post, Patch, Query, Req, UseGuards, DefaultValuePipe, ParseIntPipe, BadRequestException } from '@nestjs/common';
-import { Request } from 'express';
-import { Public } from '@/common/decorators/public.decorator';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { TenantGuard } from '@/common/guards/tenant.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { PaymentsService } from './payments.service';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Patch,
+  Query,
+  Req,
+  UseGuards,
+  DefaultValuePipe,
+  ParseIntPipe,
+} from "@nestjs/common";
+import { Request } from "express";
+import { Public } from "@/common/decorators/public.decorator";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { TenantGuard } from "@/common/guards/tenant.guard";
+import { RolesGuard } from "@/common/guards/roles.guard";
+import { Roles } from "@/common/decorators/roles.decorator";
+import { PaymentsService } from "./payments.service";
+import { UploadPaymentImageDto } from "./dto/payment-settings.dto";
 
-@Controller('payments')
+@Controller("payments")
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
@@ -18,89 +31,94 @@ export class PaymentsController {
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
-  @Get('pending')
+  @Get("pending")
   findPending(@Req() request: { tenantId: string }) {
     return this.paymentsService.findPendingByCompany(request.tenantId);
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
-  @Get('history')
+  @Get("history")
   getHistory(
     @Req() request: { tenantId: string },
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
-    return this.paymentsService.getPaymentHistory(request.tenantId, page, limit);
+    return this.paymentsService.getPaymentHistory(
+      request.tenantId,
+      page,
+      limit,
+    );
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
-  @Get('current-pending')
+  @Get("current-pending")
   getCurrentPending(@Req() request: { tenantId: string }) {
     return this.paymentsService.getCurrentPending(request.tenantId);
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
-  @Post(':id/proof')
+  @Post(":id/proof")
   uploadProof(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Req() request: { tenantId: string },
-    @Body() body: { imageBase64: string; paymentDate?: string },
+    @Body() body: UploadPaymentImageDto,
   ) {
-    if (!body.imageBase64) {
-      throw new BadRequestException('imageBase64 es requerido');
-    }
     return this.paymentsService.uploadProofForPayment(
       id,
       request.tenantId,
       body.imageBase64,
-      body.paymentDate ? new Date(body.paymentDate) : undefined,
+      body.paymentDate,
     );
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
-  @Get(':id')
-  findOne(@Param('id') id: string, @Req() request: { tenantId: string }) {
+  @Get(":id")
+  findOne(@Param("id") id: string, @Req() request: { tenantId: string }) {
     return this.paymentsService.findOne(id, request.tenantId);
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
-  @Get(':id/receipt')
-  getReceipt(@Param('id') id: string, @Req() request: { tenantId: string }) {
+  @Get(":id/receipt")
+  getReceipt(@Param("id") id: string, @Req() request: { tenantId: string }) {
     return this.paymentsService.generateReceipt(id, request.tenantId);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Roles("COMPANY_ADMIN", "MANAGER")
   @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
-  @Patch(':id/mark-paid')
+  @Patch(":id/mark-paid")
   markAsPaid(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Req() request: { tenantId: string },
     @Body() body: { paymentDate?: string },
   ) {
-    return this.paymentsService.markAsPaid(id, request.tenantId, body.paymentDate);
+    return this.paymentsService.markAsPaid(
+      id,
+      request.tenantId,
+      body.paymentDate,
+    );
   }
 
-  @Roles('SUPER_ADMIN')
+  @Roles("SUPER_ADMIN")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Get('admin/pending')
+  @Get("admin/pending")
   findAllPending(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
     return this.paymentsService.findAllPending(page, limit);
   }
 
-  @Roles('SUPER_ADMIN')
+  @Roles("SUPER_ADMIN")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Get('admin/stats')
+  @Get("admin/stats")
   getStats() {
     return this.paymentsService.getStats();
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
-  @Post('checkout-session/:provider')
+  @Post("checkout-session/:provider")
   createCheckoutSession(
-    @Param('provider') provider: string,
+    @Param("provider") provider: string,
     @Body() body: { planCode: string },
     @Req() request: { tenantId: string },
   ) {
@@ -112,9 +130,9 @@ export class PaymentsController {
   }
 
   @Public()
-  @Post('webhooks/:provider')
+  @Post("webhooks/:provider")
   async handleWebhook(
-    @Param('provider') provider: string,
+    @Param("provider") provider: string,
     @Body() payload: unknown,
     @Req() req: Request,
   ) {
@@ -126,4 +144,3 @@ export class PaymentsController {
     );
   }
 }
-

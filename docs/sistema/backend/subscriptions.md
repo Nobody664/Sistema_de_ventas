@@ -140,12 +140,12 @@ Gestiona la suscripción de una empresa (`Subscription`) — consulta, cancelaci
 
 | Campo | Tipo | Requerido | Validación | Descripción |
 |-------|------|-----------|------------|-------------|
-| `imageBase64` | string | sí | `@IsNotEmpty @MaxLength(2_000_000) @Matches(/^data:image\//)` | Imagen Base64 |
+| `imageBase64` | string | sí | `@IsNotEmpty @MaxLength(2_000_000) @Matches(/data:image\/(png\|jpe?g\|webp);base64,/)` | Data URL PNG/JPEG/WebP (se sanea con `sharp` al guardar) |
 | `paymentDate` | string | no | `@IsOptional @IsString` | Fecha de pago (ISO) |
 
 - **Respuesta**: `{ requestId, status: 'PENDING' }`.
 - **Efectos secundarios**: escribe `plan_upgrade_requests` (`proofImageBase64`, `paymentDate`, `submittedAt`); crea `Notification` (IN_APP, tipo `PLAN_UPGRADED`) para cada usuario `SUPER_ADMIN` activo.
-- **Errores**: `400` (formato de comprobante inválido), `404` (solicitud no encontrada), `409` (ya enviada o revisada).
+- **Errores**: `400` (imagen inválida o demasiado grande), `404` (solicitud no encontrada), `409` (ya enviada o revisada).
 
 ### GET /api/subscriptions/upgrade-requests/my
 - **Descripción**: Lista todas las solicitudes de upgrade de la empresa del usuario (desc).
@@ -270,7 +270,7 @@ Gestiona la suscripción de una empresa (`Subscription`) — consulta, cancelaci
 - **Lanza**: `BadRequestException`, `NotFoundException`, `ConflictException` (ver endpoint).
 
 ### `submitProof(requestId, companyId, input)`
-- **Qué hace**: valida formato de imagen, busca la solicitud `PENDING` de la empresa, guarda el comprobante y notifica a los `SUPER_ADMIN`.
+- **Qué hace**: valida y sanea la imagen (PNG/JPEG/WebP vía `parseImageDataUrl`), busca la solicitud `PENDING` de la empresa, guarda el comprobante y notifica a los `SUPER_ADMIN`.
 - **Escribe en**: `plan_upgrade_requests`, `notifications`.
 - **Devuelve**: `{ requestId, status: 'PENDING' }`.
 - **Lanza**: `BadRequestException`, `NotFoundException`, `ConflictException`.

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { apiFetch, getAccessToken } from '@/lib/api';
 import { handleLimitError } from '@/lib/handle-limit-error';
+import { compressImage } from '@/lib/image-compression';
 import { BarcodeScanner } from '@/components/ui/barcode-scanner';
 import { useUiStore } from '@/store/ui-store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -50,6 +51,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(product?.imageUrl || null);
+  const [imageLoading, setImageLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [barcodeValue, setBarcodeValue] = useState(product?.barcode || '');
   const [isActive, setIsActive] = useState(product?.isActive ?? true);
@@ -92,26 +94,20 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setError('Por favor selecciona un archivo de imagen');
-      return;
+    setImageLoading(true);
+    setError(null);
+    try {
+      setImagePreview(await compressImage(file, { format: 'image/webp' }));
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'No se pudo procesar la imagen');
+    } finally {
+      setImageLoading(false);
     }
-
-    if (file.size > 2 * 1024 * 1024) {
-      setError('La imagen no debe exceder 2MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setImagePreview(base64);
-    };
-    reader.readAsDataURL(file);
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (imageLoading) return;
     setLoading(true);
     setError(null);
     setFieldErrors({});
@@ -149,7 +145,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       minStock: parseFloat(formData.get('minStock') as string) || 5,
       baseUnit: unit,
       categoryId: (formData.get('categoryId') as string) || undefined,
-      imageUrl: imagePreview || undefined,
+      imageUrl: isEdit && imagePreview === product?.imageUrl ? undefined : imagePreview || undefined,
       expiryDate: (formData.get('expiryDate') as string) || undefined,
     };
 
@@ -311,7 +307,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={imageLoading}
                     onChange={handleImageChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
@@ -339,7 +336,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       Eliminar imagen
                     </Button>
                   )}
-                  <p className="text-xs text-slate-400 text-center">PNG, JPG hasta 2MB</p>
+                  <p className="text-xs text-slate-400 text-center">{imageLoading ? 'Procesando imagen…' : 'PNG, JPG o WebP hasta 10MB; se optimiza al cargar'}</p>
                 </div>
 
                 {isEdit && (
@@ -720,7 +717,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
               </Button>
               <Button 
                 type="submit" 
-                disabled={loading} 
+                disabled={loading || imageLoading} 
                 className="h-12 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-8 font-semibold hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all sm:w-auto"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

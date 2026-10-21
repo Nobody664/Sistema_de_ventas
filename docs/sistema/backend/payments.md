@@ -70,10 +70,10 @@ Agrupa tres áreas: gestión de pagos de la suscripción y recibos (`/payments`)
 - **Guards extra**: `@UseGuards(JwtAuthGuard, TenantGuard)`.
 - **Path params**: `id` (string) — ID del pago.
 - **Query**: ninguno.
-- **Body**: objeto sin DTO `{ imageBase64: string; paymentDate?: string }`.
+- **Body (DTO `UploadPaymentImageDto`)**: `{ imageBase64: string; paymentDate?: Date }`.
 - **Respuesta**: `PaymentProof` creado (status `PENDING`).
-- **Efectos secundarios**: escribe `payment_proofs` (`subscriptionId`, `imageBase64`, `amount` del pago, `paymentDate`).
-- **Errores**: `400 BadRequestException` (`'imageBase64 es requerido'`; `'Formato de comprobante inválido'`; `'Este pago ya fue procesado'`), `404 NotFoundException` (`'Pago no encontrado'`).
+- **Efectos secundarios**: escribe `payment_proofs` (`subscriptionId`, `imageBase64` saneada con `sharp`, `amount` del pago, `paymentDate`).
+- **Errores**: `400 BadRequestException` (`'Este pago ya fue procesado'`; imagen inválida/demasiado grande — DTO `@MaxLength(2_000_000) @Matches(/data:image\/(png|jpe?g|webp);base64,/)`), `404 NotFoundException` (`'Pago no encontrado'`).
 
 ### GET /api/payments/:id
 - **Descripción**: Detalle de un pago con su suscripción (`plan`, `company`).
@@ -201,7 +201,7 @@ Agrupa tres áreas: gestión de pagos de la suscripción y recibos (`/payments`)
 
 | Campo | Tipo | Requerido | Validación | Descripción |
 |-------|------|-----------|------------|-------------|
-| `imageBase64` | string | sí | `@IsString @MaxLength(2_000_000) @Matches(/^data:image\//)` | Imagen Base64 |
+| `imageBase64` | string | sí | `@IsString @MaxLength(2_000_000) @Matches(/data:image\/(png\|jpe?g\|webp);base64,/)` | Data URL PNG/JPEG/WebP (se sanea con `sharp` al guardar) |
 | `paymentDate` | Date | no | `@IsOptional @Type(Date) @IsDate` | Fecha de pago |
 
 - **Respuesta**: `{ requestId, status: 'SUBMITTED' }`.
@@ -272,7 +272,7 @@ Agrupa tres áreas: gestión de pagos de la suscripción y recibos (`/payments`)
 | Campo | Tipo | Requerido | Validación | Descripción |
 |-------|------|-----------|------------|-------------|
 | `isEnabled` | boolean | no | `@IsOptional @IsBoolean` | Habilitado |
-| `qrImageBase64` | string | no | `@IsOptional @IsString @MaxLength(500000)` | QR |
+| `qrImageBase64` | string | no | `@IsOptional @IsString @MaxLength(500000) @ValidateIf(!='') @Matches(/data:image\/(png\|jpe?g\|webp);base64,/)` | QR (se sanea con `sharp`, límite 500KB) |
 | `accountNumber` | string | no | `@IsOptional @IsString @MaxLength(50)` | Número de cuenta |
 | `accountName` | string | no | `@IsOptional @IsString @MaxLength(100)` | Titular |
 | `instructions` | string | no | `@IsOptional @IsString @MaxLength(1000)` | Instrucciones |
@@ -293,7 +293,7 @@ Agrupa tres áreas: gestión de pagos de la suscripción y recibos (`/payments`)
 
 | Campo | Tipo | Requerido | Validación | Descripción |
 |-------|------|-----------|------------|-------------|
-| `imageBase64` | string | sí | `@IsString @MaxLength(2_000_000) @Matches(/^data:image\//)` | Imagen Base64 |
+| `imageBase64` | string | sí | `@IsString @MaxLength(2_000_000) @Matches(/data:image\/(png\|jpe?g\|webp);base64,/)` | Data URL PNG/JPEG/WebP (se sanea con `sharp` al guardar) |
 | `amount` | string | sí | `@IsString` | Monto |
 | `paymentDate` | Date | no | `@IsOptional` | Fecha de pago |
 
@@ -367,10 +367,10 @@ Agrupa tres áreas: gestión de pagos de la suscripción y recibos (`/payments`)
 - **Lanza**: nada explícito.
 
 ### `uploadProofForPayment(paymentId, companyId, imageBase64, paymentDate?)`
-- **Qué hace**: valida pago `PENDING` y formato de imagen; crea un `PaymentProof`.
+- **Qué hace**: valida pago `PENDING`, valida y sanea la imagen (`parseImageDataUrl`) y crea un `PaymentProof`.
 - **Escribe en**: `payment_proofs`.
 - **Devuelve**: `PaymentProof`.
-- **Lanza**: `NotFoundException('Pago no encontrado')`, `BadRequestException('Este pago ya fue procesado')`, `BadRequestException('Formato de comprobante inválido')`.
+- **Lanza**: `NotFoundException('Pago no encontrado')`, `BadRequestException('Este pago ya fue procesado')`, `BadRequestException` (imagen inválida o demasiado grande).
 
 ### `findPendingByCompany(companyId)`
 - **Qué hace**: pagos `PENDING` de la suscripción `ACTIVE`.
@@ -447,7 +447,7 @@ Agrupa tres áreas: gestión de pagos de la suscripción y recibos (`/payments`)
 - **Lanza**: `BadRequestException`, `NotFoundException`, `ConflictException` (ver endpoint).
 
 ### `submitProof(requestId, companyId, input)`
-- **Qué hace**: valida imagen, busca solicitud `DRAFT`, la pasa a `SUBMITTED` y envía email.
+- **Qué hace**: valida y sanea la imagen (PNG/JPEG/WebP vía `parseImageDataUrl`), busca solicitud `DRAFT`, la pasa a `SUBMITTED` y envía email.
 - **Escribe en**: `checkout_requests`; email `sendPaymentProofReceived`.
 - **Devuelve**: `{ requestId, status: 'SUBMITTED' }`.
 - **Lanza**: `BadRequestException`, `NotFoundException`, `ConflictException`.

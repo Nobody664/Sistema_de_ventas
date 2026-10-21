@@ -122,9 +122,13 @@ export function PaymentSettingsManager() {
   const handleImageUpload = async (provider: string, file: File, onImageChange: (base64: string) => void) => {
     try {
       const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.9 });
+      if (compressed.length > 500_000) {
+        setMessage({ type: 'error', text: 'El QR no debe exceder 500KB; reduce su resolución' });
+        return;
+      }
       onImageChange(compressed);
-    } catch {
-      setMessage({ type: 'error', text: 'Error al procesar la imagen' });
+    } catch (error) {
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Error al procesar la imagen' });
     }
   };
 
@@ -230,7 +234,7 @@ export function PaymentSettingsManager() {
                                 <span>Subir código QR</span>
                                 <input
                                   type="file"
-                                  accept="image/*"
+                                  accept="image/png,image/jpeg,image/webp"
                                   className="hidden"
                                   onChange={(e) => {
                                     const file = e.target.files?.[0];

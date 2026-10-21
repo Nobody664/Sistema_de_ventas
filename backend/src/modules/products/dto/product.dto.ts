@@ -8,12 +8,15 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
   IsIn,
+  Matches,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { UnitOfMeasure } from '@prisma/client';
+} from "class-validator";
+import { Type } from "class-transformer";
+import { UnitOfMeasure } from "@prisma/client";
+import { ALLOWED_IMAGE_MIME_PATTERN } from "@/common/helpers/image.helper";
 
 export class QueryProductDto {
   @IsOptional()
@@ -51,13 +54,17 @@ export class UpdateCategoryDto {
 
 export class UploadProductImageDto {
   @IsString()
+  @MaxLength(2_000_000)
+  @Matches(ALLOWED_IMAGE_MIME_PATTERN, {
+    message: "imageBase64 debe ser una imagen PNG, JPEG o WebP",
+  })
   imageBase64!: string;
 }
 
 export class ExportProductsQueryDto {
   @IsOptional()
-  @IsIn(['csv', 'excel', 'pdf'])
-  format?: 'csv' | 'excel' | 'pdf' = 'csv';
+  @IsIn(["csv", "excel", "pdf"])
+  format?: "csv" | "excel" | "pdf" = "csv";
 
   @IsOptional()
   @IsString()
@@ -136,6 +143,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2_000_000)
   imageUrl?: string;
 
   @IsOptional()
@@ -192,6 +200,7 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2_000_000)
   imageUrl?: string;
 
   @IsOptional()

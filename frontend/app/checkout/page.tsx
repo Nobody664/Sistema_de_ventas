@@ -345,7 +345,7 @@ function CheckoutContent() {
                     <input
                       id="proof-image"
                       type="file"
-                      accept="image/*"
+                      accept="image/png,image/jpeg,image/webp"
                       className="hidden"
                       ref={fileInputRef}
                       onChange={(e) => {

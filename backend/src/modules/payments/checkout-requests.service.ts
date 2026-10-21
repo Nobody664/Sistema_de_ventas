@@ -1,12 +1,31 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import * as argon2 from 'argon2';
-import { CompanyStatus, PaymentProvider, Prisma, SubscriptionStatus } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { evaluateProfile } from '@/common/helpers/profile-completeness.helper';
-import { EmailService } from '@/modules/email/email.service';
-import { NotificationsService, NotificationType, NotificationChannel } from '@/modules/notifications/notifications.service';
-import { CheckoutReviewStatus, CreateCheckoutRequestDto, SubmitCheckoutProofDto } from './dto/checkout-requests.dto';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import * as argon2 from "argon2";
+import {
+  CompanyStatus,
+  PaymentProvider,
+  Prisma,
+  SubscriptionStatus,
+} from "@prisma/client";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { evaluateProfile } from "@/common/helpers/profile-completeness.helper";
+import { EmailService } from "@/modules/email/email.service";
+import {
+  NotificationsService,
+  NotificationType,
+  NotificationChannel,
+} from "@/modules/notifications/notifications.service";
+import { parseImageDataUrl } from "@/common/helpers/image.helper";
+import {
+  CheckoutReviewStatus,
+  CreateCheckoutRequestDto,
+  SubmitCheckoutProofDto,
+} from "./dto/checkout-requests.dto";
 
 const OFFLINE_PROVIDERS: PaymentProvider[] = [
   PaymentProvider.YAPE,
@@ -54,7 +73,11 @@ export class CheckoutRequestsService {
     try {
       return { request: await create() };
     } catch (err) {
-      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002' && idempotencyKey) {
+      if (
+        err instanceof PrismaClientKnownRequestError &&
+        err.code === "P2002" &&
+        idempotencyKey
+      ) {
         const existing = await this.prisma.checkoutRequest.findFirst({
           where: { idempotencyKey, ...(companyId ? { companyId } : {}) },
           include: { plan: true },
@@ -72,7 +95,9 @@ export class CheckoutRequestsService {
 
   async createRequest(input: CreateCheckoutRequestDto) {
     if (!OFFLINE_PROVIDERS.includes(input.paymentMethod)) {
-      throw new BadRequestException('Método de pago no soportado para checkout offline');
+      throw new BadRequestException(
+        "Método de pago no soportado para checkout offline",
+      );
     }
 
     const isAuthenticated = !!input.companyId;
@@ -82,17 +107,18 @@ export class CheckoutRequestsService {
         where: { id: input.companyId },
       });
       if (!company) {
-        throw new NotFoundException('Empresa no encontrada');
+        throw new NotFoundException("Empresa no encontrada");
       }
 
-      const existingPendingRequest = await this.prisma.checkoutRequest.findFirst({
-        where: {
-          companyId: input.companyId,
-          status: { in: ['DRAFT', 'SUBMITTED'] },
-        },
-        orderBy: { createdAt: 'desc' },
-        include: { plan: true },
-      });
+      const existingPendingRequest =
+        await this.prisma.checkoutRequest.findFirst({
+          where: {
+            companyId: input.companyId,
+            status: { in: ["DRAFT", "SUBMITTED"] },
+          },
+          orderBy: { createdAt: "desc" },
+          include: { plan: true },
+        });
       if (existingPendingRequest?.plan.code === input.planCode) {
         const settings = await this.prisma.paymentSetting.findFirst({
           where: { provider: existingPendingRequest.provider },
@@ -104,14 +130,14 @@ export class CheckoutRequestsService {
         where: { code: input.planCode },
       });
       if (!plan?.isActive) {
-        throw new NotFoundException('Plan no encontrado');
+        throw new NotFoundException("Plan no encontrado");
       }
 
-      if (plan.code !== 'FREE') {
+      if (plan.code !== "FREE") {
         const profile = evaluateProfile(company);
         if (!profile.complete) {
           throw new BadRequestException(
-            `Para contratar un plan de pago tu empresa debe tener el perfil completo (RUC, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(', ')}.`,
+            `Para contratar un plan de pago tu empresa debe tener el perfil completo (RUC, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(", ")}.`,
           );
         }
       }
@@ -120,7 +146,7 @@ export class CheckoutRequestsService {
         where: { provider: input.paymentMethod },
       });
       if (!settings?.isEnabled) {
-        throw new ConflictException('Método de pago no disponible');
+        throw new ConflictException("Método de pago no disponible");
       }
 
       const { request, existingSettings } = await this.createOrReuse(
@@ -130,13 +156,16 @@ export class CheckoutRequestsService {
               companyId: input.companyId,
               fullName: company.name,
               companyName: company.name,
-              email: '',
-              passwordHash: '',
+              email: "",
+              passwordHash: "",
               planId: plan.id,
               provider: input.paymentMethod,
-              amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
-              currency: 'PEN',
-              status: 'DRAFT',
+              amount: (plan.billingCycle === "YEARLY"
+                ? plan.priceYearly
+                : plan.priceMonthly
+              ).toString(),
+              currency: "PEN",
+              status: "DRAFT",
               idempotencyKey: input.idempotencyKey ?? undefined,
             },
             include: { plan: true },
@@ -154,15 +183,15 @@ export class CheckoutRequestsService {
       select: { id: true },
     });
     if (existingUser) {
-      throw new ConflictException('El correo electrónico ya está registrado.');
+      throw new ConflictException("El correo electrónico ya está registrado.");
     }
 
     const existingOpenRequest = await this.prisma.checkoutRequest.findFirst({
       where: {
         email: input.email,
-        status: { in: ['DRAFT', 'SUBMITTED'] },
+        status: { in: ["DRAFT", "SUBMITTED"] },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: { plan: true },
     });
     if (existingOpenRequest) {
@@ -170,7 +199,7 @@ export class CheckoutRequestsService {
         where: { provider: existingOpenRequest.provider },
       });
       if (!settings?.isEnabled) {
-        throw new ConflictException('Método de pago no disponible');
+        throw new ConflictException("Método de pago no disponible");
       }
 
       if (existingOpenRequest.plan.code === input.planCode) {
@@ -182,18 +211,25 @@ export class CheckoutRequestsService {
       where: { code: input.planCode },
     });
     if (!plan?.isActive) {
-      throw new NotFoundException('Plan no encontrado');
+      throw new NotFoundException("Plan no encontrado");
     }
 
     const settings = await this.prisma.paymentSetting.findFirst({
       where: { provider: input.paymentMethod },
     });
     if (!settings?.isEnabled) {
-      throw new ConflictException('Método de pago no disponible');
+      throw new ConflictException("Método de pago no disponible");
     }
 
-    if (!input.fullName || !input.companyName || !input.email || !input.password) {
-      throw new BadRequestException('Para registro sin autenticación se requiere: fullName, companyName, email y password');
+    if (
+      !input.fullName ||
+      !input.companyName ||
+      !input.email ||
+      !input.password
+    ) {
+      throw new BadRequestException(
+        "Para registro sin autenticación se requiere: fullName, companyName, email y password",
+      );
     }
 
     const { fullName, companyName, email } = input as {
@@ -202,7 +238,7 @@ export class CheckoutRequestsService {
       email: string;
     };
 
-    if (plan.code !== 'FREE') {
+    if (plan.code !== "FREE") {
       const profile = evaluateProfile({
         taxId: input.taxId ?? null,
         legalName: input.legalName ?? null,
@@ -213,7 +249,7 @@ export class CheckoutRequestsService {
       if (!profile.complete) {
         throw new BadRequestException(
           `Para contratar un plan de pago debes completar el perfil de tu empresa (
-RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(', ')}.`,
+RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendientes: ${profile.missingFields.join(", ")}.`,
         );
       }
     }
@@ -233,9 +269,12 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
             address: input.address,
             phone: input.phone,
             provider: input.paymentMethod,
-            amount: (plan.billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly).toString(),
-            currency: 'PEN',
-            status: 'DRAFT',
+            amount: (plan.billingCycle === "YEARLY"
+              ? plan.priceYearly
+              : plan.priceMonthly
+            ).toString(),
+            currency: "PEN",
+            status: "DRAFT",
             idempotencyKey: input.idempotencyKey ?? undefined,
           },
           include: { plan: true },
@@ -247,54 +286,60 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
     return this.buildCheckoutResponse(request, existingSettings ?? settings);
   }
 
-  async submitProof(requestId: string, companyId: string | undefined, input: SubmitCheckoutProofDto) {
-    if (!input.imageBase64.startsWith('data:image/')) {
-      throw new BadRequestException('Formato de comprobante inválido');
-    }
+  async submitProof(
+    requestId: string,
+    companyId: string | undefined,
+    input: SubmitCheckoutProofDto,
+  ) {
+    const proofImage = (await parseImageDataUrl(input.imageBase64)).dataUrl;
 
     const request = await this.prisma.checkoutRequest.findFirst({
       where: { id: requestId, ...(companyId ? { companyId } : {}) },
       include: { plan: true },
     });
     if (!request) {
-      throw new NotFoundException('Solicitud no encontrada');
+      throw new NotFoundException("Solicitud no encontrada");
     }
     if (request.companyId && !companyId) {
-      throw new NotFoundException('Solicitud no encontrada');
+      throw new NotFoundException("Solicitud no encontrada");
     }
-    if (request.status !== 'DRAFT') {
-      throw new ConflictException('La solicitud ya fue enviada o revisada');
+    if (request.status !== "DRAFT") {
+      throw new ConflictException("La solicitud ya fue enviada o revisada");
     }
 
     const updated = await this.prisma.checkoutRequest.updateMany({
-      where: { id: requestId, status: 'DRAFT', ...(companyId ? { companyId } : {}) },
+      where: {
+        id: requestId,
+        status: "DRAFT",
+        ...(companyId ? { companyId } : {}),
+      },
       data: {
-        proofImageBase64: input.imageBase64,
+        proofImageBase64: proofImage,
         paymentDate: input.paymentDate ?? new Date(),
         submittedAt: new Date(),
-        status: 'SUBMITTED',
+        status: "SUBMITTED",
       },
     });
     if (updated.count === 0) {
-      throw new ConflictException('La solicitud ya fue enviada o revisada');
+      throw new ConflictException("La solicitud ya fue enviada o revisada");
     }
 
     await this.emailService.sendPaymentProofReceived(
       request.email,
-      request.companyName || '',
+      request.companyName || "",
       request.plan.name,
     );
 
     return {
       requestId: request.id,
-      status: 'SUBMITTED',
+      status: "SUBMITTED",
     };
   }
 
   async getPending() {
     return this.prisma.checkoutRequest.findMany({
-      where: { status: 'SUBMITTED' },
-      orderBy: { createdAt: 'asc' },
+      where: { status: "SUBMITTED" },
+      orderBy: { createdAt: "asc" },
       select: {
         id: true,
         fullName: true,
@@ -317,47 +362,66 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
     });
   }
 
-  async review(requestId: string, reviewerId: string, input: { status: CheckoutReviewStatus; reviewNotes?: string }) {
+  async review(
+    requestId: string,
+    reviewerId: string,
+    input: { status: CheckoutReviewStatus; reviewNotes?: string },
+  ) {
     const request = await this.prisma.checkoutRequest.findUnique({
       where: { id: requestId },
       include: { plan: true },
     });
     if (!request) {
-      throw new NotFoundException('Solicitud no encontrada');
+      throw new NotFoundException("Solicitud no encontrada");
     }
-    if (request.status !== 'SUBMITTED') {
-      throw new ConflictException('La solicitud no está pendiente de revisión');
+    if (request.status !== "SUBMITTED") {
+      throw new ConflictException("La solicitud no está pendiente de revisión");
     }
 
     if (input.status === CheckoutReviewStatus.REJECTED) {
       const rejected = await this.prisma.checkoutRequest.updateMany({
-        where: { id: requestId, status: 'SUBMITTED' },
+        where: { id: requestId, status: "SUBMITTED" },
         data: {
-          status: 'REJECTED',
+          status: "REJECTED",
           reviewedBy: reviewerId,
           reviewedAt: new Date(),
           reviewNotes: input.reviewNotes,
         },
       });
       if (rejected.count === 0) {
-        throw new ConflictException('La solicitud no está pendiente de revisión');
+        throw new ConflictException(
+          "La solicitud no está pendiente de revisión",
+        );
       }
 
-      await this.emailService.sendSubscriptionRejected(request.email, request.companyName || '');
+      await this.emailService.sendSubscriptionRejected(
+        request.email,
+        request.companyName || "",
+      );
 
       return {
         requestId: requestId,
-        status: 'REJECTED',
+        status: "REJECTED",
       };
     }
 
     const hasExistingCompany = !!request.companyId;
 
     if (hasExistingCompany) {
-      return this.handleUpgradeApproval(requestId, reviewerId, request, input.reviewNotes);
+      return this.handleUpgradeApproval(
+        requestId,
+        reviewerId,
+        request,
+        input.reviewNotes,
+      );
     }
 
-    return this.handleNewCustomerApproval(requestId, reviewerId, request, input.reviewNotes);
+    return this.handleNewCustomerApproval(
+      requestId,
+      reviewerId,
+      request,
+      input.reviewNotes,
+    );
   }
 
   private async handleUpgradeApproval(
@@ -366,30 +430,32 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
     request: any,
     reviewNotes?: string,
   ) {
-    if (request.plan.code !== 'FREE') {
+    if (request.plan.code !== "FREE") {
       const company = await this.prisma.company.findUnique({
         where: { id: request.companyId },
       });
       const profile = evaluateProfile(company ?? {});
       if (!profile.complete) {
         throw new BadRequestException(
-          `No se puede aprobar: la empresa no tiene el perfil completo (pendientes: ${profile.missingFields.join(', ')}).`,
+          `No se puede aprobar: la empresa no tiene el perfil completo (pendientes: ${profile.missingFields.join(", ")}).`,
         );
       }
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.checkoutRequest.updateMany({
-        where: { id: requestId, status: 'SUBMITTED' },
+        where: { id: requestId, status: "SUBMITTED" },
         data: {
-          status: 'REVIEWING',
+          status: "REVIEWING",
           reviewedBy: reviewerId,
           reviewedAt: new Date(),
           reviewNotes,
         },
       });
       if (claimed.count === 0) {
-        throw new ConflictException('La solicitud no está pendiente de revisión');
+        throw new ConflictException(
+          "La solicitud no está pendiente de revisión",
+        );
       }
 
       const existingSubscription = await tx.subscription.findUnique({
@@ -403,7 +469,9 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
 
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + (request.plan.billingCycle === 'YEARLY' ? 12 : 1));
+      endDate.setMonth(
+        endDate.getMonth() + (request.plan.billingCycle === "YEARLY" ? 12 : 1),
+      );
 
       const subscriptionData = {
         planId: request.planId,
@@ -432,7 +500,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
           providerPaymentId: `upgrade-${request.id}`,
           amount: new Prisma.Decimal(request.amount),
           currency: request.currency,
-          status: 'SUCCEEDED',
+          status: "SUCCEEDED",
           providerPayload: {
             checkoutRequestId: request.id,
           },
@@ -441,7 +509,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
 
       await tx.checkoutRequest.updateMany({
         where: { id: requestId },
-        data: { status: 'APPROVED' },
+        data: { status: "APPROVED" },
       });
 
       return { subscription };
@@ -452,7 +520,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
         memberships: {
           some: {
             companyId: request.companyId,
-            role: 'COMPANY_ADMIN',
+            role: "COMPANY_ADMIN",
             isActive: true,
           },
         },
@@ -463,21 +531,21 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
       await this.notificationsService.create({
         userId: admin.id,
         companyId: request.companyId,
-        type: 'PLAN_UPGRADED' as any,
-        channel: 'IN_APP' as any,
-        title: 'Plan actualizado',
+        type: "PLAN_UPGRADED" as any,
+        channel: "IN_APP" as any,
+        title: "Plan actualizado",
         message: `Tu cambio al plan ${request.plan.name} ha sido aprobado.`,
       });
     }
 
     await this.emailService.sendSubscriptionApproved(
-      request.email || adminUsers[0]?.email || '',
+      request.email || adminUsers[0]?.email || "",
       request.companyName,
     );
 
     return {
       requestId: requestId,
-      status: 'APPROVED',
+      status: "APPROVED",
       subscriptionId: result.subscription.id,
     };
   }
@@ -490,16 +558,18 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
   ) {
     const result = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.checkoutRequest.updateMany({
-        where: { id: requestId, status: 'SUBMITTED' },
+        where: { id: requestId, status: "SUBMITTED" },
         data: {
-          status: 'REVIEWING',
+          status: "REVIEWING",
           reviewedBy: reviewerId,
           reviewedAt: new Date(),
           reviewNotes,
         },
       });
       if (claimed.count === 0) {
-        throw new ConflictException('La solicitud no está pendiente de revisión');
+        throw new ConflictException(
+          "La solicitud no está pendiente de revisión",
+        );
       }
 
       const existingUser = await tx.user.findUnique({
@@ -507,14 +577,16 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
         select: { id: true },
       });
       if (existingUser) {
-        throw new ConflictException('El correo electrónico ya está registrado.');
+        throw new ConflictException(
+          "El correo electrónico ya está registrado.",
+        );
       }
 
       const slugBase = request.companyName
         .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/[^a-z0-9\s-]/g, "")
         .trim()
-        .replace(/\s+/g, '-');
+        .replace(/\s+/g, "-");
 
       const companyProfile = evaluateProfile({
         taxId: request.taxId ?? null,
@@ -523,9 +595,9 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
         phone: request.phone ?? null,
         email: request.email,
       });
-      if (request.plan.code !== 'FREE' && !companyProfile.complete) {
+      if (request.plan.code !== "FREE" && !companyProfile.complete) {
         throw new BadRequestException(
-          `No se puede aprobar: el perfil de la empresa está incompleto (pendientes: ${companyProfile.missingFields.join(', ')}).`,
+          `No se puede aprobar: el perfil de la empresa está incompleto (pendientes: ${companyProfile.missingFields.join(", ")}).`,
         );
       }
 
@@ -540,7 +612,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
           phone: request.phone,
           profileComplete: companyProfile.complete,
           profileCompletedAt: companyProfile.complete ? new Date() : null,
-          status: 'ACTIVE',
+          status: "ACTIVE",
         },
       });
 
@@ -549,12 +621,12 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
           email: request.email,
           fullName: request.fullName,
           passwordHash: request.passwordHash,
-          globalRole: 'USER',
+          globalRole: "USER",
           isActive: true,
           memberships: {
             create: {
               companyId: company.id,
-              role: 'COMPANY_ADMIN',
+              role: "COMPANY_ADMIN",
               isActive: true,
             },
           },
@@ -563,13 +635,15 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
 
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + (request.plan.billingCycle === 'YEARLY' ? 12 : 1));
+      endDate.setMonth(
+        endDate.getMonth() + (request.plan.billingCycle === "YEARLY" ? 12 : 1),
+      );
 
       const subscription = await tx.subscription.create({
         data: {
           companyId: company.id,
           planId: request.planId,
-          status: 'ACTIVE',
+          status: "ACTIVE",
           billingCycle: request.plan.billingCycle,
           startDate,
           endDate,
@@ -585,7 +659,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
           transactionId: `proof-${request.id}`,
           amount: new Prisma.Decimal(request.amount),
           currency: request.currency,
-          status: 'SUCCEEDED',
+          status: "SUCCEEDED",
           providerPayload: {
             checkoutRequestId: request.id,
           },
@@ -595,7 +669,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
       await tx.checkoutRequest.updateMany({
         where: { id: requestId },
         data: {
-          status: 'APPROVED',
+          status: "APPROVED",
           companyId: company.id,
           userId: user.id,
           subscriptionId: subscription.id,
@@ -605,11 +679,14 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
       return { company, user };
     });
 
-    await this.emailService.sendSubscriptionApproved(request.email, request.companyName);
+    await this.emailService.sendSubscriptionApproved(
+      request.email,
+      request.companyName,
+    );
 
     return {
       requestId: requestId,
-      status: 'APPROVED',
+      status: "APPROVED",
       companyId: result.company.id,
     };
   }

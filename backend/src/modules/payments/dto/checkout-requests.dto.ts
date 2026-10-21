@@ -10,6 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { PaymentProvider } from '@prisma/client';
+import { ALLOWED_IMAGE_MIME_PATTERN } from '@/common/helpers/image.helper';
 
 export enum CheckoutReviewStatus {
   APPROVED = 'APPROVED',
@@ -80,8 +81,8 @@ export class CreateCheckoutRequestDto {
 export class SubmitCheckoutProofDto {
   @IsString()
   @MaxLength(2_000_000)
-  @Matches(/^data:image\//, {
-    message: 'imageBase64 debe ser una imagen Base64 válida (data:image/...)',
+  @Matches(ALLOWED_IMAGE_MIME_PATTERN, {
+    message: 'imageBase64 debe ser una imagen PNG, JPEG o WebP',
   })
   imageBase64!: string;
 

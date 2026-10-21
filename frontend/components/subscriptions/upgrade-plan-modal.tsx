@@ -295,7 +295,7 @@ export function UpgradePlanModal({ plans, currentPlanCode }: UpgradePlanModalPro
                       <div className="mt-2">
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/png,image/jpeg,image/webp"
                           className="hidden"
                           ref={fileInputRef}
                           onChange={(e) => {

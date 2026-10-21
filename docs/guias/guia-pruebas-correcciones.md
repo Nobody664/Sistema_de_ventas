@@ -647,3 +647,25 @@ Checklist manual (requiere el server corriendo con DB/Redis alcanzables):
 - [ ] **Emitir boleta interna** crea un folio correlativo (`BI-000001`...), lo imprime y deja el pendiente en 0.
 - [ ] La tarjeta **Boletas emitidas** lista los folios con su total; **Imprimir** reimprime el documento con el detalle de productos.
 - [ ] Emitir de nuevo sin compras pendientes → boton deshabilitado (backend responde 400 si se fuerza).
+
+## Round 7 - Validación y saneamiento de imágenes base64
+
+Tarea: toda imagen que entra al backend (productos, QR de pagos, comprobantes de checkout/upgrade/pagos, logo de plantillas) se valida con `@Matches(/data:image\/(png|jpe?g|webp);base64,/)` + `@MaxLength`, y se **sanea** con `sharp` en `src/common/helpers/image.helper.ts` (firma real, CRC de chunks, sin APNG, sin metadatos: se regenera desde píxeles). El frontend comprime con `frontend/lib/image-compression.ts` (PNG/JPEG/WebP, ≤10MB, resultado ≤2MB) y restringe `accept`.
+
+### Verificación local (ya realizada)
+
+- [x] `npm test` (backend) → 80/80 (21 suites, incluye `image.helper.spec.ts`, `image-ingestion.spec.ts`).
+- [x] `npx tsc --noEmit` (backend) → 0.
+- [x] `npx tsc --noEmit` (frontend) → 0.
+- [x] `prettier --check` sobre los archivos de la tarea → 0.
+
+### Checklist manual (requiere server corriendo)
+
+- [ ] `POST /api/products/:id/image` con un SVG o GIF (data URL) → **400**.
+- [ ] `POST /api/products/:id/image` con >2MB o sin prefijo `data:image/` → **400** (DTO).
+- [ ] Subir PNG con metadatos/EXIF → se guarda **sin** metadatos (regenerado desde píxeles).
+- [ ] Crear producto con `imageUrl` no-data (ej. `https://...`) → **400**.
+- [ ] Proof de checkout/upgrade con imagen >2MB → **400**.
+- [ ] QR de payment-settings >500KB → **400**; el frontend muestra "El QR no debe exceder 500KB".
+- [ ] Subir producto con imagen >10MB o formato no soportado en el form → error en el frontend sin llamada al backend.
+- [ ] Edición de producto sin tocar la imagen → `imageUrl` no se reenvía (queda el valor existente).
