@@ -50,6 +50,7 @@ export class StockEntriesService {
         branch: { select: { id: true, name: true } },
         distributor: { select: { id: true, name: true, code: true } },
         supplier: { select: { id: true, name: true, code: true } },
+        items: {
           include: {
             product: {
               select: { id: true, name: true, sku: true, baseUnit: true },
@@ -455,6 +456,7 @@ export class StockEntriesService {
             data: {
               companyId,
               distributorId: input.distributorId ?? null,
+              supplierId: input.supplierId ?? null,
               series,
               number,
               fullNumber: `${series}-${String(number).padStart(6, "0")}`,

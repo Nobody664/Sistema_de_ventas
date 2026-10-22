@@ -22,7 +22,14 @@ export interface StockEntryDistributorOption {
   code: string;
 }
 
+export interface StockEntrySupplierOption {
+  id: string;
+  name: string;
+  code: string | null;
+}
+
 export interface DistributorPurchaseSummary {
+  supplier: { id: string; name: string; code: string | null } | null;
   distributor: { id: string; name: string; code: string } | null;
   entryCount: number;
   itemCount: number;
@@ -49,6 +56,7 @@ export interface PurchaseReceiptRecord {
   totalAmount: number;
   entryCount: number;
   itemCount: number;
+  supplier: { id: string; name: string; code: string | null } | null;
   distributor: { id: string; name: string; code: string } | null;
 }
 
@@ -77,30 +85,35 @@ export default async function StockEntriesPage() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
 
-  const [entries, products, branches, distributors, purchases, receipts] =
-    await Promise.all([
-      serverApiFetch<Array<Record<string, unknown>>>(
-        "/stock-entries",
-        accessToken,
-      ),
-      serverApiFetch<StockEntryProductOption[]>("/products", accessToken),
-      serverApiFetch<Array<{ id: string; name: string }>>(
-        "/branches",
-        accessToken,
-      ),
-      serverApiFetch<StockEntryDistributorOption[]>(
-        "/distributors",
-        accessToken,
-      ),
-      serverApiFetch<DistributorPurchaseSummary[]>(
-        "/stock-entries/purchases/by-distributor",
-        accessToken,
-      ),
-      serverApiFetch<PurchaseReceiptRecord[]>(
-        "/stock-entries/receipts",
-        accessToken,
-      ),
-    ]);
+  const [
+    entries,
+    products,
+    branches,
+    distributors,
+    suppliers,
+    purchases,
+    receipts,
+  ] = await Promise.all([
+    serverApiFetch<Array<Record<string, unknown>>>(
+      "/stock-entries",
+      accessToken,
+    ),
+    serverApiFetch<StockEntryProductOption[]>("/products", accessToken),
+    serverApiFetch<Array<{ id: string; name: string }>>(
+      "/branches",
+      accessToken,
+    ),
+    serverApiFetch<StockEntryDistributorOption[]>("/distributors", accessToken),
+    serverApiFetch<StockEntrySupplierOption[]>("/suppliers", accessToken),
+    serverApiFetch<DistributorPurchaseSummary[]>(
+      "/stock-entries/purchases/by-distributor",
+      accessToken,
+    ),
+    serverApiFetch<PurchaseReceiptRecord[]>(
+      "/stock-entries/receipts",
+      accessToken,
+    ),
+  ]);
 
   return (
     <StockEntriesClient
@@ -108,6 +121,7 @@ export default async function StockEntriesPage() {
       products={products ?? []}
       branches={branches ?? []}
       distributors={distributors ?? []}
+      suppliers={suppliers ?? []}
       purchases={purchases ?? []}
       receipts={receipts ?? []}
     />

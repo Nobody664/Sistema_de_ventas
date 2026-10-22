@@ -22,6 +22,7 @@ import {
   UserCog,
   FolderTree,
   Warehouse,
+  ArrowUpFromLine,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -123,6 +124,12 @@ const companyItems: NavItem[] = [
     module: "distributors",
     roles: ["COMPANY_ADMIN", "MANAGER"],
     hint: "A quién le vendes / consignas",
+  },
+  {
+    label: "Salidas a distribuidores",
+    href: "/stock-exits",
+    icon: ArrowUpFromLine,
+    roles: ["COMPANY_ADMIN", "MANAGER"],
   },
   {
     label: "Proveedores",

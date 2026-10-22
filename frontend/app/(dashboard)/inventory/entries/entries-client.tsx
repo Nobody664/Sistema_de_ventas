@@ -27,6 +27,7 @@ import type {
   PurchaseReceiptRecord,
   StockEntryDistributorOption,
   StockEntryProductOption,
+  StockEntrySupplierOption,
 } from "./page";
 
 const UNIT_SHORT: Record<string, string> = {
@@ -57,6 +58,7 @@ interface EntryRecord {
   createdAt: string;
   branch?: { id: string; name: string } | null;
   distributor?: { id: string; name: string; code: string } | null;
+  supplier?: { id: string; name: string; code: string | null } | null;
   items: EntryItem[];
 }
 
@@ -74,6 +76,7 @@ interface StockEntriesClientProps {
   products: StockEntryProductOption[];
   branches: Array<{ id: string; name: string }>;
   distributors: StockEntryDistributorOption[];
+  suppliers: StockEntrySupplierOption[];
   purchases: DistributorPurchaseSummary[];
   receipts: PurchaseReceiptRecord[];
 }
@@ -92,6 +95,7 @@ export function StockEntriesClient({
   products,
   branches,
   distributors,
+  suppliers,
   purchases,
   receipts,
 }: StockEntriesClientProps) {
@@ -106,7 +110,7 @@ export function StockEntriesClient({
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
   const [branchId, setBranchId] = useState("");
-  const [distributorId, setDistributorId] = useState("");
+  const [supplierId, setSupplierId] = useState("");
   const [issuingKey, setIssuingKey] = useState<string | null>(null);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
@@ -183,7 +187,7 @@ export function StockEntriesClient({
         token: getAccessToken(),
         body: JSON.stringify({
           branchId: branchId || undefined,
-          distributorId: distributorId || undefined,
+          supplierId: supplierId || undefined,
           reference: reference || undefined,
           notes: notes || undefined,
           entryDate: entryDate
@@ -209,9 +213,11 @@ export function StockEntriesClient({
   };
 
   const printReceipt = (receipt: PurchaseReceiptDetail) => {
-    const title = receipt.distributor
-      ? `${receipt.distributor.name} (${receipt.distributor.code})`
-      : "General / sin distribuidor";
+    const title = receipt.supplier
+      ? `${receipt.supplier.name}${receipt.supplier.code ? ` (${receipt.supplier.code})` : ""}`
+      : receipt.distributor
+        ? `${receipt.distributor.name} (${receipt.distributor.code})`
+        : "General / sin proveedor";
 
     const rows = receipt.entries
       .flatMap((entry) =>
@@ -262,7 +268,7 @@ export function StockEntriesClient({
   };
 
   const issueReceipt = async (group: DistributorPurchaseSummary) => {
-    const key = group.distributor?.id ?? "general";
+    const key = group.supplier?.id ?? group.distributor?.id ?? "general";
     setIssuingKey(key);
     try {
       const detail = await apiFetch<PurchaseReceiptDetail>(
@@ -271,6 +277,7 @@ export function StockEntriesClient({
           method: "POST",
           token: getAccessToken(),
           body: JSON.stringify({
+            supplierId: group.supplier?.id ?? undefined,
             distributorId: group.distributor?.id ?? undefined,
           }),
         },
@@ -374,17 +381,17 @@ export function StockEntriesClient({
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">
-                Distribuidor / Proveedor
+                Proveedor
               </Label>
               <select
-                value={distributorId}
-                onChange={(event) => setDistributorId(event.target.value)}
+                value={supplierId}
+                onChange={(event) => setSupplierId(event.target.value)}
                 className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
               >
-                <option value="">General (sin distribuidor)</option>
-                {distributors.map((distributor) => (
-                  <option key={distributor.id} value={distributor.id}>
-                    {distributor.name}
+                <option value="">General (sin proveedor)</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
                   </option>
                 ))}
               </select>
@@ -653,7 +660,7 @@ export function StockEntriesClient({
                 <th className="pb-4 pl-4 font-medium">Fecha</th>
                 <th className="pb-4 font-medium">Referencia</th>
                 <th className="pb-4 font-medium">Sucursal</th>
-                <th className="pb-4 font-medium">Distribuidor</th>
+                <th className="pb-4 font-medium">Proveedor</th>
                 <th className="pb-4 font-medium">Producto</th>
                 <th className="pb-4 font-medium text-right">Cantidad</th>
                 <th className="pb-4 font-medium text-center">Vencimiento</th>
@@ -694,7 +701,9 @@ export function StockEntriesClient({
                             className="py-3 text-sm text-foreground/60"
                             rowSpan={entry.items.length}
                           >
-                            {entry.distributor?.name ?? "General"}
+                            {entry.supplier?.name ??
+                              entry.distributor?.name ??
+                              "General"}
                           </td>
                         </>
                       )}
@@ -757,12 +766,12 @@ export function StockEntriesClient({
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {purchases.map((group) => (
               <div
-                key={group.distributor?.id ?? "general"}
+                key={group.supplier?.id ?? group.distributor?.id ?? "general"}
                 className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                    {group.distributor ? (
+                    {group.supplier || group.distributor ? (
                       <Store className="size-5" />
                     ) : (
                       <PackagePlus className="size-5" />
@@ -770,12 +779,16 @@ export function StockEntriesClient({
                   </div>
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-slate-900">
-                      {group.distributor?.name ?? "General (sin distribuidor)"}
+                      {group.supplier?.name ??
+                        group.distributor?.name ??
+                        "General (sin proveedor)"}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {group.distributor
-                        ? `Código ${group.distributor.code}`
-                        : "Compras sin proveedor"}
+                      {group.supplier?.code
+                        ? `Código ${group.supplier.code}`
+                        : group.distributor
+                          ? `Código ${group.distributor.code}`
+                          : "Compras sin proveedor"}
                     </p>
                   </div>
                 </div>
@@ -820,12 +833,14 @@ export function StockEntriesClient({
                   size="sm"
                   disabled={
                     group.pendingCount === 0 ||
-                    issuingKey === (group.distributor?.id ?? "general")
+                    issuingKey ===
+                      (group.supplier?.id ?? group.distributor?.id ?? "general")
                   }
                   onClick={() => issueReceipt(group)}
                   className="mt-4 h-10 w-full rounded-xl border-slate-200 text-slate-700 hover:bg-white hover:border-emerald-300 disabled:opacity-60"
                 >
-                  {issuingKey === (group.distributor?.id ?? "general") ? (
+                  {issuingKey ===
+                  (group.supplier?.id ?? group.distributor?.id ?? "general") ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Emitiendo...
@@ -883,9 +898,11 @@ export function StockEntriesClient({
                       {receipt.fullNumber}
                     </td>
                     <td className="py-3 text-sm text-foreground/70">
-                      {receipt.distributor
-                        ? `${receipt.distributor.name} (${receipt.distributor.code})`
-                        : "General"}
+                      {receipt.supplier
+                        ? `${receipt.supplier.name}${receipt.supplier.code ? ` (${receipt.supplier.code})` : ""}`
+                        : receipt.distributor
+                          ? `${receipt.distributor.name} (${receipt.distributor.code})`
+                          : "General"}
                     </td>
                     <td className="py-3 text-sm text-foreground/60">
                       {new Date(receipt.issuedAt).toLocaleDateString()}

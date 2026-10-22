@@ -79,6 +79,7 @@ export interface DistributorProductOption {
   id: string;
   name: string;
   sku: string | null;
+  baseUnit: string;
   stockQuantity: string;
   salePrice: string;
 }

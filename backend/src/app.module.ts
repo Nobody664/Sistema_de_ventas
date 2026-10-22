@@ -27,6 +27,7 @@ import { PaymentsModule } from "./modules/payments/payments.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { StockEntriesModule } from "./modules/stock-entries/stock-entries.module";
+import { StockExitsModule } from "./modules/stock-exits/stock-exits.module";
 import { SalesModule } from "./modules/sales/sales.module";
 import { CustomersModule } from "./modules/customers/customers.module";
 import { EmployeesModule } from "./modules/employees/employees.module";
@@ -119,6 +120,7 @@ import { CreditNotesModule } from "./modules/credit-notes/credit-notes.module";
     ProductsModule,
     InventoryModule,
     StockEntriesModule,
+    StockExitsModule,
     SalesModule,
     CustomersModule,
     EmployeesModule,
