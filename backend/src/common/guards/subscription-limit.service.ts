@@ -1,7 +1,14 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
+import { Injectable, ForbiddenException } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 
-export type ResourceType = 'products' | 'users' | 'customers' | 'employees' | 'categories' | 'sales';
+export type ResourceType =
+  | "products"
+  | "users"
+  | "customers"
+  | "employees"
+  | "categories"
+  | "sales";
 
 export interface LimitInfo {
   current: number;
@@ -20,37 +27,27 @@ export interface SubscriptionLimits {
 
 @Injectable()
 export class SubscriptionLimitService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planCapabilities: PlanCapabilitiesService,
+  ) {}
 
   async getSubscriptionLimits(companyId: string): Promise<SubscriptionLimits> {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { companyId },
-      include: { plan: true },
-    });
+    const capabilities = await this.planCapabilities.getCapabilities(companyId);
 
-    if (!subscription || subscription.status !== 'ACTIVE') {
-      return {
-        maxUsers: 1,
-        maxProducts: 10,
-        maxCustomers: 50,
-        maxEmployees: 1,
-        maxCategories: 5,
-        features: [],
-      };
-    }
-
-    const plan = subscription.plan;
     return {
-      maxUsers: plan.maxUsers ?? 1,
-      maxProducts: plan.maxProducts ?? 10,
-      maxCustomers: (plan.maxProducts ?? 10) * 5,
-      maxEmployees: plan.maxUsers ?? 1,
-      maxCategories: Math.floor((plan.maxProducts ?? 10) / 20),
-      features: (plan.features as string[]) ?? [],
+      maxUsers: capabilities.maxUsers,
+      maxProducts: capabilities.maxProducts,
+      maxCustomers: capabilities.maxProducts * 5,
+      maxEmployees: capabilities.maxUsers,
+      maxCategories: Math.max(1, Math.floor(capabilities.maxProducts / 20)),
+      features: capabilities.features,
     };
   }
 
-  async getCurrentCounts(companyId: string): Promise<Record<ResourceType, number>> {
+  async getCurrentCounts(
+    companyId: string,
+  ): Promise<Record<ResourceType, number>> {
     const [
       usersCount,
       productsCount,
@@ -58,7 +55,7 @@ export class SubscriptionLimitService {
       employeesCount,
       categoriesCount,
     ] = await Promise.all([
-      this.prisma.companyMembership.count({
+      this.prisma.membership.count({
         where: { companyId, isActive: true },
       }),
       this.prisma.product.count({ where: { companyId } }),
@@ -77,17 +74,20 @@ export class SubscriptionLimitService {
     };
   }
 
-  async checkLimit(companyId: string, resource: ResourceType): Promise<LimitInfo> {
+  async checkLimit(
+    companyId: string,
+    resource: ResourceType,
+  ): Promise<LimitInfo> {
     const limits = await this.getSubscriptionLimits(companyId);
     const counts = await this.getCurrentCounts(companyId);
 
     const resourceLimitMap: Record<ResourceType, keyof SubscriptionLimits> = {
-      products: 'maxProducts',
-      users: 'maxUsers',
-      customers: 'maxCustomers',
-      employees: 'maxEmployees',
-      categories: 'maxCategories',
-      sales: 'maxProducts',
+      products: "maxProducts",
+      users: "maxUsers",
+      customers: "maxCustomers",
+      employees: "maxEmployees",
+      categories: "maxCategories",
+      sales: "maxProducts",
     };
 
     const limitKey = resourceLimitMap[resource];
@@ -101,32 +101,37 @@ export class SubscriptionLimitService {
     };
   }
 
-  async validateLimit(companyId: string, resource: ResourceType): Promise<void> {
-    const { current, limit, resource: res } = await this.checkLimit(companyId, resource);
+  async validateLimit(
+    companyId: string,
+    resource: ResourceType,
+  ): Promise<void> {
+    const {
+      current,
+      limit,
+      resource: res,
+    } = await this.checkLimit(companyId, resource);
 
     if (current >= limit) {
       const resourceNames: Record<ResourceType, string> = {
-        products: 'productos',
-        users: 'usuarios',
-        customers: 'clientes',
-        employees: 'empleados',
-        categories: 'categorías',
-        sales: 'ventas',
+        products: "productos",
+        users: "usuarios",
+        customers: "clientes",
+        employees: "empleados",
+        categories: "categorías",
+        sales: "ventas",
       };
 
-      const plan = await this.prisma.subscription.findUnique({
-        where: { companyId },
-        include: { plan: true },
-      });
+      const capabilities =
+        await this.planCapabilities.getCapabilities(companyId);
 
       throw new ForbiddenException({
-        error: 'LIMIT_EXCEEDED',
+        error: "LIMIT_EXCEEDED",
         message: `Has alcanzado el límite de ${resourceNames[res]} de tu plan (${limit}).`,
         current,
         limit,
         resource: res,
-        planName: plan?.plan.name,
-        upgradeUrl: '/dashboard/subscriptions',
+        planName: capabilities.planName,
+        upgradeUrl: "/subscription",
       });
     }
   }
@@ -153,7 +158,9 @@ export class SubscriptionLimitService {
       users: Math.round((counts.users / limits.maxUsers) * 100),
       customers: Math.round((counts.customers / limits.maxCustomers) * 100),
       employees: Math.round((counts.employees / limits.maxEmployees) * 100),
-      categories: Math.round((counts.categories / limits.maxCategories) * 100),
+      categories: Math.round(
+        (counts.categories / Math.max(1, limits.maxCategories)) * 100,
+      ),
       sales: 0,
     };
 

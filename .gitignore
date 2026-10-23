@@ -11,13 +11,26 @@ backend/prisma/dev.db-journal
 frontend/.next/
 *.log
 
+# TypeScript incremental build cache (artefacto, no fuente)
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Prisma artifacts generados
+backend/node_modules/.prisma/
+backend/generated/
+
+frontend/package-lock.json
+
 .agents/
 .claude
 .cortex
+.cursor/
 skills/
 
 nul
 Nul
 
-docs/
+# Secretos locales (tokens). No versionar.
+docs/token_supabase.md
+
 img/

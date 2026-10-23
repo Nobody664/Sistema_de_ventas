@@ -1,6 +1,17 @@
-import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength, IsObject } from 'class-validator';
-import { PaymentProvider } from '@prisma/client';
-import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  ValidateIf,
+  IsDate,
+} from "class-validator";
+import { PaymentProvider } from "@prisma/client";
+import { Type } from "class-transformer";
+import { ALLOWED_IMAGE_MIME_PATTERN } from "@/common/helpers/image.helper";
 
 export class UpdatePaymentSettingsDto {
   @IsOptional()
@@ -10,6 +21,10 @@ export class UpdatePaymentSettingsDto {
   @IsOptional()
   @IsString()
   @MaxLength(500000)
+  @ValidateIf((_object: unknown, value: unknown) => value !== "")
+  @Matches(ALLOWED_IMAGE_MIME_PATTERN, {
+    message: "qrImageBase64 debe ser una imagen PNG, JPEG o WebP",
+  })
   qrImageBase64?: string;
 
   @IsOptional()
@@ -46,16 +61,33 @@ export class PaymentSettingsResponseDto {
   updatedAt!: Date;
 }
 
-export class UploadPaymentProofDto {
+export class PaymentSettingsPublicResponseDto {
+  id!: string;
+  provider!: PaymentProvider;
+  isEnabled!: boolean;
+  qrImageBase64?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+  instructions?: string | null;
+}
+
+export class UploadPaymentImageDto {
   @IsString()
-  @MaxLength(500000)
+  @MaxLength(2_000_000)
+  @Matches(ALLOWED_IMAGE_MIME_PATTERN, {
+    message: "imageBase64 debe ser una imagen PNG, JPEG o WebP",
+  })
   imageBase64!: string;
 
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  paymentDate?: Date;
+}
+
+export class UploadPaymentProofDto extends UploadPaymentImageDto {
   @IsString()
   amount!: string;
-
-  @IsOptional()
-  paymentDate?: Date;
 }
 
 export class PaymentProofResponseDto {
@@ -73,8 +105,8 @@ export class PaymentProofResponseDto {
 }
 
 export class ReviewPaymentProofDto {
-  @IsEnum(['APPROVED', 'REJECTED'])
-  status!: 'APPROVED' | 'REJECTED';
+  @IsEnum(["APPROVED", "REJECTED"])
+  status!: "APPROVED" | "REJECTED";
 
   @IsOptional()
   @IsString()

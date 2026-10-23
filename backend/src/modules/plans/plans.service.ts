@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { CreatePlanDto, UpdatePlanDto } from './dto/plan.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { CreatePlanDto, UpdatePlanDto } from "./dto/plan.dto";
 
 @Injectable()
 export class PlansService {
@@ -9,7 +9,13 @@ export class PlansService {
   findPublicPlans() {
     return this.prisma.plan.findMany({
       where: { isActive: true },
-      orderBy: { priceMonthly: 'asc' },
+      orderBy: { priceMonthly: "asc" },
+    });
+  }
+
+  findAllAdmin() {
+    return this.prisma.plan.findMany({
+      orderBy: { priceMonthly: "asc" },
     });
   }
 
@@ -25,6 +31,11 @@ export class PlansService {
         maxUsers: input.maxUsers,
         maxProducts: input.maxProducts,
         features: input.features,
+        modules: input.modules ?? [],
+        permissions: input.permissions ?? [],
+        apiEnabled: input.apiEnabled ?? false,
+        apiSearchDniEnabled: input.apiSearchDniEnabled ?? false,
+        apiQuota: input.apiQuota ?? 0,
         isActive: input.isActive ?? true,
       },
     });
@@ -33,7 +44,7 @@ export class PlansService {
   async update(id: string, input: UpdatePlanDto) {
     const plan = await this.prisma.plan.findUnique({ where: { id } });
     if (!plan) {
-      throw new NotFoundException('Plan not found.');
+      throw new NotFoundException("Plan not found.");
     }
 
     return this.prisma.plan.update({
@@ -45,7 +56,7 @@ export class PlansService {
   async remove(id: string) {
     const plan = await this.prisma.plan.findUnique({ where: { id } });
     if (!plan) {
-      throw new NotFoundException('Plan not found.');
+      throw new NotFoundException("Plan not found.");
     }
 
     return this.prisma.plan.delete({ where: { id } });

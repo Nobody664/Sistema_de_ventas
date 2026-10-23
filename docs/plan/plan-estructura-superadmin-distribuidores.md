@@ -1,0 +1,365 @@
+# Plan de desarrollo — Estructura de plataforma (SUPER_ADMIN) separada + Distribuidores
+
+> Estado: **Fases 0–3 completadas, desplegadas y validadas; Fase 4 frontend (ítems 1–4) desplegada y validada (2026-10-11)** · Fecha: 2026-10-09 · Documento hermano: `docs/plan/diagramas-estructura-superadmin.md`
+
+---
+
+## 1. Objetivo
+
+Separar de forma explícita y verificable **tres dominios** que hoy están mezclados en la misma lógica:
+
+| Dominio | Quién | Qué administra | Hoy |
+|---|---|---|---|
+| **Plataforma** | `SUPER_ADMIN` (yo, creador del sistema) y `SUPPORT_ADMIN` | El sistema en sí: empresas, planes, configuración global de pagos, métricas globales, auditoría global, otros administradores de soporte. **Sin contexto de tenant.** | Mezclado en rutas `/companies`, `/subscriptions`, `/audit`, `/settings/payment` que comparten `TenantGuard`/`data-app` con el tenant |
+| **Tenant (Empresa)** | `COMPANY_ADMIN` (dueño) y su staff (`MANAGER`, `CASHIER`, `VIEWER`) | Su empresa: productos, ventas, inventario, empleados, reportes, su suscripción | Correcto, pero con sidebar/páginas mezcladas con roles de plataforma |
+| **Distribuidores** | Nueva entidad dentro de cada empresa | Distribuyen/venden los productos de la empresa fuera de la caja principal | **No existe** |
+
+Regla central del diseño: **la lógica de plataforma nunca se cruza con la de tenant**. El SUPER_ADMIN no "es un empresa-admin con más permisos"; es un rol con su **espacio de datos, rutas, guards y UI propios**.
+
+---
+
+## 2. Diagnóstico del estado actual
+
+Fuentes verificadas: `backend/prisma/schema.prisma`, `backend/src/common/guards/*`, `backend/src/app.module.ts`, `frontend/proxy.ts`, `frontend/app/(dashboard)/layout.tsx`, `frontend/components/layout/app-sidebar.tsx`.
+
+1. **Un solo `User` y un solo `globalRole`** (`GlobalRole { SUPER_ADMIN, SUPPORT_ADMIN, ADMIN, USER }`); `SUPER_ADMIN` "funciona" mediante bypass en `RolesGuard`/`PermissionsGuard` y mediante `TenantGuard` "salvo contexto". Eso hace que un SUPER_ADMIN pueda terminar en rutas de tenant que no le corresponden.
+2. **Rutas de plataforma dentro del grupo `(dashboard)`**: `/companies`, `/subscribers`, `/upgrade-requests`, `/subscriptions`, `/invoices/templates`, `/audit`, `/settings/payment` viven en el mismo layout que las páginas de empresa.
+3. **Enforcement inconsistente** (ya mapeado): 9 rutas verifican rol, el resto delega en el backend y el frontend recibe `null` silencioso (`serverApiFetch` no lanza errores ante 403).
+4. **Permisos drift entre frontend y backend** (`frontend/types/permissions.ts` vs `backend/src/common/constants/permissions.constant.ts`): faltan `kardex:*`, `replenishment:*`, `forecast:view`, `branch:manage`; sobran `settings:read/update`.
+5. **No existe distribuidor**: no hay modelo, módulo, permisos ni UI.
+6. **No hay guard global de rutas por rol**: `frontend/proxy.ts` solo valida cookie y estado de compañía; `(dashboard)/layout.tsx` solo valida sesión/`companyStatus`.
+
+---
+
+## 3. Arquitectura objetivo
+
+### 3.1 Separación de dominios
+
+```
+GLOBAL / PLATAFORMA     → módulo nestjs `platform`, prefijo /platform/*, PlatformGuard, app/(platform)
+TENANT / EMPRESA        → módulos existentes, prefijo /api/*, TenantGuard, app/(dashboard)
+DISTRIBUIDORES (tenant) → módulo nestjs `distributors`, prefijo /api/distributors/*, TenantGuard
+```
+
+Patrones de la skill `nestjs-best-practices` aplicados:
+- `arch-feature-modules` — organización por dominio, no por capa.
+- `arch-single-responsibility` — servicios enfocados, sin "god services".
+- `security-use-guards` — autorización en guards dedicados por dominio.
+- `db-use-migrations` — todo cambio de esquema con migración Prisma.
+- `db-use-transactions` — operaciones multi-tabla (distribuidor + stock) en `$transaction`.
+
+Patrones de la skill `next-best-practices` aplicados:
+- Route groups `(platform)` / `(dashboard)` para separar layout y sidebar.
+- `proxy.ts` (middleware v16) para enrutar por rol global.
+- Server Components con `getServerSession()` + guard temprano; datos con `serverApiFetch`.
+
+### 3.2 Modelo de roles alineado con las 3 capas
+
+```prisma
+enum GlobalRole {
+  SUPER_ADMIN      // dueño de la plataforma
+  SUPPORT_ADMIN    // soporte operativo (solo lectura + gestión acotada)
+  ADMIN            // DEPRECADO → eliminar tras migración (hoy sin uso)
+  USER             // base por defecto
+}
+
+enum MembershipRole {
+  COMPANY_ADMIN
+  MANAGER
+  CASHIER
+  VIEWER
+  DISTRIBUTOR      // NUEVO: contexto de acceso del distribuidor a la app de la empresa
+}
+```
+
+> **Por qué `DISTRIBUTOR` es un `MembershipRole`:** los distribuidores necesitan iniciar sesión con alcance de empresa (mismo `User` + `Membership` + `TenantGuard`), pero su **perfil comercial** vive en una tabla nueva `Distributor`. Así no se duplica auth ni se contamina el modelo `Employee`.
+
+### 3.3 Nuevo espacio de permisos `platform:*` (separado de los de tenant)
+
+```ts
+// plataforma (solo SUPER_ADMIN / SUPPORT_ADMIN)
+'platform:view_companies'    'platform:manage_companies'
+'platform:view_metrics'      'platform:manage_plans'
+'platform:manage_settings'   // pagos globales, brand, etc.
+'platform:manage_admins'     // alta/baja de SUPPORT_ADMIN
+'platform:audit'
+'platform:view_subscriptions'  'platform:review_requests'
+
+// distribuidores (tenant)
+'distributor:list'  'distributor:create'  'distributor:update'  'distributor:delete'
+'distributor:transfer'   // envío de mercadería
+'distributor:sell'       // registrar ventas del distribuidor
+'distributor:settle'     // liquidación / comisiones
+```
+
+Los `ROLE_PERMISSIONS` del frontend y los `ROLE_PERMISSIONS` del backend pasan a ser **dos fuentes sincronizadas por un único archivo compartido o por verificación en CI** (evitar el drift que ya existe).
+
+---
+
+## 4. Cambios de modelo de datos (Prisma)
+
+Archivos: `backend/prisma/schema.prisma` + migración en `backend/prisma/migrations/`.
+
+### 4.1 Plataforma (separación de datos)
+
+- **No se duplica `User`.** Se conserva `User.globalRole` como identidad única (evita migración destructiva y re-login). La separación es de **espacio lógico**: rutas, guard, módulo y UI.
+- Nuevas tablas de plataforma (sin `companyId`, por diseño **no tenant**):
+  - `PlatformSetting` (singleton): marca, moneda por defecto, trialDays, feature flags, config de notificaciones.
+  - `PlatformAuditLog`: auditoría global (`action`, `entity`, `entityId`, `changes`, `ipAddress`, `userAgent`) — separada de `AuditLog` que es por compañía.
+  - `SupportAccount` (opcional, fase posterior): perfil extra de `SUPPORT_ADMIN` (turno, alcance, notas). Puede empezar como columna simple en `User`.
+
+### 4.2 Distribuidores (nuevas tablas tenant-scoped)
+
+```prisma
+model Distributor {
+  id            String   @id @default(cuid())
+  companyId     String   @map("company_id")
+  code          String                      // SKU/distribuidor único por empresa
+  name          String
+  documentType  String?                     // DNI / RUC
+  documentValue String?
+  email         String?
+  phone         String?
+  address       String?
+  type          DistributorType @default(INDIVIDUAL)   // INDIVIDUAL | COMPANY
+  status        DistributorStatus @default(ACTIVE)     // ACTIVE | SUSPENDED | BLOCKED
+  commissionRate Decimal? @db.Decimal(5,2)  // % sobre venta
+  priceListId   String?                     // lista de precios (extensión futura)
+  notes         String?
+  deletedAt     DateTime?  @map("deleted_at")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId      String?  @unique @map("user_id")   // vínculo opcional a cuenta de acceso
+  company     Company @relation(...)
+  user        User?   @relation(...)
+  movements   InventoryMovement[]
+  sales       Sale[]
+  balances    DistributorBalance[]
+  deliveries  DistributorDelivery[]
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+}
+```
+
+Relaciones de apoyo:
+- `InventoryMovement.distributorId String?` — mercadería enviada (`type = TRANSFER`), devuelta (`RETURN`), vendida (`OUT` con canal distribuidor).
+- `Sale.distributorId String?` + `Sale.channel SaleChannel` (`POS | DISTRIBUTOR | ONLINE`).
+- `DistributorBalance` — saldo/consignación por distribuidor (qty inicial, qty devuelta, qty vendida, deuda).
+- `DistributorDelivery` — despachos/entregas con `status` y detalle de items.
+
+Se **reutilizan** `InventoryMovement` y `Sale` en lugar de duplicar tablas de inventario/ventas: regla `db-use-transactions` y evitar dos fuentes de verdad de stock.
+
+### 4.3 Semántica de inventario con distribuidor
+
+- `TRANSFER` = salida a consignación (stock sale del almacén, no es costo de venta todavía).
+- `SALE` con `channel = DISTRIBUTOR` = venta reportada → genera la transacción de costo (Kardex).
+- `RETURN` = devolución a almacén → restaura disponibilidad.
+- Todo dentro de `$transaction` (Prisma 7: usar `$transaction(async (tx) => …)`).
+
+### 4.4 Regla de negocio: perfil de empresa completo antes de planes de pago
+
+**Regla:** para contratar (empresa nueva) o cambiar a un plan de pago (`START`/`GROWTH`/`SCALE`, mensual o anual), la empresa debe tener su perfil **100 % completo**: `RUC` (11 dígitos), `Razón Social` (≥3), `Dirección` (≥10), `Teléfono` y `Email`. Si el perfil está incompleto, la empresa **solo permanece en FREE**. Es un gate de seguridad de negocio: `plan pago ⇒ perfil completo`.
+
+**Puntos de enforcement (mismo criterio en todos):**
+
+| Punto | Comportamiento |
+|---|---|
+| `PlanUpgradeRequestsService.createRequest` | Bloquea el upgrade (`BadRequestException` + lista de campos faltantes) si `plan.code != FREE` y perfil incompleto |
+| `CheckoutRequestsService.createRequest` (empresa existente) | Ídem: bloquea checkout de plan pago si perfil incompleto |
+| `CheckoutRequestsService.createRequest` (empresa nueva) | Exige capturar RUC, razón social, dirección y teléfono en el formulario de checkout para planes de pago; la empresa nace con `profileComplete = true` |
+| `PlanUpgradeRequestsService.review` / `CheckoutRequestsService.review` (SUPER_ADMIN) | Re-valida el perfil antes de aprobar un plan de pago (defensa en profundidad) |
+| `GET /api/company-profile/completeness` | Devuelve `complete: boolean` + `missingFields` para la UI (bloqueo/CTA en `/subscription` y checkout) |
+| Frontend `/settings/company`, `/subscription`, `/checkout` | Muestran CTA "Completa tu perfil" y bloquean los CTAs de planes pagos si `complete === false` |
+
+**Persistencia:**
+- `companies`: `profile_complete Boolean` (default `false`) y `profile_completed_at DateTime?`. Se sincronizan desde el score del perfil (`profile-completeness.helper.ts`) en cada actualización de la empresa (`PATCH /companies/current`) y en la cron de `CompanyProfileService`.
+- `checkout_requests`: `tax_id`, `legal_name`, `address`, `phone` (nullable) para el registro de nueva empresa con plan pago; se copian a la `Company` al aprobar.
+
+**Backfill:** los planes de pago ya activos se conservan (sin degradar); el gate aplica hacia delante. `profile_complete` se inicializa según el score actual de cada empresa.
+
+---
+
+## 5. Cambios de backend (NestJS)
+
+### 5.1 Módulo nuevo `backend/src/modules/platform/`
+
+```
+src/modules/platform/
+├── dto/
+├── platform.module.ts
+├── platform.controller.ts        // prefijo /platform
+├── platform-companies.controller.ts   // /platform/companies  (CRUD global, suspender/activar)
+├── platform-plans.controller.ts       // /platform/plans
+├── platform-settings.controller.ts    // /platform/settings (pagos globales = hoy /api/payment-settings)
+├── platform-metrics.controller.ts     // /platform/metrics
+├── platform-audit.controller.ts       // /platform/audit
+└── platform-companies.service.ts … etc.
+```
+
+- `PlatformGuard` nuevo (`src/common/guards/platform.guard.ts`): exige `globalRole ∈ {SUPER_ADMIN, SUPPORT_ADMIN}` y **rechaza explícitamente** cualquier `companyId`/tenant context. Registrado con `@UseGuards(PlatformGuard, PermissionsGuard)` a nivel de módulo, **sin** `TenantGuard`.
+- Ruta actual `/api/payment-settings` se **mueve** a `/platform/settings/payment` (se mantiene alias temporal por compatibilidad).
+- `api-versioning`/prefijo: `/platform` queda fuera del `/api` que consume el tenant → la separación es observable en red.
+
+### 5.2 Módulo nuevo `backend/src/modules/distributors/`
+
+```
+src/modules/distributors/
+├── dto/
+├── distributors.module.ts
+├── distributors.controller.ts     // /api/distributors  (TenantGuard + @Roles)
+├── distributor-sales.controller.ts
+├── distributor-inventory.controller.ts  // transfers/returns
+├── distributors.service.ts
+└── distributor-settlement.service.ts
+```
+
+- `@Roles(COMPANY_ADMIN, MANAGER)` para gestión; `distributor:*` vía `@Permissions` para operaciones.
+- `arch-avoid-circular-deps`: `DistributorsModule` importa `PrismaModule` + `InventoryModule`/`SalesModule` (o se comunica por eventos con `arch-use-events`) sin depender de `PlatformModule`.
+
+### 5.3 Endpoints existentes que se reubican
+
+| Hoy | Nuevo |
+|---|---|
+| `GET/PATCH /api/payment-settings` (SUPER_ADMIN) | `GET/PATCH /platform/settings/payment` |
+| `GET /api/companies` (global) | `GET /platform/companies` |
+| `GET /api/plans` (admin) + público checkout | `GET /platform/plans` (admin) y `GET /api/plans` (público, `@Public()`) |
+| `GET /api/audit/global` | `GET /platform/audit` |
+
+### 5.4 Sincronización de permisos
+
+- Crear `backend/src/common/constants/permissions.constant.ts` y `frontend/types/permissions.ts` a partir de **una única fuente** (p. ej. `shared/permissions.ts` generado) o añadir un test/CI que falle si difieren.
+- Añadir permisos `platform:*` y `distributor:*`; eliminar `settings:read/update` (no existen en backend) o implementarlos.
+
+---
+
+## 6. Cambios de frontend (Next.js)
+
+### 6.1 Estructura de rutas
+
+```
+frontend/app/
+├── (dashboard)/          # TENANT — solo roles de empresa
+│   ├── dashboard/  inventory/  products/  categories/
+│   ├── sales/  customers/  employees/  reports/  payments/
+│   ├── subscription/  settings/company/  notifications/
+│   └── distributors/     # NUEVO
+│
+├── (platform)/           # PLATAFORMA — solo SUPER_ADMIN/SUPPORT_ADMIN
+│   ├── layout.tsx        # sidebar propio, data-platform
+│   ├── platform/
+│   │   ├── overview/     # métricas globales
+│   │   ├── companies/
+│   │   ├── subscribers/
+│   │   ├── upgrade-requests/
+│   │   ├── plans/
+│   │   ├── templates/    # invoice templates globales
+│   │   ├── settings/     # pagos globales
+│   │   ├── audit/
+│   │   └── admins/       # gestión de SUPPORT_ADMIN
+```
+
+### 6.2 Enrutado por rol (proxy)
+
+`frontend/proxy.ts`:
+- `/platform/*` → exige sesión + `globalRole ∈ {SUPER_ADMIN, SUPPORT_ADMIN}`; si no → `/forbidden` (o `/sign-in` si no hay sesión).
+- `/dashboard`, `/inventory`, `/sales`, … → exige sesión + al menos un `MembershipRole`; si no → `/forbidden`.
+- Estado de compañía (`INACTIVE`/`SUSPENDED`) solo aplica a rutas tenant, **no** a `/platform`.
+
+### 6.3 Layouts y tema
+
+- `app/(platform)/layout.tsx` → `<div data-platform>…` con sidebar propio (secciones: Resumen, Empresas, Solicitudes, Planes, Plantillas, Pagos globales, Auditoría, Administradores).
+- `app/(dashboard)/layout.tsx` pierde las secciones "Plataforma" y "Sistema" del sidebar actual (`app-sidebar.tsx` se divide en `sidebar-platform.tsx` y `sidebar-tenant.tsx`).
+- El sistema de tema oscuro ya soporta `data-app`; se amplía el selector a `.dark :is([data-app], [data-platform])` en `frontend/app/globals.css`.
+
+### 6.4 Sincronización de permisos (ya iniciada)
+
+- `frontend/types/permissions.ts` y `ROLE_PERMISSIONS`: reflejar `platform:*`, `distributor:*`, quitar `employee:create` de `MANAGER` (hecho), quitar `VIEWER` de Productos en sidebar (hecho).
+- Cada página de `(platform)` usa `PlatformGuard`/`redirect()` temprano en Server Component; cada página de tenant usa su guard correspondiente.
+
+---
+
+## 7. Fases de ejecución
+
+### Fase 0 — Fundación de separación (sin cambio de datos) ✅ *(completada y desplegada)*
+1. ✅ `PlatformGuard` + controlador `platform` (migrado `payment-settings`) bajo `/api/platform`.
+2. ✅ Sidebar de plataforma separado (`platform-sidebar.tsx`); `app-sidebar.tsx` queda solo tenant con "Ir a Plataforma".
+3. ✅ Route group `(platform)` con layout propio y páginas en `/platform/*` (settings/payment incluida) + redirects de rutas viejas.
+4. ✅ `proxy.ts` con guard por rol: `/platform/*` exige SUPER_ADMIN/SUPPORT_ADMIN; tenant conserva `companyStatus`.
+5. ✅ Verificado: `tsc --noEmit` + `next build` frontend, `tsc --noEmit` backend; prod: `/api/platform/context` 401→200 y página `/platform` OK.
+
+### Fase 1 — Modelo de datos (+ gate de perfil) ✅ *(completada, migración aplicada en prod)*
+1. ✅ Esquema Prisma: enums `DistributorType/DistributorStatus/SaleChannel`, modelos `Distributor`, `DistributorBalance`, `DistributorDelivery`; columnas `InventoryMovement.distributorId`, `Sale.distributorId/channel`; `MembershipRole.DISTRIBUTOR`; tablas `PlatformSetting`, `PlatformAuditLog`.
+2. ✅ Columnas de gate de perfil (sección 4.4): `Company.profileComplete/profileCompletedAt` + `CheckoutRequest.taxId/legalName/address/phone`.
+3. ✅ Migración single `20261011000001_phase1_platform_distribuidores_perfil` aditiva (sin DROPs) aplicada con `migrate deploy` + backfill de `profile_complete` + `prisma generate`.
+4. ✅ Seed: distribuidor demo por empresa (`DIST-001`) + `PlatformSetting` inicial.
+5. ✅ Permisos `platform:*` y `distributor:*` en `permissions.constant.ts` + `frontend/types/permissions.ts` (sin drift).
+6. ✅ Enforcement del gate (helper `profile-completeness.helper.ts`) en `PlanUpgradeRequestsService` y `CheckoutRequestsService` (crear + revisar) + `CompaniesService` sincroniza `profileComplete`; `CreateCheckoutRequestDto` con `taxId/legalName/address/phone`.
+7. ✅ Frontend: `/subscription` bloquea CTAs de pago y muestra CTA a `/settings/company` cuando falta perfil; `/checkout` captura datos de empresa para plan de pago en registro nuevo.
+
+### Fase 2 — Backend plataforma ✅ *(completada, desplegada y validada en prod)*
+1. ✅ Controladores de plataforma reutilizando los servicios existentes: `platform/companies`, `platform/plans` (listado admin incl. inactivos), `platform/subscriptions` (subscribers/stats), `platform/checkout-requests`, `platform/upgrade-requests`, `platform/audit`; `platform/settings/payment` ya existía (Fase 0).
+2. ✅ Nuevos `platform/metrics` (KPIs globales: empresas por estado, usuarios, suscripciones por plan, ingresos del mes, solicitudes pendientes) y `platform/admins` (listado + alta/baja de `SUPPORT_ADMIN`) con `PlatformMetricsService`/`PlatformAdminsService`.
+3. ✅ Guard por dominio en todos los controladores: `@UseGuards(JwtAuthGuard, PlatformGuard, PermissionsGuard)` con permisos `platform:*`.
+4. ✅ Alias deprecado: los controladores globales previos (`companies`, `plans`, `subscriptions`, `audit`, `payments/checkout`, `subscriptions/upgrade-requests`) siguen activos sin cambios; el frontend los migrará en Fase 4.
+5. ✅ Tests: `PlatformGuard` rechaza contexto tenant y peticiones sin sesión; `TenantGuard` sigue rechazando contexto de plataforma sin `companyId`. `npm run lint` + `npm test` (50 tests) + `npm run build` limpios.
+
+### Fase 3 — Backend distribuidores ✅ *(completada, desplegada y validada en prod)*
+1. ✅ Módulo `distributors` bajo `/api/distributors` con CRUD, `GET/POST :id/balance`, `transfers`, `returns`, `sales`, `deliveries` y `settlements`; soft delete bloquado si `balanceQuantity>0` o `debtAmount>0`.
+2. ✅ Integración de inventario con `$transaction` + Kardex: transfer decrementa stock de empresa + `InventoryMovement` `TRANSFER` (qty negativa) + Kardex OUT; devolución incrementa stock + `RETURN` (qty positiva) + Kardex IN con `costPrice`; venta distribuidor crea `Sale` con `channel=DISTRIBUTOR` y `distributorId`, actualiza balance (`soldQuantity`/`balanceQuantity`/`debtAmount`) sin tocar stock ni Kardex de empresa; liquidación reduce `debtAmount`.
+3. ✅ Permisos `distributor:*` con `@Permissions` y `@Roles('COMPANY_ADMIN','MANAGER')`; settlements solo `COMPANY_ADMIN`. `DistributorsModule` registrado en `app.module.ts`.
+4. ✅ Tests: `distributors.service.spec.ts` (+6 tests; total 56/56, 16 suites); `npm run lint` + `npm run build` limpios.
+5. ✅ Validado en prod (tenant demo acme): CRUD (201/200), transfer 20 (stock 100→80, `startingQuantity`+20, `InventoryMovement TRANSFER -20`, Kardex OUT balance 80), venta 5 (`Sale channel=DISTRIBUTOR`, `debtAmount` 75, balance 15, stock empresa intacto), liquidación 30 (`debtAmount` 45), devolución 3 (`returnedQuantity` 3, balance 12, stock 80→83), cierre y soft-delete (404 tras borrar).
+
+### Fase 4 — Frontend ✅ *(completada, desplegada y validada en prod)*
+1. ✅ `(platform)`: páginas de plataforma + sidebar + guard *(hecho en Fase 0)*.
+2. ✅ Quitar de `(dashboard)` las páginas de plataforma y sus enlaces *(hecho en Fase 0)*.
+3. ✅ `(dashboard)/distributors`: lista (`/distributors` con KPIs de stock en consigna y deuda total), alta (`/distributors/new`), detalle (`/distributors/[id]`: balance, panel de operaciones e historial de ventas/despachos) y edición (`/distributors/[id]/edit`). Componentes `distributor-form.tsx`, `distributor-actions.tsx` y `distributor-operations.tsx` (transferir/devolver stock, registrar venta multi-ítem, liquidar deuda, crear despacho). Tipos en `types/distributors.ts`; enlace "Distribuidores" en el sidebar (`COMPANY_ADMIN`/`MANAGER`); `DeleteDialog` extendido con la entidad `distributor`. `lint` (tsc) + `build` en verde.
+   - **Validado en prod (Vercel)**: `/distributors` sin sesión → 307 a `/sign-in`; con sesión de `admin@acme.local` → 200 renderizando "Canal distribuidores", KPIs y estado vacío (tras limpieza de datos de prueba); `/distributors/new` → 200 con el formulario de alta.
+4. ✅ Integrar "Canal: Distribuidor" en POS/ventas y filtros en reportes.
+   - **Backend**: `CreateSaleDto` acepta `channel` (`POS`/`DISTRIBUTOR`/`ONLINE`) y `distributorId`; con `channel=DISTRIBUTOR`, `SalesService.createSale` delega en `DistributorsService.registerSale` (descuenta consigna, suma deuda, **sin tocar stock/Kardex de empresa**). El canal se persiste en la venta, se incluye en el listado reciente y filtra la exportación. `reports/overview` acepta `channel`, `startDate`, `endDate` y agrega `byChannel` (ventas/ingresos) más el rango aplicado en `filters`.
+   - **Frontend**: el POS (`sale-form`) tiene selector de canal (Tienda/Online/Distribuidor) con selección de distribuidor; `reports` migró a cliente interactivo con filtros de canal y rango de fechas + tarjeta "Ventas por canal" y variación de ingresos; el listado de ventas muestra el canal.
+   - **Validado en prod**: `POST /sales` `channel=ONLINE` → 201 `channel=ONLINE` (aparece en el listado y en `reports?channel=ONLINE`). `POST /sales` `channel=DISTRIBUTOR` con distribuidor → 201 `channel=DISTRIBUTOR` + `distributorId`, balance `soldQuantity=3`/`balanceQuantity=7`/`deuda=45`, stock de empresa intacto (84); `reports?channel=DISTRIBUTOR` refleja las ventas del canal. Limpieza posterior: settle 45, return 7 (stock 91), soft-delete OK. `reports/overview` responde con `byChannel` y `filters`; frontend `/reports` y `/sales/new` renderizan los controles nuevos.
+
+### Fase 5 — Endurecimiento
+1. Tests e2e (Supertest) por dominio: acceso cross-domain debe dar 403.
+2. Auditoría de enforcement: toda página con su guard; sin `serverApiFetch` que oculte 403 sin feedback.
+3. CI que compare permisos frontend vs backend.
+4. Documentar flujos y actualizar `docs/informes/informe-sistema-permisos-rbac.md`.
+
+---
+
+## 8. Criterios de aceptación
+
+- [ ] `GET /platform/**` responde 403 para cualquier usuario sin `globalRole` SUPER_ADMIN/SUPPORT_ADMIN, incluso con companyId.
+- [ ] Ninguna página de `(platform)` es accesible desde el sidebar de tenant ni viceversa.
+- [ ] `TenantGuard` no interviene en `/platform`; `PlatformGuard` no interviene en `/api/tenant`.
+- [ ] El SUPER_ADMIN puede gestionar empresas/planes/pagos globales **sin** que aparezcan secciones de empresa (productos/ventas) en su UI.
+- [ ] Un `COMPANY_ADMIN` no puede abrir ninguna ruta `/platform`.
+- [ ] Un distribuidor existe en cada empresa, recibe mercadería (`TRANSFER`), reporta ventas y genera Kardex; el stock global es consistente (`$transaction`).
+- [ ] `npm run lint` y `npm run build` limpios en frontend y backend; migración aplicada sin pérdida.
+- [ ] Permisos frontend ↔ backend sin drift (verificado por test/CI).
+- [ ] Una empresa con perfil incompleto no puede solicitar ni mantener-upgrade a un plan pago: el backend responde `400` con los campos faltantes y su plan permanece FREE.
+- [ ] El registro de empresa nueva con plan pago captura RUC/razón social/dirección/teléfono y crea la empresa con `profileComplete = true`.
+
+---
+
+## 9. Riesgos y mitigación
+
+| Riesgo | Mitigación |
+|---|---|
+| Romper rutas/productivos al mover páginas | Fase 0 primero; mantener aliases + `redirect()` temporal en las rutas viejas |
+| Drift de permisos frontend/backend | Fuente única + test de CI (ya hay precedentes de drift) |
+| Stock inconsistente con distribuidores | Solo `DistributorsModule → InventoryModule` con `$transaction`; nunca toques inversos |
+| `TenantGuard`/`PlatformGuard` solapándose | Guards excluyentes; tests e2e de 403 cross-domain |
+| Depreciar `GlobalRole.ADMIN` | Verificar 0 usos antes de eliminar; migración con `USING` si hace falta |
+
+---
+
+## 10. Fuera de alcance (por ahora)
+
+- Multi-tenant por región / sharding.
+- Reemplazo de JWT por sesiones.
+- Listas de precios por distribuidor (dejado como `priceListId` opcional).
+- Migración de `User` a una tabla `PlatformUser` separada (se deja registrada como opción futura si la mezcla vuelve a ser un problema).

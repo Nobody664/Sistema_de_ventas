@@ -1,10 +1,19 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { Search, Loader2, Check, AlertCircle, User, X, FileText, Building2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { apiFetch } from '@/lib/api';
+import { useState, useCallback, useEffect } from "react";
+import {
+  Search,
+  Loader2,
+  Check,
+  AlertCircle,
+  User,
+  X,
+  FileText,
+  Building2,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth.store";
 
 interface CustomerData {
   id?: string;
@@ -33,29 +42,41 @@ interface CustomerSearchProps {
   customers?: ApiCustomer[];
 }
 
-export function CustomerSearch({ onSelect, showExisting = true, customers = [] }: CustomerSearchProps) {
-  const { data: session } = useSession();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [documentType, setDocumentType] = useState<'DNI' | 'RUC'>('DNI');
+export function CustomerSearch({
+  onSelect,
+  showExisting = true,
+  customers = [],
+}: CustomerSearchProps) {
+  const user = useAuthStore((state) => state.user);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [documentType, setDocumentType] = useState<"DNI" | "RUC">("DNI");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<CustomerData | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
+    null,
+  );
 
-  const filteredCustomers = showExisting && searchQuery.length >= 1
-    ? customers.filter(c => 
-        c.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.documentValue?.includes(searchQuery)
-      ).slice(0, 5)
-    : [];
+  const filteredCustomers =
+    showExisting && searchQuery.length >= 1
+      ? customers
+          .filter(
+            (c) =>
+              c.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              c.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              c.documentValue?.includes(searchQuery),
+          )
+          .slice(0, 5)
+      : [];
 
   const searchDocument = useCallback(async () => {
-    if (!searchQuery || 
-        (documentType === 'DNI' && searchQuery.length !== 8) || 
-        (documentType === 'RUC' && searchQuery.length !== 11)) {
+    if (
+      !searchQuery ||
+      (documentType === "DNI" && searchQuery.length !== 8) ||
+      (documentType === "RUC" && searchQuery.length !== 11)
+    ) {
       return;
     }
 
@@ -66,7 +87,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
     setSelectedCustomer(null);
 
     try {
-      if (documentType === 'DNI') {
+      if (documentType === "DNI") {
         const data = await apiFetch<{
           dni: string;
           nombre?: string;
@@ -76,16 +97,17 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
           telefono?: string;
           direccion?: string;
         }>(`/dni/${searchQuery}`, {
-          token: session?.accessToken,
+          token: getAccessToken(),
         });
 
         if (data) {
           setResult({
-            firstName: data.nombres || data.apellidoPaterno || '',
-            lastName: data.apellidoPaterno && data.apellidoMaterno 
-              ? `${data.apellidoPaterno} ${data.apellidoMaterno}`
-              : data.apellidoPaterno || '',
-            documentType: 'DNI',
+            firstName: data.nombres || data.apellidoPaterno || "",
+            lastName:
+              data.apellidoPaterno && data.apellidoMaterno
+                ? `${data.apellidoPaterno} ${data.apellidoMaterno}`
+                : data.apellidoPaterno || "",
+            documentType: "DNI",
             documentValue: data.dni,
             phone: data.telefono,
           });
@@ -98,14 +120,14 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
           direccion?: string;
           estado?: string;
         }>(`/dni/ruc/${searchQuery}`, {
-          token: session?.accessToken,
+          token: getAccessToken(),
         });
 
         if (data) {
           setResult({
             firstName: data.nombre,
-            lastName: '',
-            documentType: 'RUC',
+            lastName: "",
+            documentType: "RUC",
             documentValue: data.ruc,
             direccion: data.direccion,
           });
@@ -113,11 +135,11 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se encontraron datos');
+      setError(err instanceof Error ? err.message : "No se encontraron datos");
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, documentType, session?.accessToken]);
+  }, [searchQuery, documentType]);
 
   const handleSelectCustomer = (customer: ApiCustomer) => {
     const customerData: CustomerData = {
@@ -130,7 +152,9 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
       phone: customer.phone ?? undefined,
     };
     setSelectedCustomer(customerData);
-    setSearchQuery(customer.documentValue || `${customer.firstName} ${customer.lastName}`);
+    setSearchQuery(
+      customer.documentValue || `${customer.firstName} ${customer.lastName}`,
+    );
     setShowDropdown(false);
     onSelect?.(customerData);
   };
@@ -143,7 +167,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
   };
 
   const handleClear = () => {
-    setSearchQuery('');
+    setSearchQuery("");
     setResult(null);
     setSelectedCustomer(null);
     setError(null);
@@ -151,7 +175,10 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
     onSelect?.(null as unknown as CustomerData);
   };
 
-  const isValidLength = documentType === 'DNI' ? searchQuery.length === 8 : searchQuery.length === 11;
+  const isValidLength =
+    documentType === "DNI"
+      ? searchQuery.length === 8
+      : searchQuery.length === 11;
 
   useEffect(() => {
     if (isValidLength && searchQuery) {
@@ -164,11 +191,15 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => { setDocumentType('DNI'); setResult(null); setSelectedCustomer(null); }}
+          onClick={() => {
+            setDocumentType("DNI");
+            setResult(null);
+            setSelectedCustomer(null);
+          }}
           className={`flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-            documentType === 'DNI'
-              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            documentType === "DNI"
+              ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
           }`}
         >
           <User className="h-4 w-4" />
@@ -176,11 +207,15 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
         </button>
         <button
           type="button"
-          onClick={() => { setDocumentType('RUC'); setResult(null); setSelectedCustomer(null); }}
+          onClick={() => {
+            setDocumentType("RUC");
+            setResult(null);
+            setSelectedCustomer(null);
+          }}
           className={`flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-            documentType === 'RUC'
-              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            documentType === "RUC"
+              ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
           }`}
         >
           <Building2 className="h-4 w-4" />
@@ -194,23 +229,27 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
             <Input
               value={searchQuery}
               onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '');
-                const maxLength = documentType === 'DNI' ? 8 : 11;
+                const value = e.target.value.replace(/\D/g, "");
+                const maxLength = documentType === "DNI" ? 8 : 11;
                 setSearchQuery(value.slice(0, maxLength));
                 setShowDropdown(true);
                 setResult(null);
                 setSelectedCustomer(null);
               }}
               onFocus={() => setShowDropdown(true)}
-              placeholder={documentType === 'DNI' ? 'Buscar por DNI (8 dígitos)' : 'Buscar por RUC (11 dígitos)'}
+              placeholder={
+                documentType === "DNI"
+                  ? "Buscar por DNI (8 dígitos)"
+                  : "Buscar por RUC (11 dígitos)"
+              }
               className={`h-12 rounded-xl border-2 bg-slate-50/50 pl-10 pr-20 transition-all ${
-                success 
-                  ? 'border-emerald-500 bg-emerald-50/50 focus:border-emerald-500 focus:ring-emerald-500/20' 
-                  : error 
-                    ? 'border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-500/20'
+                success
+                  ? "border-emerald-500 bg-emerald-50/50 focus:border-emerald-500 focus:ring-emerald-500/20"
+                  : error
+                    ? "border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-500/20"
                     : isValidLength
-                      ? 'border-blue-500 bg-white focus:border-blue-500 focus:ring-blue-500/20'
-                      : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/20'
+                      ? "border-blue-500 bg-white focus:border-blue-500 focus:ring-blue-500/20"
+                      : "border-slate-200 focus:border-blue-500 focus:ring-blue-500/20"
               }`}
             />
             <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
@@ -254,7 +293,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
                   </p>
                   <p className="text-sm text-slate-500 flex items-center gap-1">
                     <FileText className="h-3 w-3" />
-                    {customer.documentValue || 'Sin documento'}
+                    {customer.documentValue || "Sin documento"}
                   </p>
                 </div>
               </button>
@@ -271,23 +310,26 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
       )}
 
       {result && !selectedCustomer && (
-        <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4">
+        <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-500/15 dark:to-teal-500/10 border border-emerald-200 p-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <Check className="h-4 w-4 text-emerald-600" />
                 <p className="text-sm font-semibold text-emerald-800">
-                  {documentType === 'DNI' ? 'Datos encontrados' : 'Empresa encontrada'}
+                  {documentType === "DNI"
+                    ? "Datos encontrados"
+                    : "Empresa encontrada"}
                 </p>
               </div>
               <p className="font-bold text-emerald-900 text-lg">
-                {documentType === 'DNI' 
+                {documentType === "DNI"
                   ? `${result.firstName} ${result.lastName}`.trim()
-                  : result.firstName
-                }
+                  : result.firstName}
               </p>
               {result.phone && (
-                <p className="text-sm text-emerald-700 mt-1">Tel: {result.phone}</p>
+                <p className="text-sm text-emerald-700 mt-1">
+                  Tel: {result.phone}
+                </p>
               )}
               {result.direccion && (
                 <p className="text-sm text-emerald-700">{result.direccion}</p>
@@ -305,7 +347,7 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
       )}
 
       {selectedCustomer && (
-        <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-4">
+        <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-500/15 dark:to-indigo-500/10 border border-blue-200 p-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
               <User className="h-6 w-6 text-white" />
@@ -316,7 +358,8 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
               </p>
               <p className="text-sm text-slate-500 flex items-center gap-2">
                 <FileText className="h-3 w-3" />
-                {selectedCustomer.documentType}: {selectedCustomer.documentValue}
+                {selectedCustomer.documentType}:{" "}
+                {selectedCustomer.documentValue}
                 {selectedCustomer.email && (
                   <>
                     <span className="text-slate-300">|</span>
@@ -338,7 +381,9 @@ export function CustomerSearch({ onSelect, showExisting = true, customers = [] }
 
       <div className="flex items-center gap-2 text-xs text-slate-400">
         <AlertCircle className="h-3 w-3" />
-        <span>La búsqueda es opcional. Puedes registrar la venta sin cliente.</span>
+        <span>
+          La búsqueda es opcional. Puedes registrar la venta sin cliente.
+        </span>
       </div>
     </div>
   );

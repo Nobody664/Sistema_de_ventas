@@ -1,47 +1,86 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
-import { PlanUpgradeRequestsService } from './plan-upgrade-requests.service';
-import { CreatePlanUpgradeRequestDto, SubmitUpgradeProofDto, ReviewPlanUpgradeDto } from './dto/plan-upgrade.dto';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { Roles } from '@/common/decorators/roles.decorator';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  BadRequestException,
+  ParseUUIDPipe,
+} from "@nestjs/common";
+import { PlanUpgradeRequestsService } from "./plan-upgrade-requests.service";
+import {
+  CreatePlanUpgradeRequestDto,
+  SubmitUpgradeProofDto,
+  ReviewPlanUpgradeDto,
+} from "./dto/plan-upgrade.dto";
+import {
+  AuthUser,
+  CurrentUser,
+} from "@/common/decorators/current-user.decorator";
+import { Roles } from "@/common/decorators/roles.decorator";
 
-@Controller('subscriptions/upgrade-requests')
-@UseGuards(JwtAuthGuard)
+@Controller("subscriptions/upgrade-requests")
 export class PlanUpgradeRequestsController {
-  constructor(private readonly planUpgradeRequestsService: PlanUpgradeRequestsService) {}
+  constructor(
+    private readonly planUpgradeRequestsService: PlanUpgradeRequestsService,
+  ) {}
 
   @Post()
-  create(@Request() req: { tenantId: string }, @Body() body: CreatePlanUpgradeRequestDto) {
-    return this.planUpgradeRequestsService.createRequest(req.tenantId, body);
+  create(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreatePlanUpgradeRequestDto,
+  ) {
+    if (!user.companyId) {
+      throw new BadRequestException(
+        "Acción solo disponible para empresas activas.",
+      );
+    }
+    return this.planUpgradeRequestsService.createRequest(user.companyId, body);
   }
 
-  @Post(':id/proof')
-  submitProof(@Param('id', ParseUUIDPipe) id: string, @Body() body: SubmitUpgradeProofDto) {
-    return this.planUpgradeRequestsService.submitProof(id, body);
+  @Post(":id/proof")
+  submitProof(
+    @CurrentUser() user: AuthUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() body: SubmitUpgradeProofDto,
+  ) {
+    if (!user.companyId) {
+      throw new BadRequestException(
+        "Acción solo disponible para empresas activas.",
+      );
+    }
+    return this.planUpgradeRequestsService.submitProof(
+      id,
+      user.companyId,
+      body,
+    );
   }
 
-  @Get('my')
-  getMyRequests(@Request() req: { tenantId: string }) {
-    return this.planUpgradeRequestsService.getByCompany(req.tenantId);
+  @Get("my")
+  getMyRequests(@CurrentUser() user: AuthUser) {
+    return this.planUpgradeRequestsService.getByCompany(user.companyId ?? "");
   }
 
-  @Get('my/pending')
-  getMyPendingRequest(@Request() req: { tenantId: string }) {
-    return this.planUpgradeRequestsService.getPendingRequest(req.tenantId);
+  @Get("my/pending")
+  getMyPendingRequest(@CurrentUser() user: AuthUser) {
+    return this.planUpgradeRequestsService.getPendingRequest(
+      user.companyId ?? "",
+    );
   }
 
-  @Roles('SUPER_ADMIN')
-  @Get('pending')
+  @Roles("SUPER_ADMIN")
+  @Get("pending")
   getPending() {
     return this.planUpgradeRequestsService.getPending();
   }
 
-  @Roles('SUPER_ADMIN')
-  @Post(':id/review')
+  @Roles("SUPER_ADMIN")
+  @Post(":id/review")
   review(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: { user: { id: string } },
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
     @Body() body: ReviewPlanUpgradeDto,
   ) {
-    return this.planUpgradeRequestsService.review(id, req.user.id, body);
+    return this.planUpgradeRequestsService.review(id, user.sub, body);
   }
 }

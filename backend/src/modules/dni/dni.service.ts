@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { CacheService } from "@/cache/cache.service";
 
 export interface DniResponse {
   dni: string;
@@ -25,21 +30,32 @@ export class DniService {
   private readonly reniecToken: string;
   private readonly sunatUrl: string;
 
-  constructor(private readonly configService: ConfigService) {
-    this.reniecUrl = this.configService.get<string>('RENIEC_API_URL') || 'https://api.reniec.cloud/dni';
-    this.reniecToken = this.configService.get<string>('RENIEC_API_TOKEN') || '';
-    this.sunatUrl = this.configService.get<string>('SUNAT_API_URL') || 'https://api.sunat.cloud/rucs';
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly cache: CacheService,
+  ) {
+    this.reniecUrl =
+      this.configService.get<string>("RENIEC_API_URL") ||
+      "https://api.reniec.cloud/dni";
+    this.reniecToken = this.configService.get<string>("RENIEC_API_TOKEN") || "";
+    this.sunatUrl =
+      this.configService.get<string>("SUNAT_API_URL") ||
+      "https://api.sunat.cloud/rucs";
   }
 
   async findByDni(dni: string): Promise<DniResponse> {
     if (!dni || dni.length !== 8 || !/^\d{8}$/.test(dni)) {
-      throw new BadRequestException('DNI debe tener 8 dígitos');
+      throw new BadRequestException("DNI debe tener 8 dígitos");
     }
+
+    const cacheKey = `dni:${dni}`;
+    const cached = await this.cache.get<DniResponse>(cacheKey);
+    if (cached) return cached;
 
     try {
       const headers: Record<string, string> = {};
       if (this.reniecToken) {
-        headers['Authorization'] = `Bearer ${this.reniecToken}`;
+        headers["Authorization"] = `Bearer ${this.reniecToken}`;
       }
 
       const controller = new AbortController();
@@ -54,46 +70,56 @@ export class DniService {
 
       if (!response.ok) {
         if (response.status === 404) {
-          throw new NotFoundException('DNI no encontrado en RENIEC');
+          throw new NotFoundException("DNI no encontrado en RENIEC");
         }
         if (response.status === 401) {
-          throw new BadRequestException('Error de autenticación con RENIEC');
+          throw new BadRequestException("Error de autenticación con RENIEC");
         }
-        throw new BadRequestException(`Error al consultar DNI: ${response.status}`);
+        throw new BadRequestException(
+          `Error al consultar DNI: ${response.status}`,
+        );
       }
 
-      const data = await response.json() as DniResponse;
-      
+      const data = (await response.json()) as DniResponse;
+
       if (data) {
-        return {
+        const result: DniResponse = {
           dni: data.dni || dni,
-          nombres: data.nombres || '',
-          apellidoPaterno: data.apellidoPaterno || '',
-          apellidoMaterno: data.apellidoMaterno || '',
+          nombres: data.nombres || "",
+          apellidoPaterno: data.apellidoPaterno || "",
+          apellidoMaterno: data.apellidoMaterno || "",
           direccion: data.direccion,
           sexo: data.sexo,
           fechaNacimiento: data.fechaNacimiento,
         };
+        await this.cache.set(cacheKey, result, 86400);
+        return result;
       }
 
-      throw new NotFoundException('DNI no encontrado');
+      throw new NotFoundException("DNI no encontrado");
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new BadRequestException('Tiempo de conexión agotado con RENIEC');
+        if (error.name === "AbortError") {
+          throw new BadRequestException(
+            "Tiempo de conexión agotado con RENIEC",
+          );
         }
-        if (error.message.includes('DNI no encontrado')) {
+        if (error.message.includes("DNI no encontrado")) {
           throw error;
         }
       }
-      throw new BadRequestException('Error al consultar DNI');
+      throw new BadRequestException("Error al consultar DNI");
     }
   }
 
   async findByRuc(ruc: string): Promise<RucResponse> {
     if (!ruc || ruc.length !== 11 || !/^\d{11}$/.test(ruc)) {
-      throw new BadRequestException('RUC debe tener 11 dígitos');
+      throw new BadRequestException("RUC debe tener 11 dígitos");
     }
+
+    const cacheKey = `ruc:${ruc}`;
+    const cached = await this.cache.get<RucResponse>(cacheKey);
+    if (cached) return cached;
 
     try {
       const controller = new AbortController();
@@ -107,34 +133,38 @@ export class DniService {
 
       if (!response.ok) {
         if (response.status === 404) {
-          throw new NotFoundException('RUC no encontrado en SUNAT');
+          throw new NotFoundException("RUC no encontrado en SUNAT");
         }
-        throw new BadRequestException(`Error al consultar RUC: ${response.status}`);
+        throw new BadRequestException(
+          `Error al consultar RUC: ${response.status}`,
+        );
       }
 
-      const data = await response.json() as RucResponse;
-      
+      const data = (await response.json()) as RucResponse;
+
       if (data) {
-        return {
+        const result: RucResponse = {
           ruc: data.ruc || ruc,
-          nombre: data.nombre || '',
+          nombre: data.nombre || "",
           estado: data.estado,
           direccion: data.direccion,
           telefono: data.telefono,
         };
+        await this.cache.set(cacheKey, result, 86400);
+        return result;
       }
 
-      throw new NotFoundException('RUC no encontrado');
+      throw new NotFoundException("RUC no encontrado");
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new BadRequestException('Tiempo de conexión agotado con SUNAT');
+        if (error.name === "AbortError") {
+          throw new BadRequestException("Tiempo de conexión agotado con SUNAT");
         }
-        if (error.message.includes('RUC no encontrado')) {
+        if (error.message.includes("RUC no encontrado")) {
           throw error;
         }
       }
-      throw new BadRequestException('Error al consultar RUC');
+      throw new BadRequestException("Error al consultar RUC");
     }
   }
 }

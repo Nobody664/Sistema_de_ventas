@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
 
 @Injectable()
 export class UsersService {
@@ -24,15 +24,14 @@ export class UsersService {
         email: input.email,
         passwordHash: input.passwordHash,
         fullName: input.fullName,
-        globalRole: 'USER',
+        globalRole: "USER",
         memberships: {
           create: {
             companyId: input.companyId,
-            role: 'COMPANY_ADMIN',
+            role: "COMPANY_ADMIN",
           },
         },
       },
     });
   }
 }
-

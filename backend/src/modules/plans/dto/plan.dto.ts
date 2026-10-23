@@ -1,4 +1,18 @@
-import { IsArray, IsBoolean, IsIn, IsInt, IsNumberString, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
+import { Type } from "class-transformer";
+import {
+  PLAN_FEATURE_KEYS,
+  PLAN_MODULE_KEYS,
+} from "@/modules/plan-capabilities/plan-capabilities.constants";
 
 export class CreatePlanDto {
   @IsString()
@@ -11,14 +25,16 @@ export class CreatePlanDto {
   @IsString()
   description?: string;
 
-  @IsNumberString()
-  priceMonthly!: string;
+  @IsNumber()
+  @Type(() => Number)
+  priceMonthly!: number;
 
-  @IsNumberString()
-  priceYearly!: string;
+  @IsNumber()
+  @Type(() => Number)
+  priceYearly!: number;
 
-  @IsIn(['MONTHLY', 'YEARLY'])
-  billingCycle!: 'MONTHLY' | 'YEARLY';
+  @IsIn(["MONTHLY", "YEARLY"])
+  billingCycle!: "MONTHLY" | "YEARLY";
 
   @IsOptional()
   @IsInt()
@@ -32,6 +48,29 @@ export class CreatePlanDto {
 
   @IsArray()
   features!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(PLAN_MODULE_KEYS as unknown as string[], { each: true })
+  modules?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(PLAN_FEATURE_KEYS as unknown as string[], { each: true })
+  permissions?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  apiEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  apiSearchDniEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  apiQuota?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -48,16 +87,18 @@ export class UpdatePlanDto {
   description?: string;
 
   @IsOptional()
-  @IsNumberString()
-  priceMonthly?: string;
+  @IsNumber()
+  @Type(() => Number)
+  priceMonthly?: number;
 
   @IsOptional()
-  @IsNumberString()
-  priceYearly?: string;
+  @IsNumber()
+  @Type(() => Number)
+  priceYearly?: number;
 
   @IsOptional()
-  @IsIn(['MONTHLY', 'YEARLY'])
-  billingCycle?: 'MONTHLY' | 'YEARLY';
+  @IsIn(["MONTHLY", "YEARLY"])
+  billingCycle?: "MONTHLY" | "YEARLY";
 
   @IsOptional()
   @IsInt()
@@ -72,6 +113,29 @@ export class UpdatePlanDto {
   @IsOptional()
   @IsArray()
   features?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(PLAN_MODULE_KEYS as unknown as string[], { each: true })
+  modules?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(PLAN_FEATURE_KEYS as unknown as string[], { each: true })
+  permissions?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  apiEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  apiSearchDniEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  apiQuota?: number;
 
   @IsOptional()
   @IsBoolean()

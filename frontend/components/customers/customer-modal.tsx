@@ -1,13 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -16,20 +15,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { apiFetch } from '@/lib/api';
-import { useUiStore } from '@/store/ui-store';
-import { 
-  validatePhone, 
-  validateEmail, 
-  validateDNI, 
-  validateRUC,
+} from "@/components/ui/dialog";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useUiStore } from "@/store/ui-store";
+import { useAuthStore } from "@/stores/auth.store";
+import {
+  validatePhone,
+  validateEmail,
   validateTextOnly,
+  validateDNI,
+  validateRUC,
   formatPhone,
   formatDNI,
-  PERU_VALIDATIONS 
-} from '@/lib/validations';
-import type { Customer } from '@/types/api';
+  PERU_VALIDATIONS,
+} from "@/lib/validations";
+import type { Customer } from "@/types/api";
 
 interface CustomerModalProps {
   customer?: Customer | null;
@@ -37,7 +37,7 @@ interface CustomerModalProps {
 }
 
 export function CustomerModal({ customer, children }: CustomerModalProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const router = useRouter();
   const addToast = useUiStore((state) => state.addToast);
@@ -49,22 +49,22 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
 
   const validateForm = (formData: FormData): boolean => {
     const newErrors: Record<string, string> = {};
-    
-    const firstName = formData.get('firstName') as string;
-    const lastName = formData.get('lastName') as string;
-    const email = formData.get('email') as string;
-    const phone = formData.get('phone') as string;
-    const documentType = formData.get('documentType') as string;
-    const documentValue = formData.get('documentValue') as string;
+
+    const firstName = formData.get("firstName") as string;
+    const lastName = formData.get("lastName") as string;
+    const email = formData.get("email") as string;
+    const phone = formData.get("phone") as string;
+    const documentType = formData.get("documentType") as string;
+    const documentValue = formData.get("documentValue") as string;
 
     if (!firstName || firstName.trim().length < 2) {
-      newErrors.firstName = 'El nombre debe tener al menos 2 caracteres';
+      newErrors.firstName = "El nombre debe tener al menos 2 caracteres";
     } else if (!validateTextOnly(firstName)) {
-      newErrors.firstName = 'Solo se permiten letras';
+      newErrors.firstName = "Solo se permiten letras";
     }
 
     if (lastName && !validateTextOnly(lastName)) {
-      newErrors.lastName = 'Solo se permiten letras';
+      newErrors.lastName = "Solo se permiten letras";
     }
 
     if (email && !validateEmail(email)) {
@@ -75,12 +75,25 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
       newErrors.phone = PERU_VALIDATIONS.phone.error;
     }
 
-    if (documentType === 'DNI' && documentValue && !validateDNI(documentValue)) {
+    if (
+      documentType === "DNI" &&
+      documentValue &&
+      !validateDNI(documentValue)
+    ) {
       newErrors.documentValue = PERU_VALIDATIONS.dni.error;
-    } else if (documentType === 'RUC' && documentValue && !validateRUC(documentValue)) {
+    } else if (
+      documentType === "RUC" &&
+      documentValue &&
+      !validateRUC(documentValue)
+    ) {
       newErrors.documentValue = PERU_VALIDATIONS.ruc.error;
-    } else if (documentType === 'CE' && documentValue && documentValue.length < 8) {
-      newErrors.documentValue = 'El carnet de extranjeria debe tener al menos 8 caracteres';
+    } else if (
+      documentType === "CE" &&
+      documentValue &&
+      documentValue.length < 8
+    ) {
+      newErrors.documentValue =
+        "El carnet de extranjeria debe tener al menos 8 caracteres";
     }
 
     setErrors(newErrors);
@@ -112,32 +125,42 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
     }
 
     const data = {
-      firstName: formData.get('firstName'),
-      lastName: formData.get('lastName') || null,
-      email: formData.get('email') || null,
-      phone: formData.get('phone') || null,
-      documentType: formData.get('documentType') || null,
-      documentValue: formData.get('documentValue') || null,
-      notes: formData.get('notes') || null,
+      firstName: formData.get("firstName"),
+      lastName: formData.get("lastName") || null,
+      email: formData.get("email") || null,
+      phone: formData.get("phone") || null,
+      documentType: formData.get("documentType") || null,
+      documentValue: formData.get("documentValue") || null,
+      notes: formData.get("notes") || null,
     };
 
     try {
-      const url = isEdit ? `/customers/${customer.id}` : '/customers';
-      const method = isEdit ? 'PATCH' : 'POST';
+      const url = isEdit ? `/customers/${customer.id}` : "/customers";
+      const method = isEdit ? "PATCH" : "POST";
 
       await apiFetch(url, {
         method,
-        token: session?.accessToken,
+        token: getAccessToken(),
         body: JSON.stringify(data),
       });
 
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       router.refresh();
-      addToast(isEdit ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
+      addToast(
+        isEdit
+          ? "Cliente actualizado correctamente"
+          : "Cliente creado correctamente",
+        "success",
+      );
       setOpen(false);
     } catch (err) {
-      setErrors({ general: err instanceof Error ? err.message : 'Error desconocido' });
-      addToast(err instanceof Error ? err.message : 'Error al guardar cliente', 'error');
+      setErrors({
+        general: err instanceof Error ? err.message : "Error desconocido",
+      });
+      addToast(
+        err instanceof Error ? err.message : "Error al guardar cliente",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -148,72 +171,88 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Editar cliente" : "Nuevo cliente"}
+          </DialogTitle>
           <DialogDescription>
-            {isEdit ? 'Actualiza los datos del cliente' : 'Completa los datos para registrar un nuevo cliente'}
+            {isEdit
+              ? "Actualiza los datos del cliente"
+              : "Completa los datos para registrar un nuevo cliente"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {errors.general && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{errors.general}</div>}
-            <div className="grid grid-cols-2 gap-4">
+            {errors.general && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                {errors.general}
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Nombres *</Label>
-                <Input 
-                  id="firstName" 
-                  name="firstName" 
-                  required 
-                  defaultValue={customer?.firstName} 
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  required
+                  defaultValue={customer?.firstName}
                   placeholder="Juan"
                   maxLength={100}
                 />
-                {errors.firstName && <p className="text-xs text-red-500">{errors.firstName}</p>}
+                {errors.firstName && (
+                  <p className="text-xs text-red-500">{errors.firstName}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Apellidos</Label>
-                <Input 
-                  id="lastName" 
-                  name="lastName" 
-                  defaultValue={customer?.lastName || ''} 
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  defaultValue={customer?.lastName || ""}
                   placeholder="Perez"
                   maxLength={100}
                 />
-                {errors.lastName && <p className="text-xs text-red-500">{errors.lastName}</p>}
+                {errors.lastName && (
+                  <p className="text-xs text-red-500">{errors.lastName}</p>
+                )}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  name="email" 
-                  type="email" 
-                  defaultValue={customer?.email || ''} 
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={customer?.email || ""}
                   placeholder="juan@ejemplo.com"
                   maxLength={255}
                 />
-                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+                {errors.email && (
+                  <p className="text-xs text-red-500">{errors.email}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefono</Label>
-                <Input 
-                  id="phone" 
-                  name="phone" 
-                  defaultValue={customer?.phone || ''} 
+                <Input
+                  id="phone"
+                  name="phone"
+                  defaultValue={customer?.phone || ""}
                   placeholder="+51 900 000 000"
                   maxLength={15}
                   onChange={handlePhoneChange}
                 />
-                {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+                {errors.phone && (
+                  <p className="text-xs text-red-500">{errors.phone}</p>
+                )}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="documentType">Tipo documento</Label>
                 <select
                   id="documentType"
                   name="documentType"
-                  defaultValue={customer?.documentType || ''}
+                  defaultValue={customer?.documentType || ""}
                   className="flex h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm"
                 >
                   <option value="">Seleccionar</option>
@@ -224,35 +263,41 @@ export function CustomerModal({ customer, children }: CustomerModalProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="documentValue">Numero documento</Label>
-                <Input 
-                  id="documentValue" 
-                  name="documentValue" 
-                  defaultValue={customer?.documentValue || ''} 
+                <Input
+                  id="documentValue"
+                  name="documentValue"
+                  defaultValue={customer?.documentValue || ""}
                   placeholder="12345678"
                   maxLength={11}
                   onChange={handleDocumentChange}
                 />
-                {errors.documentValue && <p className="text-xs text-red-500">{errors.documentValue}</p>}
+                {errors.documentValue && (
+                  <p className="text-xs text-red-500">{errors.documentValue}</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>
-              <Input 
-                id="notes" 
-                name="notes" 
-                defaultValue={customer?.notes || ''} 
+              <Input
+                id="notes"
+                name="notes"
+                defaultValue={customer?.notes || ""}
                 placeholder="Notas adicionales..."
                 maxLength={500}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'Guardar cambios' : 'Crear cliente'}
+              {isEdit ? "Guardar cambios" : "Crear cliente"}
             </Button>
           </DialogFooter>
         </form>

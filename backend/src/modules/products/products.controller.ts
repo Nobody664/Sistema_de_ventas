@@ -1,24 +1,48 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards, Query } from '@nestjs/common';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { TenantGuard } from '@/common/guards/tenant.guard';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+  Query,
+} from "@nestjs/common";
+import { Roles } from "@/common/decorators/roles.decorator";
+import { Permissions } from "@/common/decorators/permissions.decorator";
+import { Permission } from "@/common/constants/permissions.constant";
+import { TenantGuard } from "@/common/guards/tenant.guard";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { PermissionsGuard } from "@/common/guards/permissions.guard";
+import {
+  SubscriptionLimitGuard,
+  LimitResource,
+} from "@/common/guards/subscription-limit.guard";
+import { RequireModule } from "@/modules/plan-capabilities/decorators/require-module.decorator";
 import {
   CreateCategoryDto,
+  CreatePresentationDto,
   CreateProductDto,
+  QueryProductDto,
   UpdateCategoryDto,
+  UpdatePresentationDto,
   UpdateProductDto,
   UploadProductImageDto,
   ExportProductsQueryDto,
-} from './dto/product.dto';
-import { ProductsService } from './products.service';
+} from "./dto/product.dto";
+import { ProductsService } from "./products.service";
 
-@UseGuards(JwtAuthGuard, TenantGuard)
-@Controller('products')
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@RequireModule("products")
+@Controller("products")
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Get('export')
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_EXPORT)
+  @Get("export")
   exportProducts(
     @Req() request: { tenantId: string },
     @Query() query: ExportProductsQueryDto,
@@ -26,93 +50,189 @@ export class ProductsController {
     return this.productsService.exportProducts(request.tenantId, query);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Get('low-stock')
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_VIEW_LOW_STOCK)
+  @Get("low-stock")
   getLowStockProducts(@Req() request: { tenantId: string }) {
     return this.productsService.getLowStockProducts(request.tenantId);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Get('limits')
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_LIST)
+  @Get("limits")
   getLimits(@Req() request: { tenantId: string }) {
     return this.productsService.getLimitsInfo(request.tenantId);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Get('categories')
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.CATEGORY_LIST)
+  @RequireModule("categories")
+  @Get("categories")
   findCategories(@Req() request: { tenantId: string }) {
     return this.productsService.findCategories(request.tenantId);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Get('categories/:id')
-  findCategoryById(@Req() request: { tenantId: string }, @Param('id') id: string) {
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.CATEGORY_LIST)
+  @RequireModule("categories")
+  @Get("categories/:id")
+  findCategoryById(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+  ) {
     return this.productsService.findCategoryById(request.tenantId, id);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Post('categories')
-  createCategory(@Req() request: { tenantId: string }, @Body() body: CreateCategoryDto) {
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.CATEGORY_CREATE)
+  @RequireModule("categories")
+  @UseGuards(SubscriptionLimitGuard)
+  @LimitResource("categories")
+  @Post("categories")
+  createCategory(
+    @Req() request: { tenantId: string },
+    @Body() body: CreateCategoryDto,
+  ) {
     return this.productsService.createCategory(request.tenantId, body);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Patch('categories/:id')
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.CATEGORY_UPDATE)
+  @RequireModule("categories")
+  @Patch("categories/:id")
   updateCategory(
     @Req() request: { tenantId: string },
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() body: UpdateCategoryDto,
   ) {
     return this.productsService.updateCategory(request.tenantId, id, body);
   }
 
-  @Roles('COMPANY_ADMIN')
-  @Delete('categories/:id')
-  removeCategory(@Req() request: { tenantId: string }, @Param('id') id: string) {
+  @Roles("COMPANY_ADMIN")
+  @Permissions(Permission.CATEGORY_DELETE)
+  @RequireModule("categories")
+  @Delete("categories/:id")
+  removeCategory(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+  ) {
     return this.productsService.removeCategory(request.tenantId, id);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.PRODUCT_LIST)
   @Get()
-  findByCompany(@Req() request: { tenantId: string }) {
-    return this.productsService.findByCompany(request.tenantId);
+  findByCompany(
+    @Req() request: { tenantId: string },
+    @Query() query: QueryProductDto,
+  ) {
+    return this.productsService.findByCompany(request.tenantId, query);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
-  @Get(':id')
-  findProductById(@Req() request: { tenantId: string }, @Param('id') id: string) {
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.PRODUCT_LIST)
+  @Get("barcode/:code")
+  findByBarcode(
+    @Req() request: { tenantId: string },
+    @Param("code") code: string,
+  ) {
+    return this.productsService.findByBarcode(request.tenantId, code);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.PRODUCT_LIST)
+  @Get(":id")
+  findProductById(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+  ) {
     return this.productsService.findProductById(request.tenantId, id);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.PRODUCT_LIST)
+  @Get(":id/presentations")
+  listPresentations(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+  ) {
+    return this.productsService.listPresentations(request.tenantId, id);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Post(":id/presentations")
+  createPresentation(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+    @Body() body: CreatePresentationDto,
+  ) {
+    return this.productsService.createPresentation(request.tenantId, id, body);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Patch("presentations/:id")
+  updatePresentation(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+    @Body() body: UpdatePresentationDto,
+  ) {
+    return this.productsService.updatePresentation(request.tenantId, id, body);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Delete("presentations/:id")
+  removePresentation(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+  ) {
+    return this.productsService.removePresentation(request.tenantId, id);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_CREATE)
+  @UseGuards(SubscriptionLimitGuard)
+  @LimitResource("products")
   @Post()
-  createProduct(@Req() request: { tenantId: string }, @Body() body: CreateProductDto) {
+  createProduct(
+    @Req() request: { tenantId: string },
+    @Body() body: CreateProductDto,
+  ) {
     return this.productsService.createProduct(request.tenantId, body);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Patch(':id')
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Patch(":id")
   updateProduct(
     @Req() request: { tenantId: string },
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() body: UpdateProductDto,
   ) {
     return this.productsService.updateProduct(request.tenantId, id, body);
   }
 
-  @Roles('COMPANY_ADMIN')
-  @Delete(':id')
-  removeProduct(@Req() request: { tenantId: string }, @Param('id') id: string) {
+  @Roles("COMPANY_ADMIN")
+  @Permissions(Permission.PRODUCT_DELETE)
+  @Delete(":id")
+  removeProduct(@Req() request: { tenantId: string }, @Param("id") id: string) {
     return this.productsService.removeProduct(request.tenantId, id);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Post(':id/image')
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Post(":id/image")
   uploadImage(
     @Req() request: { tenantId: string },
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() body: UploadProductImageDto,
   ) {
-    return this.productsService.uploadProductImage(request.tenantId, id, body.imageBase64);
+    return this.productsService.uploadProductImage(
+      request.tenantId,
+      id,
+      body.imageBase64,
+    );
   }
 }

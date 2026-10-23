@@ -1,4 +1,37 @@
-import { IsInt, IsNumberString, IsOptional, IsString, Min, IsIn } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  IsIn,
+  Matches,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { UnitOfMeasure } from "@prisma/client";
+import { ALLOWED_IMAGE_MIME_PATTERN } from "@/common/helpers/image.helper";
+
+export class QueryProductDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 50;
+}
 
 export class CreateCategoryDto {
   @IsString()
@@ -21,17 +54,71 @@ export class UpdateCategoryDto {
 
 export class UploadProductImageDto {
   @IsString()
+  @MaxLength(2_000_000)
+  @Matches(ALLOWED_IMAGE_MIME_PATTERN, {
+    message: "imageBase64 debe ser una imagen PNG, JPEG o WebP",
+  })
   imageBase64!: string;
 }
 
 export class ExportProductsQueryDto {
   @IsOptional()
-  @IsIn(['csv', 'excel', 'pdf'])
-  format?: 'csv' | 'excel' | 'pdf' = 'csv';
+  @IsIn(["csv", "excel", "pdf"])
+  format?: "csv" | "excel" | "pdf" = "csv";
 
   @IsOptional()
   @IsString()
   categoryId?: string;
+}
+
+export class CreatePresentationDto {
+  @IsString()
+  name!: string;
+
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Type(() => Number)
+  factor!: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  @Type(() => Number)
+  price?: number;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class UpdatePresentationDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Type(() => Number)
+  factor?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  @Type(() => Number)
+  price?: number;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class CreateProductDto {
@@ -56,23 +143,42 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2_000_000)
   imageUrl?: string;
 
-  @IsNumberString()
-  costPrice!: string;
+  @IsOptional()
+  @IsEnum(UnitOfMeasure)
+  baseUnit?: UnitOfMeasure;
 
-  @IsNumberString()
-  salePrice!: string;
+  @IsNumber()
+  @Type(() => Number)
+  costPrice!: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  salePrice!: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
+  @Type(() => Number)
   stockQuantity?: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
+  @Type(() => Number)
   minStock?: number;
+
+  @IsOptional()
+  @IsString()
+  expiryDate?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreatePresentationDto)
+  presentations?: CreatePresentationDto[];
 }
 
 export class UpdateProductDto {
@@ -94,24 +200,42 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2_000_000)
   imageUrl?: string;
 
   @IsOptional()
-  @IsNumberString()
-  costPrice?: string;
+  @IsEnum(UnitOfMeasure)
+  baseUnit?: UnitOfMeasure;
 
   @IsOptional()
-  @IsNumberString()
-  salePrice?: string;
+  @IsNumber()
+  @Type(() => Number)
+  costPrice?: number;
 
   @IsOptional()
-  @IsInt()
+  @IsNumber()
+  @Type(() => Number)
+  salePrice?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0)
-  stockQuantity?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
+  @Type(() => Number)
   minStock?: number;
+
+  @IsOptional()
+  @IsString()
+  expiryDate?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
+export class UpsertPresentationsDto {
+  @IsArray()
+  @ArrayMinSize(0)
+  @ValidateNested({ each: true })
+  @Type(() => CreatePresentationDto)
+  presentations!: CreatePresentationDto[];
+}

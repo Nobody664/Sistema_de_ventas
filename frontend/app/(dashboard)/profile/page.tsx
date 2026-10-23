@@ -1,7 +1,7 @@
-import { auth } from '@/auth';
-import { serverApiFetch } from '@/lib/server-api';
-import { ProfileClient } from '@/components/profile/profile-client';
-import { SuperAdminProfileClient } from '@/components/profile/super-admin-profile-client';
+import { getServerSession } from "@/lib/session";
+import { serverApiFetch } from "@/lib/server-api";
+import { ProfileClient } from "@/components/profile/profile-client";
+import { SuperAdminProfileClient } from "@/components/profile/super-admin-profile-client";
 
 type Subscription = {
   status: string;
@@ -9,7 +9,12 @@ type Subscription = {
   billingCycle: string;
   endDate: string | null;
   startDate: string | null;
-  plan?: { name: string; priceMonthly: string; code: string; features?: string[] };
+  plan?: {
+    name: string;
+    priceMonthly: string;
+    code: string;
+    features?: string[];
+  };
 };
 
 type Company = {
@@ -37,29 +42,37 @@ type DashboardStats = {
 };
 
 export default async function ProfilePage() {
-  const session = await auth();
-  
-  const userRoles = session?.user?.roles ?? [];
-  const isSuperAdmin = userRoles.includes('SUPER_ADMIN') || userRoles.includes('SUPPORT_ADMIN');
+  const session = await getServerSession();
+
+  const userRoles: string[] = session?.user?.roles || [];
+  const isSuperAdmin =
+    userRoles.includes("SUPER_ADMIN") || userRoles.includes("SUPPORT_ADMIN");
 
   if (isSuperAdmin) {
     const accessToken = session?.accessToken;
     let stats: DashboardStats | null = null;
     let companies: Company[] = [];
-    
+
     if (accessToken) {
       try {
-        stats = await serverApiFetch<DashboardStats>('/dashboard/global', accessToken);
+        stats = await serverApiFetch<DashboardStats>(
+          "/dashboard/global",
+          accessToken,
+        );
       } catch {}
       try {
-        companies = await serverApiFetch<Company[]>('/companies', accessToken) ?? [];
+        const result = await serverApiFetch<{ data: Company[]; total: number }>(
+          "/companies",
+          accessToken,
+        );
+        companies = Array.isArray(result?.data) ? result.data : [];
       } catch {}
     }
 
     return (
-      <SuperAdminProfileClient 
-        userName={session?.user?.name ?? ''}
-        userEmail={session?.user?.email ?? ''}
+      <SuperAdminProfileClient
+        userName={session?.user?.fullName ?? ""}
+        userEmail={session?.user?.email ?? ""}
         stats={stats}
         companies={companies}
       />
@@ -79,19 +92,20 @@ export default async function ProfilePage() {
   const accessToken = session.accessToken;
 
   const [subscription, company] = await Promise.all([
-    serverApiFetch<Subscription>('/subscriptions/current', accessToken),
-    serverApiFetch<Company>('/companies/current', accessToken),
+    serverApiFetch<Subscription>("/subscriptions/current", accessToken),
+    serverApiFetch<Company>("/companies/current", accessToken),
   ]);
 
-  const userName = session.user.name ?? '';
-  const userEmail = session.user.email ?? '';
+  const userName = session.user.fullName ?? "";
+  const userEmail = session.user.email ?? "";
 
   return (
-    <ProfileClient 
-      initialSubscription={subscription} 
+    <ProfileClient
+      initialSubscription={subscription}
       initialCompany={company}
       userName={userName}
       userEmail={userEmail}
+      userRoles={userRoles}
     />
   );
 }

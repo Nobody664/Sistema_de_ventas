@@ -1,4 +1,11 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 export class RegisterDto {
   @IsString()
@@ -23,10 +30,6 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   planCode?: string;
-
-  @IsOptional()
-  @IsString()
-  paymentMethod?: string;
 }
 
 export class LoginDto {
@@ -39,8 +42,9 @@ export class LoginDto {
 }
 
 export class RefreshTokenDto {
+  @IsOptional()
   @IsString()
-  refreshToken!: string;
+  refreshToken?: string;
 }
 
 export class ForgotPasswordDto {
@@ -57,6 +61,22 @@ export class ResetPasswordDto {
   password!: string;
 }
 
+export class ChangePasswordDto {
+  @IsString()
+  oldPassword!: string;
+
+  @IsString()
+  @MinLength(8)
+  newPassword!: string;
+}
+
+export class UpdateProfileDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  fullName!: string;
+}
+
 export class AuthSessionDto {
   accessToken!: string;
   refreshToken!: string;
@@ -70,4 +90,3 @@ export class AuthSessionDto {
   @IsOptional()
   expiresIn?: string;
 }
-

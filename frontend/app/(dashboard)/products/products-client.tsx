@@ -1,69 +1,135 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Package, AlertTriangle, TrendingUp, Search, Download } from 'lucide-react';
-import { ProductActions, NewProductButton } from '@/components/products/product-actions';
-import { ImageLightbox } from '@/components/products/image-lightbox';
-import { apiFetch } from '@/lib/api';
-import { useSession } from 'next-auth/react';
-import type { Product, Category } from '@/types/api';
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import {
+  Package,
+  AlertTriangle,
+  TrendingUp,
+  Search,
+  Download,
+} from "lucide-react";
+import {
+  ProductActions,
+  NewProductButton,
+} from "@/components/products/product-actions";
+import { ImageLightbox } from "@/components/products/image-lightbox";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth.store";
+import type { Product, Category } from "@/types/api";
+
+const UNIT_SHORT: Record<string, string> = {
+  UNIT: "und",
+  KG: "kg",
+  LT: "lt",
+  MT: "mt",
+};
+
+function ExpiryBadge({ value }: { value?: Date | string | null }) {
+  if (!value) {
+    return <span className="text-foreground/30">—</span>;
+  }
+
+  const date = new Date(value);
+  const daysLeft = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+  const label =
+    daysLeft < 0 ? "Vencido" : daysLeft <= 3 ? "Por vencer" : "Vigente";
+  const className =
+    daysLeft < 0
+      ? "border-red-500/30 bg-red-500/15 text-red-700"
+      : daysLeft <= 3
+        ? "border-amber-500/30 bg-amber-500/20 text-amber-700"
+        : "border-emerald-500/30 bg-emerald-500/15 text-emerald-700";
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span className="text-sm text-foreground/70">
+        {date.toLocaleDateString("es-PE")}
+      </span>
+      <span
+        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${className}`}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
 
 interface ProductsPageClientProps {
   initialProducts: Product[];
   categories: Category[];
 }
 
-export function ProductsPageClient({ initialProducts, categories }: ProductsPageClientProps) {
-  const { data: session } = useSession();
+export function ProductsPageClient({
+  initialProducts,
+  categories,
+}: ProductsPageClientProps) {
+  const user = useAuthStore((state) => state.user);
   const [products] = useState(initialProducts);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [lightboxImage, setLightboxImage] = useState<{
+    src: string;
+    alt: string;
+  } | null>(null);
 
-  const lowStockProducts = products.filter((p) => p.stockQuantity <= (p.minStock ?? 10));
-  const totalValue = products.reduce((acc, p) => acc + Number(p.salePrice) * p.stockQuantity, 0);
+  const lowStockProducts = products.filter(
+    (p) => Number(p.stockQuantity) <= Number(p.minStock ?? 10),
+  );
+  const totalValue = products.reduce(
+    (acc, p) => acc + Number(p.salePrice) * Number(p.stockQuantity),
+    0,
+  );
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
-      searchQuery === '' ||
+      searchQuery === "" ||
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase());
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory =
-      selectedCategory === '' || product.categoryId === selectedCategory;
+      selectedCategory === "" || product.categoryId === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
+  const handleExport = async (format: "csv" | "excel" | "pdf") => {
     try {
       const params = new URLSearchParams({ format });
-      if (selectedCategory) params.append('categoryId', selectedCategory);
+      if (selectedCategory) params.append("categoryId", selectedCategory);
 
-      const response = await apiFetch<{ data: string; contentType: string; filename: string }>(`/products/export?${params}`, {
-        token: session?.accessToken,
+      const response = await apiFetch<{
+        data: string;
+        contentType: string;
+        filename: string;
+      }>(`/products/export?${params}`, {
+        token: getAccessToken(),
       });
 
       if (response?.data) {
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = `data:${response.contentType};base64,${response.data}`;
         link.download = response.filename;
         link.click();
       }
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error("Export failed:", error);
     }
   };
 
   return (
     <>
       <div className="space-y-6">
-        <Card className="rounded-[34px] bg-gradient-to-br from-emerald-500 to-teal-700 p-8 text-white animate-fade-in-up">
+        <Card className="rounded-[34px] bg-gradient-to-br from-emerald-500 to-teal-700 p-6 sm:p-8 text-white animate-fade-in-up">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-white/60">Catalogo de productos</p>
-              <h1 className="mt-4 font-display text-5xl leading-none">Gestion de inventario</h1>
+            <div className="min-w-0">
+              <p className="text-sm uppercase tracking-[0.18em] text-white/60">
+                Catalogo de productos
+              </p>
+              <h1 className="mt-4 font-display text-4xl leading-tight break-words sm:text-5xl sm:leading-none">
+                Gestion de inventario
+              </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-                Administra tu catalogo de productos, controla el stock y mantien actualizado tu inventario.
+                Administra tu catalogo de productos, controla el stock y mantien
+                actualizado tu inventario.
               </p>
             </div>
             <div className="hidden lg:block animate-fade-in-up delay-200">
@@ -72,14 +138,16 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
           </div>
         </Card>
 
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-100">
             <div className="flex items-center gap-3">
               <div className="rounded-2xl bg-blue-500/20 p-2">
                 <Package className="size-5 text-blue-600" />
               </div>
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Total productos</p>
+              <div className="min-w-0">
+                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                  Total productos
+                </p>
                 <p className="font-display text-3xl">{products.length}</p>
               </div>
             </div>
@@ -90,9 +158,13 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
               <div className="rounded-2xl bg-amber-500/20 p-2">
                 <AlertTriangle className="size-5 text-amber-600" />
               </div>
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Stock bajo</p>
-                <p className="font-display text-3xl">{lowStockProducts.length}</p>
+              <div className="min-w-0">
+                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                  Stock bajo
+                </p>
+                <p className="font-display text-3xl">
+                  {lowStockProducts.length}
+                </p>
               </div>
             </div>
           </Card>
@@ -102,9 +174,13 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
               <div className="rounded-2xl bg-emerald-500/20 p-2">
                 <TrendingUp className="size-5 text-emerald-600" />
               </div>
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Valor inventario</p>
-                <p className="font-display text-3xl">S/ {totalValue.toFixed(2)}</p>
+              <div className="min-w-0">
+                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                  Valor inventario
+                </p>
+                <p className="font-display text-3xl break-words">
+                  S/ {totalValue.toFixed(2)}
+                </p>
               </div>
             </div>
           </Card>
@@ -113,24 +189,26 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
         <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-250">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">Productos</p>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
+                Productos
+              </p>
               <h2 className="mt-2 font-display text-2xl">Lista completa</h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground/30" />
                 <input
                   type="text"
                   placeholder="Buscar productos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="rounded-xl border border-foreground/10 bg-white py-2 pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none"
+                  className="w-full rounded-xl border border-foreground/10 bg-white py-2 pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none sm:w-auto"
                 />
               </div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition focus:border-emerald-500/50 focus:outline-none"
+                className="w-full rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition focus:border-emerald-500/50 focus:outline-none sm:w-auto"
               >
                 <option value="">Todas las categorias</option>
                 {categories.map((cat) => (
@@ -139,32 +217,32 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                   </option>
                 ))}
               </select>
-              <div className="relative group">
-                <button className="flex items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5">
+              <details className="relative">
+                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5 [&::-webkit-details-marker]:hidden">
                   <Download className="size-4" />
                   Exportar
-                </button>
-                <div className="absolute right-0 top-full z-10 mt-1 hidden min-w-[140px] rounded-xl border border-foreground/10 bg-white py-1 shadow-lg group-hover:block">
+                </summary>
+                <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-xl border border-foreground/10 bg-white py-1 shadow-lg">
                   <button
-                    onClick={() => handleExport('csv')}
+                    onClick={() => handleExport("csv")}
                     className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
                   >
                     CSV
                   </button>
                   <button
-                    onClick={() => handleExport('excel')}
+                    onClick={() => handleExport("excel")}
                     className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
                   >
                     Excel
                   </button>
                   <button
-                    onClick={() => handleExport('pdf')}
+                    onClick={() => handleExport("pdf")}
                     className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
                   >
                     PDF
                   </button>
                 </div>
-              </div>
+              </details>
               <div className="lg:hidden">
                 <NewProductButton />
               </div>
@@ -181,6 +259,8 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                   <th className="pb-4 font-medium">Categoria</th>
                   <th className="pb-4 font-medium text-right">Stock</th>
                   <th className="pb-4 font-medium text-right">Precio</th>
+                  <th className="pb-4 font-medium text-center">Registro</th>
+                  <th className="pb-4 font-medium text-center">Vencimiento</th>
                   <th className="pb-4 font-medium text-center">Estado</th>
                   <th className="pb-4 pr-4 text-right font-medium">Acciones</th>
                 </tr>
@@ -196,7 +276,12 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                       <td className="py-4 pl-4">
                         {product.imageUrl ? (
                           <button
-                            onClick={() => setLightboxImage({ src: product.imageUrl!, alt: product.name })}
+                            onClick={() =>
+                              setLightboxImage({
+                                src: product.imageUrl!,
+                                alt: product.name,
+                              })
+                            }
                             className="group relative block overflow-hidden rounded-lg"
                           >
                             <img
@@ -225,7 +310,9 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                         )}
                       </td>
                       <td className="py-4">
-                        <span className="font-mono text-sm text-foreground/60">{product.sku}</span>
+                        <span className="font-mono text-sm text-foreground/60">
+                          {product.sku}
+                        </span>
                       </td>
                       <td className="py-4">
                         {product.category ? (
@@ -239,31 +326,44 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                       <td className="py-4 text-right">
                         <span
                           className={`inline-block font-medium ${
-                            product.stockQuantity <= (product.minStock ?? 10)
-                              ? 'text-amber-600'
-                              : product.stockQuantity === 0
-                              ? 'text-red-600'
-                              : 'text-foreground'
+                            Number(product.stockQuantity) <=
+                            Number(product.minStock ?? 10)
+                              ? "text-amber-600"
+                              : Number(product.stockQuantity) === 0
+                                ? "text-red-600"
+                                : "text-foreground"
                           }`}
                         >
-                          {product.stockQuantity}
+                          {Number(product.stockQuantity)}{" "}
+                          {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
                         </span>
-                        {product.stockQuantity <= (product.minStock ?? 10) && (
+                        {Number(product.stockQuantity) <=
+                          Number(product.minStock ?? 10) && (
                           <AlertTriangle className="ml-1 inline-block size-3 text-amber-500" />
                         )}
                       </td>
                       <td className="py-4 text-right">
-                        <span className="font-medium">S/ {Number(product.salePrice).toFixed(2)}</span>
+                        <span className="font-medium">
+                          S/ {Number(product.salePrice).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="py-4 text-center text-sm text-foreground/60">
+                        {new Date(product.createdAt).toLocaleDateString(
+                          "es-PE",
+                        )}
+                      </td>
+                      <td className="py-4 text-center">
+                        <ExpiryBadge value={product.expiryDate} />
                       </td>
                       <td className="py-4 text-center">
                         <span
                           className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
-                            product.status === 'ACTIVE'
-                              ? 'border-green-500/30 bg-green-500/20 text-green-700'
-                              : 'border-gray-500/30 bg-gray-500/20 text-gray-600'
+                            product.isActive
+                              ? "border-green-500/30 bg-green-500/20 text-green-700"
+                              : "border-gray-500/30 bg-gray-500/20 text-gray-600"
                           }`}
                         >
-                          {product.status === 'ACTIVE' ? 'Activo' : 'Inactivo'}
+                          {product.isActive ? "Activo" : "Inactivo"}
                         </span>
                       </td>
                       <td className="py-4 pr-4 text-right">
@@ -273,10 +373,13 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-foreground/50">
+                    <td
+                      colSpan={10}
+                      className="py-12 text-center text-foreground/50"
+                    >
                       {searchQuery || selectedCategory
-                        ? 'No se encontraron productos con los filtros aplicados.'
-                        : 'No hay productos registrados. Registra el Primero!!.'}
+                        ? "No se encontraron productos con los filtros aplicados."
+                        : "No hay productos registrados. Registra el Primero!!."}
                     </td>
                   </tr>
                 )}
@@ -287,7 +390,8 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
           {filteredProducts.length > 0 && (
             <div className="mt-4 flex items-center justify-between border-t border-foreground/10 pt-4">
               <p className="text-sm text-foreground/50">
-                Mostrando {filteredProducts.length} de {products.length} productos
+                Mostrando {filteredProducts.length} de {products.length}{" "}
+                productos
               </p>
             </div>
           )}
@@ -295,8 +399,8 @@ export function ProductsPageClient({ initialProducts, categories }: ProductsPage
       </div>
 
       <ImageLightbox
-        src={lightboxImage?.src || ''}
-        alt={lightboxImage?.alt || ''}
+        src={lightboxImage?.src || ""}
+        alt={lightboxImage?.alt || ""}
         isOpen={!!lightboxImage}
         onClose={() => setLightboxImage(null)}
       />

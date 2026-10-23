@@ -1,14 +1,19 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { SubscriptionLimitService, ResourceType } from './subscription-limit.service';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  SetMetadata,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import {
+  SubscriptionLimitService,
+  ResourceType,
+} from "./subscription-limit.service";
 
-export const LIMIT_RESOURCE_KEY = 'limitResource';
-
-export function LimitResource(resource: ResourceType) {
-  return (target: any, key: string, descriptor: PropertyDescriptor) => {
-    return descriptor;
-  };
-}
+export const LIMIT_RESOURCE_KEY = "limitResource";
+export const LimitResource = (resource: ResourceType) =>
+  SetMetadata(LIMIT_RESOURCE_KEY, resource);
 
 @Injectable()
 export class SubscriptionLimitGuard implements CanActivate {
@@ -19,7 +24,7 @@ export class SubscriptionLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const companyId = request.headers['x-company-id'] || request.user?.companyId;
+    const companyId = request.user?.companyId;
 
     if (!companyId) {
       return true;

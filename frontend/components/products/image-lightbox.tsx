@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useCallback } from "react";
+import { X } from "lucide-react";
 
 interface ImageLightboxProps {
   src: string;
@@ -10,25 +10,30 @@ interface ImageLightboxProps {
   onClose: () => void;
 }
 
-export function ImageLightbox({ src, alt, isOpen, onClose }: ImageLightboxProps) {
+export function ImageLightbox({
+  src,
+  alt,
+  isOpen,
+  onClose,
+}: ImageLightboxProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   useEffect(() => {
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
     };
   }, [isOpen, handleKeyDown]);
 

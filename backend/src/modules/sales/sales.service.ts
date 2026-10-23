@@ -1,68 +1,169 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { CreateSaleDto, ExportSalesQueryDto } from './dto/sale.dto';
-import { NotificationsService, NotificationType } from '@/modules/notifications/notifications.service';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from "@nestjs/common";
+import {
+  Prisma,
+  PrismaClient,
+  AuditAction,
+  SaleStatus,
+  InventoryMovementType,
+} from "@prisma/client";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import {
+  CreateSaleDto,
+  ExportSalesQueryDto,
+  QuerySalesDto,
+} from "./dto/sale.dto";
+import {
+  NotificationsService,
+  NotificationType,
+} from "@/modules/notifications/notifications.service";
+import { LowStockService } from "@/modules/low-stock/low-stock.service";
+import { KardexService } from "@/modules/kardex/kardex.service";
+import { ProductBatchesService } from "@/modules/product-batches/product-batches.service";
+import { DistributorsService } from "@/modules/distributors/distributors.service";
+import { DiscountsService } from "@/modules/discounts/discounts.service";
+import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
+import { CreditNotesService } from "@/modules/credit-notes/credit-notes.service";
+import { AuditService } from "@/common/services/audit.service";
+import {
+  buildCsvExport,
+  buildPdfExport,
+  buildXlsxExport,
+  ExportColumn,
+} from "@/common/helpers/export.helper";
+
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
+>;
+
+type SaleExportRow = {
+  seller: { fullName: string } | null;
+  saleNumber: string;
+  status: string;
+  customer: { firstName: string; lastName: string | null } | null;
+  employee: { firstName: string } | null;
+  totalAmount: unknown;
+  paymentMethod: string;
+  createdAt: Date;
+  items: Array<{
+    quantity: unknown;
+    totalPrice: unknown;
+    product: {
+      name: string;
+      description: string | null;
+      sku: string | null;
+    } | null;
+  }>;
+};
+
+interface SaleViewer {
+  userId: string;
+  roles: readonly string[];
+}
+
+const SELLER_SELECT = { id: true, fullName: true } as const;
+
+function sellerScope(viewer?: SaleViewer): Prisma.SaleWhereInput {
+  return viewer &&
+    !viewer.roles.some((role) =>
+      ["SUPER_ADMIN", "COMPANY_ADMIN", "MANAGER"].includes(role),
+    )
+    ? { sellerId: viewer.userId }
+    : {};
+}
 
 @Injectable()
 export class SalesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly lowStockService: LowStockService,
+    private readonly kardexService: KardexService,
+    private readonly productBatchesService: ProductBatchesService,
+    private readonly auditService: AuditService,
+    private readonly distributorsService: DistributorsService,
+    private readonly discountsService: DiscountsService,
+    private readonly planCapabilities: PlanCapabilitiesService,
+    private readonly creditNotesService: CreditNotesService,
   ) {}
 
-  findRecentSales(companyId: string, userId?: string, role?: string) {
-    try {
-      const where: Record<string, unknown> = { companyId };
-      if (role !== 'COMPANY_ADMIN' && role !== 'MANAGER' && userId) {
-        where.sellerId = userId;
-      }
-      const sales = this.prisma.sale.findMany({
-        where,
-        include: {
-          customer: true,
-          employee: true,
-          seller: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      });
-      return sales;
-    } catch (error) {
-      throw error;
-    }
+  findRecentSales(
+    companyId: string,
+    query: QuerySalesDto = {},
+    viewer?: SaleViewer,
+  ) {
+    const page = Math.max(query.page ?? 1, 1);
+    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+
+    return this.prisma.sale.findMany({
+      where: { companyId, ...sellerScope(viewer) },
+      select: {
+        id: true,
+        saleNumber: true,
+        totalAmount: true,
+        paymentMethod: true,
+        status: true,
+        channel: true,
+        createdAt: true,
+        customer: { select: { firstName: true, lastName: true } },
+        employee: { select: { firstName: true } },
+        seller: { select: SELLER_SELECT },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
   }
 
-  findById(companyId: string, id: string, userId?: string, role?: string) {
-    const where: Record<string, unknown> = { id, companyId };
-    if (role !== 'COMPANY_ADMIN' && role !== 'MANAGER' && userId) {
-      where.sellerId = userId;
-    }
-    return this.prisma.sale.findFirst({
-      where,
+  async findById(companyId: string, id: string, viewer?: SaleViewer) {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, companyId, ...sellerScope(viewer) },
       include: {
         customer: true,
         employee: true,
-        seller: true,
+        seller: { select: SELLER_SELECT },
+        coupon: { select: { id: true, code: true, type: true, value: true } },
         items: {
           include: {
             product: {
-              select: { name: true },
+              select: {
+                name: true,
+                description: true,
+                sku: true,
+                baseUnit: true,
+              },
             },
           },
         },
       },
     });
+
+    if (!sale) {
+      throw new NotFoundException("Venta no encontrada.");
+    }
+
+    return sale;
   }
 
   async exportSales(companyId: string, query: ExportSalesQueryDto) {
     const where: Record<string, unknown> = { companyId };
 
     if (query.startDate) {
-      where.createdAt = { ...(where.createdAt as object), gte: new Date(query.startDate) };
+      where.createdAt = {
+        ...(where.createdAt as object),
+        gte: new Date(query.startDate),
+      };
     }
     if (query.endDate) {
-      where.createdAt = { ...(where.createdAt as object), lte: new Date(query.endDate) };
+      where.createdAt = {
+        ...(where.createdAt as object),
+        lte: new Date(query.endDate),
+      };
     }
     if (query.status) {
       where.status = query.status;
@@ -70,228 +171,549 @@ export class SalesService {
     if (query.customerId) {
       where.customerId = query.customerId;
     }
+    if (query.channel) {
+      where.channel = query.channel;
+    }
 
     const sales = await this.prisma.sale.findMany({
       where,
       include: {
         customer: true,
         employee: true,
+        seller: { select: SELLER_SELECT },
         items: {
           include: { product: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
-    const format = query.format || 'csv';
+    const format = query.format || "csv";
 
-    if (format === 'csv') {
-      return this.generateCsvExport(sales);
-    } else if (format === 'excel') {
-      return this.generateExcelExport(sales);
-    } else {
-      return this.generatePdfExport(sales);
+    const columns: ExportColumn<SaleExportRow>[] = [
+      { header: "Numero", value: (s) => s.saleNumber, width: 2.5 },
+      { header: "Estado", value: (s) => s.status, width: 1.5 },
+      {
+        header: "Cliente",
+        value: (s) =>
+          s.customer
+            ? `${s.customer.firstName} ${s.customer.lastName || ""}`.trim()
+            : "General",
+        width: 3,
+      },
+      {
+        header: "Vendedor",
+        value: (s) => s.seller?.fullName || s.employee?.firstName || "",
+        width: 2,
+      },
+      {
+        header: "Productos",
+        value: (s) =>
+          s.items
+            .map(
+              (item) =>
+                `${item.product?.name || "Producto"} x${Number(item.quantity)}`,
+            )
+            .join(" | "),
+        width: 3,
+      },
+      {
+        header: "Descripcion",
+        value: (s) =>
+          s.items
+            .map((item) => item.product?.description || "")
+            .filter((value) => value.length > 0)
+            .join(" | "),
+        width: 4,
+      },
+      {
+        header: "SKU",
+        value: (s) =>
+          s.items
+            .map((item) => item.product?.sku || "")
+            .filter((value) => value.length > 0)
+            .join(" | "),
+        width: 2,
+      },
+      {
+        header: "Total",
+        value: (s) => Number(s.totalAmount),
+        pdfValue: (s) => `S/ ${Number(s.totalAmount).toFixed(2)}`,
+        width: 1.5,
+      },
+      { header: "Metodo de Pago", value: (s) => s.paymentMethod, width: 2 },
+      {
+        header: "Fecha",
+        value: (s) => new Date(s.createdAt).toISOString().split("T")[0],
+        width: 1.5,
+      },
+    ];
+
+    if (format === "csv") {
+      return buildCsvExport("ventas", columns, sales);
     }
-  }
+    if (format === "excel") {
+      return buildXlsxExport("ventas", "Ventas", columns, sales);
+    }
 
-  private generateCsvExport(sales: Array<{ saleNumber: string; status: string; customer: { firstName: string; lastName: string | null } | null; employee: { firstName: string } | null; totalAmount: unknown; paymentMethod: string; createdAt: Date }>) {
-    const headers = ['Numero', 'Estado', 'Cliente', 'Vendedor', 'Total', 'Metodo de Pago', 'Fecha'];
-    const rows = sales.map((s) => [
-      s.saleNumber,
-      s.status,
-      s.customer ? `${s.customer.firstName} ${s.customer.lastName || ''}` : 'General',
-      s.employee?.firstName || '',
-      String(s.totalAmount),
-      s.paymentMethod,
-      new Date(s.createdAt).toLocaleDateString(),
-    ]);
-
-    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
-    const base64 = Buffer.from(csvContent, 'utf-8').toString('base64');
-
-    return {
-      filename: `ventas_${new Date().toISOString().split('T')[0]}.csv`,
-      contentType: 'text/csv',
-      data: base64,
-    };
-  }
-
-  private generateExcelExport(sales: Array<{ saleNumber: string; status: string; customer: { firstName: string; lastName: string | null } | null; employee: { firstName: string } | null; totalAmount: unknown; paymentMethod: string; createdAt: Date }>) {
-    const data = sales.map((s) => ({
-      Numero: s.saleNumber,
-      Estado: s.status,
-      Cliente: s.customer ? `${s.customer.firstName} ${s.customer.lastName || ''}` : 'General',
-      Vendedor: s.employee?.firstName || '',
-      Total: Number(s.totalAmount),
-      'Metodo de Pago': s.paymentMethod,
-      Fecha: new Date(s.createdAt).toLocaleDateString(),
-    }));
-
-    const jsonStr = JSON.stringify(data);
-    const base64 = Buffer.from(jsonStr, 'utf-8').toString('base64');
-
-    return {
-      filename: `ventas_${new Date().toISOString().split('T')[0]}.json`,
-      contentType: 'application/json',
-      data: base64,
-    };
-  }
-
-  private generatePdfExport(sales: Array<{ saleNumber: string; status: string; customer: { firstName: string; lastName: string | null } | null; employee: { firstName: string } | null; totalAmount: unknown; paymentMethod: string; createdAt: Date }>) {
     const totalSales = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
-
-    const html = `
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #4CAF50; color: white; }
-            tr:nth-child(even) { background-color: #f2f2f2; }
-            .total { font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <h1>Reporte de Ventas</h1>
-          <p>Total de ventas: S/ ${totalSales.toFixed(2)}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Numero</th>
-                <th>Cliente</th>
-                <th>Total</th>
-                <th>Metodo</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sales.map((s) => `
-                <tr>
-                  <td>${s.saleNumber}</td>
-                  <td>${s.customer ? `${s.customer.firstName} ${s.customer.lastName || ''}` : 'General'}</td>
-                  <td>S/ ${Number(s.totalAmount).toFixed(2)}</td>
-                  <td>${s.paymentMethod}</td>
-                  <td>${new Date(s.createdAt).toLocaleDateString()}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    const base64 = Buffer.from(html, 'utf-8').toString('base64');
-
-    return {
-      filename: `ventas_${new Date().toISOString().split('T')[0]}.html`,
-      contentType: 'text/html',
-      data: base64,
-    };
+    return buildPdfExport(
+      "ventas",
+      "Reporte de Ventas",
+      columns,
+      sales,
+      `Total: S/ ${totalSales.toFixed(2)} en ${sales.length} venta(s)`,
+    );
   }
 
-  async createSale(companyId: string, input: CreateSaleDto, userId?: string) {
-    const products = (await this.prisma.product.findMany({
+  async createSale(companyId: string, input: CreateSaleDto, sellerId?: string) {
+    if (input.channel === "DISTRIBUTOR") {
+      if (!input.distributorId) {
+        throw new BadRequestException(
+          "Debe seleccionar un distribuidor para el canal Distribuidor.",
+        );
+      }
+      return this.distributorsService.registerSale(
+        companyId,
+        input.distributorId,
+        {
+          items: input.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+          paymentMethod: input.paymentMethod,
+          taxAmount: input.taxAmount,
+          discountAmount: input.discountAmount,
+          customerId: input.customerId,
+        },
+        sellerId,
+      );
+    }
+
+    const products = await this.prisma.product.findMany({
       where: {
         companyId,
-        id: { in: input.items.map((item) => item.productId) },
+        id: {
+          in: Array.from(new Set(input.items.map((item) => item.productId))),
+        },
       },
-    })) as Array<{ id: string; stockQuantity: number; name: string; salePrice: unknown }>;
+      include: { presentations: true },
+    });
 
-    const productMap = new Map<string, (typeof products)[number]>(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
 
-    let subtotal = 0;
-    const itemsData = input.items.map((item) => {
+    const resolvedItems = input.items.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) {
         throw new NotFoundException(`Product ${item.productId} not found.`);
       }
 
-      if (product.stockQuantity < item.quantity) {
-        throw new BadRequestException(`Insufficient stock for ${product.name}.`);
+      const presentation = item.presentationId
+        ? product.presentations.find(
+            (entry) => entry.id === item.presentationId,
+          )
+        : undefined;
+
+      if (item.presentationId && !presentation) {
+        throw new BadRequestException(
+          `Presentation ${item.presentationId} not found.`,
+        );
       }
 
-      const unitPrice = Number(product.salePrice);
-      const discountAmount = Number(item.discountAmount ?? '0');
-      const totalAmount = unitPrice * item.quantity - discountAmount;
-      subtotal += totalAmount;
+      const factor = presentation ? presentation.factor : new Prisma.Decimal(1);
+      const quantity = new Prisma.Decimal(item.quantity);
+      const baseQuantity = quantity.mul(factor);
+      const unitPrice = new Prisma.Decimal(
+        presentation?.price ?? product.salePrice,
+      );
+      const totalPrice = unitPrice.mul(quantity);
 
       return {
         productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: unitPrice.toFixed(2),
-        discountAmount: discountAmount.toFixed(2),
-        totalAmount: totalAmount.toFixed(2),
+        productName: product.name,
+        presentationId: presentation?.id,
+        quantity,
+        baseQuantity,
+        unitPrice,
+        totalPrice,
       };
     });
 
-    const taxAmount = Number(input.taxAmount ?? '0');
-    const discountAmount = Number(input.discountAmount ?? '0');
-    const totalAmount = subtotal + taxAmount - discountAmount;
-    const saleNumber = `SALE-${Date.now()}`;
+    const baseQuantityByProduct = new Map<string, Prisma.Decimal>();
+    for (const item of resolvedItems) {
+      baseQuantityByProduct.set(
+        item.productId,
+        (
+          baseQuantityByProduct.get(item.productId) ?? new Prisma.Decimal(0)
+        ).plus(item.baseQuantity),
+      );
+    }
 
-    return this.prisma.$transaction(async (tx: Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$transaction' | '$extends'>) => {
-      const sale = await tx.sale.create({
-        data: {
-          companyId,
-          customerId: input.customerId,
-          employeeId: input.employeeId,
-          sellerId: userId ?? undefined,
-          saleNumber,
-          subtotal: subtotal.toFixed(2),
-          taxAmount: taxAmount.toFixed(2),
-          discountAmount: discountAmount.toFixed(2),
-          totalAmount: totalAmount.toFixed(2),
-          paymentMethod: input.paymentMethod,
-          paidAt: new Date(),
-          items: {
-            create: itemsData,
-          },
-        },
-        include: { items: true, employee: true, seller: true },
+    for (const [productId, baseQuantity] of baseQuantityByProduct) {
+      const product = productMap.get(productId);
+      if (!product) continue;
+      if (product.stockQuantity.lt(baseQuantity)) {
+        throw new BadRequestException(
+          `Stock insuficiente para ${product.name}. Disponible: ${Number(product.stockQuantity)}, solicitado: ${Number(baseQuantity)}.`,
+        );
+      }
+    }
+
+    let subtotal = new Prisma.Decimal(0);
+    const itemsData = resolvedItems.map((item) => {
+      subtotal = subtotal.plus(item.totalPrice);
+      return {
+        productId: item.productId,
+        presentationId: item.presentationId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+      };
+    });
+
+    if (input.couponCode && input.discountAmount && input.discountAmount > 0) {
+      throw new BadRequestException(
+        "No puedes combinar un cupon de descuento con un descuento manual.",
+      );
+    }
+
+    if (
+      input.couponCode ||
+      (input.discountAmount && input.discountAmount > 0)
+    ) {
+      await this.assertDiscountsEnabled(companyId);
+    }
+
+    const taxAmount = new Prisma.Decimal(input.taxAmount ?? 0);
+    const manualDiscount = new Prisma.Decimal(input.discountAmount ?? 0);
+    const saleNumber = `SALE-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+
+    if (input.customerId) {
+      const customer = await this.prisma.customer.findFirst({
+        where: { id: input.customerId, companyId },
       });
+      if (!customer) {
+        throw new NotFoundException("Customer not found.");
+      }
+    }
 
-      await Promise.all(
-        input.items.map(async (item) => {
+    if (input.employeeId) {
+      const employee = await this.prisma.employee.findFirst({
+        where: { id: input.employeeId, companyId },
+      });
+      if (!employee) {
+        throw new NotFoundException("Employee not found.");
+      }
+    }
+
+    const sale = await this.prisma.$transaction(
+      async (tx) => {
+        let couponId: string | undefined;
+        let discountAmount = manualDiscount;
+        if (input.couponCode) {
+          const applied = await this.discountsService.resolveForSale(
+            tx,
+            companyId,
+            input.couponCode,
+            subtotal,
+          );
+          couponId = applied.couponId;
+          discountAmount = applied.discountAmount;
+        }
+
+        const totalAmount = subtotal.plus(taxAmount).minus(discountAmount);
+
+        const created = await tx.sale.create({
+          data: {
+            companyId,
+            customerId: input.customerId,
+            employeeId: input.employeeId,
+            sellerId,
+            channel: input.channel ?? "POS",
+            couponId,
+            saleNumber,
+            subtotal,
+            taxAmount,
+            discountAmount,
+            totalAmount,
+            paymentMethod: input.paymentMethod,
+            paidAmount: totalAmount,
+            changeAmount: new Prisma.Decimal(0),
+            items: {
+              create: itemsData,
+            },
+          },
+          include: { items: true, seller: { select: SELLER_SELECT } },
+        });
+
+        for (const item of resolvedItems) {
+          const stockUpdate = await tx.product.updateMany({
+            where: {
+              id: item.productId,
+              companyId,
+              stockQuantity: { gte: item.baseQuantity },
+            },
+            data: { stockQuantity: { decrement: item.baseQuantity } },
+          });
+          if (stockUpdate.count !== 1) {
+            throw new BadRequestException(
+              `Stock insuficiente para el producto ${item.productId}.`,
+            );
+          }
+        }
+
+        for (const item of resolvedItems) {
+          await this.productBatchesService.reserveFromBatch(
+            companyId,
+            item.productId,
+            item.baseQuantity,
+            tx,
+          );
+        }
+
+        const movements = await Promise.all(
+          resolvedItems.map((item) =>
+            tx.inventoryMovement.create({
+              data: {
+                companyId,
+                productId: item.productId,
+                presentationId: item.presentationId,
+                type: "OUT" as const,
+                quantity: item.baseQuantity.neg(),
+                notes: `Sale ${saleNumber}`,
+              },
+            }),
+          ),
+        );
+
+        await Promise.all(
+          movements.map((movement, index) =>
+            this.kardexService.recordOutMovement(
+              companyId,
+              resolvedItems[index].productId,
+              resolvedItems[index].baseQuantity,
+              movement.id,
+              tx,
+            ),
+          ),
+        );
+
+        return created;
+      },
+      { maxWait: 10_000, timeout: 15_000 },
+    );
+
+    await this.auditService.log({
+      companyId,
+      action: AuditAction.CREATE,
+      entity: "Sale",
+      entityId: sale.id,
+      changes: {
+        saleNumber: sale.saleNumber,
+        subtotal: Number(subtotal),
+        taxAmount: Number(taxAmount),
+        discountAmount: Number(sale.discountAmount),
+        totalAmount: Number(sale.totalAmount),
+        paymentMethod: sale.paymentMethod,
+        customerId: sale.customerId,
+        employeeId: sale.employeeId,
+        items: sale.items.map((item) => ({
+          productId: item.productId,
+          quantity: Number(item.quantity),
+          totalPrice: Number(item.totalPrice),
+        })),
+      },
+    });
+
+    for (const [productId, baseQuantity] of baseQuantityByProduct) {
+      const product = productMap.get(productId);
+      if (!product) {
+        continue;
+      }
+
+      await this.lowStockService.notifyIfLowStock({
+        companyId,
+        productId,
+        productName: product.name,
+        currentStock: product.stockQuantity.minus(baseQuantity),
+        minStock: product.minStock,
+        baseUnit: product.baseUnit,
+        previousStock: product.stockQuantity,
+      });
+    }
+
+    return sale;
+  }
+
+  private async assertDiscountsEnabled(companyId: string) {
+    const capabilities = await this.planCapabilities.getCapabilities(companyId);
+    if (!this.planCapabilities.hasFeature(capabilities, "sales.discounts")) {
+      throw new ForbiddenException({
+        error: "FEATURE_NOT_AVAILABLE",
+        message: "Los descuentos no estan incluidos en tu plan actual.",
+        features: ["sales.discounts"],
+        currentPlan: capabilities.planCode,
+        upgradeUrl: "/subscription",
+      });
+    }
+  }
+
+  cancelSale(
+    companyId: string,
+    id: string,
+    userId: string | undefined,
+    reason?: string,
+  ) {
+    return this.reverseSale(
+      companyId,
+      id,
+      SaleStatus.CANCELLED,
+      userId,
+      reason,
+    );
+  }
+
+  refundSale(
+    companyId: string,
+    id: string,
+    userId: string | undefined,
+    reason?: string,
+  ) {
+    return this.reverseSale(companyId, id, SaleStatus.REFUNDED, userId, reason);
+  }
+
+  private async reverseSale(
+    companyId: string,
+    id: string,
+    targetStatus: SaleStatus,
+    userId: string | undefined,
+    reason?: string,
+  ) {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id, companyId },
+      include: { items: true },
+    });
+
+    if (!sale) {
+      throw new NotFoundException("Venta no encontrada.");
+    }
+    if (sale.status !== SaleStatus.COMPLETED) {
+      throw new BadRequestException(
+        `Solo se pueden anular o reembolsar ventas completadas. Estado actual: ${sale.status}.`,
+      );
+    }
+
+    const label =
+      targetStatus === SaleStatus.REFUNDED ? "Reembolso" : "Anulacion";
+    const noteText = reason
+      ? `${sale.notes ? `${sale.notes}\n` : ""}${label}: ${reason}`
+      : sale.notes;
+
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        const guard = await tx.sale.updateMany({
+          where: { id, companyId, status: SaleStatus.COMPLETED },
+          data: { status: targetStatus, notes: noteText },
+        });
+        if (guard.count !== 1) {
+          throw new BadRequestException("La venta ya fue procesada.");
+        }
+
+        const productIds = Array.from(
+          new Set(sale.items.map((item) => item.productId)),
+        );
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds }, companyId },
+          include: { presentations: true },
+        });
+        const productMap = new Map(
+          products.map((product) => [product.id, product]),
+        );
+
+        for (const item of sale.items) {
+          const product = productMap.get(item.productId);
+          if (!product) {
+            throw new NotFoundException(
+              `Producto ${item.productId} no encontrado.`,
+            );
+          }
+
+          const presentation = item.presentationId
+            ? product.presentations.find(
+                (entry) => entry.id === item.presentationId,
+              )
+            : undefined;
+          const factor = presentation
+            ? presentation.factor
+            : new Prisma.Decimal(1);
+          const baseQuantity = item.quantity.mul(factor);
+
           await tx.product.update({
             where: { id: item.productId },
-            data: {
-              stockQuantity: {
-                decrement: item.quantity,
-              },
-            },
+            data: { stockQuantity: { increment: baseQuantity } },
           });
 
-          await tx.inventoryMovement.create({
+          const movement = await tx.inventoryMovement.create({
             data: {
               companyId,
               productId: item.productId,
-              type: 'OUTBOUND',
-              quantity: item.quantity * -1,
-              reason: `Sale ${sale.saleNumber}`,
-              referenceId: sale.id,
+              presentationId: item.presentationId,
+              type: InventoryMovementType.RETURN,
+              quantity: baseQuantity,
+              notes: `${label} de venta ${sale.saleNumber}`,
             },
           });
-        }),
-      );
 
-      if (input.customerId) {
-        const customer = await tx.customer.findUnique({
-          where: { id: input.customerId },
-          select: { totalPurchases: true },
-        });
-        if (customer) {
-          await tx.customer.update({
-            where: { id: input.customerId },
-            data: {
-              totalPurchases: (Number(customer.totalPurchases) + totalAmount).toFixed(2),
-            },
-          });
+          await this.kardexService.recordInMovement(
+            companyId,
+            item.productId,
+            baseQuantity,
+            product.costPrice ?? new Prisma.Decimal(0),
+            movement.id,
+            tx,
+          );
         }
-      }
 
-      return sale;
+        return tx.sale.findUnique({
+          where: { id },
+          include: { items: true, customer: true, employee: true },
+        });
+      },
+      { maxWait: 10_000, timeout: 15_000 },
+    );
+
+    await this.auditService.log({
+      companyId,
+      userId,
+      action: AuditAction.UPDATE,
+      entity: "Sale",
+      entityId: id,
+      changes: {
+        status: targetStatus,
+        reason: reason ?? null,
+        saleNumber: sale.saleNumber,
+        reversedItems: sale.items.map((item) => ({
+          productId: item.productId,
+          quantity: Number(item.quantity),
+        })),
+      },
     });
+
+    if (targetStatus === SaleStatus.REFUNDED) {
+      try {
+        await this.creditNotesService.createFromRefund(
+          companyId,
+          userId,
+          id,
+          reason,
+        );
+      } catch {
+        // La emision de la nota de credito no debe bloquear el reembolso.
+      }
+    }
+
+    return updated;
   }
 }

@@ -1,42 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Logger } from "@nestjs/common";
+import { Job } from "bullmq";
+import { EMAIL_QUEUE } from "./email.constants";
+import { EmailService, SendEmailJob } from "./email.service";
 
-interface EmailJobData {
-  to: string;
-  from: string;
-  subject: string;
-  text: string;
-  html?: string;
-}
-
-@Processor('email', { concurrency: 5 })
-@Injectable()
+@Processor(EMAIL_QUEUE)
 export class EmailProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailProcessor.name);
 
-  async process(job: Job<EmailJobData>): Promise<void> {
-    const { to, subject, text } = job.data;
-
-    this.logger.log(`Processing email to: ${to}, subject: ${subject}`);
-
-    this.logger.log(`[DEMO] =========================================`);
-    this.logger.log(`[DEMO] Sending email`);
-    this.logger.log(`[DEMO] To: ${to}`);
-    this.logger.log(`[DEMO] Subject: ${subject}`);
-    this.logger.log(`[DEMO] Body: ${text}`);
-    this.logger.log(`[DEMO] =========================================`);
-
-    await new Promise(resolve => setTimeout(resolve, 100));
+  constructor(private readonly emailService: EmailService) {
+    super();
   }
 
-  @OnWorkerEvent('completed')
-  onCompleted(job: Job) {
-    this.logger.log(`Email job ${job.id} completed`);
-  }
-
-  @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
-    this.logger.error(`Email job ${job.id} failed: ${error.message}`);
+  async process(job: Job<SendEmailJob>): Promise<void> {
+    this.logger.log(
+      `Email ${job.id} (${job.data.template}) intento ${job.attemptsMade + 1}`,
+    );
+    await this.emailService.sendEmailDirect(job.data);
   }
 }

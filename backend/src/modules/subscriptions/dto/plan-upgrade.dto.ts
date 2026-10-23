@@ -1,11 +1,15 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsNumber } from 'class-validator';
-import { PaymentProvider } from '@prisma/client';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from "class-validator";
+import { PaymentProvider } from "@prisma/client";
+import { ALLOWED_IMAGE_MIME_PATTERN } from "@/common/helpers/image.helper";
 
 export class CreatePlanUpgradeRequestDto {
-  @IsString()
-  @IsNotEmpty()
-  companyId!: string;
-
   @IsString()
   @IsNotEmpty()
   newPlanCode!: string;
@@ -15,12 +19,25 @@ export class CreatePlanUpgradeRequestDto {
 
   @IsString()
   @IsOptional()
-  billingCycle?: 'MONTHLY' | 'YEARLY';
+  billingCycle?: "MONTHLY" | "YEARLY";
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  @Matches(/^[A-Za-z0-9._-]+$/, {
+    message:
+      "idempotencyKey solo puede contener letras, numeros, punto, guion bajo y guion",
+  })
+  idempotencyKey?: string;
 }
 
 export class SubmitUpgradeProofDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(2_000_000)
+  @Matches(ALLOWED_IMAGE_MIME_PATTERN, {
+    message: "imageBase64 debe ser una imagen PNG, JPEG o WebP",
+  })
   imageBase64!: string;
 
   @IsOptional()
@@ -31,7 +48,7 @@ export class SubmitUpgradeProofDto {
 export class ReviewPlanUpgradeDto {
   @IsString()
   @IsNotEmpty()
-  status!: 'APPROVED' | 'REJECTED';
+  status!: "APPROVED" | "REJECTED";
 
   @IsString()
   @IsOptional()

@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Edit, Trash2, AlertTriangle } from 'lucide-react';
-import { DeleteDialog } from '@/components/common/delete-dialog';
-import { PermissionGuard } from '@/components/auth/permission-guard';
-import type { Category } from '@/types/api';
+import Link from "next/link";
+import { Edit, Trash2, AlertTriangle } from "lucide-react";
+import { DeleteDialog } from "@/components/common/delete-dialog";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import type { Category } from "@/types/api";
 
 export function CategoryActions({ category }: { category: Category }) {
   const productCount = category._count?.products ?? 0;
@@ -12,7 +12,7 @@ export function CategoryActions({ category }: { category: Category }) {
 
   return (
     <div className="flex items-center gap-2">
-      <PermissionGuard permission="categories:update">
+      <PermissionGuard permission="category:update">
         <Link
           href={`/categories/${category.id}/edit`}
           className="rounded-lg p-2 hover:bg-foreground/5"
@@ -20,7 +20,7 @@ export function CategoryActions({ category }: { category: Category }) {
           <Edit className="size-4 text-foreground/50" />
         </Link>
       </PermissionGuard>
-      <PermissionGuard permission="categories:delete" fallback={null}>
+      <PermissionGuard permission="category:delete" fallback={null}>
         {canDelete ? (
           <DeleteDialog
             id={category.id}
@@ -42,9 +42,12 @@ export function CategoryActions({ category }: { category: Category }) {
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-red-700">No se puede eliminar</p>
+                    <p className="text-sm font-medium text-red-700">
+                      No se puede eliminar
+                    </p>
                     <p className="text-xs text-red-600 mt-1">
-                      Esta categoría tiene {productCount} producto(s). Elimina o reasigna los productos primero.
+                      Esta categoría tiene {productCount} producto(s). Elimina o
+                      reasigna los productos primero.
                     </p>
                   </div>
                 </div>
@@ -59,10 +62,10 @@ export function CategoryActions({ category }: { category: Category }) {
 
 export function NewCategoryButton() {
   return (
-    <PermissionGuard permission="categories:create">
+    <PermissionGuard permission="category:create">
       <Link
         href="/categories/new"
-        className="rounded-2xl bg-white px-6 py-3 text-sm font-medium text-indigo-600 transition hover:bg-white/90"
+        className="block w-full rounded-2xl bg-white px-6 py-3 text-center text-sm font-medium text-indigo-600 transition hover:bg-white/90 sm:w-auto"
       >
         + Nueva categoría
       </Link>

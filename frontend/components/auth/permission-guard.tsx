@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { usePermissions } from '@/hooks/usePermissions';
-import type { Permission } from '@/types/permissions';
+import { usePermissions } from "@/hooks/usePermissions";
+import type { Permission } from "@/types/permissions";
 
 type PermissionGuardProps = {
   permission: Permission;
@@ -9,7 +9,11 @@ type PermissionGuardProps = {
   fallback?: React.ReactNode;
 };
 
-export function PermissionGuard({ permission, children, fallback = null }: PermissionGuardProps) {
+export function PermissionGuard({
+  permission,
+  children,
+  fallback = null,
+}: PermissionGuardProps) {
   const { hasPermission } = usePermissions();
   return hasPermission(permission) ? <>{children}</> : <>{fallback}</>;
 }

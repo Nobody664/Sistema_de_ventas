@@ -1,6 +1,6 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = "success" | "error" | "info";
 
 type Toast = {
   id: string;
@@ -24,7 +24,7 @@ export const useUiStore = create<UiState>((set) => ({
   sidebarOpen: true,
   sidebarMobileOpen: false,
   toasts: [],
-  addToast: (message, type = 'success') => {
+  addToast: (message, type = "success") => {
     const id = Math.random().toString(36).substring(7);
     set((state) => ({
       toasts: [...state.toasts, { id, message, type }],
@@ -35,7 +35,8 @@ export const useUiStore = create<UiState>((set) => ({
       }));
     }, 4000);
   },
-  removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
+  removeToast: (id) =>
+    set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   toggleMobileSidebar: () =>
     set((state) => ({ sidebarMobileOpen: !state.sidebarMobileOpen })),

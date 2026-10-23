@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, useState, ReactNode } from "react";
 
 interface PageAnimationProps {
   children: ReactNode;
@@ -8,7 +8,11 @@ interface PageAnimationProps {
   className?: string;
 }
 
-export function PageAnimation({ children, delay = 0, className = '' }: PageAnimationProps) {
+export function PageAnimation({
+  children,
+  delay = 0,
+  className = "",
+}: PageAnimationProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -35,7 +39,11 @@ interface StaggeredGridProps {
   className?: string;
 }
 
-export function StaggeredGrid({ children, delay = 75, className = '' }: StaggeredGridProps) {
+export function StaggeredGrid({
+  children,
+  delay = 75,
+  className = "",
+}: StaggeredGridProps) {
   return (
     <div className={className}>
       {children.map((child, index) => (
@@ -57,7 +65,11 @@ interface CardAnimationProps {
   className?: string;
 }
 
-export function CardAnimation({ children, delay = 0, className = '' }: CardAnimationProps) {
+export function CardAnimation({
+  children,
+  delay = 0,
+  className = "",
+}: CardAnimationProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {

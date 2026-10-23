@@ -1,47 +1,86 @@
-'use client';
+"use client";
 
-import { useSession } from 'next-auth/react';
-import Link from 'next/link';
-import { ArrowLeft, Printer, Download, FileText, User, Calendar, CreditCard } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { apiFetch } from '@/lib/api';
-import type { Sale } from '@/types/api';
+import Link from "next/link";
+import {
+  ArrowLeft,
+  Printer,
+  Download,
+  FileText,
+  User,
+  Calendar,
+  CreditCard,
+} from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { apiFetch, getAccessToken } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth.store";
+import { useUiStore } from "@/store/ui-store";
+import { CreditNotesPanel } from "@/components/sales/credit-notes-panel";
+import type { Sale } from "@/types/api";
 
 interface SaleDetailClientProps {
   sale: Sale;
 }
 
 export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
-  const { data: session } = useSession();
+  const user = useAuthStore((state) => state.user);
+  const addToast = useUiStore((state) => state.addToast);
 
   const handlePrint = async () => {
     try {
-      const response = await apiFetch<{ html: string }>(`/invoices/generate/${initialSale.id}`, {
-        token: session?.accessToken,
-      });
+      const response = await apiFetch<{ html: string }>(
+        `/invoices/generate/${initialSale.id}`,
+        {
+          token: getAccessToken(),
+        },
+      );
 
-      if (response?.html) {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(response.html);
-          printWindow.document.close();
-          printWindow.print();
-        }
+      if (!response?.html) {
+        addToast("No se pudo generar el comprobante de la venta", "error");
+        return;
       }
+
+      const printFrame = document.createElement("iframe");
+      printFrame.setAttribute("aria-hidden", "true");
+      printFrame.style.position = "fixed";
+      printFrame.style.right = "0";
+      printFrame.style.bottom = "0";
+      printFrame.style.width = "0";
+      printFrame.style.height = "0";
+      printFrame.style.border = "0";
+
+      printFrame.onload = () => {
+        const frameWindow = printFrame.contentWindow;
+        if (!frameWindow) {
+          printFrame.remove();
+          return;
+        }
+        frameWindow.focus();
+        frameWindow.print();
+        window.setTimeout(() => printFrame.remove(), 1000);
+      };
+
+      printFrame.srcdoc = response.html;
+      document.body.appendChild(printFrame);
     } catch (error) {
-      console.error('Error generating invoice:', error);
+      console.error("Error generating invoice:", error);
+      addToast(
+        error instanceof Error
+          ? error.message
+          : "No se pudo generar la impresión de la venta",
+        "error",
+      );
     }
   };
 
   const paymentMethods: Record<string, string> = {
-    CASH: 'Efectivo',
-    CARD: 'Tarjeta',
-    TRANSFER: 'Transferencia',
+    CASH: "Efectivo",
+    CARD: "Tarjeta",
+    TRANSFER: "Transferencia",
   };
 
   return (
-    <div className="min-h-screen bg-[#fbf6ef]">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-5 py-8 md:px-8">
         <div className="mb-8">
           <Link
@@ -51,28 +90,36 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
             <ArrowLeft className="h-4 w-4" />
             Volver a ventas
           </Link>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-4 min-w-0">
               <div className="rounded-xl bg-gradient-to-br from-orange-500 to-rose-600 p-3 shadow-lg">
                 <FileText className="h-6 w-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Venta #{initialSale.saleNumber}</h1>
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-slate-900 break-words">
+                  Venta #{initialSale.saleNumber}
+                </h1>
                 <p className="text-sm text-slate-500">
-                  {initialSale.paidAt 
-                    ? new Date(initialSale.paidAt).toLocaleDateString('es-PE', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Sin fecha'}
+                  {initialSale.paidAt
+                    ? new Date(initialSale.paidAt as Date).toLocaleString(
+                        "es-PE",
+                        {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )
+                    : "Sin fecha"}
                 </p>
               </div>
             </div>
-            <Button onClick={handlePrint} className="bg-orange-500 hover:bg-orange-600">
+            <Button
+              onClick={handlePrint}
+              className="w-full bg-orange-500 hover:bg-orange-600 sm:w-auto"
+            >
               <Printer className="mr-2 h-4 w-4" />
               Imprimir
             </Button>
@@ -89,16 +136,17 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
               <div>
                 <p className="text-sm text-slate-500">Cliente</p>
                 <p className="font-medium">
-                  {initialSale.customer 
-                    ? `${initialSale.customer.firstName} ${initialSale.customer.lastName || ''}`
-                    : 'Cliente general'}
+                  {initialSale.customer
+                    ? `${initialSale.customer.firstName} ${initialSale.customer.lastName || ""}`
+                    : "Cliente general"}
                 </p>
               </div>
               {initialSale.employee && (
                 <div>
                   <p className="text-sm text-slate-500">Vendedor</p>
                   <p className="font-medium">
-                    {initialSale.employee.firstName} {initialSale.employee.lastName || ''}
+                    {initialSale.employee.firstName}{" "}
+                    {initialSale.employee.lastName || ""}
                   </p>
                 </div>
               )}
@@ -111,22 +159,50 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
               Productos
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[720px]">
                 <thead>
                   <tr className="border-b">
-                    <th className="pb-3 text-left text-sm font-medium text-slate-500">Producto</th>
-                    <th className="pb-3 text-center text-sm font-medium text-slate-500">Cant.</th>
-                    <th className="pb-3 text-right text-sm font-medium text-slate-500">P. Unit</th>
-                    <th className="pb-3 text-right text-sm font-medium text-slate-500">Total</th>
+                    <th className="pb-3 text-left text-sm font-medium text-slate-500">
+                      Producto
+                    </th>
+                    <th className="pb-3 text-left text-sm font-medium text-slate-500">
+                      Descripción
+                    </th>
+                    <th className="pb-3 text-left text-sm font-medium text-slate-500">
+                      SKU
+                    </th>
+                    <th className="pb-3 text-center text-sm font-medium text-slate-500">
+                      Cant.
+                    </th>
+                    <th className="pb-3 text-right text-sm font-medium text-slate-500">
+                      P. Unit
+                    </th>
+                    <th className="pb-3 text-right text-sm font-medium text-slate-500">
+                      Total
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {initialSale.items?.map((item) => (
                     <tr key={item.id} className="border-b border-slate-100">
-                      <td className="py-3">{item.productName || 'Producto'}</td>
+                      <td className="py-3">
+                        <div className="font-medium text-slate-900">
+                          {item.product?.name || "Producto"}
+                        </div>
+                      </td>
+                      <td className="py-3 text-sm text-slate-600">
+                        {item.product?.description || "—"}
+                      </td>
+                      <td className="py-3 text-sm text-slate-500">
+                        {item.product?.sku || "—"}
+                      </td>
                       <td className="py-3 text-center">{item.quantity}</td>
-                      <td className="py-3 text-right">S/ {Number(item.unitPrice).toFixed(2)}</td>
-                      <td className="py-3 text-right">S/ {Number(item.totalAmount).toFixed(2)}</td>
+                      <td className="py-3 text-right">
+                        S/ {Number(item.unitPrice).toFixed(2)}
+                      </td>
+                      <td className="py-3 text-right">
+                        S/ {Number(item.totalPrice).toFixed(2)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -153,19 +229,28 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
               {Number(initialSale.discountAmount) > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Descuento</span>
-                  <span>-S/ {Number(initialSale.discountAmount).toFixed(2)}</span>
+                  <span>
+                    -S/ {Number(initialSale.discountAmount).toFixed(2)}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between border-t pt-3 text-lg font-bold">
                 <span>Total</span>
-                <span className="text-orange-600">S/ {Number(initialSale.totalAmount || 0).toFixed(2)}</span>
+                <span className="text-orange-600">
+                  S/ {Number(initialSale.totalAmount || 0).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between pt-3">
                 <span className="text-slate-500">Método de pago</span>
-                <span className="font-medium">{paymentMethods[initialSale.paymentMethod] || initialSale.paymentMethod}</span>
+                <span className="font-medium">
+                  {paymentMethods[initialSale.paymentMethod] ||
+                    initialSale.paymentMethod}
+                </span>
               </div>
             </div>
           </Card>
+
+          <CreditNotesPanel saleId={initialSale.id} />
         </div>
       </div>
     </div>

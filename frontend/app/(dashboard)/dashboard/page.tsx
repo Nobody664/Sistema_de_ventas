@@ -1,6 +1,7 @@
-import { auth } from '@/auth';
-import { serverApiFetch } from '@/lib/server-api';
-import { DashboardClient } from '@/components/dashboard/dashboard-client';
+import { getServerSession } from "@/lib/session";
+import { serverApiFetch } from "@/lib/server-api";
+import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { Suspense } from "react";
 
 type GlobalMetrics = {
   totalCompanies: number;
@@ -20,7 +21,11 @@ type SalesAnalytics = {
   totalRevenue: number;
 };
 
-type PaymentMethodStats = Array<{ method: string; count: number; total: number }>;
+type PaymentMethodStats = Array<{
+  method: string;
+  count: number;
+  total: number;
+}>;
 
 type InventoryMetrics = {
   totalValue: number;
@@ -33,7 +38,12 @@ type InventoryMetrics = {
 type CustomerStats = {
   total: number;
   newThisMonth: number;
-  topCustomers: Array<{ customerId: string; name: string; totalPurchases: number; totalSpent: number }>;
+  topCustomers: Array<{
+    customerId: string;
+    name: string;
+    totalPurchases: number;
+    totalSpent: number;
+  }>;
 };
 
 type TenantMetrics = {
@@ -73,18 +83,77 @@ type Subscription = {
   company?: { name: string };
 };
 
-export default async function DashboardPage() {
-  const session = await auth();
-  const roles = session?.user?.roles ?? [];
-  const accessToken = session?.accessToken;
-  const isSuperAdmin = roles.includes('SUPER_ADMIN') || roles.includes('SUPPORT_ADMIN');
+type SubscriberResponse = {
+  name: string;
+  subscription?: {
+    id: string;
+    status: string;
+    provider: string;
+    billingCycle: string;
+    plan?: { name: string; priceMonthly: string };
+  } | null;
+};
 
-  const [globalMetrics, auditLogs, recentSubscriptions, tenantMetrics] = await Promise.all([
-    isSuperAdmin ? serverApiFetch<GlobalMetrics>('/dashboard/global', accessToken) : Promise.resolve(null),
-    isSuperAdmin ? serverApiFetch<AuditLog[]>('/audit/global', accessToken) : Promise.resolve(null),
-    isSuperAdmin ? serverApiFetch<Subscription[]>('/subscriptions/subscribers', accessToken) : Promise.resolve(null),
-    !isSuperAdmin ? serverApiFetch<TenantMetrics>('/dashboard/tenant', accessToken) : Promise.resolve(null),
+type PaginatedSubscriptions = {
+  data: SubscriberResponse[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+async function DashboardDataLoader() {
+  const session = await getServerSession();
+  const accessToken = session?.accessToken;
+  const userRoles = session?.user?.roles ?? [];
+  const isSuperAdmin =
+    userRoles.includes("SUPER_ADMIN") || userRoles.includes("SUPPORT_ADMIN");
+
+  let globalMetrics: GlobalMetrics | null = null;
+  let auditLogs: AuditLog[] | null = null;
+  let recentSubscriptions: Subscription[] | null = null;
+
+  const [tenantMetrics] = await Promise.all([
+    serverApiFetch<TenantMetrics | null>(
+      "/dashboard/tenant",
+      accessToken ?? undefined,
+    ),
   ]);
+
+  if (isSuperAdmin) {
+    const [globals, logs, subsResponse] = await Promise.all([
+      serverApiFetch<GlobalMetrics | null>(
+        "/dashboard/global",
+        accessToken ?? undefined,
+      ),
+      serverApiFetch<{ items: AuditLog[] } | null>(
+        "/audit/global",
+        accessToken ?? undefined,
+      ),
+      serverApiFetch<PaginatedSubscriptions | null>(
+        "/subscriptions/subscribers",
+        accessToken ?? undefined,
+      ),
+    ]);
+    globalMetrics = globals;
+    auditLogs = logs?.items ?? null;
+    recentSubscriptions = (subsResponse?.data ?? []).flatMap(
+      (subscriber): Subscription[] => {
+        if (!subscriber.subscription) return [];
+
+        return [
+          {
+            id: subscriber.subscription.id,
+            status: subscriber.subscription.status,
+            provider: subscriber.subscription.provider,
+            billingCycle: subscriber.subscription.billingCycle,
+            plan: subscriber.subscription.plan,
+            company: { name: subscriber.name },
+          },
+        ];
+      },
+    );
+  }
 
   return (
     <DashboardClient
@@ -94,5 +163,29 @@ export default async function DashboardPage() {
       tenantMetrics={tenantMetrics}
       isSuperAdmin={isSuperAdmin}
     />
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+        <div className="h-48 rounded-[34px] bg-gray-200" />
+        <div className="h-48 rounded-[34px] bg-gray-100" />
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-32 rounded-[30px] bg-gray-100" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardDataLoader />
+    </Suspense>
   );
 }

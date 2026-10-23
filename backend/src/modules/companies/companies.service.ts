@@ -1,44 +1,79 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma/prisma.service';
-import { CreateCompanyDto, UpdateCompanyDto, UpdateCompanyStatusDto } from './dto/company.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { isProfileComplete } from "@/common/helpers/profile-completeness.helper";
+import {
+  CreateCompanyDto,
+  UpdateCompanyDto,
+  UpdateCompanyStatusDto,
+} from "./dto/company.dto";
+
+interface ProfileFieldsInput {
+  taxId?: string | null;
+  legalName?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
 
 @Injectable()
 export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.company.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        subscription: {
-          include: { plan: true },
+  private profileSync(input: ProfileFieldsInput) {
+    const complete = isProfileComplete(input);
+    return {
+      profileComplete: complete,
+      ...(complete ? { profileCompletedAt: new Date() } : {}),
+    };
+  }
+
+  async findAll(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.company.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          subscriptions: { include: { plan: true }, take: 1 },
+          _count: { select: { memberships: true, customers: true } },
         },
-        _count: {
-          select: { memberships: true, customers: true },
-        },
-      },
-    });
+      }),
+      this.prisma.company.count(),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: string) {
     const company = await this.prisma.company.findUnique({
       where: { id },
       include: {
-        subscription: {
+        subscriptions: {
           include: { plan: true },
+          take: 1,
         },
       },
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
 
     return company;
   }
 
-  create(input: CreateCompanyDto) {
-    const slug = input.slug ?? input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+  async create(input: CreateCompanyDto) {
+    const slug =
+      input.slug ??
+      input.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-");
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const freePlan = await this.prisma.plan.findUnique({
+      where: { code: "FREE" },
+    });
 
     return this.prisma.company.create({
       data: {
@@ -49,15 +84,37 @@ export class CompaniesService {
         address: input.address,
         email: input.email,
         phone: input.phone,
-        timezone: input.timezone ?? 'America/Lima',
-        currency: input.currency ?? 'PEN',
-        status: 'TRIAL',
+        timezone: input.timezone ?? "America/Lima",
+        currency: input.currency ?? "PEN",
+        status: "TRIAL",
+        trialEndsAt,
+        ...this.profileSync(input),
+        subscriptions: freePlan
+          ? {
+              create: {
+                planId: freePlan.id,
+                status: "TRIALING",
+                billingCycle: "MONTHLY",
+                startDate: new Date(),
+                endDate: trialEndsAt,
+              },
+            }
+          : undefined,
+      },
+      include: {
+        subscriptions: { include: { plan: true }, take: 1 },
       },
     });
   }
 
   async createWithPlan(input: CreateCompanyDto & { planId: string }) {
-    const slug = input.slug ?? input.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const slug =
+      input.slug ??
+      input.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-");
 
     const company = await this.prisma.company.create({
       data: {
@@ -68,22 +125,24 @@ export class CompaniesService {
         address: input.address,
         email: input.email,
         phone: input.phone,
-        timezone: input.timezone ?? 'America/Lima',
-        currency: input.currency ?? 'PEN',
-        status: 'TRIAL',
-        subscription: {
+        timezone: input.timezone ?? "America/Lima",
+        currency: input.currency ?? "PEN",
+        status: "TRIAL",
+        ...this.profileSync(input),
+        subscriptions: {
           create: {
             planId: input.planId,
-            status: 'TRIALING',
-            billingCycle: 'MONTHLY',
+            status: "TRIALING",
+            billingCycle: "MONTHLY",
             startDate: new Date(),
             endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           },
         },
       },
       include: {
-        subscription: {
+        subscriptions: {
           include: { plan: true },
+          take: 1,
         },
       },
     });
@@ -94,28 +153,38 @@ export class CompaniesService {
   async approve(id: string) {
     const company = await this.prisma.company.findUnique({
       where: { id },
-      include: { subscription: true },
+      include: { subscriptions: true },
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
+    }
+
+    const activeSubscription = company.subscriptions[0];
+    if (activeSubscription) {
+      return this.prisma.company.update({
+        where: { id },
+        data: {
+          status: "ACTIVE",
+          subscriptions: {
+            update: {
+              where: { id: activeSubscription.id },
+              data: { status: "ACTIVE" },
+            },
+          },
+        },
+        include: {
+          subscriptions: {
+            include: { plan: true },
+            take: 1,
+          },
+        },
+      });
     }
 
     return this.prisma.company.update({
       where: { id },
-      data: {
-        status: 'ACTIVE',
-        subscription: {
-          update: {
-            status: 'ACTIVE',
-          },
-        },
-      },
-      include: {
-        subscription: {
-          include: { plan: true },
-        },
-      },
+      data: { status: "ACTIVE" },
     });
   }
 
@@ -125,12 +194,12 @@ export class CompaniesService {
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
 
     return this.prisma.company.update({
       where: { id },
-      data: { status: 'SUSPENDED' },
+      data: { status: "SUSPENDED" },
     });
   }
 
@@ -138,14 +207,15 @@ export class CompaniesService {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       include: {
-        subscription: {
+        subscriptions: {
           include: { plan: true },
+          take: 1,
         },
       },
     });
 
     if (!company) {
-      throw new NotFoundException('Company not found.');
+      throw new NotFoundException("Company not found.");
     }
 
     return company;
@@ -156,7 +226,10 @@ export class CompaniesService {
 
     return this.prisma.company.update({
       where: { id: companyId },
-      data: input,
+      data: {
+        ...input,
+        ...this.profileSync(input),
+      },
     });
   }
 
@@ -165,7 +238,10 @@ export class CompaniesService {
 
     return this.prisma.company.update({
       where: { id: companyId },
-      data: input,
+      data: {
+        ...input,
+        ...this.profileSync(input),
+      },
     });
   }
 

@@ -1,0 +1,51 @@
+services:
+  - type: web
+    runtime: node
+    name: sistema-de-ventas-backend
+    rootDir: backend
+    region: oregon
+    buildCommand: bash scripts/build.sh
+    startCommand: bash start.sh
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: PORT
+        value: "10000"
+      # Pooler de SESION (puerto 5432). No usar 6543: los driver adapters
+      # de Prisma usan prepared statements, incompatibles con pgbouncer
+      # en modo transaccional.
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      # Supabase exige TLS. rejectUnauthorized=false porque el certificado
+      # del pooler no esta en la cadena de confianza de Node.
+      - key: DB_SSL
+        value: "true"
+      - key: DB_SSL_REJECT_UNAUTHORIZED
+        value: "false"
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      # Origenes reales del frontend. Separados por coma, sin barra final.
+      - key: CORS_ORIGINS
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      # MercadoPago. El webhook rechaza notificaciones sin secreto (401),
+      # por lo que sin MERCADOPAGO_WEBHOOK_SECRET las suscripciones por MP
+      # no se activan via webhook.
+      - key: MERCADOPAGO_ACCESS_TOKEN
+        sync: false
+      - key: MERCADOPAGO_WEBHOOK_SECRET
+        sync: false
+      - key: SMTP_ENABLED
+        value: "false"

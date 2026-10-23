@@ -1,4 +1,34 @@
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { Type } from "class-transformer";
+import {
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from "class-validator";
+
+export class QueryCustomerDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 50;
+}
+
+export class ExportCustomersQueryDto {
+  @IsOptional()
+  @IsIn(["csv", "excel", "pdf"])
+  format?: "csv" | "excel" | "pdf" = "csv";
+}
 
 export class CreateCustomerDto {
   @IsString()
@@ -26,8 +56,11 @@ export class CreateCustomerDto {
 
   @IsOptional()
   @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
   notes?: string;
 }
 
 export class UpdateCustomerDto extends CreateCustomerDto {}
-

@@ -1,4 +1,30 @@
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { Type } from "class-transformer";
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+} from "class-validator";
+
+export class QueryEmployeeDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 50;
+}
 
 export class CreateEmployeeDto {
   @IsOptional()
@@ -12,9 +38,8 @@ export class CreateEmployeeDto {
   @IsString()
   lastName?: string;
 
-  @IsOptional()
   @IsEmail()
-  email?: string;
+  email!: string;
 
   @IsOptional()
   @IsString()
@@ -22,15 +47,32 @@ export class CreateEmployeeDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(8, { message: 'El DNI debe tener 8 dígitos' })
+  @MinLength(8, { message: "El DNI debe tener 8 dígitos" })
   dni?: string;
 
-  @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'STAFF'])
-  role!: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
+  @IsIn(["COMPANY_ADMIN", "MANAGER", "CASHIER", "VIEWER"])
+  role!: "COMPANY_ADMIN" | "MANAGER" | "CASHIER" | "VIEWER";
 
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  salary?: number | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  paymentDay?: number | null;
 }
 
 export class UpdateEmployeeDto {
@@ -52,15 +94,27 @@ export class UpdateEmployeeDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(8, { message: 'El DNI debe tener 8 dígitos' })
+  @MinLength(8, { message: "El DNI debe tener 8 dígitos" })
   dni?: string;
 
   @IsOptional()
-  @IsIn(['COMPANY_ADMIN', 'MANAGER', 'CASHIER', 'STAFF'])
-  role?: 'COMPANY_ADMIN' | 'MANAGER' | 'CASHIER' | 'STAFF';
+  @IsIn(["COMPANY_ADMIN", "MANAGER", "CASHIER", "VIEWER"])
+  role?: "COMPANY_ADMIN" | "MANAGER" | "CASHIER" | "VIEWER";
 
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-}
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  salary?: number | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  paymentDay?: number | null;
+}

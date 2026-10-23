@@ -1,60 +1,111 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { TenantGuard } from '@/common/guards/tenant.guard';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
-import { CustomersService } from './customers.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import { Roles } from "@/common/decorators/roles.decorator";
+import { Permissions } from "@/common/decorators/permissions.decorator";
+import { Permission } from "@/common/constants/permissions.constant";
+import { TenantGuard } from "@/common/guards/tenant.guard";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { PermissionsGuard } from "@/common/guards/permissions.guard";
+import {
+  SubscriptionLimitGuard,
+  LimitResource,
+} from "@/common/guards/subscription-limit.guard";
+import { RequireModule } from "@/modules/plan-capabilities/decorators/require-module.decorator";
+import {
+  CreateCustomerDto,
+  ExportCustomersQueryDto,
+  QueryCustomerDto,
+  UpdateCustomerDto,
+} from "./dto/customer.dto";
+import { CustomersService } from "./customers.service";
 
-@UseGuards(JwtAuthGuard, TenantGuard)
-@Controller('customers')
+@UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
+@RequireModule("customers")
+@Controller("customers")
 export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Get('limits')
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.CUSTOMER_LIST)
+  @Get("limits")
   getLimits(@Req() request: { tenantId: string }) {
     return this.customersService.getLimitsInfo(request.tenantId);
   }
 
-  @Roles('COMPANY_ADMIN')
-  @Post('calculate-totals')
-  calculateTotals(@Req() request: { tenantId: string }) {
-    return this.customersService.calculateTotalPurchases(request.tenantId);
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.CUSTOMER_EXPORT)
+  @Get("export")
+  exportCustomers(
+    @Req() request: { tenantId: string },
+    @Query() query: ExportCustomersQueryDto,
+  ) {
+    return this.customersService.exportCustomers(
+      request.tenantId,
+      query.format,
+    );
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
-  @Get(':id')
-  findById(@Req() request: { tenantId: string }, @Param('id') id: string) {
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.CUSTOMER_LIST)
+  @Get(":id")
+  findById(@Req() request: { tenantId: string }, @Param("id") id: string) {
     return this.customersService.findById(request.tenantId, id);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
-  @Get(':id/purchases')
-  getPurchases(@Req() request: { tenantId: string }, @Param('id') id: string) {
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.CUSTOMER_LIST)
+  @Get(":id/purchases")
+  getPurchases(@Req() request: { tenantId: string }, @Param("id") id: string) {
     return this.customersService.getPurchases(request.tenantId, id);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.CUSTOMER_LIST)
   @Get()
-  findByCompany(@Req() request: { tenantId: string }) {
-    return this.customersService.findByCompany(request.tenantId);
+  findByCompany(
+    @Req() request: { tenantId: string },
+    @Query() query: QueryCustomerDto,
+  ) {
+    return this.customersService.findByCompany(request.tenantId, query);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.CUSTOMER_CREATE)
+  @UseGuards(SubscriptionLimitGuard)
+  @LimitResource("customers")
   @Post()
-  create(@Req() request: { tenantId: string }, @Body() body: CreateCustomerDto) {
+  create(
+    @Req() request: { tenantId: string },
+    @Body() body: CreateCustomerDto,
+  ) {
     return this.customersService.create(request.tenantId, body);
   }
 
-  @Roles('COMPANY_ADMIN', 'MANAGER')
-  @Patch(':id')
-  update(@Req() request: { tenantId: string }, @Param('id') id: string, @Body() body: UpdateCustomerDto) {
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.CUSTOMER_UPDATE)
+  @Patch(":id")
+  update(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+    @Body() body: UpdateCustomerDto,
+  ) {
     return this.customersService.update(request.tenantId, id, body);
   }
 
-  @Roles('COMPANY_ADMIN')
-  @Delete(':id')
-  remove(@Req() request: { tenantId: string }, @Param('id') id: string) {
+  @Roles("COMPANY_ADMIN")
+  @Permissions(Permission.CUSTOMER_DELETE)
+  @Delete(":id")
+  remove(@Req() request: { tenantId: string }, @Param("id") id: string) {
     return this.customersService.remove(request.tenantId, id);
   }
 }

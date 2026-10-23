@@ -1,34 +1,28 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-function createPrismaClient(): PrismaClient {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
-  const adapter = new PrismaPg(pool);
-  return new PrismaClient({ adapter });
-}
-
-const prisma = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor() {
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error("DATABASE_URL must be configured.");
+    }
+
+    const dbSsl = process.env.DB_SSL !== "false";
+    const rejectUnauthorized =
+      process.env.DB_SSL_REJECT_UNAUTHORIZED === "true";
+
+    super({
+      adapter: new PrismaPg({
+        connectionString,
+        ssl: dbSsl ? { rejectUnauthorized } : false,
+      }),
     });
-    const adapter = new PrismaPg(pool);
-    super({ adapter });
   }
 
   async onModuleInit() {

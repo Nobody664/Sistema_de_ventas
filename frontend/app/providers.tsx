@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SessionProvider } from 'next-auth/react';
-import { PropsWithChildren, useState } from 'react';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
+import { PropsWithChildren, useState } from "react";
+import { AuthHydrator } from "@/components/auth/auth-hydrator";
 
 export function Providers({ children }: PropsWithChildren) {
   const [queryClient] = useState(
@@ -18,8 +19,16 @@ export function Providers({ children }: PropsWithChildren) {
   );
 
   return (
-    <SessionProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </SessionProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <QueryClientProvider client={queryClient}>
+        <AuthHydrator />
+        {children}
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

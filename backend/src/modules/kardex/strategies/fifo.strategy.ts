@@ -1,0 +1,71 @@
+import { Injectable } from "@nestjs/common";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { CostingStrategy, CostingResult } from "./costing.strategy";
+
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
+>;
+
+interface InventoryLayer {
+  qty: number;
+  unitCost: Prisma.Decimal;
+}
+
+@Injectable()
+export class FifoStrategy implements CostingStrategy {
+  name = "FIFO";
+
+  async calculateOutCost(
+    productId: string,
+    quantity: Prisma.Decimal,
+    companyId: string,
+    tx: PrismaTx,
+  ): Promise<CostingResult> {
+    const entries = await tx.inventoryKardex.findMany({
+      where: { companyId, productId },
+      orderBy: { movementDate: "asc" },
+    });
+
+    const layers: InventoryLayer[] = [];
+
+    for (const entry of entries) {
+      if (entry.qtyIn.gt(0) && entry.unitCostIn) {
+        layers.push({
+          qty: entry.qtyIn.toNumber(),
+          unitCost: entry.unitCostIn,
+        });
+      } else if (entry.qtyOut.gt(0)) {
+        let remaining = entry.qtyOut.toNumber();
+        while (remaining > 0 && layers.length > 0) {
+          const layer = layers[0];
+          const consumed = Math.min(layer.qty, remaining);
+          layer.qty -= consumed;
+          remaining -= consumed;
+          if (layer.qty <= 0) layers.shift();
+        }
+      }
+    }
+
+    let remainingToConsume = quantity.toNumber();
+    let totalCost = new Prisma.Decimal(0);
+
+    while (remainingToConsume > 0 && layers.length > 0) {
+      const layer = layers[0];
+      const consumed = Math.min(layer.qty, remainingToConsume);
+      totalCost = totalCost.plus(layer.unitCost.mul(consumed));
+      layer.qty -= consumed;
+      remainingToConsume -= consumed;
+      if (layer.qty <= 0) layers.shift();
+    }
+
+    if (remainingToConsume > 0) {
+      throw new Error(
+        `Insufficient inventory layers for product ${productId}. Needed ${quantity.toString()}, found ${quantity.toNumber() - remainingToConsume}`,
+      );
+    }
+
+    const unitCost = totalCost.div(quantity);
+    return { unitCost, totalCost };
+  }
+}

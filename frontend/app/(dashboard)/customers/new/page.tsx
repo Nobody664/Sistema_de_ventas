@@ -1,12 +1,12 @@
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
-import { CustomerForm } from '@/components/customers/customer-form';
+import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/session";
+import { CustomerForm } from "@/components/customers/customer-form";
 
 export default async function NewCustomerPage() {
-  const session = await auth();
+  const session = await getServerSession();
 
   if (!session?.user) {
-    redirect('/sign-in');
+    redirect("/sign-in");
   }
 
   return <CustomerForm />;
