@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import {
@@ -34,6 +35,7 @@ const OFFLINE_PROVIDERS: PaymentProvider[] = [
 
 @Injectable()
 export class PlanUpgradeRequestsService {
+  private readonly logger = new Logger(PlanUpgradeRequestsService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
@@ -74,7 +76,7 @@ export class PlanUpgradeRequestsService {
     companyId: string,
   ) {
     try {
-      return { request: await create() };
+      return { request: await create(), reused: false };
     } catch (err) {
       if (
         err instanceof PrismaClientKnownRequestError &&
@@ -91,7 +93,7 @@ export class PlanUpgradeRequestsService {
                 where: { provider: existing.provider, isEnabled: true },
               })
             : undefined;
-          return { request: existing, existingSettings };
+          return { request: existing, existingSettings, reused: true };
         }
       }
       throw err;
@@ -196,6 +198,22 @@ export class PlanUpgradeRequestsService {
       companyId,
     );
 
+    if (!result.reused)
+      await this.notificationsService
+        .notifySuperAdmins({
+          type: NotificationType.PLAN_UPGRADE_REQUEST,
+          title: "Nueva solicitud de cambio de plan",
+          message: `${company.name} solicitó el plan ${newPlan.name}.`,
+          companyId,
+          data: { planUpgradeRequestId: result.request.id, companyId },
+          actionUrl: "/platform/upgrade-requests",
+        })
+        .catch((error: unknown) =>
+          this.logger.warn(
+            `No se pudo notificar la solicitud: ${String(error)}`,
+          ),
+        );
+
     return this.buildUpgradeResponse(
       currentSubscription.plan,
       result.request,
@@ -237,34 +255,23 @@ export class PlanUpgradeRequestsService {
       throw new ConflictException("La solicitud ya fue enviada o revisada");
     }
 
-    const adminUsers = await this.prisma.user.findMany({
-      where: {
-        globalRole: "SUPER_ADMIN",
-        isActive: true,
-      },
-    });
-
-    for (const admin of adminUsers) {
-      await this.notificationsService.create({
-        userId: admin.id,
-        companyId: request.companyId,
-        type: NotificationType.PLAN_UPGRADED,
-        channel: NotificationChannel.IN_APP,
-        title: "Nueva solicitud de upgrade de plan",
-        message: `${request.company.name} solicitó cambio al plan ${request.plan.name}. Requiere revisión.`,
-      });
-    }
-
     await this.notificationsService
       .notifySuperAdmins({
         type: NotificationType.PAYMENT_PROOF_PENDING,
         title: "Comprobante de pago recibido",
         message: `${request.company.name} envió el comprobante para el plan ${request.plan.name}.`,
-        data: { planUpgradeRequestId: request.id, companyId: request.companyId },
-        actionUrl: "/platform/upgrade-requests/pending",
+        data: {
+          planUpgradeRequestId: request.id,
+          companyId: request.companyId,
+        },
+        actionUrl: "/platform/upgrade-requests",
         companyId: request.companyId,
       })
-      .catch(() => undefined);
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `No se pudo notificar el comprobante: ${String(error)}`,
+        ),
+      );
 
     return {
       requestId: request.id,
@@ -373,10 +380,21 @@ export class PlanUpgradeRequestsService {
           .catch(() => undefined);
       }
 
-      return {
-        requestId: requestId,
-        status: "REJECTED",
-      };
+      await this.notificationsService
+        .notifySuperAdmins({
+          type: NotificationType.SUBSCRIPTION_REJECTED,
+          title: "Solicitud rechazada",
+          message: `La solicitud de ${request.company.name} para el plan ${request.plan.name} fue rechazada.`,
+          companyId: request.companyId,
+          actionUrl: "/platform/upgrade-requests",
+          data: { planUpgradeRequestId: request.id },
+        })
+        .catch((error: unknown) =>
+          this.logger.warn(
+            `No se pudo notificar la revisión: ${String(error)}`,
+          ),
+        );
+      return { requestId, status: "REJECTED" };
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -480,9 +498,18 @@ export class PlanUpgradeRequestsService {
       );
     }
 
-    return {
-      requestId: requestId,
-      status: "APPROVED",
-    };
+    await this.notificationsService
+      .notifySuperAdmins({
+        type: NotificationType.PAYMENT_RECEIVED,
+        title: "Pago y cambio de plan aprobados",
+        message: `${request.company.name}: cambio al plan ${request.plan.name} aprobado por ${request.currency} ${request.amount}.`,
+        companyId: request.companyId,
+        actionUrl: "/platform/finanzas",
+        data: { planUpgradeRequestId: request.id },
+      })
+      .catch((error: unknown) =>
+        this.logger.warn(`No se pudo notificar el pago: ${String(error)}`),
+      );
+    return { requestId, status: "APPROVED" };
   }
 }

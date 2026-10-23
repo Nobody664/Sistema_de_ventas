@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -124,6 +125,8 @@ export class SupportTicketsService {
       if (query.companyId) {
         where.companyId = query.companyId;
       }
+      if (query.assignment === "mine") where.assignedToId = actor.userId;
+      if (query.assignment === "unassigned") where.assignedToId = null;
     } else {
       where.companyId = this.resolveCompanyId(actor);
     }
@@ -153,7 +156,12 @@ export class SupportTicketsService {
     }
     this.assertAccess(actor, ticket.companyId);
 
-    return ticket;
+    return actor.isPlatform
+      ? ticket
+      : {
+          ...ticket,
+          comments: ticket.comments.filter((comment) => !comment.isInternal),
+        };
   }
 
   async update(actor: TicketActor, id: string, dto: UpdateTicketDto) {
@@ -212,22 +220,34 @@ export class SupportTicketsService {
   }
 
   async assign(actor: TicketActor, id: string, dto: AssignTicketDto) {
+    if (!actor.isPlatform)
+      throw new ForbiddenException(
+        "Solo los administradores de plataforma pueden asignar tickets",
+      );
     const ticket = await this.getAccessibleTicket(actor, id);
     const assignedToId = dto.assignedToId ?? null;
 
     if (assignedToId) {
       const assignee = await this.prisma.user.findUnique({
         where: { id: assignedToId },
-        select: { id: true },
+        select: { id: true, globalRole: true, isActive: true },
       });
       if (!assignee) {
         throw new NotFoundException("Assignee not found.");
+      }
+      if (
+        !assignee.isActive ||
+        !["SUPER_ADMIN", "SUPPORT_ADMIN"].includes(assignee.globalRole)
+      ) {
+        throw new BadRequestException(
+          "El agente debe ser un administrador de plataforma activo",
+        );
       }
     }
 
     const updated = await this.prisma.supportTicket.update({
       where: { id: ticket.id },
-      data: { assignedToId },
+      data: { assignedToId, assignedAt: assignedToId ? new Date() : null },
       include: TICKET_INCLUDE,
     });
 
@@ -240,6 +260,8 @@ export class SupportTicketsService {
         title: "Ticket asignado",
         message: `Se te asignó el ticket "${ticket.title}".`,
         data: { ticketId: ticket.id },
+        scope: "PLATFORM",
+        actionUrl: `/platform/support?ticket=${ticket.id}`,
       });
     }
 
@@ -267,10 +289,21 @@ export class SupportTicketsService {
     });
 
     if (!isInternal) {
-      await this.notifyRequester(ticket, {
-        title: "Nueva respuesta en tu ticket",
-        message: `Hay una nueva respuesta en "${ticket.title}".`,
-      });
+      if (actor.isPlatform) {
+        await this.prisma.supportTicket.updateMany({
+          where: { id: ticket.id, firstResponseAt: null },
+          data: { firstResponseAt: new Date() },
+        });
+        await this.notifyRequester(ticket, {
+          title: "Nueva respuesta en tu ticket",
+          message: `Hay una nueva respuesta en "${ticket.title}".`,
+        });
+      } else {
+        await this.notifyAssignees(ticket, {
+          title: "Respuesta de empresa",
+          message: `La empresa respondió en "${ticket.title}".`,
+        });
+      }
     }
 
     return comment;
@@ -382,9 +415,11 @@ export class SupportTicketsService {
     payload: { title: string; message: string },
   ) {
     const agents = await this.prisma.user.findMany({
-      where: { globalRole: { in: ["SUPER_ADMIN", "SUPPORT_ADMIN"] } },
+      where: {
+        isActive: true,
+        globalRole: { in: ["SUPER_ADMIN", "SUPPORT_ADMIN"] },
+      },
       select: { id: true },
-      take: 20,
     });
 
     await Promise.all(
@@ -397,6 +432,8 @@ export class SupportTicketsService {
           title: payload.title,
           message: payload.message,
           data: { ticketId: ticket.id },
+          scope: "PLATFORM",
+          actionUrl: `/platform/support?ticket=${ticket.id}`,
         }),
       ),
     );
@@ -419,6 +456,7 @@ export class SupportTicketsService {
       title: payload.title,
       message: payload.message,
       data: { ticketId: ticket.id },
+      actionUrl: `/support/tickets/${ticket.id}`,
     });
   }
 }

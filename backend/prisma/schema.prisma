@@ -341,6 +341,7 @@ model ApiUsage {
   companyId String   @map("company_id")
   period    String
   count     Int      @default(0)
+  tokens    Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1172,6 +1173,104 @@ model FinanceRecord {
 }
 
 // =========================
+// PLATFORM FINANCE
+// =========================
+
+enum PlatformAccountType {
+  CASH
+  BANK
+  DIGITAL_WALLET
+  OTHER
+}
+
+enum PlatformTransactionType {
+  INCOME
+  EXPENSE
+}
+
+model PlatformAccount {
+  id             String              @id @default(cuid())
+  name           String
+  type           PlatformAccountType @default(CASH)
+  currency       String              @default("PEN")
+  initialBalance Decimal             @default(0) @map("initial_balance") @db.Decimal(12, 2)
+  isActive       Boolean             @default(true) @map("is_active")
+  notes          String?
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  transactions PlatformTransaction[]
+
+  @@map("platform_accounts")
+}
+
+model PlatformTransaction {
+  id             String                 @id @default(cuid())
+  accountId      String                 @map("account_id")
+  type           PlatformTransactionType
+  category       String                 @default("GENERAL")
+  description    String
+  amount         Decimal                @db.Decimal(12, 2)
+  currency       String                 @default("PEN")
+  occurredAt     DateTime               @default(now()) @map("occurred_at")
+  companyId      String?                @map("company_id")
+  subscriptionId String?                @map("subscription_id")
+  paymentId      String?                @map("payment_id")
+  createdById    String?                @map("created_by_id")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  account PlatformAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  apiUsageRecords ApiUsageRecord[]
+
+  @@index([accountId, occurredAt])
+  @@index([type, occurredAt])
+  @@map("platform_transactions")
+}
+
+// =========================
+// PLATFORM API USAGE
+// =========================
+
+model ApiProvider {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  unit        String   @default("tokens")
+  costPerUnit Decimal  @default(0) @map("cost_per_unit") @db.Decimal(12, 6)
+  currency    String   @default("USD")
+  isActive    Boolean  @default(true) @map("is_active")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  records ApiUsageRecord[]
+
+  @@map("api_providers")
+}
+
+model ApiUsageRecord {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  providerId String?  @map("provider_id")
+  tokens     Int      @default(0)
+  cost       Decimal  @default(0) @db.Decimal(12, 4)
+  currency   String   @default("USD")
+  billed     Boolean  @default(false)
+  transactionId String? @map("transaction_id")
+  reference  String?
+  occurredAt DateTime @default(now()) @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  provider ApiProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  transaction PlatformTransaction? @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, occurredAt])
+  @@index([providerId, occurredAt])
+  @@map("api_usage_records")
+}
+
+// =========================
 // SUPPORT (tickets, chat, FAQ)
 // =========================
 
@@ -1234,6 +1333,7 @@ model SupportTicket {
   source          SupportTicketSource     @default(FORM)
   slaDueAt        DateTime?              @map("sla_due_at")
   firstResponseAt DateTime?              @map("first_response_at")
+  assignedAt      DateTime?              @map("assigned_at")
   resolvedAt      DateTime?              @map("resolved_at")
   closedAt        DateTime?              @map("closed_at")
   createdAt       DateTime               @default(now()) @map("created_at")
@@ -1288,6 +1388,8 @@ model SupportConversation {
   status        SupportConversationStatus @default(OPEN)
   createdById   String                    @map("created_by_id")
   assignedToId  String?                   @map("assigned_to_id")
+  assignedAt    DateTime?                  @map("assigned_at")
+  firstResponseAt DateTime?                @map("first_response_at")
   subject       String?
   lastMessageAt DateTime                  @default(now()) @map("last_message_at")
   createdAt     DateTime                  @default(now()) @map("created_at")
