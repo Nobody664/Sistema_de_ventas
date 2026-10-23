@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsIn,
   IsEnum,
   IsInt,
   IsOptional,
@@ -17,6 +18,10 @@ import {
 } from "@prisma/client";
 
 export class QueryTicketsDto {
+  @IsOptional()
+  @IsIn(["all", "mine", "unassigned"])
+  assignment?: "all" | "mine" | "unassigned";
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

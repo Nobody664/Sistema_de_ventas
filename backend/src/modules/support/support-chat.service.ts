@@ -23,6 +23,7 @@ import {
   SendMessageDto,
   UpdateConversationStatusDto,
 } from "./dto/chat.dto";
+import { AssignTicketDto } from "./dto/ticket.dto";
 
 export interface ChatActor {
   userId: string;
@@ -82,6 +83,7 @@ export class SupportChatService {
       include: CONVERSATION_INCLUDE,
     });
 
+    if (!actor.isPlatform) await this.notifyAgents(conversation);
     return conversation;
   }
 
@@ -97,12 +99,9 @@ export class SupportChatService {
     if (actor.isPlatform) {
       if (query.companyId) {
         where.companyId = query.companyId;
-      } else {
-        where.OR = [
-          { companyId: null },
-          { participants: { some: { userId: actor.userId } } },
-        ];
       }
+      if (query.assignment === "mine") where.assignedToId = actor.userId;
+      if (query.assignment === "unassigned") where.assignedToId = null;
     } else {
       if (!actor.companyId) {
         throw new BadRequestException("Se requiere companyId.");
@@ -173,6 +172,15 @@ export class SupportChatService {
       },
     });
 
+    if (actor.isPlatform) {
+      await this.prisma.supportConversation.updateMany({
+        where: { id, firstResponseAt: null },
+        data: { firstResponseAt: new Date() },
+      });
+    } else if (!conversation.assignedToId) {
+      await this.notifyAgents(conversation);
+    }
+
     await this.notifyParticipants(conversation, actor.userId, {
       title: "Nuevo mensaje de soporte",
       message: `Nuevo mensaje en la conversación "${conversation.subject ?? "Soporte"}".`,
@@ -190,6 +198,86 @@ export class SupportChatService {
     });
 
     return { ok: true };
+  }
+
+  async assign(actor: ChatActor, id: string, dto: AssignTicketDto) {
+    if (!actor.isPlatform)
+      throw new ForbiddenException(
+        "Solo los administradores de plataforma pueden asignar chats",
+      );
+    await this.findById(actor, id);
+    const assignedToId = dto.assignedToId ?? null;
+    if (assignedToId) {
+      const agent = await this.prisma.user.findUnique({
+        where: { id: assignedToId },
+        select: { isActive: true, globalRole: true },
+      });
+      if (
+        !agent?.isActive ||
+        !["SUPER_ADMIN", "SUPPORT_ADMIN"].includes(agent.globalRole)
+      )
+        throw new BadRequestException(
+          "El agente debe ser un administrador de plataforma activo",
+        );
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      const conversation = await tx.supportConversation.update({
+        where: { id },
+        data: { assignedToId, assignedAt: assignedToId ? new Date() : null },
+        include: CONVERSATION_INCLUDE,
+      });
+      if (assignedToId)
+        await tx.supportConversationParticipant.upsert({
+          where: {
+            conversationId_userId: { conversationId: id, userId: assignedToId },
+          },
+          create: {
+            conversationId: id,
+            userId: assignedToId,
+            role: SupportParticipantRole.AGENT,
+          },
+          update: { role: SupportParticipantRole.AGENT },
+        });
+      return conversation;
+    });
+    if (assignedToId)
+      await this.notificationsService.create({
+        userId: assignedToId,
+        companyId: result.companyId ?? undefined,
+        type: NotificationType.GENERAL,
+        title: "Chat asignado",
+        message: result.subject ?? "Nueva conversación de soporte",
+        scope: "PLATFORM",
+        actionUrl: `/platform/support?chat=${id}`,
+      });
+    return result;
+  }
+
+  private async notifyAgents(conversation: {
+    id: string;
+    companyId: string | null;
+    subject: string | null;
+  }) {
+    const agents = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        globalRole: { in: ["SUPER_ADMIN", "SUPPORT_ADMIN"] },
+      },
+      select: { id: true },
+    });
+    await Promise.all(
+      agents.map((agent) =>
+        this.notificationsService.create({
+          userId: agent.id,
+          companyId: conversation.companyId ?? undefined,
+          type: NotificationType.GENERAL,
+          title: "Chat de soporte sin asignar",
+          message: conversation.subject ?? "Una empresa necesita atención",
+          scope: "PLATFORM",
+          actionUrl: `/platform/support?chat=${conversation.id}`,
+        }),
+      ),
+    );
   }
 
   async updateStatus(
@@ -279,7 +367,7 @@ export class SupportChatService {
       id: string;
       subject: string | null;
       companyId: string | null;
-      participants: { userId: string }[];
+      participants: { userId: string; role?: SupportParticipantRole }[];
     },
     senderId: string,
     payload: { title: string; message: string },
@@ -298,6 +386,16 @@ export class SupportChatService {
           title: payload.title,
           message: payload.message,
           data: { conversationId: conversation.id },
+          scope:
+            conversation.participants.find((p) => p.userId === userId)?.role ===
+            SupportParticipantRole.AGENT
+              ? "PLATFORM"
+              : "COMPANY",
+          actionUrl:
+            conversation.participants.find((p) => p.userId === userId)?.role ===
+            SupportParticipantRole.AGENT
+              ? `/platform/support?chat=${conversation.id}`
+              : `/support/chat/${conversation.id}`,
         }),
       ),
     );

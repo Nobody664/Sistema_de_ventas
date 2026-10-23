@@ -333,7 +333,11 @@ export class LowStockService {
       select: { userId: true },
     });
 
-    return new Set(pending.map((notification) => notification.userId));
+    return new Set(
+      pending
+        .map((notification) => notification.userId)
+        .filter((id): id is string => Boolean(id)),
+    );
   }
 
   private buildMessage(

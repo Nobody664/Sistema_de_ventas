@@ -9,7 +9,11 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { REDIS_CLIENT } from "@/cache/redis.module";
-import { Prisma } from "@prisma/client";
+import {
+  Prisma,
+  NotificationType as DbNotificationType,
+  NotificationChannel as DbNotificationChannel,
+} from "@prisma/client";
 import Redis from "ioredis";
 
 export const NOTIFICATIONS_CHANNEL = "notifications:events";
@@ -61,6 +65,8 @@ export interface CreateNotificationInput {
   title: string;
   message: string;
   data?: Record<string, unknown>;
+  scope?: "COMPANY" | "PLATFORM";
+  actionUrl?: string;
 }
 
 export type NotificationEmitter = (notification: unknown) => void;
@@ -185,15 +191,29 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async create(input: CreateNotificationInput) {
+    const platformEvent = [
+      "NEW_COMPANY_REGISTRATION",
+      "CHECKOUT_REQUEST_PENDING",
+      "PLAN_UPGRADE_REQUEST",
+      "PAYMENT_PROOF_PENDING",
+    ].includes(input.type);
     const notification = await this.prisma.notification.create({
       data: {
         userId: input.userId,
-        companyId: input.companyId,
-        type: input.type as any,
-        channel: (input.channel || NotificationChannel.IN_APP) as any,
+        companyId: input.companyId ?? null,
+        type:
+          Object.values(DbNotificationType).find(
+            (value) => value === input.type,
+          ) ?? DbNotificationType.SYSTEM,
+        channel:
+          Object.values(DbNotificationChannel).find(
+            (value) => value === input.channel,
+          ) ?? DbNotificationChannel.IN_APP,
         title: input.title,
         message: input.message,
         data: (input.data || {}) as Prisma.JsonObject,
+        scope: input.scope ?? (platformEvent ? "PLATFORM" : "COMPANY"),
+        actionUrl: input.actionUrl,
         sentAt: input.channel === NotificationChannel.EMAIL ? new Date() : null,
       },
     });
@@ -203,14 +223,58 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     return notification;
   }
 
+  async notifySuperAdmins(input: {
+    type?: string;
+    title: string;
+    message: string;
+    data?: Record<string, unknown>;
+    actionUrl?: string;
+    companyId?: string;
+  }) {
+    const superAdmins = await this.prisma.user.findMany({
+      where: { globalRole: "SUPER_ADMIN", isActive: true },
+      select: { id: true },
+    });
+
+    if (superAdmins.length === 0) {
+      return { count: 0 };
+    }
+
+    let count = 0;
+    for (const admin of superAdmins) {
+      const notification = await this.prisma.notification.create({
+        data: {
+          userId: admin.id,
+          companyId: input.companyId ?? null,
+          type:
+            Object.values(DbNotificationType).find(
+              (value) => value === input.type,
+            ) ?? DbNotificationType.SYSTEM,
+          channel: NotificationChannel.IN_APP,
+          title: input.title,
+          message: input.message,
+          data: (input.data ?? {}) as Prisma.JsonObject,
+          scope: "PLATFORM",
+          globalTarget: "SUPER_ADMINS",
+          actionUrl: input.actionUrl ?? null,
+          isRead: false,
+        },
+      });
+      count++;
+      await this.publishNotification(admin.id, notification);
+    }
+
+    return { count };
+  }
+
   async findByUser(
     userId: string,
     options?: { unreadOnly?: boolean; limit?: number },
   ) {
-    const where: Record<string, unknown> = { userId };
+    const where: Prisma.NotificationWhereInput = { userId };
 
     if (options?.unreadOnly) {
-      where.isRead = false;
+      where.AND = [{ isRead: false }];
     }
 
     return this.prisma.notification.findMany({
@@ -224,7 +288,10 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     companyId: string,
     options?: { unreadOnly?: boolean; limit?: number },
   ) {
-    const where: Record<string, unknown> = { companyId };
+    const where: Prisma.NotificationWhereInput = {
+      companyId,
+      scope: "COMPANY",
+    };
 
     if (options?.unreadOnly) {
       where.isRead = false;

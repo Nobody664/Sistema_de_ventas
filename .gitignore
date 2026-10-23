@@ -19,8 +19,6 @@ tsconfig.tsbuildinfo
 backend/node_modules/.prisma/
 backend/generated/
 
-frontend/package-lock.json
-
 .agents/
 .claude
 .cortex

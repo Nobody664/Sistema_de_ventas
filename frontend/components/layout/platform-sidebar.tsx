@@ -13,6 +13,9 @@ import {
   Menu,
   ShieldCheck,
   UserPlus,
+  Wallet,
+  Cpu,
+  LifeBuoy,
 } from "lucide-react";
 import {
   Sheet,
@@ -23,6 +26,12 @@ import {
 } from "@/components/ui/sheet";
 
 const platformMainItems = [
+  {
+    label: "Soporte",
+    href: "/platform/support",
+    icon: LifeBuoy,
+    roles: ["SUPER_ADMIN", "SUPPORT_ADMIN"],
+  },
   {
     label: "Resumen",
     href: "/platform",
@@ -56,6 +65,18 @@ const platformMainItems = [
 ];
 
 const platformAdminItems = [
+  {
+    label: "Finanzas",
+    href: "/platform/finanzas",
+    icon: Wallet,
+    roles: ["SUPER_ADMIN"],
+  },
+  {
+    label: "Uso de APIs",
+    href: "/platform/api-usage",
+    icon: Cpu,
+    roles: ["SUPER_ADMIN", "SUPPORT_ADMIN"],
+  },
   {
     label: "Plantillas de Boletas",
     href: "/platform/templates",
@@ -99,7 +120,8 @@ function PlatformSidebarContent({
   );
 
   const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + "/");
+    pathname === href ||
+    (href !== "/platform" && pathname.startsWith(href + "/"));
 
   return (
     <>

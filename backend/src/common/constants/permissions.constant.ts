@@ -84,6 +84,10 @@ export enum Permission {
   PLATFORM_MANAGE_SETTINGS = "platform:settings_manage",
   PLATFORM_MANAGE_ADMINS = "platform:admins_manage",
   PLATFORM_VIEW_AUDIT = "platform:audit_view",
+  PLATFORM_FINANCE_VIEW = "platform:finance_view",
+  PLATFORM_FINANCE_MANAGE = "platform:finance_manage",
+  PLATFORM_API_USAGE_VIEW = "platform:api_usage_view",
+  PLATFORM_SUPPORT_MANAGE = "platform:support_manage",
 
   // Distributors
   DISTRIBUTOR_LIST = "distributor:list",
@@ -328,6 +332,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.USER_MANAGE,
     Permission.PLATFORM_VIEW,
     Permission.PLATFORM_VIEW_AUDIT,
+    Permission.PLATFORM_API_USAGE_VIEW,
+    Permission.PLATFORM_SUPPORT_MANAGE,
 
     Permission.SUPPORT_TICKET_LIST,
     Permission.SUPPORT_TICKET_CREATE,

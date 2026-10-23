@@ -190,6 +190,7 @@ export function NotificationsClient({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [scope, setScope] = useState("ALL");
 
   const { data: notifications = initialNotifications } = useQuery<
     Notification[]
@@ -202,6 +203,7 @@ export function NotificationsClient({
       return data || [];
     },
     initialData: initialNotifications,
+    refetchInterval: 15000,
   });
 
   const markAsReadMutation = useMutation({
@@ -234,8 +236,9 @@ export function NotificationsClient({
 
   const filteredNotifications = notifications.filter(
     (n) =>
-      n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.message.toLowerCase().includes(searchQuery.toLowerCase()),
+      (scope === "ALL" || (n.scope ?? "COMPANY") === scope) &&
+      (n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        n.message.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   return (
@@ -276,14 +279,41 @@ export function NotificationsClient({
           placeholder="Buscar notificaciones..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-2xl border border-foreground/10 bg-white py-3 pl-12 pr-4"
+          aria-label="Buscar notificaciones"
+          className="w-full rounded-2xl border border-foreground/10 bg-card py-3 pl-12 pr-4"
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card
-          className={`rounded-[30px] p-6 ${unreadCount > 0 ? "bg-blue-50 border-blue-200" : "bg-white/80"}`}
+      {isAdmin && (
+        <div
+          className="flex flex-wrap gap-2"
+          aria-label="Ámbito de notificaciones"
         >
+          {[
+            ["ALL", "Todas"],
+            ["PLATFORM", "Plataforma"],
+            ["COMPANY", "Empresa"],
+          ].map(([key, label]) => (
+            <Button
+              key={key}
+              variant={scope === key ? "default" : "outline"}
+              onClick={() => setScope(key)}
+            >
+              {label} (
+              {
+                notifications.filter(
+                  (entry) =>
+                    key === "ALL" || (entry.scope ?? "COMPANY") === key,
+                ).length
+              }
+              )
+            </Button>
+          ))}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="rounded-[30px] bg-card p-6">
           <div className="flex items-center justify-between">
             <div className="rounded-xl bg-blue-100 p-2">
               <Bell className="size-5 text-blue-600" />
@@ -294,7 +324,7 @@ export function NotificationsClient({
           </div>
           <p className="mt-2 text-sm text-foreground/60">Total</p>
         </Card>
-        <Card className="rounded-[30px] bg-white/80 p-6">
+        <Card className="rounded-[30px] bg-card p-6">
           <div className="flex items-center justify-between">
             <div className="rounded-xl bg-green-100 p-2">
               <CheckCircle className="size-5 text-green-600" />
@@ -311,7 +341,7 @@ export function NotificationsClient({
           </div>
           <p className="mt-2 text-sm text-foreground/60">Exitosas</p>
         </Card>
-        <Card className="rounded-[30px] bg-white/80 p-6">
+        <Card className="rounded-[30px] bg-card p-6">
           <div className="flex items-center justify-between">
             <div className="rounded-xl bg-amber-100 p-2">
               <Clock className="size-5 text-amber-600" />
@@ -325,7 +355,7 @@ export function NotificationsClient({
           </div>
           <p className="mt-2 text-sm text-foreground/60">Pendientes</p>
         </Card>
-        <Card className="rounded-[30px] bg-white/80 p-6">
+        <Card className="rounded-[30px] bg-card p-6">
           <div className="flex items-center justify-between">
             <div className="rounded-xl bg-red-100 p-2">
               <XCircle className="size-5 text-red-600" />
@@ -344,7 +374,7 @@ export function NotificationsClient({
         </Card>
       </div>
 
-      <Card className="rounded-[34px] bg-white/85 p-6">
+      <Card className="rounded-[34px] bg-card p-4 md:p-6">
         <div className="space-y-4">
           {filteredNotifications.length > 0 ? (
             filteredNotifications.map((notification) => {
@@ -352,7 +382,12 @@ export function NotificationsClient({
                 typeConfig[notification.type] || typeConfig.GENERAL;
               const Icon = config.icon;
               const route =
-                notificationRoutes[notification.type] || "/notifications";
+                (notification.actionUrl?.startsWith("/") &&
+                !notification.actionUrl.startsWith("//")
+                  ? notification.actionUrl
+                  : null) ??
+                notificationRoutes[notification.type] ??
+                (isAdmin ? "/platform/notifications" : "/notifications");
 
               const handleClick = () => {
                 if (!notification.isRead) {
@@ -365,10 +400,15 @@ export function NotificationsClient({
                 <div
                   key={notification.id}
                   onClick={handleClick}
+                  role="link"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") handleClick();
+                  }}
                   className={`relative flex cursor-pointer items-start gap-4 rounded-2xl border p-5 transition hover:shadow-md ${
                     notification.isRead
-                      ? "border-foreground/5 bg-white"
-                      : config.border + " " + config.bg
+                      ? "border-foreground/10 bg-card"
+                      : "border-violet-500/30 bg-violet-500/5"
                   }`}
                 >
                   {!notification.isRead && (
@@ -378,6 +418,11 @@ export function NotificationsClient({
                     <Icon className={`size-6 ${config.color}`} />
                   </div>
                   <div className="min-w-0 flex-1">
+                    <p className="mb-1 text-[10px] uppercase tracking-wider text-foreground/50">
+                      {notification.scope === "PLATFORM"
+                        ? "Plataforma"
+                        : "Empresa"}
+                    </p>
                     <div className="flex items-center gap-2">
                       <h3 className="truncate font-display text-lg">
                         {notification.title}
@@ -402,9 +447,11 @@ export function NotificationsClient({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
-                          markAsReadMutation.mutate(notification.id)
-                        }
+                        aria-label="Marcar como leída"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          markAsReadMutation.mutate(notification.id);
+                        }}
                         disabled={markAsReadMutation.isPending}
                         className="rounded-lg p-2 text-foreground/40 transition hover:bg-foreground/5 hover:text-foreground"
                       >

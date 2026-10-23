@@ -1,5 +1,6 @@
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -12,6 +13,10 @@ import { Type } from "class-transformer";
 import { SupportConversationStatus } from "@prisma/client";
 
 export class QueryConversationsDto {
+  @IsOptional()
+  @IsIn(["all", "mine", "unassigned"])
+  assignment?: "all" | "mine" | "unassigned";
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -7,7 +7,7 @@ import type {
   Plan,
   Category,
   Employee,
-  Notification,
+  Notification as GeneratedNotification,
   PaymentSetting,
   SaleItem,
   CheckoutRequest,
@@ -58,6 +58,12 @@ export type SubscriptionApi = Subscription;
 export type PlanApi = Plan;
 export type CategoryApi = Category;
 export type EmployeeApi = Employee;
+export type Notification = Omit<GeneratedNotification, "userId"> & {
+  userId: string | null;
+  scope?: "COMPANY" | "PLATFORM";
+  globalTarget?: string | null;
+  actionUrl?: string | null;
+};
 export type NotificationApi = Notification;
 export type PaymentSettingApi = PaymentSetting;
 export type CheckoutRequestApi = CheckoutRequest;
@@ -70,7 +76,6 @@ export {
   Plan,
   Category,
   Employee,
-  Notification,
   PaymentSetting,
   SaleItem,
   CheckoutRequest,
