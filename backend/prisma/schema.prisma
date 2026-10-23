@@ -896,23 +896,27 @@ model InvoiceTemplate {
 }
 
 model Notification {
-  id        String              @id @default(cuid())
-  userId    String              @map("user_id")
-  companyId String?             @map("company_id")
-  type      NotificationType    @default(SYSTEM)
-  channel   NotificationChannel @default(IN_APP)
-  title     String
-  message   String
-  data      Json?
-  isRead    Boolean             @default(false) @map("is_read")
-  sentAt    DateTime?           @map("sent_at")
-  createdAt DateTime            @default(now()) @map("created_at")
+  id           String              @id @default(cuid())
+  userId       String?             @map("user_id")
+  companyId    String?             @map("company_id")
+  type         NotificationType    @default(SYSTEM)
+  channel      NotificationChannel @default(IN_APP)
+  title        String
+  message      String
+  data         Json?
+  scope        String              @default("COMPANY")
+  globalTarget String?             @map("global_target")
+  actionUrl    String?             @map("action_url")
+  isRead       Boolean             @default(false) @map("is_read")
+  sentAt       DateTime?           @map("sent_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
   @@index([companyId])
+  @@index([scope, isRead, createdAt])
   @@map("notifications")
 }
 

@@ -203,14 +203,73 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     return notification;
   }
 
+  }
+
+  async notifySuperAdmins(input: {
+    type?: string;
+    title: string;
+    message: string;
+    data?: Record<string, unknown>;
+    actionUrl?: string;
+    companyId?: string;
+  }) {
+    const superAdmins = await this.prisma.user.findMany({
+      where: { globalRole: "SUPER_ADMIN", isActive: true },
+      select: { id: true },
+    });
+
+    if (superAdmins.length === 0) {
+      return { count: 0 };
+    }
+
+    const created = await this.prisma.$transaction(
+      superAdmins.map((admin) =>
+        this.prisma.notification.create({
+          data: {
+            userId: admin.id,
+            companyId: input.companyId ?? null,
+            type: input.type ?? NotificationType.SYSTEM,
+            channel: NotificationChannel.IN_APP,
+            title: input.title,
+            message: input.message,
+            data: input.data ?? null,
+            scope: "PLATFORM",
+            globalTarget: "SUPER_ADMINS",
+            actionUrl: input.actionUrl ?? null,
+            isRead: false,
+          },
+        }),
+      ),
+    );
+
+    await Promise.all(
+      created.map((notification) =>
+        this.publishNotification(notification.userId!, notification),
+      ),
+    );
+
+    return { count: created.length };
+  }
+
   async findByUser(
     userId: string,
     options?: { unreadOnly?: boolean; limit?: number },
   ) {
-    const where: Record<string, unknown> = { userId };
+    const where: Record<string, unknown> = {
+      OR: [{ userId }, { scope: "PLATFORM", globalTarget: "SUPER_ADMINS" }],
+    };
 
     if (options?.unreadOnly) {
-      where.isRead = false;
+      where.AND = [{ isRead: false }];
+    }
+
+    const superAdmin = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { globalRole: true },
+    });
+
+    if (superAdmin?.globalRole !== "SUPER_ADMIN") {
+      (where as any).OR = [{ userId }];
     }
 
     return this.prisma.notification.findMany({

@@ -170,12 +170,59 @@ export class PlanUpgradeRequestsService {
       });
 
     if (existingPendingRequest) {
-      return this.buildUpgradeResponse(
-        currentSubscription.plan,
-        existingPendingRequest,
-        settings,
-      );
+    return this.buildUpgradeResponse(
+      currentSubscription.plan,
+      result.request,
+      settings,
+    );
+  }
+
+  async submitProof(companyId: string, input: SubmitUpgradeProofDto) {
+    const request = await this.prisma.planUpgradeRequest.findFirst({
+      where: { companyId, status: PlanUpgradeStatus.PENDING },
+      include: { plan: true, company: true },
+    });
+
+    if (!request) {
+      throw new NotFoundException("No hay solicitud pendiente");
     }
+
+    let imageData: string | undefined;
+    if (input.image) {
+      try {
+        imageData = parseImageDataUrl(input.image);
+      } catch {
+        throw new BadRequestException("Imagen inv√°lida");
+      }
+    }
+
+    const updated = await this.prisma.planUpgradeRequest.update({
+      where: { id: request.id },
+      data: {
+        proofImage: imageData,
+        proofFileName: input.fileName,
+        proofContentType: input.contentType,
+        referenceNumber: input.referenceNumber,
+        paidAt: new Date(),
+      },
+      include: { plan: true, company: true },
+    });
+
+    try {
+      await this.notificationsService.notifySuperAdmins({
+        type: NotificationType.PAYMENT_PROOF_PENDING,
+        title: "Comprobante de pago recibido",
+        message: `${updated.company?.name || "Empresa"} envió comprobante para cambio de plan a ${updated.plan.name}`,
+        data: { planUpgradeRequestId: updated.id, companyId },
+        actionUrl: "/platform/upgrade-requests/pending",
+        companyId,
+      });
+    } catch (e) {
+      // ignore
+    }
+
+    return updated;
+  }
 
     const result = await this.createOrReuse(
       () =>
