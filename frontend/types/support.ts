@@ -125,6 +125,7 @@ export interface SupportFaq {
   id: string;
   scope: "GLOBAL" | "TENANT";
   companyId: string | null;
+  category: string | null;
   question: string;
   answer: string;
   keywords: string[];

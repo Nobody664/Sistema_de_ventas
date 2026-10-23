@@ -1,0 +1,1 @@
+ALTER TABLE "support_faqs" ADD COLUMN "category" TEXT;

@@ -34,6 +34,11 @@ export class QueryFaqDto {
   @IsOptional()
   @IsEnum(SupportScope)
   scope?: SupportScope;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  category?: string;
 }
 
 export class CreateFaqDto {
@@ -46,6 +51,11 @@ export class CreateFaqDto {
   @MinLength(3)
   @MaxLength(10000)
   answer!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  category?: string;
 
   @IsOptional()
   @IsEnum(SupportScope)
@@ -82,6 +92,11 @@ export class UpdateFaqDto {
   @MinLength(3)
   @MaxLength(10000)
   answer?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  category?: string;
 
   @IsOptional()
   @IsArray()

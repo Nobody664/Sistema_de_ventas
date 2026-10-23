@@ -36,6 +36,10 @@ export class SupportFaqService {
       where.scope = query.scope;
     }
 
+    if (query.category) {
+      where.category = query.category;
+    }
+
     if (query.q) {
       where.AND = [
         {
@@ -90,6 +94,7 @@ export class SupportFaqService {
       data: {
         scope,
         companyId,
+        category: dto.category ?? null,
         question: dto.question,
         answer: dto.answer,
         keywords: (dto.keywords ?? []).map((keyword) => keyword.toLowerCase()),
@@ -112,6 +117,7 @@ export class SupportFaqService {
       data: {
         question: dto.question,
         answer: dto.answer,
+        category: dto.category,
         keywords: dto.keywords?.map((keyword) => keyword.toLowerCase()),
         isPublished: dto.isPublished,
         sortOrder: dto.sortOrder,

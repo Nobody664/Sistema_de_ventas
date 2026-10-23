@@ -1353,6 +1353,7 @@ model SupportFaq {
   id            String       @id @default(cuid())
   scope         SupportScope @default(GLOBAL)
   companyId     String?      @map("company_id")
+  category      String?
   question      String
   answer        String
   keywords      String[]     @default([])
