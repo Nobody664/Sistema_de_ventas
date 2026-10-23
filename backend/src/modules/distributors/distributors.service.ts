@@ -246,6 +246,7 @@ export class DistributorsService {
         stockQuantity: true,
         minStock: true,
         baseUnit: true,
+        salePrice: true,
       },
     });
     const productMap = new Map(
@@ -267,6 +268,10 @@ export class DistributorsService {
     }
 
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalDebt = items.reduce((sum, item) => {
+      const product = productMap.get(item.productId)!;
+      return sum + Number(product.salePrice) * item.quantity;
+    }, 0);
 
     const result = await this.prisma.$transaction(
       async (tx) => {
@@ -322,16 +327,19 @@ export class DistributorsService {
             distributorId: distributor.id,
             startingQuantity: totalQuantity,
             balanceQuantity: totalQuantity,
+            debtAmount: new Prisma.Decimal(totalDebt),
           },
           update: {
             startingQuantity: { increment: totalQuantity },
             balanceQuantity: { increment: totalQuantity },
+            debtAmount: { increment: totalDebt },
           },
         });
 
         return {
           distributorId: distributor.id,
           transferredQuantity: totalQuantity,
+          debtAdded: totalDebt,
           balance,
         };
       },
@@ -343,7 +351,7 @@ export class DistributorsService {
       action: AuditAction.UPDATE,
       entity: "Distributor",
       entityId: distributor.id,
-      changes: { operation: "TRANSFER", items, totalQuantity },
+      changes: { operation: "TRANSFER", items, totalQuantity, totalDebt },
     });
 
     for (const item of items) {
@@ -555,18 +563,11 @@ export class DistributorsService {
           include: { items: true },
         });
 
-        const current = await tx.distributorBalance.findUnique({
-          where: { distributorId: distributor.id },
-          select: { debtAmount: true },
-        });
-        const debt = current?.debtAmount ?? new Prisma.Decimal(0);
-
         await tx.distributorBalance.update({
           where: { distributorId: distributor.id },
           data: {
             soldQuantity: { increment: totalQuantity },
             balanceQuantity: { decrement: totalQuantity },
-            debtAmount: debt.plus(totalAmount),
           },
         });
 
@@ -631,7 +632,12 @@ export class DistributorsService {
     return delivery;
   }
 
-  async settle(companyId: string, id: string, dto: SettleDistributorDto) {
+  async settle(
+    companyId: string,
+    id: string,
+    dto: SettleDistributorDto,
+    userId?: string,
+  ) {
     const distributor = await this.getDistributorOrFail(companyId, id);
     const amount = new Prisma.Decimal(dto.amount);
 
@@ -651,14 +657,31 @@ export class DistributorsService {
         throw new BadRequestException("El monto excede la deuda pendiente.");
       }
 
-      return tx.distributorBalance.update({
+      const updated = await tx.distributorBalance.update({
         where: { distributorId: distributor.id },
         data: { debtAmount: debt.minus(amount) },
       });
+
+      await tx.financeRecord.create({
+        data: {
+          companyId,
+          direction: "ENTRY",
+          category: "SALE",
+          description: `Liquidación de distribuidor ${distributor.name} (${distributor.code})`,
+          amount,
+          recordDate: new Date(),
+          reference: distributor.code,
+          notes: dto.notes,
+          createdById: userId,
+        },
+      });
+
+      return updated;
     });
 
     await this.auditService.log({
       companyId,
+      userId,
       action: AuditAction.UPDATE,
       entity: "Distributor",
       entityId: distributor.id,

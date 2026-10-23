@@ -103,7 +103,12 @@ describe("DistributorsService.transfer", () => {
         balances: [],
       },
       products: [
-        { id: "p1", name: "Producto A", stockQuantity: new Prisma.Decimal(10) },
+        {
+          id: "p1",
+          name: "Producto A",
+          stockQuantity: new Prisma.Decimal(10),
+          salePrice: new Prisma.Decimal(50),
+        },
       ],
       tx,
       kardex: {
@@ -123,10 +128,13 @@ describe("DistributorsService.transfer", () => {
     });
 
     assert.equal(result.transferredQuantity, 2);
+    assert.equal(result.debtAdded, 100);
     assert.equal(kardexCalls, 1);
     assert.equal(batchCalls, 1);
     assert.equal(upsertCalls.length, 1);
     assert.equal(upsertCalls[0].create.balanceQuantity, 2);
+    assert.equal(Number(upsertCalls[0].create.debtAmount), 100);
+    assert.equal(upsertCalls[0].update.debtAmount.increment, 100);
   });
 });
 
@@ -152,7 +160,7 @@ describe("DistributorsService.registerSale", () => {
     );
   });
 
-  it("creates a DISTRIBUTOR sale and increases debt", async () => {
+  it("creates a DISTRIBUTOR sale and moves stock without changing debt", async () => {
     const saleCreateArgs: Array<Record<string, any>> = [];
     const balanceUpdates: Array<Record<string, any>> = [];
     let saleNumber = "";
@@ -202,6 +210,7 @@ describe("DistributorsService.registerSale", () => {
     assert.equal(saleNumber.startsWith("SALE-"), true);
     assert.equal(balanceUpdates.length, 1);
     assert.equal(balanceUpdates[0].data.soldQuantity.increment, 2);
+    assert.equal(balanceUpdates[0].data.debtAmount, undefined);
   });
 });
 
@@ -212,6 +221,7 @@ describe("DistributorsService.settle", () => {
         findUnique: async () => ({ debtAmount: new Prisma.Decimal(10) }),
         update: async () => ({ distributorId: "d1" }),
       },
+      financeRecord: { create: async () => ({ id: "f1" }) },
     };
     const svc = buildService({
       distributor: {
@@ -228,5 +238,46 @@ describe("DistributorsService.settle", () => {
       () => svc.settle("com-a", "d1", { amount: 50 }),
       /excede la deuda/i,
     );
+  });
+
+  it("reduces debt and registers an ENTRY finance record", async () => {
+    const financeCreates: Array<Record<string, any>> = [];
+    const tx = {
+      distributorBalance: {
+        findUnique: async () => ({ debtAmount: new Prisma.Decimal(100) }),
+        update: async () => ({
+          distributorId: "d1",
+          debtAmount: new Prisma.Decimal(40),
+        }),
+      },
+      financeRecord: {
+        create: async (args: any) => {
+          financeCreates.push(args);
+          return { id: "f1" };
+        },
+      },
+    };
+    const svc = buildService({
+      distributor: {
+        id: "d1",
+        code: "D-001",
+        name: "Distri Uno",
+        companyId: "com-a",
+        status: "ACTIVE",
+        balances: [{ debtAmount: new Prisma.Decimal(100) }],
+      },
+      products: [],
+      tx,
+    });
+
+    const balance: any = await svc.settle("com-a", "d1", { amount: 60 }, "u1");
+
+    assert.equal(Number(balance.debtAmount), 40);
+    assert.equal(financeCreates.length, 1);
+    assert.equal(financeCreates[0].data.direction, "ENTRY");
+    assert.equal(financeCreates[0].data.category, "SALE");
+    assert.equal(Number(financeCreates[0].data.amount), 60);
+    assert.equal(financeCreates[0].data.createdById, "u1");
+    assert.equal(financeCreates[0].data.companyId, "com-a");
   });
 });

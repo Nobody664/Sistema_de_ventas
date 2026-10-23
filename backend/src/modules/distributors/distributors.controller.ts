@@ -12,6 +12,10 @@ import {
 } from "@nestjs/common";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { Permissions } from "@/common/decorators/permissions.decorator";
+import {
+  CurrentUser,
+  AuthUser,
+} from "@/common/decorators/current-user.decorator";
 import { Permission } from "@/common/constants/permissions.constant";
 import { TenantGuard } from "@/common/guards/tenant.guard";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
@@ -147,7 +151,13 @@ export class DistributorsController {
     @Req() request: TenantRequest,
     @Param("id") id: string,
     @Body() body: SettleDistributorDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.distributorsService.settle(request.tenantId, id, body);
+    return this.distributorsService.settle(
+      request.tenantId,
+      id,
+      body,
+      user.sub,
+    );
   }
 }

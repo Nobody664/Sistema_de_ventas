@@ -106,7 +106,7 @@ export function StockExitsClient({
 
     setSubmitting(true);
     try {
-      await apiFetch("/stock-exits", {
+      const result = await apiFetch<{ debtAdded?: number }>("/stock-exits", {
         method: "POST",
         token: getAccessToken(),
         body: JSON.stringify({
@@ -116,7 +116,14 @@ export function StockExitsClient({
         }),
       });
 
-      addToast("Salida a distribuidor registrada correctamente", "success");
+      const debtMsg =
+        result?.debtAdded && Number(result.debtAdded) > 0
+          ? ` · deuda +S/ ${Number(result.debtAdded).toFixed(2)}`
+          : "";
+      addToast(
+        `Salida a distribuidor registrada correctamente${debtMsg}`,
+        "success",
+      );
       setLines([emptyLine()]);
       setNotes("");
       router.refresh();
@@ -177,6 +184,10 @@ export function StockExitsClient({
                 {Number(selectedDistributor.balance?.debtAmount ?? 0).toFixed(
                   2,
                 )}
+              </span>
+              <span className="mt-1 block text-xs text-orange-600/80">
+                Al consignar, la deuda del distribuidor aumenta según el precio
+                de venta de cada producto entregado.
               </span>
             </div>
           )}

@@ -63,11 +63,16 @@ export function DistributorOperations({
 
   const debt = Number(distributor.balance?.debtAmount ?? 0);
 
-  const run = async (fn: () => Promise<void>, successMsg: string) => {
+  const run = async (
+    fn: () => Promise<string | void>,
+    successMsg: string | ((result: string | void) => string),
+  ) => {
     setLoading(true);
     try {
-      await fn();
-      addToast(successMsg, "success");
+      const result = await fn();
+      const message =
+        typeof successMsg === "function" ? successMsg(result) : successMsg;
+      addToast(message, "success");
       router.refresh();
     } catch (err) {
       addToast(
@@ -86,20 +91,30 @@ export function DistributorOperations({
         if (!stockProduct || !qty || qty < 1)
           throw new Error("Selecciona un producto y una cantidad válida.");
         const endpoint = stockMode === "transfer" ? "transfers" : "returns";
-        await apiFetch(`/distributors/${distributor.id}/${endpoint}`, {
-          method: "POST",
-          token: getAccessToken(),
-          body: JSON.stringify({
-            items: [{ productId: stockProduct, quantity: qty }],
-            notes: stockNotes || undefined,
-          }),
-        });
+        const result = await apiFetch<{ debtAdded?: number }>(
+          `/distributors/${distributor.id}/${endpoint}`,
+          {
+            method: "POST",
+            token: getAccessToken(),
+            body: JSON.stringify({
+              items: [{ productId: stockProduct, quantity: qty }],
+              notes: stockNotes || undefined,
+            }),
+          },
+        );
         setStockQty("");
         setStockNotes("");
+        if (stockMode === "transfer" && result?.debtAdded) {
+          return `Stock transferido · deuda +S/ ${Number(result.debtAdded).toFixed(2)}`;
+        }
+        return undefined;
       },
-      stockMode === "transfer"
-        ? "Stock transferido al distribuidor"
-        : "Devolución registrada",
+      (result) =>
+        typeof result === "string"
+          ? result
+          : stockMode === "transfer"
+            ? "Stock transferido al distribuidor"
+            : "Devolución registrada",
     );
 
   const submitSale = () =>
@@ -134,7 +149,7 @@ export function DistributorOperations({
       });
       setSettleAmount("");
       setSettleNotes("");
-    }, "Liquidación registrada");
+    }, "Liquidación registrada e ingreso asentado en Finanzas");
 
   const submitDelivery = () =>
     run(async () => {

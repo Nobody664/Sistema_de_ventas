@@ -48,6 +48,7 @@ export class StockExitsService {
         distributorId: dto.distributorId,
         items: dto.items,
         transferredQuantity: result.transferredQuantity,
+        debtAdded: result.debtAdded,
       },
     });
 
