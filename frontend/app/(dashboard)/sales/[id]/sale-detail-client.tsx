@@ -159,11 +159,17 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
               Productos
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[480px]">
+              <table className="w-full min-w-[720px]">
                 <thead>
                   <tr className="border-b">
                     <th className="pb-3 text-left text-sm font-medium text-slate-500">
                       Producto
+                    </th>
+                    <th className="pb-3 text-left text-sm font-medium text-slate-500">
+                      Descripción
+                    </th>
+                    <th className="pb-3 text-left text-sm font-medium text-slate-500">
+                      SKU
                     </th>
                     <th className="pb-3 text-center text-sm font-medium text-slate-500">
                       Cant.
@@ -183,16 +189,12 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                         <div className="font-medium text-slate-900">
                           {item.product?.name || "Producto"}
                         </div>
-                        {item.product?.description && (
-                          <div className="text-sm text-slate-500">
-                            {item.product.description}
-                          </div>
-                        )}
-                        {item.product?.sku && (
-                          <div className="text-xs text-slate-400">
-                            SKU: {item.product.sku}
-                          </div>
-                        )}
+                      </td>
+                      <td className="py-3 text-sm text-slate-600">
+                        {item.product?.description || "—"}
+                      </td>
+                      <td className="py-3 text-sm text-slate-500">
+                        {item.product?.sku || "—"}
                       </td>
                       <td className="py-3 text-center">{item.quantity}</td>
                       <td className="py-3 text-right">

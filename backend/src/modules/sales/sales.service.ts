@@ -52,7 +52,11 @@ type SaleExportRow = {
   items: Array<{
     quantity: unknown;
     totalPrice: unknown;
-    product: { name: string; description: string | null } | null;
+    product: {
+      name: string;
+      description: string | null;
+      sku: string | null;
+    } | null;
   }>;
 };
 
@@ -182,15 +186,30 @@ export class SalesService {
         header: "Productos",
         value: (s) =>
           s.items
-            .map((item) => {
-              const name = item.product?.name || "Producto";
-              const description = item.product?.description
-                ? ` (${item.product.description})`
-                : "";
-              return `${name}${description} x${Number(item.quantity)}`;
-            })
+            .map(
+              (item) =>
+                `${item.product?.name || "Producto"} x${Number(item.quantity)}`,
+            )
             .join(" | "),
-        width: 5,
+        width: 3,
+      },
+      {
+        header: "Descripcion",
+        value: (s) =>
+          s.items
+            .map((item) => item.product?.description || "")
+            .filter((value) => value.length > 0)
+            .join(" | "),
+        width: 4,
+      },
+      {
+        header: "SKU",
+        value: (s) =>
+          s.items
+            .map((item) => item.product?.sku || "")
+            .filter((value) => value.length > 0)
+            .join(" | "),
+        width: 2,
       },
       {
         header: "Total",
