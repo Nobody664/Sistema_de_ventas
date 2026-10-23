@@ -72,7 +72,11 @@ export function NotificationBell() {
   }
 
   const handleClick = () => {
-    router.push("/notifications");
+    router.push(
+      user.roles.some((role) => ["SUPER_ADMIN", "SUPPORT_ADMIN"].includes(role))
+        ? "/platform/notifications"
+        : "/notifications",
+    );
   };
 
   return (
@@ -82,6 +86,7 @@ export function NotificationBell() {
         size="sm"
         className="relative rounded-full"
         onClick={handleClick}
+        aria-label={`Notificaciones: ${unreadCount} sin leer`}
       >
         <Bell className={isRinging ? "size-5 animate-bell-ring" : "size-5"} />
         {unreadCount > 0 && (

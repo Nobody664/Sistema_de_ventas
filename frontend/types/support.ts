@@ -20,6 +20,7 @@ export interface SupportTicket {
   companyId: string;
   requesterId: string;
   assignedToId: string | null;
+  assignedAt?: string | null;
   conversationId: string | null;
   title: string;
   description: string;
@@ -93,6 +94,8 @@ export interface SupportConversation {
   status: SupportConversationStatus;
   createdById: string;
   assignedToId: string | null;
+  assignedAt?: string | null;
+  firstResponseAt?: string | null;
   subject: string | null;
   lastMessageAt: string;
   createdAt: string;
