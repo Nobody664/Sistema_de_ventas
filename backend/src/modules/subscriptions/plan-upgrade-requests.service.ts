@@ -170,59 +170,12 @@ export class PlanUpgradeRequestsService {
       });
 
     if (existingPendingRequest) {
-    return this.buildUpgradeResponse(
-      currentSubscription.plan,
-      result.request,
-      settings,
-    );
-  }
-
-  async submitProof(companyId: string, input: SubmitUpgradeProofDto) {
-    const request = await this.prisma.planUpgradeRequest.findFirst({
-      where: { companyId, status: PlanUpgradeStatus.PENDING },
-      include: { plan: true, company: true },
-    });
-
-    if (!request) {
-      throw new NotFoundException("No hay solicitud pendiente");
+      return this.buildUpgradeResponse(
+        currentSubscription.plan,
+        existingPendingRequest,
+        settings,
+      );
     }
-
-    let imageData: string | undefined;
-    if (input.image) {
-      try {
-        imageData = parseImageDataUrl(input.image);
-      } catch {
-        throw new BadRequestException("Imagen inv√°lida");
-      }
-    }
-
-    const updated = await this.prisma.planUpgradeRequest.update({
-      where: { id: request.id },
-      data: {
-        proofImage: imageData,
-        proofFileName: input.fileName,
-        proofContentType: input.contentType,
-        referenceNumber: input.referenceNumber,
-        paidAt: new Date(),
-      },
-      include: { plan: true, company: true },
-    });
-
-    try {
-      await this.notificationsService.notifySuperAdmins({
-        type: NotificationType.PAYMENT_PROOF_PENDING,
-        title: "Comprobante de pago recibido",
-        message: `${updated.company?.name || "Empresa"} envió comprobante para cambio de plan a ${updated.plan.name}`,
-        data: { planUpgradeRequestId: updated.id, companyId },
-        actionUrl: "/platform/upgrade-requests/pending",
-        companyId,
-      });
-    } catch (e) {
-      // ignore
-    }
-
-    return updated;
-  }
 
     const result = await this.createOrReuse(
       () =>
@@ -301,6 +254,17 @@ export class PlanUpgradeRequestsService {
         message: `${request.company.name} solicitó cambio al plan ${request.plan.name}. Requiere revisión.`,
       });
     }
+
+    await this.notificationsService
+      .notifySuperAdmins({
+        type: NotificationType.PAYMENT_PROOF_PENDING,
+        title: "Comprobante de pago recibido",
+        message: `${request.company.name} envió el comprobante para el plan ${request.plan.name}.`,
+        data: { planUpgradeRequestId: request.id, companyId: request.companyId },
+        actionUrl: "/platform/upgrade-requests/pending",
+        companyId: request.companyId,
+      })
+      .catch(() => undefined);
 
     return {
       requestId: request.id,
@@ -396,6 +360,17 @@ export class PlanUpgradeRequestsService {
           adminUser.email,
           request.company.name,
         );
+
+        await this.notificationsService
+          .create({
+            userId: adminUser.id,
+            companyId: request.companyId,
+            type: NotificationType.SUBSCRIPTION_REJECTED,
+            channel: NotificationChannel.IN_APP,
+            title: "Solicitud de plan rechazada",
+            message: `Tu solicitud de cambio al plan ${request.plan.name} fue rechazada.`,
+          })
+          .catch(() => undefined);
       }
 
       return {

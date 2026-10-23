@@ -188,7 +188,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     const notification = await this.prisma.notification.create({
       data: {
         userId: input.userId,
-        companyId: input.companyId,
+        companyId: input.companyId ?? null,
         type: input.type as any,
         channel: (input.channel || NotificationChannel.IN_APP) as any,
         title: input.title,
@@ -201,8 +201,6 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     await this.publishNotification(input.userId, notification);
 
     return notification;
-  }
-
   }
 
   async notifySuperAdmins(input: {
@@ -222,31 +220,26 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       return { count: 0 };
     }
 
-    const created = await this.prisma.$transaction(
-      superAdmins.map((admin) =>
-        this.prisma.notification.create({
-          data: {
-            userId: admin.id,
-            companyId: input.companyId ?? null,
-            type: input.type ?? NotificationType.SYSTEM,
-            channel: NotificationChannel.IN_APP,
-            title: input.title,
-            message: input.message,
-            data: input.data ?? null,
-            scope: "PLATFORM",
-            globalTarget: "SUPER_ADMINS",
-            actionUrl: input.actionUrl ?? null,
-            isRead: false,
-          },
-        }),
-      ),
-    );
-
-    await Promise.all(
-      created.map((notification) =>
-        this.publishNotification(notification.userId!, notification),
-      ),
-    );
+    const created: any[] = [];
+    for (const admin of superAdmins) {
+      const notification = await this.prisma.notification.create({
+        data: {
+          userId: admin.id,
+          companyId: input.companyId ?? null,
+          type: (input.type as any) ?? NotificationType.GENERAL,
+          channel: NotificationChannel.IN_APP,
+          title: input.title,
+          message: input.message,
+          data: (input.data ?? undefined) as any,
+          scope: "PLATFORM",
+          globalTarget: "SUPER_ADMINS",
+          actionUrl: input.actionUrl ?? null,
+          isRead: false,
+        },
+      });
+      created.push(notification);
+      await this.publishNotification(notification.userId!, notification);
+    }
 
     return { count: created.length };
   }
