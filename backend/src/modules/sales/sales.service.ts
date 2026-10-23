@@ -11,32 +11,39 @@ export class SalesService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  findRecentSales(companyId: string) {
+  findRecentSales(companyId: string, userId?: string, role?: string) {
     try {
-      console.log('[SalesService] Finding sales for company:', companyId);
+      const where: Record<string, unknown> = { companyId };
+      if (role !== 'COMPANY_ADMIN' && role !== 'MANAGER' && userId) {
+        where.sellerId = userId;
+      }
       const sales = this.prisma.sale.findMany({
-        where: { companyId },
+        where,
         include: {
           customer: true,
           employee: true,
+          seller: true,
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
       });
-      console.log('[SalesService] Query constructed successfully');
       return sales;
     } catch (error) {
-      console.error('[SalesService] Error fetching sales:', error);
       throw error;
     }
   }
 
-  findById(companyId: string, id: string) {
+  findById(companyId: string, id: string, userId?: string, role?: string) {
+    const where: Record<string, unknown> = { id, companyId };
+    if (role !== 'COMPANY_ADMIN' && role !== 'MANAGER' && userId) {
+      where.sellerId = userId;
+    }
     return this.prisma.sale.findFirst({
-      where: { id, companyId },
+      where,
       include: {
         customer: true,
         employee: true,
+        seller: true,
         items: {
           include: {
             product: {
@@ -184,7 +191,7 @@ export class SalesService {
     };
   }
 
-  async createSale(companyId: string, input: CreateSaleDto) {
+  async createSale(companyId: string, input: CreateSaleDto, userId?: string) {
     const products = (await this.prisma.product.findMany({
       where: {
         companyId,
@@ -230,6 +237,7 @@ export class SalesService {
           companyId,
           customerId: input.customerId,
           employeeId: input.employeeId,
+          sellerId: userId ?? undefined,
           saleNumber,
           subtotal: subtotal.toFixed(2),
           taxAmount: taxAmount.toFixed(2),
@@ -241,7 +249,7 @@ export class SalesService {
             create: itemsData,
           },
         },
-        include: { items: true },
+        include: { items: true, employee: true, seller: true },
       });
 
       await Promise.all(

@@ -90,6 +90,7 @@ model User {
   memberships    CompanyMembership[]
   employees      Employee[]
   auditLogs      AuditLog[]
+  salesSold      Sale[]               @relation("SaleSeller")
 }
 
 model Company {
@@ -300,6 +301,7 @@ model Sale {
   companyId        String
   customerId       String?
   employeeId       String?
+  sellerId         String?
   saleNumber       String
   status           SaleStatus       @default(COMPLETED)
   subtotal         Decimal          @db.Decimal(10, 2)
@@ -313,12 +315,14 @@ model Sale {
   company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer         Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
   employee         Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  seller           User?            @relation("SaleSeller", fields: [sellerId], references: [id], onDelete: SetNull)
   items            SaleItem[]
 
   @@unique([companyId, saleNumber])
   @@index([companyId, createdAt])
   @@index([companyId, status])
   @@index([companyId, employeeId])
+  @@index([companyId, sellerId])
 }
 
 model SaleItem {

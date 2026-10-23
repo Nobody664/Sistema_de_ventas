@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { CreateSaleDto, ExportSalesQueryDto } from './dto/sale.dto';
 import { SalesService } from './sales.service';
 import { PrismaService } from '@/database/prisma/prisma.service';
+import { CurrentUser, AuthUser } from '@/common/decorators/current-user.decorator';
 
 @Controller('sales')
 @UseGuards(JwtAuthGuard, TenantGuard)
@@ -44,16 +45,22 @@ export class SalesController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Get(':id')
-  findById(@Req() request: { tenantId: string }, @Param('id') id: string) {
-    return this.salesService.findById(request.tenantId, id);
+  findById(
+    @Req() request: { tenantId: string },
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const role = user.roles?.[0];
+    return this.salesService.findById(request.tenantId, id, user.sub, role);
   }
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Get()
-  async findRecentSales(@Req() request: { tenantId: string }) {
+  async findRecentSales(@Req() request: { tenantId: string }, @CurrentUser() user: AuthUser) {
     try {
       this.logger.log(`[SalesController] Fetching sales for tenant: ${request.tenantId}`);
-      const sales = await this.salesService.findRecentSales(request.tenantId);
+      const role = user.roles?.[0];
+      const sales = await this.salesService.findRecentSales(request.tenantId, user.sub, role);
       this.logger.log(`[SalesController] Found ${sales.length} sales`);
       return sales;
     } catch (error) {
@@ -64,7 +71,7 @@ export class SalesController {
 
   @Roles('COMPANY_ADMIN', 'MANAGER', 'CASHIER')
   @Post()
-  createSale(@Req() request: { tenantId: string }, @Body() body: CreateSaleDto) {
-    return this.salesService.createSale(request.tenantId, body);
+  createSale(@Req() request: { tenantId: string }, @Body() body: CreateSaleDto, @CurrentUser() user: AuthUser) {
+    return this.salesService.createSale(request.tenantId, body, user.sub);
   }
 }
