@@ -67,9 +67,9 @@ export function SalesPageClient({ sales: initialSales, products, customers }: Sa
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-white/60">Punto de venta</p>
-            <h1 className="mt-4 font-display text-5xl leading-none">Gestion de ventas</h1>
+            <h1 className="mt-4 font-display text-5xl leading-none">Gestión de ventas</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-              Registra nuevas ventas, consulta el historial y gestiona transacciones.
+              Cada venta registra al usuario que la vendió, fecha y hora. Solo el Administrador de Empresa ve todas las ventas; los cajeros ven únicamente las suyas.
             </p>
           </div>
           <div className="lg:block">

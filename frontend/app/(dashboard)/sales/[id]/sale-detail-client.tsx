@@ -95,12 +95,18 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                 </p>
               </div>
               {initialSale.employee && (
-                <div>
-                  <p className="text-sm text-slate-500">Vendedor</p>
-                  <p className="font-medium">
-                    {initialSale.employee.firstName} {initialSale.employee.lastName || ''}
-                  </p>
-                </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Fecha</p>
+              <p className="font-medium">
+                {new Date(sale.paidAt || sale.createdAt).toLocaleString('es-PE')}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Vendido por</p>
+              <p className="font-medium">
+                {sale.seller?.fullName || sale.employee?.firstName || 'Sistema'}
+              </p>
+            </div>
               )}
             </div>
           </Card>
