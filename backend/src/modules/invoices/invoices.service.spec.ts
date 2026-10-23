@@ -74,8 +74,11 @@ describe("InvoicesService tenant scoping", () => {
             {
               quantity: 2,
               unitPrice: 50,
-              totalAmount: 100,
-              product: { name: "Producto A" },
+              totalPrice: 100,
+              product: {
+                name: "Producto A",
+                description: "Presentación de 500 ml",
+              },
             },
           ],
         }),
@@ -86,5 +89,7 @@ describe("InvoicesService tenant scoping", () => {
     const { html } = await svc.generateInvoiceHtml("sale-a", "com-a");
     assert.match(html, /Mi Empresa/);
     assert.match(html, /Producto A/);
+    assert.match(html, /Presentación de 500 ml/);
+    assert.match(html, /100\.00/);
   });
 });

@@ -180,7 +180,19 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                   {initialSale.items?.map((item) => (
                     <tr key={item.id} className="border-b border-slate-100">
                       <td className="py-3">
-                        {item.product?.name || "Producto"}
+                        <div className="font-medium text-slate-900">
+                          {item.product?.name || "Producto"}
+                        </div>
+                        {item.product?.description && (
+                          <div className="text-sm text-slate-500">
+                            {item.product.description}
+                          </div>
+                        )}
+                        {item.product?.sku && (
+                          <div className="text-xs text-slate-400">
+                            SKU: {item.product.sku}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 text-center">{item.quantity}</td>
                       <td className="py-3 text-right">

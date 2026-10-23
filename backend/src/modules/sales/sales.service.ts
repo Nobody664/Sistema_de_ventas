@@ -49,6 +49,11 @@ type SaleExportRow = {
   totalAmount: unknown;
   paymentMethod: string;
   createdAt: Date;
+  items: Array<{
+    quantity: unknown;
+    totalPrice: unknown;
+    product: { name: string; description: string | null } | null;
+  }>;
 };
 
 @Injectable()
@@ -99,7 +104,12 @@ export class SalesService {
         items: {
           include: {
             product: {
-              select: { name: true },
+              select: {
+                name: true,
+                description: true,
+                sku: true,
+                baseUnit: true,
+              },
             },
           },
         },
@@ -167,6 +177,20 @@ export class SalesService {
         header: "Vendedor",
         value: (s) => s.employee?.firstName || "",
         width: 2,
+      },
+      {
+        header: "Productos",
+        value: (s) =>
+          s.items
+            .map((item) => {
+              const name = item.product?.name || "Producto";
+              const description = item.product?.description
+                ? ` (${item.product.description})`
+                : "";
+              return `${name}${description} x${Number(item.quantity)}`;
+            })
+            .join(" | "),
+        width: 5,
       },
       {
         header: "Total",

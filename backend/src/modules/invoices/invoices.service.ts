@@ -284,16 +284,19 @@ export class InvoicesService {
     const companyName = escapeHtml(sale.company?.name || "Empresa");
 
     const items = sale.items
-      .map(
-        (item: any) => `
+      .map((item: any) => {
+        const description = item.product?.description
+          ? `<div style="font-size:9px;color:#666;">${escapeHtml(item.product.description)}</div>`
+          : "";
+        return `
       <tr>
-        <td style="padding: 4px 8px;">${escapeHtml(item.product?.name || "Producto")}</td>
+        <td style="padding: 4px 8px;">${escapeHtml(item.product?.name || "Producto")}${description}</td>
         <td style="padding: 4px 8px; text-align:center">${item.quantity}</td>
         <td style="padding: 4px 8px; text-align:right">${Number(item.unitPrice).toFixed(2)}</td>
-        <td style="padding: 4px 8px; text-align:right">${Number(item.totalAmount).toFixed(2)}</td>
+        <td style="padding: 4px 8px; text-align:right">${Number(item.totalPrice).toFixed(2)}</td>
       </tr>
-    `,
-      )
+    `;
+      })
       .join("");
 
     const saleDate = sale.createdAt
