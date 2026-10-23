@@ -101,17 +101,14 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                   Venta #{initialSale.saleNumber}
                 </h1>
                 <p className="text-sm text-slate-500">
-                  {initialSale.paidAt
-                    ? new Date(initialSale.paidAt as Date).toLocaleString(
-                        "es-PE",
-                        {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        },
-                      )
+                  {initialSale.createdAt
+                    ? new Date(initialSale.createdAt).toLocaleString("es-PE", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
                     : "Sin fecha"}
                 </p>
               </div>
@@ -141,15 +138,15 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                     : "Cliente general"}
                 </p>
               </div>
-              {initialSale.employee && (
-                <div>
-                  <p className="text-sm text-slate-500">Vendedor</p>
-                  <p className="font-medium">
-                    {initialSale.employee.firstName}{" "}
-                    {initialSale.employee.lastName || ""}
-                  </p>
-                </div>
-              )}
+              <div>
+                <p className="text-sm text-foreground/60">Vendido por</p>
+                <p className="font-medium">
+                  {initialSale.seller?.fullName ||
+                    (initialSale.employee
+                      ? `${initialSale.employee.firstName} ${initialSale.employee.lastName || ""}`.trim()
+                      : "Sin vendedor registrado")}
+                </p>
+              </div>
             </div>
           </Card>
 

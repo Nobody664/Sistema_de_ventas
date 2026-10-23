@@ -1,7 +1,7 @@
 import type {
   Product,
   Customer,
-  Sale,
+  Sale as GeneratedSale,
   Company,
   Subscription,
   Plan,
@@ -15,6 +15,11 @@ import type {
   ProductBatch,
   Branch,
 } from "@/types/generated";
+
+export type Sale = GeneratedSale & {
+  sellerId?: string | null;
+  seller?: { id: string; fullName: string } | null;
+};
 
 export type ProductApi = Omit<Product, "costPrice" | "salePrice"> & {
   costPrice: string;
@@ -60,7 +65,6 @@ export type CheckoutRequestApi = CheckoutRequest;
 export {
   Product,
   Customer,
-  Sale,
   Company,
   Subscription,
   Plan,

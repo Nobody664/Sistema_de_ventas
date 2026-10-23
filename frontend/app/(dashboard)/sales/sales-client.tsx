@@ -104,11 +104,12 @@ export function SalesPageClient({
               Punto de venta
             </p>
             <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
-              Gestion de ventas
+              Gestión de ventas
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-              Registra nuevas ventas, consulta el historial y gestiona
-              transacciones.
+              Cada nueva venta registra al usuario que la realizó, fecha y hora.
+              Administradores y gerentes consultan todas las ventas de su
+              empresa; los cajeros ven únicamente las suyas.
             </p>
           </div>
           <div className="w-full shrink-0 sm:w-auto">
