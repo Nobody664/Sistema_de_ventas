@@ -6,8 +6,11 @@ export interface StockEntryProductOption {
   id: string;
   name: string;
   sku: string | null;
+  description: string | null;
   baseUnit: string;
   stockQuantity: string;
+  costPrice: string | null;
+  salePrice: string;
   presentations: Array<{
     id: string;
     name: string;
@@ -74,6 +77,7 @@ export interface PurchaseReceiptDetail extends PurchaseReceiptRecord {
         id: string;
         name: string;
         sku: string | null;
+        description: string | null;
         baseUnit: string;
       };
       presentation: { id: string; name: string; factor: string } | null;

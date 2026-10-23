@@ -32,7 +32,13 @@ export class StockEntriesService {
         items: {
           include: {
             product: {
-              select: { id: true, name: true, sku: true, baseUnit: true },
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                description: true,
+                baseUnit: true,
+              },
             },
             presentation: { select: { id: true, name: true, factor: true } },
           },
@@ -53,7 +59,13 @@ export class StockEntriesService {
         items: {
           include: {
             product: {
-              select: { id: true, name: true, sku: true, baseUnit: true },
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                description: true,
+                baseUnit: true,
+              },
             },
             presentation: { select: { id: true, name: true, factor: true } },
           },
@@ -365,7 +377,13 @@ export class StockEntriesService {
             items: {
               include: {
                 product: {
-                  select: { id: true, name: true, sku: true, baseUnit: true },
+                  select: {
+                    id: true,
+                    name: true,
+                    sku: true,
+                    description: true,
+                    baseUnit: true,
+                  },
                 },
                 presentation: {
                   select: { id: true, name: true, factor: true },

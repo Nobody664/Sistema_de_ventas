@@ -52,6 +52,7 @@ const UNIT_SHORT: Record<string, string> = {
 interface SaleItem {
   productId: string;
   productName: string;
+  productDescription?: string | null;
   basePrice: number;
   presentations: ProductPresentation[];
   baseUnit: string;
@@ -143,11 +144,13 @@ export function SaleForm({
   const availableProducts = useMemo(() => {
     if (!searchProduct)
       return products.filter((p) => Number(p.stockQuantity) > 0);
+    const query = searchProduct.toLowerCase();
     return products.filter(
       (p) =>
         Number(p.stockQuantity) > 0 &&
-        (p.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
-          p.sku?.toLowerCase().includes(searchProduct.toLowerCase())),
+        (p.name.toLowerCase().includes(query) ||
+          p.description?.toLowerCase().includes(query) ||
+          p.sku?.toLowerCase().includes(query)),
     );
   }, [products, searchProduct]);
 
@@ -186,6 +189,7 @@ export function SaleForm({
         {
           productId: product.id,
           productName: product.name,
+          productDescription: product.description,
           basePrice: Number(product.salePrice),
           presentations: product.presentations ?? [],
           baseUnit: product.baseUnit ?? "UNIT",
@@ -515,7 +519,7 @@ export function SaleForm({
                 <Input
                   value={searchProduct}
                   onChange={(e) => setSearchProduct(e.target.value)}
-                  placeholder="Filtrar productos por nombre o SKU..."
+                  placeholder="Filtrar productos por nombre, descripción o SKU..."
                   className="h-10 pl-10 rounded-lg"
                 />
               </div>
@@ -545,6 +549,14 @@ export function SaleForm({
                         <p className="font-medium text-foreground text-sm leading-snug line-clamp-2">
                           {product.name}
                         </p>
+                        {product.description && (
+                          <p
+                            className="text-xs text-muted-foreground leading-snug line-clamp-2"
+                            title={product.description}
+                          >
+                            {product.description}
+                          </p>
+                        )}
                       </div>
                       <div className="mt-2 space-y-1">
                         <p className="text-lg font-bold text-foreground">
@@ -607,6 +619,14 @@ export function SaleForm({
                           <p className="font-medium text-sm text-foreground truncate">
                             {item.productName}
                           </p>
+                          {item.productDescription && (
+                            <p
+                              className="text-xs text-muted-foreground truncate"
+                              title={item.productDescription}
+                            >
+                              {item.productDescription}
+                            </p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             S/ {item.unitPrice.toFixed(2)} /{" "}
                             {item.presentationName ??

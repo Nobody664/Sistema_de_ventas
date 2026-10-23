@@ -5,6 +5,7 @@ import {
   Settings,
   User,
   CreditCard,
+  Receipt,
   Users,
   UserCog,
   Package,
@@ -120,6 +121,16 @@ export function AppHeader({
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
                   <span>Mi Plan</span>
+                </Link>
+              )}
+
+              {isAdminOrManager && (
+                <Link
+                  href="/payments"
+                  className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted"
+                >
+                  <Receipt className="mr-2 h-4 w-4" />
+                  <span>Pagos</span>
                 </Link>
               )}
 

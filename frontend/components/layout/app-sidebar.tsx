@@ -8,7 +8,6 @@ import {
   Bell,
   ClipboardList,
   ReceiptText,
-  CreditCard,
   Handshake,
   Landmark,
   LayoutDashboard,
@@ -18,11 +17,8 @@ import {
   ShoppingCart,
   TicketPercent,
   Truck,
-  Users,
-  UserCog,
   FolderTree,
   Warehouse,
-  ArrowUpFromLine,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -111,25 +107,12 @@ const companyItems: NavItem[] = [
     roles: ["COMPANY_ADMIN", "MANAGER"],
   },
   {
-    label: "Clientes",
-    href: "/customers",
-    icon: Users,
-    module: "customers",
-    roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
-  },
-  {
     label: "Distribuidores",
     href: "/distributors",
     icon: Handshake,
     module: "distributors",
     roles: ["COMPANY_ADMIN", "MANAGER"],
     hint: "A quién le vendes / consignas",
-  },
-  {
-    label: "Salidas a distribuidores",
-    href: "/stock-exits",
-    icon: ArrowUpFromLine,
-    roles: ["COMPANY_ADMIN", "MANAGER"],
   },
   {
     label: "Proveedores",
@@ -148,19 +131,6 @@ const companyItems: NavItem[] = [
     label: "Notas de crédito",
     href: "/credit-notes",
     icon: ReceiptText,
-    roles: ["COMPANY_ADMIN", "MANAGER"],
-  },
-  {
-    label: "Empleados",
-    href: "/employees",
-    icon: UserCog,
-    module: "employees",
-    roles: ["COMPANY_ADMIN", "MANAGER"],
-  },
-  {
-    label: "Pagos",
-    href: "/payments",
-    icon: CreditCard,
     roles: ["COMPANY_ADMIN", "MANAGER"],
   },
   {

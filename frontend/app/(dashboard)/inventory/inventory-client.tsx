@@ -10,6 +10,7 @@ import {
   Truck,
   AlertTriangle,
   PackagePlus,
+  ArrowUpFromLine,
   Lock,
 } from "lucide-react";
 import { usePlanCapabilities } from "@/components/plan-capabilities/plan-capabilities-provider";
@@ -58,6 +59,15 @@ export function InventoryPageClient({
       color: "from-teal-500 to-emerald-700",
       iconBg: "bg-teal-500/20",
       iconColor: "text-teal-600",
+    },
+    {
+      title: "Salidas a distribuidores",
+      description: "Entrega mercadería en consignación a tus distribuidores",
+      href: "/stock-exits",
+      icon: ArrowUpFromLine,
+      color: "from-rose-500 to-pink-700",
+      iconBg: "bg-rose-500/20",
+      iconColor: "text-rose-600",
     },
     {
       title: "Sucursales",

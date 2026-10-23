@@ -17,6 +17,7 @@ import {
   Plus,
   Printer,
   Receipt,
+  Search,
   Store,
   Trash2,
 } from "lucide-react";
@@ -37,6 +38,18 @@ const UNIT_SHORT: Record<string, string> = {
   MT: "mt",
 };
 
+function productLabel(product: {
+  name: string;
+  description: string | null;
+  sku: string | null;
+}): string {
+  const parts = [product.name];
+  if (product.description?.trim())
+    parts.push(`— ${product.description.trim()}`);
+  if (product.sku) parts.push(`(${product.sku})`);
+  return parts.join(" ");
+}
+
 interface EntryItem {
   id: string;
   productId: string;
@@ -46,7 +59,13 @@ interface EntryItem {
   unitCost: string;
   unitCostPresentation: string;
   expiryDate: string | null;
-  product: { id: string; name: string; sku: string | null; baseUnit: string };
+  product: {
+    id: string;
+    name: string;
+    sku: string | null;
+    description: string | null;
+    baseUnit: string;
+  };
   presentation?: { id: string; name: string; factor: string } | null;
 }
 
@@ -69,6 +88,7 @@ interface Line {
   quantity: string;
   unitCost: string;
   expiryDate: string;
+  filter: string;
 }
 
 interface StockEntriesClientProps {
@@ -88,6 +108,7 @@ const emptyLine = (): Line => ({
   quantity: "",
   unitCost: "",
   expiryDate: "",
+  filter: "",
 });
 
 export function StockEntriesClient({
@@ -128,16 +149,37 @@ export function StockEntriesClient({
     return presentation ? Number(presentation.factor) : 1;
   };
 
+  const filterProducts = (filter: string) => {
+    const query = filter.trim().toLowerCase();
+    if (!query) return products;
+    return products.filter((product) => {
+      const name = product.name?.toLowerCase() ?? "";
+      const description = product.description?.toLowerCase() ?? "";
+      const sku = product.sku?.toLowerCase() ?? "";
+      return (
+        name.includes(query) ||
+        description.includes(query) ||
+        sku.includes(query)
+      );
+    });
+  };
+
   const updateLine = (key: string, field: keyof Line, value: string) => {
     setLines((prev) =>
       prev.map((line) => {
         if (line.key !== key) return line;
         if (field === "productId") {
+          const product = productMap.get(value);
+          const referenceCost = product?.costPrice
+            ? Number(product.costPrice)
+            : null;
           return {
             ...line,
             productId: value,
             presentationId: "",
-            unitCost: line.unitCost,
+            unitCost:
+              line.unitCost ||
+              (referenceCost && referenceCost > 0 ? String(referenceCost) : ""),
           };
         }
         return { ...line, [field]: value };
@@ -225,8 +267,11 @@ export function StockEntriesClient({
           const productName = item.presentation
             ? `${item.product.name} (${item.presentation.name})`
             : item.product.name;
+          const productCell = item.product.description
+            ? `${escapeHtml(productName)}<br><span style="font-size:11px;color:#64748b">${escapeHtml(item.product.description)}</span>`
+            : escapeHtml(productName);
           const lineTotal = Number(item.unitCost) * Number(item.quantity);
-          return `<tr><td>${new Date(entry.entryDate).toLocaleDateString()}</td><td>${escapeHtml(entry.reference ?? "—")}</td><td>${escapeHtml(productName)}</td><td style="text-align:right">${Number(item.quantity)}</td><td style="text-align:right">S/ ${Number(item.unitCost).toFixed(2)}</td><td style="text-align:right">S/ ${lineTotal.toFixed(2)}</td></tr>`;
+          return `<tr><td>${new Date(entry.entryDate).toLocaleDateString()}</td><td>${escapeHtml(entry.reference ?? "—")}</td><td>${productCell}</td><td style="text-align:right">${Number(item.quantity)}</td><td style="text-align:right">S/ ${Number(item.unitCost).toFixed(2)}</td><td style="text-align:right">S/ ${lineTotal.toFixed(2)}</td></tr>`;
         }),
       )
       .join("");
@@ -445,6 +490,21 @@ export function StockEntriesClient({
               const baseUnitShort = product
                 ? (UNIT_SHORT[product.baseUnit] ?? product.baseUnit)
                 : "";
+              const referenceCost =
+                product?.costPrice && Number(product.costPrice) > 0
+                  ? Number(product.costPrice)
+                  : null;
+              const referenceCostForUnit =
+                referenceCost === null ? null : referenceCost * factor;
+              const enteredCost = Number(line.unitCost) || 0;
+              const costTrend: "up" | "down" | "same" | null =
+                referenceCostForUnit === null || enteredCost <= 0
+                  ? null
+                  : enteredCost > referenceCostForUnit
+                    ? "up"
+                    : enteredCost < referenceCostForUnit
+                      ? "down"
+                      : "same";
 
               return (
                 <div
@@ -456,6 +516,18 @@ export function StockEntriesClient({
                       <Label className="text-xs font-semibold text-slate-500">
                         Producto
                       </Label>
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={line.filter}
+                          onChange={(event) =>
+                            updateLine(line.key, "filter", event.target.value)
+                          }
+                          placeholder="Filtrar por nombre, descripción o SKU…"
+                          className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-xs focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
                       <select
                         value={line.productId}
                         onChange={(event) =>
@@ -464,12 +536,17 @@ export function StockEntriesClient({
                         className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:outline-none"
                       >
                         <option value="">Selecciona un producto</option>
-                        {products.map((option) => (
+                        {filterProducts(line.filter).map((option) => (
                           <option key={option.id} value={option.id}>
-                            {option.name}
+                            {productLabel(option)}
                           </option>
                         ))}
                       </select>
+                      {product?.description && (
+                        <p className="text-xs text-slate-500">
+                          {product.description}
+                        </p>
+                      )}
                     </div>
 
                     <div className="col-span-2 space-y-1 lg:col-span-3">
@@ -539,6 +616,34 @@ export function StockEntriesClient({
                           className="h-11 rounded-lg border-slate-200 bg-white pl-9"
                         />
                       </div>
+                      {product && referenceCost !== null && (
+                        <p className="text-xs text-slate-400">
+                          Último costo: S/ {referenceCost.toFixed(2)}
+                          {line.presentationId && factor !== 1
+                            ? ` × ${factor} = S/ ${referenceCostForUnit!.toFixed(2)}`
+                            : ""}
+                          {costTrend === "up" && (
+                            <span className="ml-1 font-semibold text-red-500">
+                              ▲ subió
+                            </span>
+                          )}
+                          {costTrend === "down" && (
+                            <span className="ml-1 font-semibold text-emerald-600">
+                              ▼ bajó
+                            </span>
+                          )}
+                          {costTrend === "same" && (
+                            <span className="ml-1 font-semibold text-slate-500">
+                              = se mantiene
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {product && referenceCost === null && (
+                        <p className="text-xs text-slate-400">
+                          Sin costo previo registrado
+                        </p>
+                      )}
                     </div>
 
                     <div className="col-span-2 space-y-1 lg:col-span-2">
@@ -714,6 +819,11 @@ export function StockEntriesClient({
                             ({item.presentation.name})
                           </span>
                         ) : null}
+                        {item.product.description && (
+                          <span className="block text-xs font-normal text-slate-400">
+                            {item.product.description}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 text-right text-sm">
                         {Number(item.quantity)} {unitLabel(item, productMap)}
