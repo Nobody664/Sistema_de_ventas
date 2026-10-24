@@ -1,170 +1,288 @@
 import "reflect-metadata";
+import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import assert from "node:assert";
 import { createHmac } from "crypto";
-import { UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "@/database/prisma/prisma.service";
 import { PaymentsService } from "./payments.service";
+import { MercadoPagoGateway, MercadoPagoPayment } from "./mercado-pago.gateway";
+import { SubscriptionSettlementService } from "./subscription-settlement.service";
 
-const SECRET = "webhook-secret";
+const SECRET = "webhook-test-secret";
+const REQUEST_ID = "test-request-id";
+const payment: MercadoPagoPayment = {
+  id: "100500",
+  status: "approved",
+  amount: 50,
+  currency: "PEN",
+  collectorId: "merchant",
+  reference: "mp-stored-reference",
+  liveMode: true,
+  paidAt: new Date(),
+};
 
-function buildSignature(dataId: string) {
-  const ts = String(Math.floor(Date.now() / 1000));
+function signature(
+  id = payment.id,
+  timestamp = String(Math.floor(Date.now() / 1000)),
+) {
   const v1 = createHmac("sha256", SECRET)
-    .update(`${dataId}.${ts}`)
+    .update(`id:${id.toLowerCase()};request-id:${REQUEST_ID};ts:${timestamp};`)
     .digest("hex");
-  return { ts, v1, header: `ts=${ts},v1=${v1}`, dataId };
+  return {
+    "x-signature": `ts=${timestamp},v1=${v1}`,
+    "x-request-id": REQUEST_ID,
+  };
 }
 
-function makeService(config: Record<string, string>, query = {}) {
-  const configService = {
-    get: (key: string) => config[key] ?? null,
-  } as any;
-  const prisma = {
-    payment: { findFirst: async () => null },
-    plan: { findUnique: async () => null },
-  } as any;
-  return new PaymentsService(configService, prisma, {} as any, {} as any);
+function fixture(overrides: Record<string, string> = {}) {
+  const config = {
+    MERCADOPAGO_WEBHOOK_SECRET: SECRET,
+    NODE_ENV: "test",
+    ...overrides,
+  };
+  const verified = { ...payment };
+  const settled: MercadoPagoPayment[] = [];
+  let lookups = 0;
+  const gateway = {
+    getPayment: async () => {
+      lookups++;
+      return verified;
+    },
+    getMerchantId: async () => "merchant",
+  };
+  const settlement = {
+    confirmMercadoPago: async (value: MercadoPagoPayment) => {
+      settled.push(value);
+      return { alreadyProcessed: false };
+    },
+  };
+  const service = new PaymentsService(
+    {
+      get: (key: keyof typeof config) => config[key],
+    } as unknown as ConfigService,
+    {} as PrismaService,
+    gateway as unknown as MercadoPagoGateway,
+    settlement as unknown as SubscriptionSettlementService,
+  );
+  return {
+    service,
+    verified,
+    settled,
+    get lookups() {
+      return lookups;
+    },
+  };
 }
 
-describe("PaymentsService webhook signature", () => {
-  it("rejects a webhook when the MP webhook secret is not configured", async () => {
-    const svc = makeService({}, {});
-    const sig = buildSignature("100500");
-
+describe("MercadoPago verified notifications", () => {
+  it("fails closed if signature configuration is missing", async () => {
+    const value = fixture({ MERCADOPAGO_WEBHOOK_SECRET: "" });
     await assert.rejects(
-      () =>
-        svc.handleWebhook(
-          "mercadopago",
-          { status: "approved" },
-          { "x-signature": sig.header },
-          { "data.id": sig.dataId },
-        ),
-      UnauthorizedException,
+      value.service.handleWebhook(
+        "mercadopago",
+        { type: "payment" },
+        signature(),
+        { "data.id": payment.id },
+      ),
+      ServiceUnavailableException,
     );
+    assert.equal(value.lookups, 0);
   });
 
-  it("rejects a webhook with a tampered signature", async () => {
-    const svc = makeService({ MERCADOPAGO_WEBHOOK_SECRET: SECRET });
-    const sig = buildSignature("100500");
-
-    await assert.rejects(
-      () =>
-        svc.handleWebhook(
+  it("rejects missing, malformed, expired signatures and changed request IDs before calling the provider", async () => {
+    const value = fixture();
+    for (const headers of [
+      {},
+      { ...signature(), "x-signature": "ts=0,v1=deadbeef" },
+      signature(payment.id, "1000000000"),
+      { ...signature(), "x-request-id": "another-request" },
+    ]) {
+      await assert.rejects(
+        value.service.handleWebhook(
           "mercadopago",
-          { status: "approved" },
-          { "x-signature": `ts=${sig.ts},v1=deadbeef` },
-          { "data.id": sig.dataId },
+          { type: "payment" },
+          headers,
+          { "data.id": payment.id },
         ),
-      UnauthorizedException,
-    );
+        UnauthorizedException,
+      );
+    }
+    assert.equal(value.lookups, 0);
   });
 
-  it("rejects a webhook without a signature header", async () => {
-    const svc = makeService({ MERCADOPAGO_WEBHOOK_SECRET: SECRET });
-
+  it("rejects changing the signed resource or supplying conflicting parser representations", async () => {
+    const value = fixture();
     await assert.rejects(
-      () =>
-        svc.handleWebhook(
-          "mercadopago",
-          { status: "approved" },
-          {},
-          { "data.id": "100500" },
-        ),
+      value.service.handleWebhook(
+        "mercadopago",
+        { type: "payment" },
+        signature(),
+        { "data.id": "999" },
+      ),
       UnauthorizedException,
     );
-  });
-
-  it("rejects a webhook with a signature for a different data.id", async () => {
-    const svc = makeService({ MERCADOPAGO_WEBHOOK_SECRET: SECRET });
-    const sig = buildSignature("100500");
-
     await assert.rejects(
-      () =>
-        svc.handleWebhook(
-          "mercadopago",
-          { status: "approved" },
-          { "x-signature": sig.header },
-          { "data.id": "999" },
-        ),
+      value.service.handleWebhook(
+        "mercadopago",
+        { type: "payment" },
+        signature(),
+        { "data.id": payment.id, data: { id: "999" } },
+      ),
       UnauthorizedException,
     );
+    await assert.rejects(
+      value.service.handleWebhook(
+        "mercadopago",
+        { type: "payment", data: { id: "999" } },
+        signature(),
+        { "data.id": payment.id },
+      ),
+      BadRequestException,
+    );
+    assert.equal(value.lookups, 0);
   });
 
-  it("accepts a valid signature with the data.id nested by the express parser", async () => {
-    const svc = makeService({ MERCADOPAGO_WEBHOOK_SECRET: SECRET });
-    const sig = buildSignature("100500");
-
-    const result = await svc.handleWebhook(
+  it("looks up the signed ID and ignores a forged approval and external reference in the body", async () => {
+    const value = fixture();
+    value.verified.status = "pending";
+    const result = await value.service.handleWebhook(
       "mercadopago",
-      { status: "approved" },
-      { "x-signature": sig.header },
-      { data: { id: sig.dataId } },
-    );
-
-    assert.deepEqual(result, {
-      provider: "mercadopago",
-      received: true,
-      processed: true,
-    });
-  });
-
-  it("accepts a valid signature and reports it as processed when the payment is not approved", async () => {
-    const svc = makeService({ MERCADOPAGO_WEBHOOK_SECRET: SECRET });
-    const sig = buildSignature("100500");
-
-    const result = await svc.handleWebhook(
-      "mercadopago",
-      { status: "pending", external_reference: "com-a_plan-x" },
-      { "x-signature": sig.header },
-      { "data.id": sig.dataId },
-    );
-
-    assert.deepEqual(result, {
-      provider: "mercadopago",
-      received: true,
-      processed: true,
-    });
-  });
-
-  it("accepts a valid signature and processes an approved payment", async () => {
-    let planCalled = 0;
-    const configService = {
-      get: (key: string) =>
-        key === "MERCADOPAGO_WEBHOOK_SECRET" ? SECRET : null,
-    } as any;
-    const prisma = {
-      payment: {
-        findFirst: async () => null,
-        create: async () => ({}),
+      {
+        type: "payment",
+        status: "approved",
+        external_reference: "victim_EXPENSIVE",
+        id: "forged",
       },
+      signature(),
+      { "data.id": payment.id },
+    );
+    assert.equal(result.processed, false);
+    assert.equal(value.lookups, 1);
+    assert.equal(value.settled.length, 0);
+  });
+
+  it("accepts nested data.id and passes only the authoritative provider payment to settlement", async () => {
+    const value = fixture();
+    const result = await value.service.handleWebhook(
+      "mercadopago",
+      { type: "payment", external_reference: "forged" },
+      signature(),
+      { data: { id: payment.id } },
+    );
+    assert.equal(result.processed, true);
+    assert.equal(value.settled[0].reference, payment.reference);
+  });
+
+  it("supports millisecond timestamps and acknowledges unsupported topics without activating a subscription", async () => {
+    const value = fixture();
+    const result = await value.service.handleWebhook(
+      "mercadopago",
+      { type: "merchant_order" },
+      signature(payment.id, String(Date.now())),
+      { "data.id": payment.id },
+    );
+    assert.equal(result.processed, false);
+    assert.equal(value.lookups, 0);
+  });
+
+  it("rejects a different beneficiary and sandbox payments in production", async () => {
+    const wrongMerchant = fixture();
+    wrongMerchant.verified.collectorId = "other-merchant";
+    await assert.rejects(
+      wrongMerchant.service.handleWebhook(
+        "mercadopago",
+        { type: "payment" },
+        signature(),
+        { "data.id": payment.id },
+      ),
+      BadRequestException,
+    );
+    const sandbox = fixture({ NODE_ENV: "production" });
+    sandbox.verified.liveMode = false;
+    await assert.rejects(
+      sandbox.service.handleWebhook(
+        "mercadopago",
+        { type: "payment" },
+        signature(),
+        { "data.id": payment.id },
+      ),
+      BadRequestException,
+    );
+    assert.equal(sandbox.settled.length, 0);
+  });
+
+  it("does not report success for unimplemented providers", async () => {
+    const value = fixture();
+    await assert.rejects(
+      value.service.handleWebhook("unknown", {}, {}, {}),
+      BadRequestException,
+    );
+  });
+});
+
+describe("MercadoPago persisted checkout intention", () => {
+  it("persists the expected amount, plan and company before requesting the preference", async () => {
+    let stored: Record<string, unknown> | undefined;
+    const prisma = {
       plan: {
-        findUnique: async () => {
-          planCalled += 1;
-          return null;
+        findUnique: async () => ({
+          id: "pro",
+          code: "PRO",
+          name: "Pro",
+          priceMonthly: 50,
+          isActive: true,
+        }),
+      },
+      company: {
+        findUnique: async () => ({
+          id: "company",
+          email: "owner@example.invalid",
+          subscriptions: [{ id: "subscription" }],
+        }),
+      },
+      payment: {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          stored = data;
+          return { id: "intention" };
         },
       },
-      company: { update: async () => ({}) },
-    } as any;
-    const svc = new PaymentsService(
-      configService,
-      prisma,
-      {} as any,
-      {} as any,
+    };
+    const gateway = {
+      createPreference: async (input: {
+        reference: string;
+        paymentId: string;
+      }) => {
+        assert.ok(stored);
+        assert.equal(input.reference, stored.transactionId);
+        assert.equal(input.paymentId, "intention");
+        return {
+          id: "preference",
+          redirectUrl: "https://www.mercadopago.com.pe/checkout",
+        };
+      },
+    };
+    const service = new PaymentsService(
+      { get: () => "test-configuration" } as unknown as ConfigService,
+      prisma as unknown as PrismaService,
+      gateway as unknown as MercadoPagoGateway,
+      {} as SubscriptionSettlementService,
     );
-    const sig = buildSignature("100500");
-
-    const result = await svc.handleWebhook(
-      "mercadopago",
-      { status: "approved", external_reference: "com-a_plan-x", id: "pay-1" },
-      { "x-signature": sig.header },
-      { "data.id": sig.dataId },
-    );
-
-    assert.deepEqual(result, {
+    await service.createCheckoutSession({
+      companyId: "company",
+      planCode: "PRO",
       provider: "mercadopago",
-      received: true,
-      processed: true,
     });
-    assert.equal(planCalled, 1);
+    assert.deepEqual(stored?.providerPayload, {
+      kind: "MERCADOPAGO_CHECKOUT",
+      companyId: "company",
+      planId: "pro",
+      billingCycle: "MONTHLY",
+    });
+    assert.equal(stored?.amount, "50");
   });
 });

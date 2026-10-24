@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Prisma, SaleChannel } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { CacheService } from "@/cache/cache.service";
+import { SalesActor, salesAudienceKey, salesVisibility, canReadCompanySales } from "@/common/helpers/sales-visibility.helper";
 import { ReportsOverviewQueryDto } from "./dto/reports-query.dto";
 
 type SalesByChannel = {
@@ -25,6 +26,7 @@ type SalesOverview = {
   salesByDay: Array<{ date: string; sales: number; revenue: number }>;
   byChannel: SalesByChannel[];
   filters: {
+    salesScope: "COMPANY" | "SELLER";
     channel: SaleChannel | null;
     startDate: string | null;
     endDate: string | null;
@@ -41,6 +43,7 @@ export class ReportsService {
   async getSalesOverview(
     companyId: string,
     query: ReportsOverviewQueryDto = {},
+    actor: SalesActor,
   ): Promise<SalesOverview> {
     const channel = query.channel;
     const startDate = query.startDate ? new Date(query.startDate) : undefined;
@@ -49,7 +52,8 @@ export class ReportsService {
       endDate.setHours(23, 59, 59, 999);
     }
 
-    const cacheKey = `reports:sales-overview:${companyId}:${channel ?? "all"}:${startDate?.toISOString() ?? ""}:${endDate?.toISOString() ?? ""}`;
+    const visibility = salesVisibility(companyId, actor);
+    const cacheKey = `reports:sales-overview:v2:${companyId}:${salesAudienceKey(actor)}:${channel ?? "all"}:${startDate?.toISOString() ?? ""}:${endDate?.toISOString() ?? ""}`;
     const cached = await this.cache.get<SalesOverview>(cacheKey);
     if (cached) return cached;
 
@@ -66,12 +70,12 @@ export class ReportsService {
       };
     }
 
-    const where: Prisma.SaleWhereInput = { companyId, ...dateWhere };
+    const where: Prisma.SaleWhereInput = { ...visibility, ...dateWhere };
     if (channel) {
       where.channel = channel;
     }
 
-    const channelWhere: Prisma.SaleWhereInput = { companyId };
+    const channelWhere: Prisma.SaleWhereInput = { ...visibility };
     if (channel) {
       channelWhere.channel = channel;
     }
@@ -93,12 +97,12 @@ export class ReportsService {
       }),
       this.prisma.customer.count({ where: { companyId } }),
       this.prisma.sale.aggregate({
-        where: { companyId, createdAt: { gte: startOfMonth } },
+        where: { ...visibility, createdAt: { gte: startOfMonth } },
         _sum: { totalAmount: true },
       }),
       this.prisma.sale.aggregate({
         where: {
-          companyId,
+          ...visibility,
           createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
         },
         _sum: { totalAmount: true },
@@ -117,7 +121,7 @@ export class ReportsService {
       }),
       this.prisma.sale.groupBy({
         by: ["channel"],
-        where: { companyId, ...dateWhere },
+        where: { ...visibility, ...dateWhere },
         _count: { id: true },
         _sum: { totalAmount: true },
       }),
@@ -189,6 +193,7 @@ export class ReportsService {
       salesByDay: last7Days,
       byChannel,
       filters: {
+        salesScope: canReadCompanySales(actor) ? "COMPANY" : "SELLER",
         channel: channel ?? null,
         startDate: startDate?.toISOString() ?? null,
         endDate: endDate?.toISOString() ?? null,

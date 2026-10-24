@@ -128,7 +128,7 @@ export class DistributorsController {
       request.tenantId,
       id,
       body,
-      user.sub,
+      { userId: user.sub, roles: user.roles },
     );
   }
 

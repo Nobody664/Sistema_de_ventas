@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { Prisma, SupportScope } from "@prisma/client";
 import { CreateFaqDto, QueryFaqDto, UpdateFaqDto } from "./dto/faq.dto";
@@ -17,20 +22,32 @@ export class SupportFaqService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    const orFilters: Prisma.SupportFaqWhereInput[] = [
-      { scope: SupportScope.GLOBAL },
-    ];
-    if (actor.companyId) {
-      orFilters.push({
-        scope: SupportScope.TENANT,
-        companyId: actor.companyId,
-      });
+    if (
+      !actor.isPlatform &&
+      query.publication &&
+      query.publication !== "published"
+    )
+      throw new ForbiddenException(
+        "Los borradores están reservados a plataforma",
+      );
+    if (
+      !actor.isPlatform &&
+      query.companyId &&
+      query.companyId !== actor.companyId
+    )
+      throw new ForbiddenException("No puedes consultar FAQs de otra empresa");
+    const where: Prisma.SupportFaqWhereInput = this.readScope(actor);
+    if (actor.isPlatform)
+      where.isPublished =
+        query.publication === "all"
+          ? undefined
+          : query.publication === "draft"
+            ? false
+            : true;
+    if (query.companyId) {
+      where.scope = SupportScope.TENANT;
+      where.companyId = query.companyId;
     }
-
-    const where: Prisma.SupportFaqWhereInput = {
-      isPublished: true,
-      OR: orFilters,
-    };
 
     if (query.scope) {
       where.scope = query.scope;
@@ -66,11 +83,12 @@ export class SupportFaqService {
   }
 
   async findById(actor: FaqActor, id: string) {
-    const faq = await this.prisma.supportFaq.findUnique({ where: { id } });
+    const faq = await this.prisma.supportFaq.findFirst({
+      where: { id, ...this.readScope(actor) },
+    });
     if (!faq) {
       throw new NotFoundException("FAQ not found.");
     }
-    this.assertAccess(actor, faq);
 
     await this.prisma.supportFaq.update({
       where: { id },
@@ -86,9 +104,34 @@ export class SupportFaqService {
   }
 
   async create(actor: FaqActor, dto: CreateFaqDto) {
-    const scope = dto.scope ?? SupportScope.GLOBAL;
+    const scope =
+      dto.scope ??
+      (actor.isPlatform ? SupportScope.GLOBAL : SupportScope.TENANT);
+    if (!actor.isPlatform && scope === SupportScope.GLOBAL)
+      throw new ForbiddenException("Solo plataforma administra FAQs globales");
+    if (!actor.isPlatform && dto.companyId && dto.companyId !== actor.companyId)
+      throw new ForbiddenException("No puedes crear FAQs para otra empresa");
     const companyId =
-      scope === SupportScope.TENANT ? (dto.companyId ?? actor.companyId) : null;
+      scope === SupportScope.TENANT
+        ? actor.isPlatform
+          ? (dto.companyId ?? actor.companyId)
+          : actor.companyId
+        : null;
+    if (scope === SupportScope.GLOBAL && dto.companyId)
+      throw new BadRequestException(
+        "Una FAQ global no pertenece a una empresa",
+      );
+    if (scope === SupportScope.TENANT) {
+      if (!companyId)
+        throw new BadRequestException("La FAQ de empresa requiere un tenant");
+      if (
+        !(await this.prisma.company.findUnique({
+          where: { id: companyId },
+          select: { id: true },
+        }))
+      )
+        throw new NotFoundException("Empresa no encontrada");
+    }
 
     return this.prisma.supportFaq.create({
       data: {
@@ -110,17 +153,17 @@ export class SupportFaqService {
     if (!faq) {
       throw new NotFoundException("FAQ not found.");
     }
-    this.assertAccess(actor, faq);
+    this.assertWriteAccess(actor, faq);
 
     return this.prisma.supportFaq.update({
       where: { id },
       data: {
-        question: dto.question,
-        answer: dto.answer,
+        question: dto.question ?? undefined,
+        answer: dto.answer ?? undefined,
         category: dto.category,
         keywords: dto.keywords?.map((keyword) => keyword.toLowerCase()),
-        isPublished: dto.isPublished,
-        sortOrder: dto.sortOrder,
+        isPublished: dto.isPublished ?? undefined,
+        sortOrder: dto.sortOrder ?? undefined,
         updatedById: actor.userId,
       },
     });
@@ -131,34 +174,51 @@ export class SupportFaqService {
     if (!faq) {
       throw new NotFoundException("FAQ not found.");
     }
-    this.assertAccess(actor, faq);
+    this.assertWriteAccess(actor, faq);
 
     await this.prisma.supportFaq.delete({ where: { id } });
     return { ok: true };
   }
 
-  async submitFeedback(id: string, helpful: boolean) {
-    const faq = await this.prisma.supportFaq.findUnique({ where: { id } });
-    if (!faq) {
-      throw new NotFoundException("FAQ not found.");
-    }
-
-    return this.prisma.supportFaq.update({
-      where: { id },
-      data: helpful
-        ? { helpfulCount: { increment: 1 } }
-        : { notHelpfulCount: { increment: 1 } },
+  async submitFeedback(actor: FaqActor, id: string, helpful: boolean) {
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.supportFaq.updateMany({
+        where: { id, ...this.readScope(actor), isPublished: true },
+        data: helpful
+          ? { helpfulCount: { increment: 1 } }
+          : { notHelpfulCount: { increment: 1 } },
+      });
+      if (updated.count !== 1) throw new NotFoundException("FAQ not found.");
+      return tx.supportFaq.findUnique({
+        where: { id },
+        select: { id: true, helpfulCount: true, notHelpfulCount: true },
+      });
     });
   }
 
-  private assertAccess(
+  private readScope(actor: FaqActor): Prisma.SupportFaqWhereInput {
+    if (actor.isPlatform) return {};
+    return {
+      isPublished: true,
+      OR: [
+        { scope: SupportScope.GLOBAL, companyId: null },
+        ...(actor.companyId
+          ? [{ scope: SupportScope.TENANT, companyId: actor.companyId }]
+          : []),
+      ],
+    };
+  }
+
+  private assertWriteAccess(
     actor: FaqActor,
     faq: { scope: SupportScope; companyId: string | null },
   ) {
-    if (actor.isPlatform || faq.scope === SupportScope.GLOBAL) {
+    if (actor.isPlatform) {
       return;
     }
-    if (faq.companyId !== actor.companyId) {
+    if (faq.scope === SupportScope.GLOBAL)
+      throw new ForbiddenException("Solo plataforma administra FAQs globales");
+    if (!actor.companyId || faq.companyId !== actor.companyId) {
       throw new NotFoundException("FAQ not found.");
     }
   }

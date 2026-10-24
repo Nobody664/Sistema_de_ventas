@@ -5,6 +5,12 @@ export type AuthUser = {
   email: string;
   companyId?: string | null;
   roles: string[];
+  sid?: string;
+  fullName?: string | null;
+  companyStatus?: string | null;
+  planCode?: string | null;
+  subscriptionStatus?: string | null;
+  trialEndsAt?: string | null;
 };
 
 export const CurrentUser = createParamDecorator(

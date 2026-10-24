@@ -29,6 +29,8 @@ import { DiscountsService } from "@/modules/discounts/discounts.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { CreditNotesService } from "@/modules/credit-notes/credit-notes.service";
 import { AuditService } from "@/common/services/audit.service";
+import { SalesActor, salesVisibility, canReadCompanySales } from "@/common/helpers/sales-visibility.helper";
+import { resolveSaleLines, saleAmounts } from "@/common/helpers/sale-pricing.helper";
 import {
   buildCsvExport,
   buildPdfExport,
@@ -61,21 +63,7 @@ type SaleExportRow = {
   }>;
 };
 
-interface SaleViewer {
-  userId: string;
-  roles: readonly string[];
-}
-
 const SELLER_SELECT = { id: true, fullName: true } as const;
-
-function sellerScope(viewer?: SaleViewer): Prisma.SaleWhereInput {
-  return viewer &&
-    !viewer.roles.some((role) =>
-      ["SUPER_ADMIN", "COMPANY_ADMIN", "MANAGER"].includes(role),
-    )
-    ? { sellerId: viewer.userId }
-    : {};
-}
 
 @Injectable()
 export class SalesService {
@@ -95,13 +83,13 @@ export class SalesService {
   findRecentSales(
     companyId: string,
     query: QuerySalesDto = {},
-    viewer?: SaleViewer,
+    viewer: SalesActor,
   ) {
     const page = Math.max(query.page ?? 1, 1);
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
 
     return this.prisma.sale.findMany({
-      where: { companyId, ...sellerScope(viewer) },
+      where: salesVisibility(companyId, viewer),
       select: {
         id: true,
         saleNumber: true,
@@ -120,9 +108,9 @@ export class SalesService {
     });
   }
 
-  async findById(companyId: string, id: string, viewer?: SaleViewer) {
+  async findById(companyId: string, id: string, viewer: SalesActor) {
     const sale = await this.prisma.sale.findFirst({
-      where: { id, companyId, ...sellerScope(viewer) },
+      where: { id, ...salesVisibility(companyId, viewer) },
       include: {
         customer: true,
         employee: true,
@@ -150,8 +138,8 @@ export class SalesService {
     return sale;
   }
 
-  async exportSales(companyId: string, query: ExportSalesQueryDto) {
-    const where: Record<string, unknown> = { companyId };
+  async exportSales(companyId: string, query: ExportSalesQueryDto, viewer: SalesActor) {
+    const where: Prisma.SaleWhereInput = salesVisibility(companyId, viewer);
 
     if (query.startDate) {
       where.createdAt = {
@@ -266,8 +254,15 @@ export class SalesService {
     );
   }
 
-  async createSale(companyId: string, input: CreateSaleDto, sellerId?: string) {
+  async createSale(companyId: string, input: CreateSaleDto, actor: SalesActor) {
+    salesVisibility(companyId, actor);
+    saleAmounts(new Prisma.Decimal(0), input.taxAmount);
+    if (input.discountAmount !== undefined && (typeof input.discountAmount !== "number" || !Number.isFinite(input.discountAmount) || input.discountAmount < 0)) throw new BadRequestException("Descuento inválido");
     if (input.channel === "DISTRIBUTOR") {
+      if (!canReadCompanySales(actor)) throw new ForbiddenException("No tienes permisos para registrar ventas de distribuidores");
+      const capabilities = await this.planCapabilities.getCapabilities(companyId);
+      if (!this.planCapabilities.hasModule(capabilities, "distributors")) throw new ForbiddenException("El plan no incluye el canal distribuidor");
+      if (input.couponCode) throw new BadRequestException("Los cupones no están soportados en el canal distribuidor");
       if (!input.distributorId) {
         throw new BadRequestException(
           "Debe seleccionar un distribuidor para el canal Distribuidor.",
@@ -280,13 +275,14 @@ export class SalesService {
           items: input.items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
+            presentationId: item.presentationId,
           })),
           paymentMethod: input.paymentMethod,
           taxAmount: input.taxAmount,
           discountAmount: input.discountAmount,
           customerId: input.customerId,
         },
-        sellerId,
+        actor,
       );
     }
 
@@ -304,42 +300,7 @@ export class SalesService {
       products.map((product) => [product.id, product]),
     );
 
-    const resolvedItems = input.items.map((item) => {
-      const product = productMap.get(item.productId);
-      if (!product) {
-        throw new NotFoundException(`Product ${item.productId} not found.`);
-      }
-
-      const presentation = item.presentationId
-        ? product.presentations.find(
-            (entry) => entry.id === item.presentationId,
-          )
-        : undefined;
-
-      if (item.presentationId && !presentation) {
-        throw new BadRequestException(
-          `Presentation ${item.presentationId} not found.`,
-        );
-      }
-
-      const factor = presentation ? presentation.factor : new Prisma.Decimal(1);
-      const quantity = new Prisma.Decimal(item.quantity);
-      const baseQuantity = quantity.mul(factor);
-      const unitPrice = new Prisma.Decimal(
-        presentation?.price ?? product.salePrice,
-      );
-      const totalPrice = unitPrice.mul(quantity);
-
-      return {
-        productId: item.productId,
-        productName: product.name,
-        presentationId: presentation?.id,
-        quantity,
-        baseQuantity,
-        unitPrice,
-        totalPrice,
-      };
-    });
+    const resolvedItems = resolveSaleLines(products, input.items);
 
     const baseQuantityByProduct = new Map<string, Prisma.Decimal>();
     for (const item of resolvedItems) {
@@ -367,6 +328,8 @@ export class SalesService {
       return {
         productId: item.productId,
         presentationId: item.presentationId,
+        baseQuantity: item.baseQuantity,
+        unitFactor: item.unitFactor,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         totalPrice: item.totalPrice,
@@ -388,6 +351,7 @@ export class SalesService {
 
     const taxAmount = new Prisma.Decimal(input.taxAmount ?? 0);
     const manualDiscount = new Prisma.Decimal(input.discountAmount ?? 0);
+    saleAmounts(subtotal, input.taxAmount, input.discountAmount);
     const saleNumber = `SALE-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
     if (input.customerId) {
@@ -423,14 +387,14 @@ export class SalesService {
           discountAmount = applied.discountAmount;
         }
 
-        const totalAmount = subtotal.plus(taxAmount).minus(discountAmount);
+        const { totalAmount } = saleAmounts(subtotal, input.taxAmount, discountAmount);
 
         const created = await tx.sale.create({
           data: {
             companyId,
             customerId: input.customerId,
             employeeId: input.employeeId,
-            sellerId,
+            sellerId: actor.userId,
             channel: input.channel ?? "POS",
             couponId,
             saleNumber,

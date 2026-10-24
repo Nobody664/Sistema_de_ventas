@@ -89,21 +89,33 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get("me")
-  me(@CurrentUser() user: unknown) {
-    return user;
+  me(@CurrentUser() user: AuthUser) {
+    return {
+      id: user.sub,
+      email: user.email,
+      fullName: user.fullName ?? null,
+      roles: user.roles,
+      companyId: user.companyId ?? null,
+      companyStatus: user.companyStatus ?? null,
+      planCode: user.planCode ?? null,
+      subscriptionStatus: user.subscriptionStatus ?? null,
+      trialEndsAt: user.trialEndsAt ?? null,
+    };
   }
 
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Patch("me")
   async updateMe(
-    @CurrentUser() user: { sub: string },
+    @CurrentUser() user: AuthUser,
     @Body() body: UpdateProfileDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.updateProfile(
       user.sub,
       body.fullName,
+      user.sid,
+      user.companyId ?? null,
     );
     this.setAccessCookie(res, result.accessToken);
     return { user: result.user };
@@ -112,20 +124,24 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post("change-password")
-  changePassword(@CurrentUser() user: any, @Body() body: ChangePasswordDto) {
-    return this.authService.changePassword(
+  async changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.changePassword(
       user.sub,
       body.oldPassword,
       body.newPassword,
     );
+    this.clearAuthCookies(res);
+    return result;
   }
 
   @Public()
   @Throttle({ default: { limit: 3, ttl: 5 * 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post("reset-password")
-  resetPassword(@Body() body: ResetPasswordDto) {
-    return this.authService.resetPassword(body.token, body.password);
+  async resetPassword(@Body() body: ResetPasswordDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.resetPassword(body.token, body.password);
+    this.clearAuthCookies(res);
+    return result;
   }
 
   @Public()

@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEmail,
@@ -187,7 +188,7 @@ class SupplierOrderItemDto {
   @IsString()
   productId!: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   @Type(() => Number)
   requestedQuantity!: number;
@@ -224,12 +225,12 @@ class ReceiveSupplierOrderItemDto {
   @IsString()
   productId!: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   @Type(() => Number)
   quantity!: number;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
   @Type(() => Number)
   unitCost!: number;
@@ -251,6 +252,7 @@ export class ReceiveSupplierOrderDto {
 
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => ReceiveSupplierOrderItemDto)
   items!: ReceiveSupplierOrderItemDto[];

@@ -6,11 +6,25 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
+    return this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        employee: {
+          select: { companyId: true, isActive: true, deletedAt: true },
+        },
+      },
+    });
   }
 
   findById(id: string) {
-    return this.prisma.user.findUnique({ where: { id } });
+    return this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: { companyId: true, isActive: true, deletedAt: true },
+        },
+      },
+    });
   }
 
   createOwner(input: {

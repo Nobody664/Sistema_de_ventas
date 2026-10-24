@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { CacheService } from "@/cache/cache.service";
+import { SalesActor, salesAudienceKey, salesVisibility, canReadCompanySales } from "@/common/helpers/sales-visibility.helper";
 
 type GlobalMetrics = {
   totalCompanies: number;
@@ -53,6 +54,7 @@ type CustomerStats = {
 };
 
 type TenantMetrics = {
+  salesScope: "COMPANY" | "SELLER";
   company: { name: string; status: string; currency: string } | null;
   companyId: string;
   totalProducts: number;
@@ -103,6 +105,7 @@ type RotationMetrics = {
 };
 
 type DashboardMetrics = {
+  salesScope: "COMPANY" | "SELLER";
   period: {
     days: number;
     granularity: "day" | "week" | "month";
@@ -185,12 +188,13 @@ export class DashboardService {
     return result;
   }
 
-  async getTenantMetrics(companyId: string) {
+  async getTenantMetrics(companyId: string, actor: SalesActor) {
     if (!companyId) {
       return null;
     }
 
-    const cacheKey = `dashboard:tenant:${companyId}`;
+    const visibility = salesVisibility(companyId, actor);
+    const cacheKey = `dashboard:tenant:v2:${companyId}:${salesAudienceKey(actor)}`;
     const cached = await this.cache.get<TenantMetrics>(cacheKey);
     if (cached) return cached;
 
@@ -220,11 +224,11 @@ export class DashboardService {
       newThisMonth,
     ] = await Promise.all([
       this.prisma.sale.findMany({
-        where: { companyId, createdAt: { gte: todayStart } },
+        where: { ...visibility, createdAt: { gte: todayStart } },
         select: { totalAmount: true },
       }),
       this.prisma.sale.findMany({
-        where: { companyId },
+        where: visibility,
         include: { items: { include: { product: true } } },
         orderBy: { createdAt: "desc" },
         take: 25,
@@ -237,7 +241,7 @@ export class DashboardService {
       this.prisma.customer.count({ where: { companyId } }),
       this.prisma.employee.count({ where: { companyId } }),
       this.prisma.sale.findMany({
-        where: { companyId, createdAt: { gte: thirtyDaysAgo } },
+        where: { ...visibility, createdAt: { gte: thirtyDaysAgo } },
         select: {
           id: true,
           createdAt: true,
@@ -443,6 +447,7 @@ export class DashboardService {
     };
 
     const result = {
+      salesScope: canReadCompanySales(actor) ? "COMPANY" as const : "SELLER" as const,
       company,
       companyId,
       totalProducts,
@@ -466,8 +471,10 @@ export class DashboardService {
     companyId: string,
     days: number,
     granularity: "day" | "week" | "month",
+    actor: SalesActor,
   ): Promise<DashboardMetrics> {
-    const cacheKey = `dashboard:metrics:${companyId}:${days}:${granularity}`;
+    const visibility = salesVisibility(companyId, actor);
+    const cacheKey = `dashboard:metrics:v2:${companyId}:${salesAudienceKey(actor)}:${days}:${granularity}`;
     const cached = await this.cache.get<DashboardMetrics>(cacheKey);
     if (cached) return cached;
 
@@ -489,7 +496,7 @@ export class DashboardService {
     const [currentSales, previousSales] = await Promise.all([
       this.prisma.sale.findMany({
         where: {
-          companyId,
+          ...visibility,
           status: "COMPLETED",
           createdAt: { gte: from, lte: to },
         },
@@ -509,7 +516,7 @@ export class DashboardService {
       }),
       this.prisma.sale.findMany({
         where: {
-          companyId,
+          ...visibility,
           status: "COMPLETED",
           createdAt: { gte: previousFrom, lte: previousTo },
         },
@@ -666,6 +673,7 @@ export class DashboardService {
     };
 
     const result: DashboardMetrics = {
+      salesScope: canReadCompanySales(actor) ? "COMPANY" : "SELLER",
       period: {
         days,
         granularity,

@@ -19,6 +19,15 @@ import { RolesGuard } from "@/common/guards/roles.guard";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { PaymentsService } from "./payments.service";
 import { UploadPaymentImageDto } from "./dto/payment-settings.dto";
+import {
+  AuthUser,
+  CurrentUser,
+} from "@/common/decorators/current-user.decorator";
+import { PlatformGuard } from "@/common/guards/platform.guard";
+import { PermissionsGuard } from "@/common/guards/permissions.guard";
+import { Permission } from "@/common/constants/permissions.constant";
+import { Permissions } from "@/common/decorators/permissions.decorator";
+import { ConfirmSubscriptionPaymentDto } from "./dto/confirm-subscription-payment.dto";
 
 @Controller("payments")
 export class PaymentsController {
@@ -83,19 +92,16 @@ export class PaymentsController {
     return this.paymentsService.generateReceipt(id, request.tenantId);
   }
 
-  @Roles("COMPANY_ADMIN", "MANAGER")
-  @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @Permissions(Permission.PLATFORM_FINANCE_MANAGE)
+  @UseGuards(JwtAuthGuard, PlatformGuard, RolesGuard, PermissionsGuard)
   @Patch(":id/mark-paid")
   markAsPaid(
     @Param("id") id: string,
-    @Req() request: { tenantId: string },
-    @Body() body: { paymentDate?: string },
+    @CurrentUser() user: AuthUser,
+    @Body() body: ConfirmSubscriptionPaymentDto,
   ) {
-    return this.paymentsService.markAsPaid(
-      id,
-      request.tenantId,
-      body.paymentDate,
-    );
+    return this.paymentsService.markAsPaid(id, user, body);
   }
 
   @Roles("SUPER_ADMIN")

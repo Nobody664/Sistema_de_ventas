@@ -42,8 +42,9 @@ export class SalesController {
   exportSales(
     @Req() request: { tenantId: string },
     @Query() query: ExportSalesQueryDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.salesService.exportSales(request.tenantId, query);
+    return this.salesService.exportSales(request.tenantId, query, { userId: user.sub, roles: user.roles });
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
@@ -93,7 +94,7 @@ export class SalesController {
     @Body() body: CreateSaleDto,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.salesService.createSale(request.tenantId, body, user.sub);
+    return this.salesService.createSale(request.tenantId, body, { userId: user.sub, roles: user.roles });
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER")

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import * as argon2 from "argon2";
-import { AuditAction } from "@prisma/client";
+import { AuditAction, MembershipRole, Prisma } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import {
   CreateEmployeeDto,
@@ -14,6 +14,7 @@ import {
 } from "./dto/employee.dto";
 import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
 import { AuditService } from "@/common/services/audit.service";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
 
 @Injectable()
 export class EmployeesService {
@@ -97,6 +98,7 @@ export class EmployeesService {
           userId: user.id,
           companyId,
           role: input.role,
+          isActive: input.isActive ?? true,
         },
       });
 
@@ -142,7 +144,7 @@ export class EmployeesService {
     input: CreateEmployeeDto,
   ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
+    if (!user?.isActive) {
       throw new BadRequestException("El usuario especificado no existe.");
     }
 
@@ -171,23 +173,29 @@ export class EmployeesService {
       );
     }
 
-    const employee = await this.prisma.employee.create({
-      data: {
-        companyId,
-        userId,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        email: input.email,
-        phone: input.phone,
-        dni: input.dni,
+    const employee = await serializableTransaction(this.prisma, async (tx) => {
+      await this.syncMembership(tx, companyId, userId, {
         role: input.role,
-        salary: input.salary ?? null,
-        paymentDay: input.paymentDay ?? null,
         isActive: input.isActive ?? true,
-      },
-      include: {
-        user: { select: { id: true, email: true, fullName: true } },
-      },
+      });
+      return tx.employee.create({
+        data: {
+          companyId,
+          userId,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          email: input.email,
+          phone: input.phone,
+          dni: input.dni,
+          role: input.role,
+          salary: input.salary ?? null,
+          paymentDay: input.paymentDay ?? null,
+          isActive: input.isActive ?? true,
+        },
+        include: {
+          user: { select: { id: true, email: true, fullName: true } },
+        },
+      });
     });
 
     await this.auditService.log({
@@ -209,9 +217,19 @@ export class EmployeesService {
   async update(companyId: string, id: string, input: UpdateEmployeeDto) {
     const existing = await this.ensureEmployee(companyId, id);
 
-    const employee = await this.prisma.employee.update({
-      where: { id },
-      data: input,
+    if (input.role === null || input.isActive === null)
+      throw new BadRequestException("El rol y el estado no pueden ser nulos");
+    const employee = await serializableTransaction(this.prisma, async (tx) => {
+      if (
+        existing.userId &&
+        (input.role !== undefined || input.isActive !== undefined)
+      ) {
+        await this.syncMembership(tx, companyId, existing.userId, {
+          role: input.role,
+          isActive: input.isActive,
+        });
+      }
+      return tx.employee.update({ where: { id }, data: input });
     });
 
     await this.auditService.log({
@@ -240,21 +258,23 @@ export class EmployeesService {
     });
 
     if (salesCount > 0) {
-      const employee = await this.prisma.$transaction(async (tx) => {
-        const updated = await tx.employee.update({
-          where: { id },
-          data: { isActive: false, deletedAt: new Date() },
-        });
-
-        if (existing.userId) {
-          await tx.membership.updateMany({
-            where: { userId: existing.userId, companyId },
-            data: { isActive: false },
+      const employee = await serializableTransaction(
+        this.prisma,
+        async (tx) => {
+          const updated = await tx.employee.update({
+            where: { id },
+            data: { isActive: false, deletedAt: new Date() },
           });
-        }
 
-        return updated;
-      });
+          if (existing.userId) {
+            await this.syncMembership(tx, companyId, existing.userId, {
+              isActive: false,
+            });
+          }
+
+          return updated;
+        },
+      );
 
       await this.auditService.log({
         companyId,
@@ -267,8 +287,11 @@ export class EmployeesService {
       return employee;
     }
 
-    const employee = await this.prisma.$transaction(async (tx) => {
+    const employee = await serializableTransaction(this.prisma, async (tx) => {
       if (existing.userId) {
+        await this.syncMembership(tx, companyId, existing.userId, {
+          isActive: false,
+        });
         await tx.membership.deleteMany({
           where: { userId: existing.userId, companyId },
         });
@@ -290,7 +313,7 @@ export class EmployeesService {
 
   private async ensureEmployee(companyId: string, id: string) {
     const employee = await this.prisma.employee.findFirst({
-      where: { id, companyId },
+      where: { id, companyId, deletedAt: null },
     });
 
     if (!employee) {
@@ -298,5 +321,52 @@ export class EmployeesService {
     }
 
     return employee;
+  }
+
+  private async syncMembership(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    userId: string,
+    input: { role?: MembershipRole; isActive?: boolean },
+  ): Promise<void> {
+    const membership = await tx.membership.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+    });
+    if (!membership)
+      throw new BadRequestException(
+        "El empleado no tiene una membresía válida",
+      );
+    if (
+      membership.role === "COMPANY_ADMIN" &&
+      membership.isActive &&
+      ((input.role ?? membership.role) !== "COMPANY_ADMIN" ||
+        input.isActive === false)
+    ) {
+      const admins = await tx.membership.count({
+        where: {
+          companyId,
+          role: "COMPANY_ADMIN",
+          isActive: true,
+          user: { isActive: true },
+        },
+      });
+      if (admins <= 1)
+        throw new ConflictException(
+          "La empresa debe conservar al menos un administrador activo",
+        );
+    }
+    await tx.membership.update({
+      where: { userId_companyId: { userId, companyId } },
+      data: input,
+    });
+    if (
+      (input.role !== undefined && input.role !== membership.role) ||
+      (input.isActive !== undefined && input.isActive !== membership.isActive)
+    ) {
+      await tx.refreshToken.updateMany({
+        where: { userId, companyId, type: "SESSION", revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
   }
 }

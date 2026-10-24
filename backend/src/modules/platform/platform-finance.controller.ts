@@ -23,6 +23,8 @@ import {
 } from "@/common/decorators/current-user.decorator";
 import { PlatformAuditService } from "./platform-audit.service";
 import { PlatformFinanceService } from "./platform-finance.service";
+import { PaymentsService } from "@/modules/payments/payments.service";
+import { ConfirmSubscriptionPaymentDto } from "@/modules/payments/dto/confirm-subscription-payment.dto";
 import {
   CreatePlatformAccountDto,
   CreatePlatformTransactionDto,
@@ -39,7 +41,18 @@ export class PlatformFinanceController {
   constructor(
     private readonly finance: PlatformFinanceService,
     private readonly platformAudit: PlatformAuditService,
+    private readonly payments: PaymentsService,
   ) {}
+
+  @Permissions(Permission.PLATFORM_FINANCE_MANAGE)
+  @Post("payments/:id/confirm")
+  confirmPayment(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() input: ConfirmSubscriptionPaymentDto,
+  ) {
+    return this.payments.markAsPaid(id, user, input);
+  }
 
   @Permissions(Permission.PLATFORM_FINANCE_VIEW)
   @Get("summary")

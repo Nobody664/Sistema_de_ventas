@@ -8,6 +8,8 @@ import { PaymentSettingsService } from "./payment-settings.service";
 import { NotificationsModule } from "@/modules/notifications/notifications.module";
 import { EmailModule } from "@/modules/email/email.module";
 import { PrismaModule } from "@/database/prisma/prisma.module";
+import { MercadoPagoGateway } from "./mercado-pago.gateway";
+import { SubscriptionSettlementService } from "./subscription-settlement.service";
 
 @Module({
   imports: [PrismaModule, NotificationsModule, EmailModule],
@@ -16,7 +18,13 @@ import { PrismaModule } from "@/database/prisma/prisma.module";
     PaymentSettingsController,
     CheckoutRequestsController,
   ],
-  providers: [PaymentsService, PaymentSettingsService, CheckoutRequestsService],
+  providers: [
+    PaymentsService,
+    PaymentSettingsService,
+    CheckoutRequestsService,
+    MercadoPagoGateway,
+    SubscriptionSettlementService,
+  ],
   exports: [PaymentsService, PaymentSettingsService, CheckoutRequestsService],
 })
 export class PaymentsModule {}

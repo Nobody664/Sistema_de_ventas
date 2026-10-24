@@ -7,6 +7,7 @@ import { PermissionsGuard } from "@/common/guards/permissions.guard";
 import { RequireModule } from "@/modules/plan-capabilities/decorators/require-module.decorator";
 import { RequireFeature } from "@/modules/plan-capabilities/decorators/require-feature.decorator";
 import { ReportsService } from "./reports.service";
+import { AuthUser, CurrentUser } from "@/common/decorators/current-user.decorator";
 import { ReportsOverviewQueryDto } from "./dto/reports-query.dto";
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
@@ -21,7 +22,8 @@ export class ReportsController {
   overview(
     @Req() request: { tenantId: string },
     @Query() query: ReportsOverviewQueryDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.reportsService.getSalesOverview(request.tenantId, query);
+    return this.reportsService.getSalesOverview(request.tenantId, query, { userId: user.sub, roles: user.roles });
   }
 }

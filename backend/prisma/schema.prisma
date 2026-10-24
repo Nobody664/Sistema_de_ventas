@@ -220,6 +220,7 @@ enum ProofStatus {
 // ==========================================
 
 model User {
+  authVersion  Int        @default(0) @map("auth_version")
   id           String     @id @default(cuid())
   email        String     @unique
   passwordHash String     @map("password_hash")
@@ -526,6 +527,8 @@ model Sale {
 }
 
 model SaleItem {
+  baseQuantity   Decimal? @map("base_quantity") @db.Decimal(14, 3)
+  unitFactor     Decimal? @map("unit_factor") @db.Decimal(14, 3)
   id             String   @id @default(cuid())
   saleId         String   @map("sale_id")
   productId      String   @map("product_id")
@@ -647,6 +650,7 @@ model ProductPresentation {
 }
 
 model StockEntry {
+  supplierOrder SupplierOrder?
   id        String   @id @default(cuid())
   companyId String   @map("company_id")
   branchId  String?  @map("branch_id")
@@ -1126,6 +1130,7 @@ model PaymentProof {
 }
 
 model RefreshToken {
+  authVersion Int              @default(0) @map("auth_version")
   id         String            @id @default(cuid())
   userId     String            @map("user_id")
   companyId  String?           @map("company_id")
@@ -1143,6 +1148,7 @@ model RefreshToken {
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([familyId, revokedAt])
   @@index([companyId])
   @@index([expiresAt])
   @@map("refresh_tokens")
@@ -1547,6 +1553,9 @@ model SupplierProduct {
 }
 
 model SupplierOrder {
+  stockEntryId String? @unique @map("stock_entry_id")
+  receiptFingerprint String? @map("receipt_fingerprint")
+  stockEntry StockEntry? @relation(fields: [stockEntryId], references: [id], onDelete: Restrict)
   id            String              @id @default(cuid())
   companyId     String              @map("company_id")
   supplierId    String              @map("supplier_id")
@@ -1574,6 +1583,7 @@ model SupplierOrder {
 }
 
 model SupplierOrderItem {
+  receivedQuantity Decimal @default(0) @map("received_quantity") @db.Decimal(14, 3)
   id                String   @id @default(cuid())
   orderId           String   @map("order_id")
   productId         String   @map("product_id")

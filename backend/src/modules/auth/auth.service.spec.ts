@@ -13,6 +13,7 @@ async function makeUser() {
     fullName: "Admin",
     passwordHash: await argon2.hash("secreta123"),
     globalRole: "USER",
+    isActive: true,
   };
 }
 
@@ -24,6 +25,7 @@ function makeService(overrides: {
   emailService?: any;
 }) {
   const prisma = overrides.prisma ?? {};
+  if (!prisma.$transaction) prisma.$transaction = async (work: (tx: unknown) => Promise<unknown>) => work(prisma);
   const usersService = overrides.usersService ?? {};
   const jwtService = overrides.jwtService ?? {
     signAsync: async () => "access-token",
@@ -44,6 +46,16 @@ function makeService(overrides: {
 }
 
 describe("AuthService.login", () => {
+  it("rejects an inactive user even with the correct password", async () => {
+    const user = { ...(await makeUser()), isActive: false };
+    const service = makeService({
+      usersService: { findByEmail: async () => user },
+    });
+    await assert.rejects(
+      service.login({ email: user.email, password: "secreta123" }),
+      UnauthorizedException,
+    );
+  });
   it("rejects an unknown email", async () => {
     const svc = makeService({
       usersService: { findByEmail: async () => null },
@@ -72,6 +84,7 @@ describe("AuthService.login", () => {
     const svc = makeService({
       usersService: { findByEmail: async () => user },
       prisma: {
+        user: { findFirst: async () => ({ id: user.id }) },
         membership: {
           findFirst: async () => ({
             role: "COMPANY_ADMIN",
@@ -95,6 +108,7 @@ describe("AuthService.login", () => {
     const svc = makeService({
       usersService: { findByEmail: async () => user },
       prisma: {
+        user: { findFirst: async () => ({ id: user.id }) },
         membership: {
           findFirst: async () => ({
             role: "COMPANY_ADMIN",
@@ -139,10 +153,63 @@ describe("AuthService.login", () => {
     assert.equal(session.user.subscriptionStatus, "ACTIVE");
     assert.deepEqual(session.user.roles, ["USER", "COMPANY_ADMIN"]);
     assert.equal(createdToken.type, RefreshTokenType.SESSION);
+    assert.equal(capturedClaims.sid, createdToken.familyId);
   });
 });
 
 describe("AuthService.refresh", () => {
+  it("rejects refresh for an inactive user", async () => {
+    const service = makeService({
+      prisma: {
+        user: { findUnique: async () => ({ isActive: false }) },
+        refreshToken: {
+          findUnique: async () => ({
+            userId: "user",
+            type: RefreshTokenType.SESSION,
+            familyId: "family",
+            revokedAt: null,
+            expiresAt: new Date(Date.now() + 60_000),
+          }),
+          updateMany: async () => ({ count: 1 }),
+        },
+      },
+      usersService: { findById: async () => ({ isActive: false }) },
+    });
+    await assert.rejects(service.refresh("refresh"), UnauthorizedException);
+  });
+
+  it("revokes the old family instead of retaining a removed company membership", async () => {
+    let revoked = false;
+    const service = makeService({
+      prisma: {
+        user: { findUnique: async () => ({ id: "user", globalRole: "USER", isActive: true }) },
+        refreshToken: {
+          findUnique: async () => ({
+            userId: "user",
+            companyId: "old-company",
+            type: RefreshTokenType.SESSION,
+            familyId: "family",
+            revokedAt: null,
+            expiresAt: new Date(Date.now() + 60_000),
+          }),
+          updateMany: async () => {
+            revoked = true;
+            return { count: 1 };
+          },
+        },
+        membership: { findFirst: async () => null },
+      },
+      usersService: {
+        findById: async () => ({
+          id: "user",
+          globalRole: "USER",
+          isActive: true,
+        }),
+      },
+    });
+    await assert.rejects(service.refresh("refresh"), UnauthorizedException);
+    assert.equal(revoked, true);
+  });
   it("requires a token", async () => {
     const svc = makeService({});
 
@@ -178,7 +245,7 @@ describe("AuthService.refresh", () => {
     });
 
     await assert.rejects(() => svc.refresh("revoked"), UnauthorizedException);
-    assert.deepEqual(revokedFamily, { familyId: "fam-1", revokedAt: null });
+    assert.deepEqual(revokedFamily, { familyId: "fam-1", type: "SESSION", revokedAt: null });
   });
 
   it("rotates the refresh token inside a transaction", async () => {
@@ -202,10 +269,15 @@ describe("AuthService.refresh", () => {
           email: "a@a.com",
           fullName: "Admin",
           globalRole: "USER",
+          isActive: true,
         }),
       },
       prisma: {
-        refreshToken: { findUnique: async () => stored },
+        user: { findUnique: async () => ({ id: "u1", email: "a@a.com", fullName: "Admin", globalRole: "USER", isActive: true, authVersion: 0 }) },
+        refreshToken: { findUnique: async () => stored,
+          create: async ({ data }: any) => created.push(data),
+          updateMany: async ({ where, data }: any) => { updated.push({ where, data }); return { count: 1 }; },
+        },
         membership: {
           findFirst: async () => ({ role: "COMPANY_ADMIN", companyId: "c1" }),
         },
@@ -218,14 +290,6 @@ describe("AuthService.refresh", () => {
             trialEndsAt: null,
           }),
         },
-        $transaction: async (fn: any) =>
-          fn({
-            refreshToken: {
-              create: async ({ data }: any) => created.push(data),
-              update: async ({ where, data }: any) =>
-                updated.push({ where, data }),
-            },
-          }),
       },
       jwtService: { signAsync: async () => "new-access" },
     });

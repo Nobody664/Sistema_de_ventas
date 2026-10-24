@@ -4,6 +4,7 @@ import { TenantGuard } from "@/common/guards/tenant.guard";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { RolesGuard } from "@/common/guards/roles.guard";
 import { DashboardService } from "./dashboard.service";
+import { AuthUser, CurrentUser } from "@/common/decorators/current-user.decorator";
 import { DashboardMetricsQueryDto } from "./dto/dashboard-metrics.dto";
 
 @Controller("dashboard")
@@ -19,8 +20,8 @@ export class DashboardController {
 
   @UseGuards(JwtAuthGuard, TenantGuard)
   @Get("tenant")
-  tenantMetrics(@Req() request: { tenantId: string }) {
-    return this.dashboardService.getTenantMetrics(request.tenantId);
+  tenantMetrics(@Req() request: { tenantId: string }, @CurrentUser() user: AuthUser) {
+    return this.dashboardService.getTenantMetrics(request.tenantId, { userId: user.sub, roles: user.roles });
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
@@ -28,6 +29,7 @@ export class DashboardController {
   metrics(
     @Req() request: { tenantId: string },
     @Query() query: DashboardMetricsQueryDto,
+    @CurrentUser() user: AuthUser,
   ) {
     const days = query.days ?? 30;
     const granularity =
@@ -37,6 +39,7 @@ export class DashboardController {
       request.tenantId,
       days,
       granularity,
+      { userId: user.sub, roles: user.roles },
     );
   }
 }

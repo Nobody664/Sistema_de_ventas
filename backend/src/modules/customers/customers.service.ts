@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { SalesActor, salesVisibility } from "@/common/helpers/sales-visibility.helper";
 import {
   CreateCustomerDto,
   QueryCustomerDto,
@@ -33,9 +34,9 @@ export class CustomersService {
     });
   }
 
-  async getPurchases(companyId: string, customerId: string) {
+  async getPurchases(companyId: string, customerId: string, actor: SalesActor) {
     const purchases = await this.prisma.sale.findMany({
-      where: { companyId, customerId },
+      where: { ...salesVisibility(companyId, actor), customerId },
       include: {
         employee: {
           select: { firstName: true, lastName: true },

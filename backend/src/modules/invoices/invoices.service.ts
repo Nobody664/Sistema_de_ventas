@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { parseImageSource } from "@/common/helpers/image.helper";
+import { SalesActor, salesVisibility } from "@/common/helpers/sales-visibility.helper";
 import {
   CreateInvoiceTemplateDto,
   UpdateInvoiceTemplateDto,
@@ -242,6 +243,7 @@ export class InvoicesService {
   async generateInvoiceHtml(
     saleId: string,
     companyId: string,
+    actor: SalesActor,
     templateId?: string,
   ) {
     const template = templateId
@@ -249,7 +251,7 @@ export class InvoicesService {
       : await this.getDefaultTemplate(companyId);
 
     const sale = await this.prisma.sale.findFirst({
-      where: { id: saleId, companyId },
+      where: { id: saleId, ...salesVisibility(companyId, actor) },
       include: {
         company: true,
         customer: true,

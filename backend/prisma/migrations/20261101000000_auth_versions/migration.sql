@@ -1,0 +1,2 @@
+ALTER TABLE "User" ADD COLUMN "auth_version" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "refresh_tokens" ADD COLUMN "auth_version" INTEGER NOT NULL DEFAULT 0;

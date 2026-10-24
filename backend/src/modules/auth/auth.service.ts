@@ -9,7 +9,8 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import * as argon2 from "argon2";
 import { randomBytes, createHash } from "crypto";
-import { RefreshTokenType } from "@prisma/client";
+import { Prisma, RefreshTokenType } from "@prisma/client";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { UsersService } from "@/modules/users/users.service";
 import { EmailService } from "@/modules/email/email.service";
@@ -26,6 +27,8 @@ interface SessionClaims {
   planCode?: string | null;
   subscriptionStatus?: string;
   fullName?: string | null;
+  sid?: string;
+  authVersion?: number;
 }
 
 @Injectable()
@@ -131,6 +134,7 @@ export class AuthService {
 
       return this.createSession({
         sub: user.id,
+        authVersion: user.authVersion,
         email: user.email,
         companyId: company.id,
         roles: ["COMPANY_ADMIN"],
@@ -146,7 +150,7 @@ export class AuthService {
 
   async login(input: LoginDto) {
     const user = await this.usersService.findByEmail(input.email);
-    if (!user) {
+    if (!user?.isActive) {
       throw new UnauthorizedException("Invalid credentials.");
     }
 
@@ -163,6 +167,16 @@ export class AuthService {
       include: { company: true },
       orderBy: { createdAt: "asc" },
     });
+
+    if (
+      (!membership && user.globalRole === "USER") ||
+      (membership &&
+        user.employee?.companyId === membership.companyId &&
+        (!user.employee.isActive || user.employee.deletedAt))
+    )
+      throw new UnauthorizedException(
+        "El usuario no tiene una membresía activa",
+      );
 
     if (membership?.company) {
       if (membership.company.status === "SUSPENDED") {
@@ -193,6 +207,7 @@ export class AuthService {
 
     return this.createSession({
       sub: user.id,
+      authVersion: user.authVersion,
       email: user.email,
       companyId: membership?.companyId ?? null,
       roles,
@@ -208,136 +223,89 @@ export class AuthService {
     }
 
     const tokenHash = this.hashToken(rawToken);
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash },
-    });
-
-    if (!stored || stored.type !== RefreshTokenType.SESSION) {
-      throw new UnauthorizedException("Invalid refresh token.");
-    }
-
-    if (stored.revokedAt) {
-      await this.prisma.refreshToken.updateMany({
-        where: { familyId: stored.familyId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-
-      this.logger.warn(
-        `Reuse of revoked refresh token detected for user ${stored.userId}`,
-      );
-      throw new UnauthorizedException("Invalid refresh token.");
-    }
-
-    if (stored.expiresAt < new Date()) {
-      await this.prisma.refreshToken.update({
-        where: { id: stored.id },
-        data: { revokedAt: new Date() },
-      });
-      throw new UnauthorizedException("Invalid refresh token.");
-    }
-
-    const user = await this.usersService.findById(stored.userId);
-    if (!user) {
-      throw new UnauthorizedException("User not found.");
-    }
-
-    const membership = stored.companyId
-      ? await this.prisma.membership.findFirst({
-          where: {
-            userId: user.id,
-            companyId: stored.companyId,
-            isActive: true,
-          },
-          orderBy: { createdAt: "asc" },
-        })
-      : await this.prisma.membership.findFirst({
-          where: { userId: user.id, isActive: true },
-          orderBy: { createdAt: "asc" },
-        });
-
-    let planCode: string | undefined;
-    let subscriptionStatus: string | undefined;
-
-    if (membership?.companyId) {
-      const subscription = await this.prisma.subscription.findFirst({
-        where: { companyId: membership.companyId },
-        include: { plan: true },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (subscription) {
-        subscriptionStatus = subscription.status;
-        planCode = subscription.plan.code;
+    const outcome = await serializableTransaction(this.prisma, async (tx) => {
+      const stored = await tx.refreshToken.findUnique({ where: { tokenHash } });
+      if (!stored || stored.type !== RefreshTokenType.SESSION) return null;
+      if (stored.revokedAt || stored.expiresAt <= new Date()) {
+        await tx.refreshToken.updateMany({ where: { familyId: stored.familyId, type: "SESSION", revokedAt: null }, data: { revokedAt: new Date() } });
+        return null;
       }
-    }
-
-    const claims: SessionClaims = {
-      sub: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      companyId: membership?.companyId ?? stored.companyId ?? null,
-      roles: membership
-        ? [user.globalRole, membership.role]
-        : [user.globalRole],
-      planCode,
-      subscriptionStatus,
-    };
-
-    const { accessToken } = await this.signAccessToken(claims);
-    const newRefreshToken = this.generateOpaqueToken();
-    const newRefreshHash = this.hashToken(newRefreshToken);
-
-    await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: stored.userId }, include: { employee: { select: { companyId: true, isActive: true, deletedAt: true } } } });
+      const membership = stored.companyId ? await tx.membership.findFirst({ where: { userId: stored.userId, companyId: stored.companyId, isActive: true } }) : null;
+      if (!user?.isActive || (user.authVersion ?? 0) !== (stored.authVersion ?? 0) ||
+          (stored.companyId && !membership) || (!membership && user.globalRole === "USER") ||
+          (membership && user.employee?.companyId === membership.companyId && (!user.employee.isActive || user.employee.deletedAt))) {
+        await tx.refreshToken.updateMany({ where: { familyId: stored.familyId, type: "SESSION", revokedAt: null }, data: { revokedAt: new Date() } });
+        return null;
+      }
+      const subscription = membership ? await tx.subscription.findFirst({ where: { companyId: membership.companyId }, include: { plan: true } }) : null;
+      const newRefreshToken = this.generateOpaqueToken();
+      const newRefreshHash = this.hashToken(newRefreshToken);
+      const claimed = await tx.refreshToken.updateMany({
+        where: {
+          id: stored.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          authVersion: stored.authVersion ?? 0,
+        },
+        data: { revokedAt: new Date(), replacedBy: newRefreshHash },
+      });
+      if (claimed.count !== 1)
+        throw new UnauthorizedException("El refresh token ya fue utilizado");
+      const claims: SessionClaims = { sub: user.id, email: user.email, fullName: user.fullName, companyId: stored.companyId,
+        sid: stored.familyId, authVersion: user.authVersion ?? 0,
+        roles: membership ? [user.globalRole, membership.role] : [user.globalRole],
+        planCode: subscription?.plan.code, subscriptionStatus: subscription?.status };
       await tx.refreshToken.create({
         data: {
           userId: user.id,
           companyId: claims.companyId ?? null,
           tokenHash: newRefreshHash,
           familyId: stored.familyId,
+          authVersion: claims.authVersion,
           type: RefreshTokenType.SESSION,
           ipAddress: ipAddress ?? null,
           userAgent: userAgent ?? null,
           expiresAt: new Date(Date.now() + this.getRefreshTtlMs()),
         },
       });
-
-      await tx.refreshToken.update({
-        where: { id: stored.id },
-        data: { revokedAt: new Date(), replacedBy: newRefreshHash },
-      });
+      const { accessToken } = await this.signAccessToken(claims, tx);
+      return { accessToken, refreshToken: newRefreshToken };
     });
-
+    if (!outcome) throw new UnauthorizedException("Invalid or revoked refresh token.");
     return {
-      accessToken,
-      refreshToken: newRefreshToken,
+      ...outcome,
       expiresIn: this.configService.get<string>("JWT_ACCESS_TTL") ?? "15m",
     };
   }
 
   async logout(rawToken?: string, userId?: string) {
+    await serializableTransaction(this.prisma, async (tx) => {
     if (rawToken) {
       const tokenHash = this.hashToken(rawToken);
-      const stored = await this.prisma.refreshToken.findUnique({
+      const stored = await tx.refreshToken.findUnique({
         where: { tokenHash },
       });
 
       if (stored && stored.type === RefreshTokenType.SESSION) {
-        await this.prisma.refreshToken.updateMany({
+        await tx.refreshToken.updateMany({
           where: { familyId: stored.familyId, revokedAt: null },
           data: { revokedAt: new Date() },
         });
       }
     } else if (userId) {
-      await this.prisma.refreshToken.updateMany({
+      await tx.user.updateMany({ where: { id: userId }, data: { authVersion: { increment: 1 } } });
+      await tx.refreshToken.updateMany({
         where: { userId, type: RefreshTokenType.SESSION, revokedAt: null },
         data: { revokedAt: new Date() },
       });
     }
+    });
   }
 
   async forgotPassword(email: string) {
     const user = await this.usersService.findByEmail(email);
-    if (!user) {
+    if (!user?.isActive) {
       return {
         status: "queued",
         message:
@@ -349,17 +317,25 @@ export class AuthService {
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
 
-    await this.prisma.refreshToken.create({
+    const issued = await serializableTransaction(this.prisma, async (tx) => {
+      const current = await tx.user.findFirst({ where: { id: user.id, isActive: true, authVersion: user.authVersion ?? 0 }, select: { id: true } });
+      if (!current) return false;
+      await tx.refreshToken.updateMany({ where: { userId: user.id, type: "RESET", revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.refreshToken.create({
       data: {
         userId: user.id,
         tokenHash,
         familyId: `reset:${randomBytes(8).toString("hex")}`,
         type: RefreshTokenType.RESET,
+        authVersion: user.authVersion ?? 0,
         expiresAt,
         ipAddress: null,
         userAgent: null,
       },
     });
+      return true;
+    });
+    if (!issued) return { status: "queued", message: "If an account exists with that email, a password reset link will be sent." };
 
     const frontendUrl = (
       this.configService.get<string>("FRONTEND_URL") ?? "http://localhost:3000"
@@ -392,25 +368,23 @@ export class AuthService {
       !stored ||
       stored.type !== RefreshTokenType.RESET ||
       stored.revokedAt ||
-      stored.expiresAt < new Date()
+      stored.expiresAt <= new Date()
     ) {
       throw new BadRequestException("Invalid or expired password reset token.");
     }
 
     const passwordHash = await argon2.hash(password);
-    await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: stored.userId },
-        data: { passwordHash },
+    await serializableTransaction(this.prisma, async (tx) => {
+      const consumed = await tx.refreshToken.updateMany({ where: { id: stored.id, userId: stored.userId, type: "RESET", revokedAt: null, expiresAt: { gt: new Date() }, authVersion: stored.authVersion ?? 0 }, data: { revokedAt: new Date() } });
+      if (consumed.count !== 1) throw new BadRequestException("Invalid or expired password reset token.");
+      const updated = await tx.user.updateMany({
+        where: { id: stored.userId, isActive: true, authVersion: stored.authVersion ?? 0 },
+        data: { passwordHash, authVersion: { increment: 1 } },
       });
-      await tx.refreshToken.update({
-        where: { id: stored.id },
-        data: { revokedAt: new Date() },
-      });
+      if (updated.count !== 1) throw new BadRequestException("Invalid or expired password reset token.");
       await tx.refreshToken.updateMany({
         where: {
           userId: stored.userId,
-          type: RefreshTokenType.SESSION,
           revokedAt: null,
         },
         data: { revokedAt: new Date() },
@@ -426,7 +400,7 @@ export class AuthService {
     newPassword: string,
   ) {
     const user = await this.usersService.findById(userId);
-    if (!user) {
+    if (!user?.isActive) {
       throw new UnauthorizedException("User not found.");
     }
 
@@ -436,21 +410,24 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(newPassword);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash },
-    });
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, type: RefreshTokenType.SESSION, revokedAt: null },
-      data: { revokedAt: new Date() },
+    await serializableTransaction(this.prisma, async (tx) => {
+      const updated = await tx.user.updateMany({ where: { id: userId, isActive: true, passwordHash: user.passwordHash, authVersion: user.authVersion ?? 0 }, data: { passwordHash, authVersion: { increment: 1 } } });
+      if (updated.count !== 1) throw new UnauthorizedException("La contraseña o la sesión cambiaron. Vuelve a autenticarte.");
+      await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     });
 
     return { message: "Password changed successfully." };
   }
 
-  async updateProfile(userId: string, fullName: string) {
+  async updateProfile(
+    userId: string,
+    fullName: string,
+    sid: string | undefined,
+    companyId: string | null,
+  ) {
+    if (!sid) throw new UnauthorizedException("La sesión debe renovarse");
     const user = await this.usersService.findById(userId);
-    if (!user) {
+    if (!user?.isActive) {
       throw new UnauthorizedException("User not found.");
     }
 
@@ -460,7 +437,7 @@ export class AuthService {
     });
 
     const membership = await this.prisma.membership.findFirst({
-      where: { userId, isActive: true },
+      where: { userId, isActive: true, companyId: companyId ?? "" },
       orderBy: { createdAt: "asc" },
     });
 
@@ -482,6 +459,8 @@ export class AuthService {
 
     const claims: SessionClaims = {
       sub: user.id,
+      sid,
+      authVersion: user.authVersion ?? 0,
       email: user.email,
       fullName,
       companyId: membership?.companyId ?? null,
@@ -511,12 +490,12 @@ export class AuthService {
     };
   }
 
-  private async signAccessToken(claims: SessionClaims) {
+  private async signAccessToken(claims: SessionClaims, client: Prisma.TransactionClient | PrismaService = this.prisma) {
     let companyStatus: string | undefined;
     let trialEndsAt: string | null | undefined;
 
     if (claims.companyId) {
-      const company = await this.prisma.company.findUnique({
+      const company = await client.company.findUnique({
         where: { id: claims.companyId },
         select: { status: true, trialEndsAt: true },
       });
@@ -527,12 +506,16 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(
       {
         sub: claims.sub,
+        sid: claims.sid,
+        authVersion: claims.authVersion ?? 0,
         email: claims.email,
         fullName: claims.fullName ?? null,
         companyId: claims.companyId,
         roles: claims.roles,
         companyStatus,
         trialEndsAt,
+        planCode: claims.planCode ?? null,
+        subscriptionStatus: claims.subscriptionStatus ?? null,
       },
       {
         secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
@@ -546,21 +529,26 @@ export class AuthService {
   }
 
   private async createSession(input: SessionClaims) {
-    const { accessToken, companyStatus, trialEndsAt } =
-      await this.signAccessToken(input);
+    const familyId = randomBytes(16).toString("hex");
 
     const refreshTokenPlain = this.generateOpaqueToken();
     const refreshTokenHash = this.hashToken(refreshTokenPlain);
 
-    await this.prisma.refreshToken.create({
+    const { accessToken, companyStatus, trialEndsAt } = await serializableTransaction(this.prisma, async (tx) => {
+      const current = await tx.user.findFirst({ where: { id: input.sub, isActive: true, authVersion: input.authVersion ?? 0 }, select: { id: true } });
+      if (!current) throw new UnauthorizedException("La sesión cambió durante el inicio de sesión");
+      await tx.refreshToken.create({
       data: {
         userId: input.sub,
         companyId: input.companyId ?? null,
         tokenHash: refreshTokenHash,
-        familyId: randomBytes(16).toString("hex"),
+        familyId,
+        authVersion: input.authVersion ?? 0,
         type: RefreshTokenType.SESSION,
         expiresAt: new Date(Date.now() + this.getRefreshTtlMs()),
       },
+    });
+      return this.signAccessToken({ ...input, sid: familyId }, tx);
     });
 
     return {

@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   Max,
@@ -14,6 +15,14 @@ import { Type } from "class-transformer";
 import { SupportScope } from "@prisma/client";
 
 export class QueryFaqDto {
+  @IsOptional()
+  @IsIn(["all", "published", "draft"])
+  publication?: "all" | "published" | "draft";
+
+  @IsOptional()
+  @IsString()
+  companyId?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

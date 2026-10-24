@@ -74,7 +74,7 @@ describe("SalesService.createSale", () => {
     await svc.createSale(
       "com-a",
       { items: [{ productId: "p1", quantity: 2 }], paymentMethod: "CASH" },
-      "cashier",
+      { userId: "cashier", roles: ["CASHIER"] },
     );
     assert.equal(sellerId, "cashier");
   });
@@ -83,7 +83,7 @@ describe("SalesService.createSale", () => {
     const sale = await svc.createSale("com-a", {
       items: [{ productId: "p1", quantity: 2 }],
       paymentMethod: "CASH",
-    } as any);
+    } as any, { userId: "cashier", roles: ["CASHIER"] });
 
     assert.equal(sale.id, "s1");
     assert.equal(sale.saleNumber, "SALE-1");
@@ -105,7 +105,7 @@ describe("SalesService.createSale", () => {
         svc.createSale("com-a", {
           items: [{ productId: "p-other", quantity: 1 }],
           paymentMethod: "CASH",
-        } as any),
+        } as any, { userId: "cashier", roles: ["CASHIER"] }),
       /not found/i,
     );
   });

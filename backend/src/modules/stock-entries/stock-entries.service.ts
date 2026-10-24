@@ -8,6 +8,7 @@ import { PrismaService } from "@/database/prisma/prisma.service";
 import { KardexService } from "@/modules/kardex/kardex.service";
 import { AuditService } from "@/common/services/audit.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
 import {
   CreatePurchaseReceiptDto,
   CreateStockEntryDto,
@@ -49,8 +50,8 @@ export class StockEntriesService {
     });
   }
 
-  async findById(companyId: string, id: string) {
-    const entry = await this.prisma.stockEntry.findFirst({
+  async findById(companyId: string, id: string, client: Prisma.TransactionClient | PrismaService = this.prisma) {
+    const entry = await client.stockEntry.findFirst({
       where: { id, companyId },
       include: {
         branch: { select: { id: true, name: true } },
@@ -77,22 +78,33 @@ export class StockEntriesService {
   }
 
   async create(companyId: string, input: CreateStockEntryDto) {
+    const entry = await serializableTransaction(this.prisma, (tx) => this.createWithinTransaction(companyId, input, tx), { timeout: 60000 });
+    for (const item of entry.items) {
+      if (!item.expiryDate) continue;
+      try {
+        await this.lowStockService.notifyIfExpiring({ companyId, productId: item.productId, productName: item.product.name, expiryDate: item.expiryDate });
+      } catch {}
+    }
+    return entry;
+  }
+
+  async createWithinTransaction(companyId: string, input: CreateStockEntryDto, tx: Prisma.TransactionClient, userId?: string) {
     if (input.branchId) {
-      const branch = await this.prisma.branch.findFirst({
+      const branch = await tx.branch.findFirst({
         where: { id: input.branchId, companyId },
       });
       if (!branch) throw new NotFoundException("Branch not found.");
     }
 
     if (input.distributorId) {
-      const distributor = await this.prisma.distributor.findFirst({
+      const distributor = await tx.distributor.findFirst({
         where: { id: input.distributorId, companyId },
       });
       if (!distributor) throw new NotFoundException("Distributor not found.");
     }
 
     if (input.supplierId) {
-      const supplier = await this.prisma.supplier.findFirst({
+      const supplier = await tx.supplier.findFirst({
         where: { id: input.supplierId, companyId, deletedAt: null },
       });
       if (!supplier) throw new NotFoundException("Proveedor no encontrado.");
@@ -101,7 +113,7 @@ export class StockEntriesService {
     const productIds = Array.from(
       new Set(input.items.map((item) => item.productId)),
     );
-    const products = await this.prisma.product.findMany({
+    const products = await tx.product.findMany({
       where: { companyId, id: { in: productIds } },
       include: { presentations: true },
     });
@@ -150,7 +162,6 @@ export class StockEntriesService {
       };
     });
 
-    const entryId = await this.prisma.$transaction(async (tx) => {
       const entry = await tx.stockEntry.create({
         data: {
           companyId,
@@ -218,6 +229,7 @@ export class StockEntriesService {
 
       await this.auditService.log({
         companyId,
+        userId,
         action: AuditAction.CREATE,
         entity: "StockEntry",
         entityId: entry.id,
@@ -235,24 +247,8 @@ export class StockEntriesService {
             unitCost: item.unitCost.toString(),
           })),
         },
-      });
-
-      return entry.id;
-    });
-
-    for (const item of resolvedItems) {
-      if (!item.expiryDate) continue;
-      try {
-        await this.lowStockService.notifyIfExpiring({
-          companyId,
-          productId: item.productId,
-          productName: item.productName,
-          expiryDate: item.expiryDate,
-        });
-      } catch {}
-    }
-
-    return this.findById(companyId, entryId);
+      }, tx);
+    return this.findById(companyId, entry.id, tx);
   }
 
   async purchasesByDistributor(companyId: string) {

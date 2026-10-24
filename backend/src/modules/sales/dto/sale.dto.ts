@@ -1,5 +1,6 @@
 import {
   ArrayMinSize,
+  ArrayMaxSize,
   IsArray,
   IsDateString,
   IsIn,
@@ -8,6 +9,7 @@ import {
   IsOptional,
   IsString,
   Min,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -25,10 +27,6 @@ class CreateSaleItemDto {
   @Type(() => Number)
   quantity!: number;
 
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  discountAmount?: number;
 }
 
 export class CreateSaleDto {
@@ -51,13 +49,15 @@ export class CreateSaleDto {
   @IsIn(["CASH", "CARD", "TRANSFER"])
   paymentMethod!: "CASH" | "CARD" | "TRANSFER";
 
-  @IsOptional()
-  @IsNumber()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   @Type(() => Number)
   taxAmount?: number;
 
-  @IsOptional()
-  @IsNumber()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   @Type(() => Number)
   discountAmount?: number;
 
@@ -67,6 +67,7 @@ export class CreateSaleDto {
 
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => CreateSaleItemDto)
   items!: CreateSaleItemDto[];

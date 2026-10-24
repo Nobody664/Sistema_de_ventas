@@ -5,9 +5,10 @@ import { PrismaModule } from "@/database/prisma/prisma.module";
 import { KardexModule } from "@/modules/kardex/kardex.module";
 import { LowStockModule } from "@/modules/low-stock/low-stock.module";
 import { ProductBatchesModule } from "@/modules/product-batches/product-batches.module";
+import { PlanCapabilitiesModule } from "@/modules/plan-capabilities/plan-capabilities.module";
 
 @Module({
-  imports: [PrismaModule, KardexModule, LowStockModule, ProductBatchesModule],
+  imports: [PrismaModule, KardexModule, LowStockModule, ProductBatchesModule, PlanCapabilitiesModule],
   controllers: [DistributorsController],
   providers: [DistributorsService],
   exports: [DistributorsService],

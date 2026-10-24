@@ -83,7 +83,11 @@ export class SupportFaqController {
 
   @Permissions(Permission.SUPPORT_FAQ_VIEW)
   @Post(":id/feedback")
-  feedback(@Param("id") id: string, @Body() body: FaqFeedbackDto) {
-    return this.faqService.submitFeedback(id, body.helpful);
+  feedback(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() body: FaqFeedbackDto,
+  ) {
+    return this.faqService.submitFeedback(toActor(user), id, body.helpful);
   }
 }

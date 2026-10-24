@@ -11,6 +11,8 @@ import { LowStockService } from "@/modules/low-stock/low-stock.service";
 import { ProductsService } from "@/modules/products/products.service";
 import { InvoicesService } from "@/modules/invoices/invoices.service";
 import { PaymentsService } from "@/modules/payments/payments.service";
+import { MercadoPagoGateway } from "@/modules/payments/mercado-pago.gateway";
+import { SubscriptionSettlementService } from "@/modules/payments/subscription-settlement.service";
 import { PaymentSettingsService } from "@/modules/payments/payment-settings.service";
 import { CheckoutRequestsService } from "@/modules/payments/checkout-requests.service";
 import { PlanUpgradeRequestsService } from "@/modules/subscriptions/plan-upgrade-requests.service";
@@ -72,8 +74,8 @@ describe("image ingestion boundaries", () => {
     const payments = new PaymentsService(
       new ConfigService(),
       prisma,
-      notifications,
-      email,
+      {} as MercadoPagoGateway,
+      {} as SubscriptionSettlementService,
     );
     const invoices = new InvoicesService(prisma);
     const checkout = new CheckoutRequestsService(prisma, email, notifications);

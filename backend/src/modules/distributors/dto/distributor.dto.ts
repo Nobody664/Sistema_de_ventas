@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
+  ArrayMaxSize,
   IsArray,
   IsEmail,
   IsIn,
@@ -10,6 +11,7 @@ import {
   IsString,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 
@@ -26,12 +28,17 @@ class DistributorSaleItemDto {
   @IsString()
   productId!: string;
 
-  @IsInt()
-  @Min(1)
+  @IsOptional()
+  @IsString()
+  presentationId?: string;
+
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Type(() => Number)
   quantity!: number;
 
-  @IsOptional()
-  @IsNumber()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
   @Type(() => Number)
   unitPrice?: number;
@@ -165,6 +172,7 @@ export class MoveDistributorStockDto {
 export class RegisterDistributorSaleDto {
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => DistributorSaleItemDto)
   items!: DistributorSaleItemDto[];
@@ -172,14 +180,14 @@ export class RegisterDistributorSaleDto {
   @IsIn(["CASH", "CARD", "TRANSFER"])
   paymentMethod!: "CASH" | "CARD" | "TRANSFER";
 
-  @IsOptional()
-  @IsNumber()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Type(() => Number)
   taxAmount?: number;
 
-  @IsOptional()
-  @IsNumber()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Type(() => Number)
   discountAmount?: number;

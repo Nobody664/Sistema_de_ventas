@@ -15,6 +15,7 @@ import { TenantGuard } from "@/common/guards/tenant.guard";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { RolesGuard } from "@/common/guards/roles.guard";
 import { InvoicesService } from "./invoices.service";
+import { AuthUser, CurrentUser } from "@/common/decorators/current-user.decorator";
 import {
   CreateInvoiceTemplateDto,
   UpdateInvoiceTemplateDto,
@@ -85,11 +86,13 @@ export class InvoicesController {
   generateInvoice(
     @Req() request: { tenantId: string },
     @Param("saleId") saleId: string,
+    @CurrentUser() user: AuthUser,
     @Query("templateId") templateId?: string,
   ) {
     return this.invoicesService.generateInvoiceHtml(
       saleId,
       request.tenantId,
+      { userId: user.sub, roles: user.roles },
       templateId,
     );
   }

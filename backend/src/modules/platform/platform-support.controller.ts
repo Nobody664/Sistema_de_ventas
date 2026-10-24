@@ -34,6 +34,13 @@ import {
   UpdateConversationStatusDto,
 } from "@/modules/support/dto/chat.dto";
 import { PlatformAuditService } from "./platform-audit.service";
+import { SupportFaqService } from "@/modules/support/support-faq.service";
+import {
+  CreateFaqDto,
+  QueryFaqDto,
+  UpdateFaqDto,
+} from "@/modules/support/dto/faq.dto";
+import { Delete } from "@nestjs/common";
 
 @Controller("platform/support")
 @Roles("SUPER_ADMIN", "SUPPORT_ADMIN")
@@ -45,7 +52,78 @@ export class PlatformSupportController {
     private readonly tickets: SupportTicketsService,
     private readonly chat: SupportChatService,
     private readonly audit: PlatformAuditService,
+    private readonly faqs: SupportFaqService,
   ) {}
+
+  @Get("faqs")
+  @Permissions(Permission.PLATFORM_SUPPORT_MANAGE, Permission.SUPPORT_FAQ_VIEW)
+  listFaqs(@CurrentUser() user: AuthUser, @Query() query: QueryFaqDto) {
+    return this.faqs.findAll({ userId: user.sub, isPlatform: true }, query);
+  }
+
+  @Post("faqs")
+  @Permissions(
+    Permission.PLATFORM_SUPPORT_MANAGE,
+    Permission.SUPPORT_FAQ_MANAGE,
+  )
+  async createFaq(@CurrentUser() user: AuthUser, @Body() input: CreateFaqDto) {
+    const faq = await this.faqs.create(
+      { userId: user.sub, isPlatform: true },
+      input,
+    );
+    await this.audit.log({
+      actorId: user.sub,
+      action: AuditAction.CREATE,
+      entity: "SupportFaq",
+      entityId: faq.id,
+      changes: { scope: faq.scope, companyId: faq.companyId },
+    });
+    return faq;
+  }
+
+  @Patch("faqs/:id")
+  @Permissions(
+    Permission.PLATFORM_SUPPORT_MANAGE,
+    Permission.SUPPORT_FAQ_MANAGE,
+  )
+  async updateFaq(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() input: UpdateFaqDto,
+  ) {
+    const faq = await this.faqs.update(
+      { userId: user.sub, isPlatform: true },
+      id,
+      input,
+    );
+    await this.audit.log({
+      actorId: user.sub,
+      action: AuditAction.UPDATE,
+      entity: "SupportFaq",
+      entityId: id,
+      changes: input,
+    });
+    return faq;
+  }
+
+  @Delete("faqs/:id")
+  @Permissions(
+    Permission.PLATFORM_SUPPORT_MANAGE,
+    Permission.SUPPORT_FAQ_MANAGE,
+  )
+  async deleteFaq(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    const result = await this.faqs.remove(
+      { userId: user.sub, isPlatform: true },
+      id,
+    );
+    await this.audit.log({
+      actorId: user.sub,
+      action: AuditAction.DELETE,
+      entity: "SupportFaq",
+      entityId: id,
+    });
+    return result;
+  }
 
   @Get("agents")
   getAgents() {

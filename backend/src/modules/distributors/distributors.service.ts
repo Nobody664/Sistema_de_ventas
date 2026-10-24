@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { AuditAction, Prisma, PrismaClient } from "@prisma/client";
 import type { DistributorBalance } from "@prisma/client";
@@ -11,6 +12,10 @@ import { AuditService } from "@/common/services/audit.service";
 import { KardexService } from "@/modules/kardex/kardex.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
 import { ProductBatchesService } from "@/modules/product-batches/product-batches.service";
+import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
+import { SalesActor, canReadCompanySales } from "@/common/helpers/sales-visibility.helper";
+import { resolveSaleLines, saleAmounts } from "@/common/helpers/sale-pricing.helper";
+import { randomUUID } from "crypto";
 import {
   CreateDistributorDeliveryDto,
   CreateDistributorDto,
@@ -39,6 +44,7 @@ export class DistributorsService {
     private readonly lowStockService: LowStockService,
     private readonly productBatchesService: ProductBatchesService,
     private readonly auditService: AuditService,
+    private readonly planCapabilities: PlanCapabilitiesService,
   ) {}
 
   private mergeItems(items: Array<{ productId: string; quantity: number }>) {
@@ -477,79 +483,62 @@ export class DistributorsService {
     companyId: string,
     id: string,
     dto: RegisterDistributorSaleDto,
-    sellerId?: string,
+    actor: SalesActor,
   ) {
+    if (!canReadCompanySales(actor)) throw new ForbiddenException("No puedes registrar ventas de distribuidores");
+    saleAmounts(new Prisma.Decimal(0), dto.taxAmount);
     const distributor = await this.getDistributorOrFail(companyId, id);
+    if (distributor.status !== "ACTIVE") throw new BadRequestException("El distribuidor no está activo");
+    if (dto.customerId && !await this.prisma.customer.findFirst({ where: { id: dto.customerId, companyId, deletedAt: null }, select: { id: true } })) throw new NotFoundException("Cliente no encontrado");
 
     const productIds = [...new Set(dto.items.map((item) => item.productId))];
     const products = await this.prisma.product.findMany({
       where: { companyId, id: { in: productIds } },
-      select: { id: true, name: true, salePrice: true },
+      include: { presentations: true },
     });
-    const productMap = new Map(
-      products.map((product) => [product.id, product]),
-    );
-
-    const itemMap = new Map<
-      string,
-      { productId: string; quantity: number; unitPrice: number }
-    >();
-    for (const item of dto.items) {
-      const product = productMap.get(item.productId);
-      if (!product) {
-        throw new NotFoundException(
-          `Producto ${item.productId} no encontrado.`,
-        );
-      }
-      const unitPrice = item.unitPrice ?? Number(product.salePrice);
-      const existing = itemMap.get(item.productId);
-      if (existing) {
-        existing.quantity += item.quantity;
-      } else {
-        itemMap.set(item.productId, {
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice,
-        });
-      }
-    }
-    const saleItems = [...itemMap.values()];
+    const saleItems = resolveSaleLines(products, dto.items, true);
     const totalQuantity = saleItems.reduce(
-      (sum, item) => sum + item.quantity,
-      0,
+      (sum, item) => sum.plus(item.baseQuantity),
+      new Prisma.Decimal(0),
     );
 
     const balanceQuantity = distributor.balance?.balanceQuantity ?? 0;
-    if (Number(balanceQuantity) < totalQuantity) {
+    if (new Prisma.Decimal(balanceQuantity).lt(totalQuantity)) {
       throw new BadRequestException(
         "El distribuidor no tiene mercaderia suficiente para reportar esa venta.",
       );
     }
 
-    let subtotal = 0;
+    let subtotal = new Prisma.Decimal(0);
     const itemsData = saleItems.map((item) => {
-      const totalPrice = item.unitPrice * item.quantity;
-      subtotal += totalPrice;
+      subtotal = subtotal.plus(item.totalPrice);
       return {
         productId: item.productId,
+        presentationId: item.presentationId,
+        baseQuantity: item.baseQuantity,
+        unitFactor: item.unitFactor,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        totalPrice,
+        totalPrice: item.totalPrice,
       };
     });
 
-    const taxAmount = Number(dto.taxAmount ?? 0);
-    const discountAmount = Number(dto.discountAmount ?? 0);
-    const totalAmount = subtotal + taxAmount - discountAmount;
-    const saleNumber = `SALE-${Date.now()}`;
+    const { taxAmount, discountAmount, totalAmount } = saleAmounts(subtotal, dto.taxAmount, dto.discountAmount);
+    if (discountAmount.gt(0)) {
+      const capabilities = await this.planCapabilities.getCapabilities(companyId);
+      if (!this.planCapabilities.hasFeature(capabilities, "sales.discounts")) throw new ForbiddenException("El plan no incluye descuentos");
+    }
+    const saleNumber = `SALE-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;
 
     const sale = await this.prisma.$transaction(
       async (tx) => {
+        const balance = await tx.distributorBalance.updateMany({ where: { distributorId: distributor.id, balanceQuantity: { gte: totalQuantity } }, data: { soldQuantity: { increment: totalQuantity }, balanceQuantity: { decrement: totalQuantity } } });
+        if (balance.count !== 1) throw new BadRequestException("El distribuidor no tiene mercadería suficiente");
         const created = await tx.sale.create({
           data: {
             companyId,
             customerId: dto.customerId,
-            sellerId,
+            sellerId: actor.userId,
             distributorId: distributor.id,
             channel: "DISTRIBUTOR",
             saleNumber,
@@ -563,14 +552,6 @@ export class DistributorsService {
             items: { create: itemsData },
           },
           include: { items: true },
-        });
-
-        await tx.distributorBalance.update({
-          where: { distributorId: distributor.id },
-          data: {
-            soldQuantity: { increment: totalQuantity },
-            balanceQuantity: { decrement: totalQuantity },
-          },
         });
 
         return created;

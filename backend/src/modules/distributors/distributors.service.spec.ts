@@ -155,7 +155,7 @@ describe("DistributorsService.registerSale", () => {
         svc.registerSale("com-a", "d1", {
           items: [{ productId: "p1", quantity: 3 }],
           paymentMethod: "CASH",
-        }),
+        }, { userId: "manager", roles: ["MANAGER"] }),
       /mercaderia suficiente/i,
     );
   });
@@ -179,9 +179,9 @@ describe("DistributorsService.registerSale", () => {
       },
       distributorBalance: {
         findUnique: async () => ({ debtAmount: new Prisma.Decimal(0) }),
-        update: async (args: any) => {
+        updateMany: async (args: any) => {
           balanceUpdates.push(args);
-          return { distributorId: "d1", debtAmount: new Prisma.Decimal(100) };
+          return { count: 1 };
         },
       },
     };
@@ -200,7 +200,7 @@ describe("DistributorsService.registerSale", () => {
     const sale: any = await svc.registerSale("com-a", "d1", {
       items: [{ productId: "p1", quantity: 2 }],
       paymentMethod: "CASH",
-    });
+    }, { userId: "manager", roles: ["MANAGER"] });
 
     assert.equal(sale.id, "s1");
     assert.equal(saleCreateArgs.length, 1);
@@ -209,7 +209,7 @@ describe("DistributorsService.registerSale", () => {
     assert.equal(Number(saleCreateArgs[0].data.totalAmount), 100);
     assert.equal(saleNumber.startsWith("SALE-"), true);
     assert.equal(balanceUpdates.length, 1);
-    assert.equal(balanceUpdates[0].data.soldQuantity.increment, 2);
+    assert.equal(Number(balanceUpdates[0].data.soldQuantity.increment), 2);
     assert.equal(balanceUpdates[0].data.debtAmount, undefined);
   });
 });

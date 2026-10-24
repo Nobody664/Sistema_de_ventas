@@ -4,31 +4,30 @@ import {
   BadRequestException,
   UnauthorizedException,
   NotImplementedException,
+  ServiceUnavailableException,
+  Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { IncomingHttpHeaders } from "http";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
 import { PaymentProvider } from "@prisma/client";
-import { MercadoPagoConfig, Preference } from "mercadopago";
 import { PrismaService } from "@/database/prisma/prisma.service";
-import {
-  NotificationsService,
-  NotificationType,
-  NotificationChannel,
-} from "@/modules/notifications/notifications.service";
-import { EmailService } from "@/modules/email/email.service";
+import { AuthUser } from "@/common/decorators/current-user.decorator";
 import { parseImageDataUrl } from "@/common/helpers/image.helper";
+import { ConfirmSubscriptionPaymentDto } from "./dto/confirm-subscription-payment.dto";
+import { MercadoPagoGateway } from "./mercado-pago.gateway";
+import { SubscriptionSettlementService } from "./subscription-settlement.service";
 
 const OFFLINE_SESSION_PROVIDERS = new Set(["yape", "plin", "transfer"]);
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService,
-    private readonly emailService: EmailService,
+    private readonly mercadoPago: MercadoPagoGateway,
+    private readonly settlements: SubscriptionSettlementService,
   ) {}
 
   async findByCompany(companyId: string) {
@@ -202,63 +201,12 @@ export class PaymentsService {
     return receipt;
   }
 
-  async markAsPaid(id: string, companyId: string, paymentDate?: string) {
-    const payment = await this.findOne(id, companyId);
-
-    if (payment.status !== "PENDING") {
-      throw new BadRequestException("Este pago ya fue procesado");
-    }
-
-    const now = new Date();
-    const providerPaymentId = paymentDate ? `manual-${id}` : `paid-${id}`;
-    const updated = await this.prisma.payment.updateMany({
-      where: { id, subscription: { companyId } },
-      data: {
-        status: "SUCCEEDED",
-        paidAt: now,
-        providerPaymentId,
-      },
-    });
-    if (updated.count === 0) {
-      throw new NotFoundException("Pago no encontrado");
-    }
-
-    const updatedPayment = await this.prisma.payment.findFirst({
-      where: { id, subscription: { companyId } },
-      include: {
-        subscription: {
-          include: { plan: true, company: true },
-        },
-      },
-    });
-    if (!updatedPayment) {
-      throw new NotFoundException("Pago no encontrado");
-    }
-
-    const subscription = updatedPayment.subscription;
-
-    const newEndDate = new Date();
-    newEndDate.setMonth(
-      newEndDate.getMonth() + (subscription.billingCycle === "YEARLY" ? 12 : 1),
-    );
-
-    await this.prisma.subscription.update({
-      where: { id: subscription.id },
-      data: {
-        status: "ACTIVE",
-        endDate: newEndDate,
-      },
-    });
-
-    await this.prisma.company.update({
-      where: { id: companyId },
-      data: { status: "ACTIVE" },
-    });
-
-    return {
-      ...updatedPayment,
-      message: "Pago marcado como completado",
-    };
+  markAsPaid(
+    id: string,
+    actor: AuthUser,
+    input: ConfirmSubscriptionPaymentDto,
+  ) {
+    return this.settlements.confirmManual(id, actor, input);
   }
 
   async findAllPending(page = 1, limit = 20) {
@@ -327,7 +275,7 @@ export class PaymentsService {
       where: { code: input.planCode },
     });
 
-    if (!plan) {
+    if (!plan || !plan.isActive) {
       throw new NotFoundException("Plan not found");
     }
 
@@ -383,20 +331,34 @@ export class PaymentsService {
     );
 
     if (!accessToken) {
-      return {
-        provider: "mercadopago",
-        status: "error",
-        error: "MercadoPago access token not configured",
-        planCode: plan.code,
-        companyId,
-      };
+      throw new ServiceUnavailableException("Proveedor de pago no configurado");
     }
-
-    const client = new MercadoPagoConfig({ accessToken });
-    const preference = new Preference(client);
 
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
+      include: { subscriptions: { take: 1, select: { id: true } } },
+    });
+    const subscription = company?.subscriptions[0];
+    if (!company || !subscription)
+      throw new NotFoundException("Suscripción no encontrada");
+    if (Number(plan.priceMonthly) <= 0)
+      throw new BadRequestException("El plan no requiere un cobro");
+    const reference = `mp-${randomUUID()}`;
+    const intention = await this.prisma.payment.create({
+      data: {
+        subscriptionId: subscription.id,
+        provider: "MERCADOPAGO",
+        status: "PENDING",
+        amount: plan.priceMonthly,
+        currency: "PEN",
+        transactionId: reference,
+        providerPayload: {
+          kind: "MERCADOPAGO_CHECKOUT",
+          companyId,
+          planId: plan.id,
+          billingCycle: "MONTHLY",
+        },
+      },
     });
 
     const frontendUrl = (
@@ -407,54 +369,38 @@ export class PaymentsService {
     const returnUrl = `${frontendUrl}/subscription`;
 
     try {
-      const result = await preference.create({
-        body: {
-          items: [
-            {
-              id: plan.code,
-              title: `Suscripción ${plan.name} - Huanka-Saas`,
-              quantity: 1,
-              unit_price: Number(plan.priceMonthly),
-              currency_id: "PEN",
-            },
-          ],
-          payer: {
-            email: company?.email || "customer@example.com",
-          },
-          external_reference: `${companyId}_${plan.code}_${Date.now()}`,
-          notification_url: `${apiUrl}/payments/webhooks/mercadopago`,
-          back_urls: {
-            success: returnUrl,
-            pending: returnUrl,
-            failure: returnUrl,
-          },
-          statement_descriptor: "HUANKA SAAS",
-          metadata: { companyId, planCode: plan.code },
-        },
+      const result = await this.mercadoPago.createPreference({
+        planCode: plan.code,
+        planName: plan.name,
+        amount: Number(plan.priceMonthly),
+        email: company.email || "customer@example.com",
+        reference,
+        paymentId: intention.id,
+        notificationUrl: `${apiUrl}/payments/webhooks/mercadopago`,
+        returnUrl,
       });
 
       return {
         provider: "mercadopago",
         status: "pending",
         preferenceId: result.id,
-        redirectUrl: result.init_point,
+        redirectUrl: result.redirectUrl,
         planCode: plan.code,
         companyId,
         amount: plan.priceMonthly,
         currency: "PEN",
       };
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error("MercadoPago error:", errorMessage);
-
-      return {
-        provider: "mercadopago",
-        status: "error",
-        error: "No se pudo iniciar el pago con MercadoPago",
-        planCode: plan.code,
-        companyId,
-      };
+      await this.prisma.payment.updateMany({
+        where: { id: intention.id, status: "PENDING" },
+        data: { status: "FAILED" },
+      });
+      this.logger.error(
+        "No se pudo crear la preferencia del proveedor de pagos",
+      );
+      throw new ServiceUnavailableException(
+        "No se pudo iniciar el pago con MercadoPago",
+      );
     }
   }
 
@@ -464,45 +410,55 @@ export class PaymentsService {
     headers: IncomingHttpHeaders,
     query: Record<string, unknown>,
   ) {
-    if (provider === "mercadopago") {
-      this.verifyMercadoPagoSignature(headers, query);
-
-      const payment = payload as {
-        status: string;
-        external_reference?: string;
-        id?: string;
-      };
-
-      if (payment.status === "approved") {
-        const [companyId, planCode] = (payment.external_reference || "").split(
-          "_",
-        );
-
-        if (companyId && planCode) {
-          await this.activateSubscription(
-            companyId,
-            planCode,
-            payment.id?.toString(),
-          );
-        }
-      }
+    if (provider !== "mercadopago")
+      throw new BadRequestException("Proveedor de webhook no soportado");
+    const id = this.verifyMercadoPagoSignature(headers, query);
+    const body =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+    const data =
+      body.data && typeof body.data === "object" && !Array.isArray(body.data)
+        ? (body.data as Record<string, unknown>)
+        : {};
+    if (data.id !== undefined && String(data.id).toLowerCase() !== id)
+      throw new BadRequestException(
+        "El recurso notificado no coincide con la firma",
+      );
+    const topic = query.type ?? query.topic ?? body.type;
+    if (topic !== "payment")
+      return { provider, received: true, processed: false };
+    const [payment, merchantId] = await Promise.all([
+      this.mercadoPago.getPayment(id),
+      this.mercadoPago.getMerchantId(),
+    ]);
+    if (
+      payment.id.toLowerCase() !== id ||
+      payment.collectorId !== merchantId ||
+      (this.configService.get<string>("NODE_ENV") === "production" &&
+        !payment.liveMode)
+    ) {
+      throw new BadRequestException("El pago no pertenece a esta integración");
     }
-
+    if (payment.status !== "approved")
+      return { provider, received: true, processed: false };
+    const result = await this.settlements.confirmMercadoPago(payment);
     return {
       provider,
       received: true,
       processed: true,
+      alreadyProcessed: result.alreadyProcessed,
     };
   }
 
   private verifyMercadoPagoSignature(
     headers: IncomingHttpHeaders,
     query: Record<string, unknown>,
-  ): boolean {
+  ): string {
     const secret = this.configService.get<string>("MERCADOPAGO_WEBHOOK_SECRET");
     if (!secret) {
-      throw new UnauthorizedException(
-        "Suscripciones por webhook no disponibles: secreto no configurado.",
+      throw new ServiceUnavailableException(
+        "Verificación de webhook no configurada",
       );
     }
 
@@ -520,6 +476,7 @@ export class PaymentsService {
 
     const ts = parts["ts"];
     const v1 = parts["v1"];
+    const requestId = headers["x-request-id"];
 
     const flatDataId = query?.["data.id"];
     const nestedDataId =
@@ -528,7 +485,19 @@ export class PaymentsService {
         : undefined;
     const dataId = typeof flatDataId === "string" ? flatDataId : nestedDataId;
 
-    if (!ts || !v1 || typeof dataId !== "string" || dataId.length === 0) {
+    if (
+      !ts ||
+      !/^\d{10}(?:\d{3})?$/.test(ts) ||
+      !v1 ||
+      !/^[a-fA-F0-9]{64}$/.test(v1) ||
+      typeof requestId !== "string" ||
+      !/^[a-zA-Z0-9-]{1,128}$/.test(requestId) ||
+      typeof dataId !== "string" ||
+      !/^[a-zA-Z0-9-]{1,128}$/.test(dataId) ||
+      (flatDataId !== undefined &&
+        nestedDataId !== undefined &&
+        flatDataId !== nestedDataId)
+    ) {
       throw new UnauthorizedException("Firma de webhook inválida.");
     }
 
@@ -536,16 +505,17 @@ export class PaymentsService {
     const MAX_WEBHOOK_AGE_MS = 10 * 60 * 1000;
     if (
       !Number.isFinite(tsNumber) ||
-      Math.abs(Date.now() - tsNumber * 1000) > MAX_WEBHOOK_AGE_MS
+      Math.abs(Date.now() - (ts.length === 13 ? tsNumber : tsNumber * 1000)) >
+        MAX_WEBHOOK_AGE_MS
     ) {
       throw new UnauthorizedException("Firma de webhook expirada.");
     }
 
-    const manifest = `${dataId}.${ts}`;
+    const manifest = `id:${dataId.toLowerCase()};request-id:${requestId};ts:${ts};`;
     const digest = createHmac("sha256", secret).update(manifest).digest("hex");
 
-    const expected = Buffer.from(digest);
-    const received = Buffer.from(v1);
+    const expected = Buffer.from(digest, "hex");
+    const received = Buffer.from(v1, "hex");
 
     if (
       expected.length !== received.length ||
@@ -554,120 +524,6 @@ export class PaymentsService {
       throw new UnauthorizedException("Firma de webhook inválida.");
     }
 
-    return true;
-  }
-
-  private async activateSubscription(
-    companyId: string,
-    planCode: string,
-    transactionId?: string,
-  ) {
-    if (transactionId) {
-      const existingPayment = await this.prisma.payment.findFirst({
-        where: { providerPaymentId: transactionId },
-        select: { id: true },
-      });
-
-      if (existingPayment) {
-        return;
-      }
-    }
-
-    const plan = await this.prisma.plan.findUnique({
-      where: { code: planCode },
-    });
-
-    if (!plan) return;
-
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
-      include: {
-        memberships: {
-          include: { user: true },
-          where: { role: "COMPANY_ADMIN" },
-        },
-      },
-    });
-
-    const adminUser = company?.memberships[0]?.user;
-
-    const subscription = await this.prisma.subscription.upsert({
-      where: { companyId },
-      update: {
-        status: "ACTIVE",
-        planId: plan.id,
-        provider: "MERCADOPAGO",
-        providerSubscriptionId: transactionId,
-      },
-      create: {
-        companyId,
-        planId: plan.id,
-        status: "ACTIVE",
-        provider: "MERCADOPAGO",
-        providerSubscriptionId: transactionId,
-        billingCycle: "MONTHLY",
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    });
-
-    if (company) {
-      await this.prisma.company.update({
-        where: { id: companyId },
-        data: { status: "ACTIVE" },
-      });
-
-      const key = transactionId || `mp-${subscription.id}`;
-
-      let created = false;
-      try {
-        await this.prisma.payment.create({
-          data: {
-            subscriptionId: subscription.id,
-            provider: "MERCADOPAGO",
-            providerPaymentId: key,
-            amount: plan.priceMonthly,
-            currency: "PEN",
-            status: "SUCCEEDED",
-          },
-        });
-        created = true;
-      } catch (err) {
-        if (
-          err instanceof PrismaClientKnownRequestError &&
-          err.code === "P2002"
-        ) {
-          const dup = await this.prisma.payment.findFirst({
-            where: { providerPaymentId: key },
-            select: { id: true },
-          });
-          if (dup) {
-            return;
-          }
-        }
-        throw err;
-      }
-
-      if (created && adminUser) {
-        await this.notificationsService.create({
-          userId: adminUser.id,
-          companyId,
-          type: NotificationType.PAYMENT_RECEIVED,
-          channel: NotificationChannel.IN_APP,
-          title: "Pago recibido",
-          message: `Tu pago de S/ ${plan.priceMonthly} ha sido procesado correctamente. Tu suscripción está activa.`,
-        });
-
-        await this.emailService.sendEmailDirect({
-          to: adminUser.email,
-          subject: "",
-          template: "payment-received" as never,
-          data: {
-            companyName: company.name,
-            amount: plan.priceMonthly.toString(),
-          },
-        });
-      }
-    }
+    return dataId.toLowerCase();
   }
 }

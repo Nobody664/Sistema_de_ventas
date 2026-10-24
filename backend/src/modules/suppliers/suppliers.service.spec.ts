@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { describe, it } from "node:test";
 import assert from "node:assert";
+import { Prisma } from "@prisma/client";
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { SuppliersService } from "./suppliers.service";
 
@@ -158,39 +159,24 @@ describe("SuppliersService.receiveOrder", () => {
   it("creates a stock entry and confirms the order", async () => {
     let stockEntryInput: any;
     let orderUpdate: any;
-    let currentStatus = "SENT";
+    const order = { id: "o1", status: "SENT", supplierId: "s1", reference: "REF", totalEstimated: null, receivedAt: null, stockEntryId: null, receiptFingerprint: null,
+      items: [{ productId: "p1", requestedQuantity: new Prisma.Decimal(5), suggestedQuantity: new Prisma.Decimal(5), receivedQuantity: new Prisma.Decimal(0), unitCost: new Prisma.Decimal(4) }] };
     const stockEntries = {
-      create: async (_companyId: string, input: any) => {
+      createWithinTransaction: async (_companyId: string, input: any) => {
         stockEntryInput = input;
         return { id: "se1" };
       },
     };
     const prisma = {
       supplierOrder: {
-        findFirst: async () => ({
-          id: "o1",
-          status: currentStatus,
-          supplierId: "s1",
-          reference: "REF",
-          totalEstimated: null,
-          items: [],
-        }),
+        findFirst: async () => order,
+        updateMany: async ({ data }: any) => { orderUpdate = data; Object.assign(order, data); return { count: 1 }; },
+        update: async ({ data }: any) => { Object.assign(order, data); return order; },
       },
       supplierOrderItem: { updateMany: async () => ({ count: 1 }) },
       supplierProduct: { updateMany: async () => ({ count: 1 }) },
-      $transaction: async (fn: any) =>
-        fn({
-          supplierOrder: {
-            update: async ({ data }: any) => {
-              orderUpdate = data;
-              currentStatus = data.status;
-              return { id: "o1", ...data };
-            },
-          },
-          supplierOrderItem: { updateMany: async () => ({ count: 1 }) },
-          supplierProduct: { updateMany: async () => ({ count: 1 }) },
-        }),
     };
+    Object.assign(prisma, { $transaction: async (fn: (client: typeof prisma) => Promise<unknown>) => fn(prisma) });
     const { svc } = makeService(prisma, stockEntries);
 
     const result = await svc.receiveOrder("c1", "u1", "o1", {
@@ -214,6 +200,7 @@ describe("SuppliersService.receiveOrder", () => {
         }),
       },
     };
+    Object.assign(prisma, { $transaction: async (fn: (client: typeof prisma) => Promise<unknown>) => fn(prisma) });
     const { svc } = makeService(prisma);
 
     await assert.rejects(
