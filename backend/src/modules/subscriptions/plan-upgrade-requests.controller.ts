@@ -5,7 +5,6 @@ import {
   Param,
   Post,
   BadRequestException,
-  ParseUUIDPipe,
 } from "@nestjs/common";
 import { PlanUpgradeRequestsService } from "./plan-upgrade-requests.service";
 import {
@@ -18,6 +17,7 @@ import {
   CurrentUser,
 } from "@/common/decorators/current-user.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
+import { EntityIdPipe } from "@/common/pipes/entity-id.pipe";
 
 @Controller("subscriptions/upgrade-requests")
 export class PlanUpgradeRequestsController {
@@ -41,7 +41,7 @@ export class PlanUpgradeRequestsController {
   @Post(":id/proof")
   submitProof(
     @CurrentUser() user: AuthUser,
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id", EntityIdPipe) id: string,
     @Body() body: SubmitUpgradeProofDto,
   ) {
     if (!user.companyId) {
@@ -77,7 +77,7 @@ export class PlanUpgradeRequestsController {
   @Roles("SUPER_ADMIN")
   @Post(":id/review")
   review(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id", EntityIdPipe) id: string,
     @CurrentUser() user: AuthUser,
     @Body() body: ReviewPlanUpgradeDto,
   ) {

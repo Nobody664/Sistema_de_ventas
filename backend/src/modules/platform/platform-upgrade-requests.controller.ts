@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  UseGuards,
-} from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import { AuditAction } from "@prisma/client";
 
 import {
@@ -21,6 +13,7 @@ import { PermissionsGuard } from "@/common/guards/permissions.guard";
 import { PlanUpgradeRequestsService } from "@/modules/subscriptions/plan-upgrade-requests.service";
 import { ReviewPlanUpgradeDto } from "@/modules/subscriptions/dto/plan-upgrade.dto";
 import { PlatformAuditService } from "./platform-audit.service";
+import { EntityIdPipe } from "@/common/pipes/entity-id.pipe";
 
 @Controller("platform/upgrade-requests")
 @UseGuards(JwtAuthGuard, PlatformGuard, PermissionsGuard)
@@ -39,7 +32,7 @@ export class PlatformUpgradeRequestsController {
   @Permissions(Permission.PLATFORM_MANAGE_COMPANIES)
   @Post(":id/review")
   async review(
-    @Param("id", ParseUUIDPipe) id: string,
+    @Param("id", EntityIdPipe) id: string,
     @CurrentUser() user: AuthUser,
     @Body() body: ReviewPlanUpgradeDto,
   ) {

@@ -79,7 +79,13 @@ describe("Payment and identity HTTP security", () => {
             },
           },
         },
-        { provide: AuthService, useValue: { changePassword: async () => ({ message: "changed" }), resetPassword: async () => ({ message: "reset" }) } },
+        {
+          provide: AuthService,
+          useValue: {
+            changePassword: async () => ({ message: "changed" }),
+            resetPassword: async () => ({ message: "reset" }),
+          },
+        },
         {
           provide: PaymentsService,
           useValue: {
@@ -117,12 +123,35 @@ describe("Payment and identity HTTP security", () => {
   });
 
   it("clears authentication cookies after successful password changes and resets", async () => {
-    for (const [path, body] of [["change-password", { oldPassword: "old-password", newPassword: "new-password" }], ["reset-password", { token: "reset-token", password: "new-password" }]] as const) {
-      const response = await fetch(`${url}/auth/${path}`, { method: "POST", headers: { Authorization: `Bearer ${token("CASHIER")}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    for (const [path, body] of [
+      [
+        "change-password",
+        { oldPassword: "old-password", newPassword: "new-password" },
+      ],
+      ["reset-password", { token: "reset-token", password: "new-password" }],
+    ] as const) {
+      const response = await fetch(`${url}/auth/${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token("CASHIER")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
       assert.equal(response.status, 200);
       const cookies = response.headers.getSetCookie();
-      assert.ok(cookies.some((cookie) => cookie.startsWith("access_token=") && cookie.includes("Max-Age=0")));
-      assert.ok(cookies.some((cookie) => cookie.startsWith("refresh_token=") && cookie.includes("Max-Age=0")));
+      assert.ok(
+        cookies.some(
+          (cookie) =>
+            cookie.startsWith("access_token=") && cookie.includes("Max-Age=0"),
+        ),
+      );
+      assert.ok(
+        cookies.some(
+          (cookie) =>
+            cookie.startsWith("refresh_token=") && cookie.includes("Max-Age=0"),
+        ),
+      );
     }
   });
 

@@ -50,7 +50,11 @@ export class StockEntriesService {
     });
   }
 
-  async findById(companyId: string, id: string, client: Prisma.TransactionClient | PrismaService = this.prisma) {
+  async findById(
+    companyId: string,
+    id: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
     const entry = await client.stockEntry.findFirst({
       where: { id, companyId },
       include: {
@@ -78,17 +82,31 @@ export class StockEntriesService {
   }
 
   async create(companyId: string, input: CreateStockEntryDto) {
-    const entry = await serializableTransaction(this.prisma, (tx) => this.createWithinTransaction(companyId, input, tx), { timeout: 60000 });
+    const entry = await serializableTransaction(
+      this.prisma,
+      (tx) => this.createWithinTransaction(companyId, input, tx),
+      { timeout: 60000 },
+    );
     for (const item of entry.items) {
       if (!item.expiryDate) continue;
       try {
-        await this.lowStockService.notifyIfExpiring({ companyId, productId: item.productId, productName: item.product.name, expiryDate: item.expiryDate });
+        await this.lowStockService.notifyIfExpiring({
+          companyId,
+          productId: item.productId,
+          productName: item.product.name,
+          expiryDate: item.expiryDate,
+        });
       } catch {}
     }
     return entry;
   }
 
-  async createWithinTransaction(companyId: string, input: CreateStockEntryDto, tx: Prisma.TransactionClient, userId?: string) {
+  async createWithinTransaction(
+    companyId: string,
+    input: CreateStockEntryDto,
+    tx: Prisma.TransactionClient,
+    userId?: string,
+  ) {
     if (input.branchId) {
       const branch = await tx.branch.findFirst({
         where: { id: input.branchId, companyId },
@@ -162,72 +180,73 @@ export class StockEntriesService {
       };
     });
 
-      const entry = await tx.stockEntry.create({
-        data: {
-          companyId,
-          branchId: input.branchId,
-          distributorId: input.distributorId,
-          supplierId: input.supplierId,
-          reference: input.reference,
-          notes: input.notes,
-          entryDate: input.entryDate ? new Date(input.entryDate) : undefined,
-          items: {
-            create: resolvedItems.map((item) => ({
-              productId: item.productId,
-              presentationId: item.presentationId,
-              quantity: item.quantity,
-              baseQuantity: item.baseQuantity,
-              unitCost: item.unitCost,
-              expiryDate: item.expiryDate,
-            })),
-          },
-        },
-        include: { items: true },
-      });
-
-      for (const item of resolvedItems) {
-        const update = await tx.product.updateMany({
-          where: { id: item.productId, companyId },
-          data: {
-            stockQuantity: { increment: item.baseQuantity },
-            costPrice: item.baseUnitCost,
-          },
-        });
-        if (update.count === 0) {
-          throw new NotFoundException(`Product ${item.productId} not found.`);
-        }
-
-        if (item.expiryDate) {
-          await tx.product.updateMany({
-            where: { id: item.productId, companyId },
-            data: { expiryDate: item.expiryDate },
-          });
-        }
-
-        const movement = await tx.inventoryMovement.create({
-          data: {
-            companyId,
+    const entry = await tx.stockEntry.create({
+      data: {
+        companyId,
+        branchId: input.branchId,
+        distributorId: input.distributorId,
+        supplierId: input.supplierId,
+        reference: input.reference,
+        notes: input.notes,
+        entryDate: input.entryDate ? new Date(input.entryDate) : undefined,
+        items: {
+          create: resolvedItems.map((item) => ({
             productId: item.productId,
             presentationId: item.presentationId,
-            type: "IN",
-            quantity: item.baseQuantity,
-            unitCost: item.baseUnitCost,
-            totalCost: item.totalCost,
-            notes: `Stock entry ${entry.id}`,
-          },
-        });
+            quantity: item.quantity,
+            baseQuantity: item.baseQuantity,
+            unitCost: item.unitCost,
+            expiryDate: item.expiryDate,
+          })),
+        },
+      },
+      include: { items: true },
+    });
 
-        await this.kardexService.recordInMovement(
-          companyId,
-          item.productId,
-          item.baseQuantity,
-          item.baseUnitCost,
-          movement.id,
-          tx,
-        );
+    for (const item of resolvedItems) {
+      const update = await tx.product.updateMany({
+        where: { id: item.productId, companyId },
+        data: {
+          stockQuantity: { increment: item.baseQuantity },
+          costPrice: item.baseUnitCost,
+        },
+      });
+      if (update.count === 0) {
+        throw new NotFoundException(`Product ${item.productId} not found.`);
       }
 
-      await this.auditService.log({
+      if (item.expiryDate) {
+        await tx.product.updateMany({
+          where: { id: item.productId, companyId },
+          data: { expiryDate: item.expiryDate },
+        });
+      }
+
+      const movement = await tx.inventoryMovement.create({
+        data: {
+          companyId,
+          productId: item.productId,
+          presentationId: item.presentationId,
+          type: "IN",
+          quantity: item.baseQuantity,
+          unitCost: item.baseUnitCost,
+          totalCost: item.totalCost,
+          notes: `Stock entry ${entry.id}`,
+        },
+      });
+
+      await this.kardexService.recordInMovement(
+        companyId,
+        item.productId,
+        item.baseQuantity,
+        item.baseUnitCost,
+        movement.id,
+        tx,
+      );
+    }
+
+    await this.auditService.log(
+      {
         companyId,
         userId,
         action: AuditAction.CREATE,
@@ -247,7 +266,9 @@ export class StockEntriesService {
             unitCost: item.unitCost.toString(),
           })),
         },
-      }, tx);
+      },
+      tx,
+    );
     return this.findById(companyId, entry.id, tx);
   }
 

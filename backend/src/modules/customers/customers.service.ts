@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
-import { SalesActor, salesVisibility } from "@/common/helpers/sales-visibility.helper";
+import {
+  SalesActor,
+  salesVisibility,
+} from "@/common/helpers/sales-visibility.helper";
 import {
   CreateCustomerDto,
   QueryCustomerDto,

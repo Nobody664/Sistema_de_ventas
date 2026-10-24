@@ -218,7 +218,8 @@ export class SuppliersService {
     const productIds = Array.from(
       new Set(dto.items.map((item) => item.productId)),
     );
-    if (productIds.length !== dto.items.length) throw new BadRequestException("No repitas productos en la orden");
+    if (productIds.length !== dto.items.length)
+      throw new BadRequestException("No repitas productos en la orden");
     if (productIds.length > 0) {
       const products = await this.prisma.product.findMany({
         where: { companyId, id: { in: productIds } },
@@ -528,18 +529,62 @@ export class SuppliersService {
     dto: UpdateSupplierOrderStatusDto,
   ) {
     return serializableTransaction(this.prisma, async (tx) => {
-      const order = await tx.supplierOrder.findFirst({ where: { id, companyId }, include: ORDER_INCLUDE });
+      const order = await tx.supplierOrder.findFirst({
+        where: { id, companyId },
+        include: ORDER_INCLUDE,
+      });
       if (!order) throw new NotFoundException("Orden no encontrada.");
       if (dto.status === order.status) return this.serializeOrder(order);
-      if (dto.status === "CONFIRMED") throw new BadRequestException("La orden se confirma únicamente al recibir la mercadería");
-      if (order.receivedAt || order.stockEntryId || order.status === "CONFIRMED" || order.status === "CANCELLED") throw new ConflictException("La orden ya está finalizada");
-      if (!(dto.status === "CANCELLED" || (order.status === "DRAFT" && dto.status === "SENT"))) throw new BadRequestException("Transición de estado no permitida");
-      const changed = await tx.supplierOrder.updateMany({ where: { id, companyId, status: order.status, receivedAt: null, stockEntryId: null }, data: { status: dto.status,
-        ...(dto.status === "SENT" ? { sentAt: new Date() } : { cancelledAt: new Date() }) } });
-      if (changed.count !== 1) throw new ConflictException("La orden cambió durante la operación");
-      await this.auditService.log({ companyId, userId, action: AuditAction.UPDATE, entity: "SupplierOrder", entityId: id,
-        changes: { from: order.status, to: dto.status, reason: dto.reason } }, tx);
-      const updated = await tx.supplierOrder.findFirst({ where: { id, companyId }, include: ORDER_INCLUDE });
+      if (dto.status === "CONFIRMED")
+        throw new BadRequestException(
+          "La orden se confirma únicamente al recibir la mercadería",
+        );
+      if (
+        order.receivedAt ||
+        order.stockEntryId ||
+        order.status === "CONFIRMED" ||
+        order.status === "CANCELLED"
+      )
+        throw new ConflictException("La orden ya está finalizada");
+      if (
+        !(
+          dto.status === "CANCELLED" ||
+          (order.status === "DRAFT" && dto.status === "SENT")
+        )
+      )
+        throw new BadRequestException("Transición de estado no permitida");
+      const changed = await tx.supplierOrder.updateMany({
+        where: {
+          id,
+          companyId,
+          status: order.status,
+          receivedAt: null,
+          stockEntryId: null,
+        },
+        data: {
+          status: dto.status,
+          ...(dto.status === "SENT"
+            ? { sentAt: new Date() }
+            : { cancelledAt: new Date() }),
+        },
+      });
+      if (changed.count !== 1)
+        throw new ConflictException("La orden cambió durante la operación");
+      await this.auditService.log(
+        {
+          companyId,
+          userId,
+          action: AuditAction.UPDATE,
+          entity: "SupplierOrder",
+          entityId: id,
+          changes: { from: order.status, to: dto.status, reason: dto.reason },
+        },
+        tx,
+      );
+      const updated = await tx.supplierOrder.findFirst({
+        where: { id, companyId },
+        include: ORDER_INCLUDE,
+      });
       if (!updated) throw new NotFoundException("Orden no encontrada.");
       return this.serializeOrder(updated);
     });
@@ -551,33 +596,111 @@ export class SuppliersService {
     id: string,
     dto: ReceiveSupplierOrderDto,
   ) {
-    return serializableTransaction(this.prisma, async (tx) => {
-      const order = await tx.supplierOrder.findFirst({ where: { id, companyId }, include: ORDER_INCLUDE });
-      if (!order) throw new NotFoundException("Orden no encontrada.");
-      if (order.status === "CANCELLED") throw new BadRequestException("La orden está cancelada.");
-      const receipt = supplierReceipt(order, dto);
-      if (order.receivedAt || order.stockEntryId || order.status === "CONFIRMED") {
-        if (order.stockEntryId && order.receiptFingerprint === receipt.fingerprint) return { ...this.serializeOrder(order), alreadyReceived: true };
-        throw new ConflictException("La orden ya fue confirmada o recibida y requiere conciliación si no tiene una entrada vinculada");
-      }
-      const claimed = await tx.supplierOrder.updateMany({ where: { id, companyId, status: { in: ["DRAFT", "SENT"] }, receivedAt: null, stockEntryId: null }, data: { status: "CONFIRMED", confirmedAt: new Date(), receivedAt: new Date() } });
-      if (claimed.count !== 1) throw new ConflictException("La orden ya fue recibida o cancelada");
-      const stockEntry = await this.stockEntriesService.createWithinTransaction(companyId, {
-        supplierId: order.supplierId, branchId: dto.branchId, reference: receipt.reference, notes: receipt.notes,
-        items: receipt.items.map((item) => ({ productId: item.productId, quantity: item.quantity.toNumber(), unitCost: item.unitCost.toNumber() })),
-      }, tx, userId);
-      await tx.supplierOrder.update({ where: { id }, data: { stockEntryId: stockEntry.id, receiptFingerprint: receipt.fingerprint } });
-      for (const item of receipt.items) {
-        const changed = await tx.supplierOrderItem.updateMany({ where: { orderId: id, productId: item.productId }, data: { unitCost: item.unitCost, receivedQuantity: item.quantity } });
-        if (changed.count !== 1) throw new ConflictException("Las líneas de la orden cambiaron");
-        await tx.supplierProduct.updateMany({ where: { companyId, productId: item.productId, supplierId: order.supplierId }, data: { lastCost: item.unitCost } });
-      }
-      await this.auditService.log({ companyId, userId, action: AuditAction.UPDATE, entity: "SupplierOrder", entityId: id,
-        changes: { received: true, stockEntryId: stockEntry.id, fingerprint: receipt.fingerprint } }, tx);
-      const updated = await tx.supplierOrder.findFirst({ where: { id, companyId }, include: ORDER_INCLUDE });
-      if (!updated) throw new NotFoundException("Orden no encontrada.");
-      return { ...this.serializeOrder(updated), alreadyReceived: false };
-    }, { timeout: 60000 });
+    return serializableTransaction(
+      this.prisma,
+      async (tx) => {
+        const order = await tx.supplierOrder.findFirst({
+          where: { id, companyId },
+          include: ORDER_INCLUDE,
+        });
+        if (!order) throw new NotFoundException("Orden no encontrada.");
+        if (order.status === "CANCELLED")
+          throw new BadRequestException("La orden está cancelada.");
+        const receipt = supplierReceipt(order, dto);
+        if (
+          order.receivedAt ||
+          order.stockEntryId ||
+          order.status === "CONFIRMED"
+        ) {
+          if (
+            order.stockEntryId &&
+            order.receiptFingerprint === receipt.fingerprint
+          )
+            return { ...this.serializeOrder(order), alreadyReceived: true };
+          throw new ConflictException(
+            "La orden ya fue confirmada o recibida y requiere conciliación si no tiene una entrada vinculada",
+          );
+        }
+        const claimed = await tx.supplierOrder.updateMany({
+          where: {
+            id,
+            companyId,
+            status: { in: ["DRAFT", "SENT"] },
+            receivedAt: null,
+            stockEntryId: null,
+          },
+          data: {
+            status: "CONFIRMED",
+            confirmedAt: new Date(),
+            receivedAt: new Date(),
+          },
+        });
+        if (claimed.count !== 1)
+          throw new ConflictException("La orden ya fue recibida o cancelada");
+        const stockEntry =
+          await this.stockEntriesService.createWithinTransaction(
+            companyId,
+            {
+              supplierId: order.supplierId,
+              branchId: dto.branchId,
+              reference: receipt.reference,
+              notes: receipt.notes,
+              items: receipt.items.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity.toNumber(),
+                unitCost: item.unitCost.toNumber(),
+              })),
+            },
+            tx,
+            userId,
+          );
+        await tx.supplierOrder.update({
+          where: { id },
+          data: {
+            stockEntryId: stockEntry.id,
+            receiptFingerprint: receipt.fingerprint,
+          },
+        });
+        for (const item of receipt.items) {
+          const changed = await tx.supplierOrderItem.updateMany({
+            where: { orderId: id, productId: item.productId },
+            data: { unitCost: item.unitCost, receivedQuantity: item.quantity },
+          });
+          if (changed.count !== 1)
+            throw new ConflictException("Las líneas de la orden cambiaron");
+          await tx.supplierProduct.updateMany({
+            where: {
+              companyId,
+              productId: item.productId,
+              supplierId: order.supplierId,
+            },
+            data: { lastCost: item.unitCost },
+          });
+        }
+        await this.auditService.log(
+          {
+            companyId,
+            userId,
+            action: AuditAction.UPDATE,
+            entity: "SupplierOrder",
+            entityId: id,
+            changes: {
+              received: true,
+              stockEntryId: stockEntry.id,
+              fingerprint: receipt.fingerprint,
+            },
+          },
+          tx,
+        );
+        const updated = await tx.supplierOrder.findFirst({
+          where: { id, companyId },
+          include: ORDER_INCLUDE,
+        });
+        if (!updated) throw new NotFoundException("Orden no encontrada.");
+        return { ...this.serializeOrder(updated), alreadyReceived: false };
+      },
+      { timeout: 60000 },
+    );
   }
 
   private serializeOrder<

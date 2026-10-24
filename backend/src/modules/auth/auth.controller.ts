@@ -124,7 +124,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post("change-password")
-  async changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto, @Res({ passthrough: true }) res: Response) {
+  async changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() body: ChangePasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.changePassword(
       user.sub,
       body.oldPassword,
@@ -138,8 +142,14 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 5 * 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post("reset-password")
-  async resetPassword(@Body() body: ResetPasswordDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.resetPassword(body.token, body.password);
+  async resetPassword(
+    @Body() body: ResetPasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.resetPassword(
+      body.token,
+      body.password,
+    );
     this.clearAuthCookies(res);
     return result;
   }

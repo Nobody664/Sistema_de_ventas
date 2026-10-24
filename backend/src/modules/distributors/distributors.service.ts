@@ -13,9 +13,21 @@ import { KardexService } from "@/modules/kardex/kardex.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
 import { ProductBatchesService } from "@/modules/product-batches/product-batches.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
-import { SalesActor, canReadCompanySales } from "@/common/helpers/sales-visibility.helper";
-import { resolveSaleLines, saleAmounts } from "@/common/helpers/sale-pricing.helper";
+import {
+  SalesActor,
+  canReadCompanySales,
+} from "@/common/helpers/sales-visibility.helper";
+import {
+  resolveSaleLines,
+  saleAmounts,
+} from "@/common/helpers/sale-pricing.helper";
 import { randomUUID } from "crypto";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import {
+  creditDistributorStock,
+  debitDistributorStock,
+  requireDistributorStock,
+} from "./distributor-stock.helper";
 import {
   CreateDistributorDeliveryDto,
   CreateDistributorDto,
@@ -24,6 +36,7 @@ import {
   RegisterDistributorSaleDto,
   SettleDistributorDto,
   UpdateDistributorDto,
+  ReconcileDistributorStockDto,
 } from "./dto/distributor.dto";
 
 type PrismaTx = Omit<
@@ -52,7 +65,9 @@ export class DistributorsService {
     for (const item of items) {
       const existing = map.get(item.productId);
       if (existing) {
-        existing.quantity += item.quantity;
+        existing.quantity = new Prisma.Decimal(existing.quantity)
+          .plus(item.quantity)
+          .toNumber();
       } else {
         map.set(item.productId, {
           productId: item.productId,
@@ -223,6 +238,82 @@ export class DistributorsService {
     return this.getDistributorOrFail(companyId, id);
   }
 
+  async reconcileStock(
+    companyId: string,
+    id: string,
+    input: ReconcileDistributorStockDto,
+    userId: string,
+  ) {
+    return serializableTransaction(this.prisma, async (tx) => {
+      const distributor = await tx.distributor.findFirst({
+        where: { id, companyId, deletedAt: null },
+        include: { balances: true },
+      });
+      if (!distributor)
+        throw new NotFoundException("Distribuidor no encontrado");
+      if (distributor.stockReconciled)
+        throw new BadRequestException(
+          "El distribuidor ya tiene stock conciliado",
+        );
+      if (
+        new Set(input.items.map((item) => item.productId)).size !==
+        input.items.length
+      )
+        throw new BadRequestException("No repitas productos");
+      const products = await tx.product.count({
+        where: {
+          id: { in: input.items.map((item) => item.productId) },
+          companyId,
+        },
+      });
+      if (products !== input.items.length)
+        throw new NotFoundException("Producto no encontrado");
+      const total = input.items.reduce(
+        (sum, item) => sum.plus(item.quantity),
+        new Prisma.Decimal(0),
+      );
+      if (!total.equals(distributor.balances[0]?.balanceQuantity ?? 0))
+        throw new BadRequestException(
+          "El detalle debe coincidir con el saldo agregado existente",
+        );
+      for (const item of input.items)
+        await tx.distributorStock.upsert({
+          where: {
+            distributorId_productId: {
+              distributorId: id,
+              productId: item.productId,
+            },
+          },
+          create: {
+            distributorId: id,
+            productId: item.productId,
+            quantity: item.quantity,
+          },
+          update: { quantity: item.quantity },
+        });
+      await tx.distributor.update({
+        where: { id },
+        data: { stockReconciled: true },
+      });
+      await this.auditService.log(
+        {
+          companyId,
+          userId,
+          action: AuditAction.UPDATE,
+          entity: "Distributor",
+          entityId: id,
+          changes: {
+            operation: "RECONCILE_STOCK",
+            reason: input.reason,
+            items: input.items,
+          },
+        },
+        tx,
+      );
+      return { reconciled: true };
+    });
+  }
+
   async getBalance(companyId: string, id: string) {
     const distributor = await this.getDistributorOrFail(companyId, id);
     return (
@@ -273,14 +364,22 @@ export class DistributorsService {
       }
     }
 
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalDebt = items.reduce((sum, item) => {
-      const product = productMap.get(item.productId)!;
-      return sum + Number(product.salePrice) * item.quantity;
-    }, 0);
+    const totalQuantity = items
+      .reduce((sum, item) => sum.plus(item.quantity), new Prisma.Decimal(0))
+      .toNumber();
+    const totalDebt = items
+      .reduce((sum, item) => {
+        const product = productMap.get(item.productId)!;
+        return sum.plus(
+          new Prisma.Decimal(product.salePrice).mul(item.quantity),
+        );
+      }, new Prisma.Decimal(0))
+      .toDecimalPlaces(2)
+      .toNumber();
 
     const result = await this.prisma.$transaction(
       async (tx) => {
+        await requireDistributorStock(tx, companyId, id);
         for (const item of items) {
           const updated = await tx.product.updateMany({
             where: {
@@ -317,6 +416,13 @@ export class DistributorsService {
               notes: dto.notes ?? "Transferencia a distribuidor",
             },
           });
+
+          await creditDistributorStock(
+            tx,
+            id,
+            item.productId,
+            new Prisma.Decimal(item.quantity),
+          );
 
           await this.kardexService.recordOutMovement(
             companyId,
@@ -390,7 +496,7 @@ export class DistributorsService {
     const items = this.mergeItems(dto.items);
     const products = await this.prisma.product.findMany({
       where: { companyId, id: { in: items.map((item) => item.productId) } },
-      select: { id: true, name: true, costPrice: true },
+      select: { id: true, name: true, costPrice: true, expiryDate: true },
     });
     const productMap = new Map(
       products.map((product) => [product.id, product]),
@@ -404,7 +510,9 @@ export class DistributorsService {
       }
     }
 
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalQuantity = items
+      .reduce((sum, item) => sum.plus(item.quantity), new Prisma.Decimal(0))
+      .toNumber();
     const balanceQuantity = distributor.balance?.balanceQuantity ?? 0;
     if (Number(balanceQuantity) < totalQuantity) {
       throw new BadRequestException(
@@ -414,7 +522,23 @@ export class DistributorsService {
 
     const result = await this.prisma.$transaction(
       async (tx) => {
+        await requireDistributorStock(tx, companyId, id);
+        const reserved = await tx.distributorBalance.updateMany({
+          where: { distributorId: id, balanceQuantity: { gte: totalQuantity } },
+          data: {
+            returnedQuantity: { increment: totalQuantity },
+            balanceQuantity: { decrement: totalQuantity },
+          },
+        });
+        if (reserved.count !== 1)
+          throw new BadRequestException("El saldo del distribuidor cambió");
         for (const item of items) {
+          await debitDistributorStock(
+            tx,
+            id,
+            item.productId,
+            new Prisma.Decimal(item.quantity),
+          );
           await tx.product.updateMany({
             where: { id: item.productId, companyId },
             data: { stockQuantity: { increment: item.quantity } },
@@ -433,6 +557,17 @@ export class DistributorsService {
               notes: dto.notes ?? "Devolucion de distribuidor",
             },
           });
+          await tx.productBatch.create({
+            data: {
+              companyId,
+              productId: item.productId,
+              batchNumber: `DIST-RETURN-${movement.id}`,
+              quantityReceived: item.quantity,
+              quantityAvailable: item.quantity,
+              purchasePrice: product.costPrice ?? 0,
+              expirationDate: product.expiryDate,
+            },
+          });
           await this.kardexService.recordInMovement(
             companyId,
             item.productId,
@@ -443,12 +578,8 @@ export class DistributorsService {
           );
         }
 
-        const balance = await tx.distributorBalance.update({
-          where: { distributorId: distributor.id },
-          data: {
-            returnedQuantity: { increment: totalQuantity },
-            balanceQuantity: { decrement: totalQuantity },
-          },
+        const balance = await tx.distributorBalance.findUnique({
+          where: { distributorId: id },
         });
 
         return { balance };
@@ -485,11 +616,22 @@ export class DistributorsService {
     dto: RegisterDistributorSaleDto,
     actor: SalesActor,
   ) {
-    if (!canReadCompanySales(actor)) throw new ForbiddenException("No puedes registrar ventas de distribuidores");
+    if (!canReadCompanySales(actor))
+      throw new ForbiddenException(
+        "No puedes registrar ventas de distribuidores",
+      );
     saleAmounts(new Prisma.Decimal(0), dto.taxAmount);
     const distributor = await this.getDistributorOrFail(companyId, id);
-    if (distributor.status !== "ACTIVE") throw new BadRequestException("El distribuidor no está activo");
-    if (dto.customerId && !await this.prisma.customer.findFirst({ where: { id: dto.customerId, companyId, deletedAt: null }, select: { id: true } })) throw new NotFoundException("Cliente no encontrado");
+    if (distributor.status !== "ACTIVE")
+      throw new BadRequestException("El distribuidor no está activo");
+    if (
+      dto.customerId &&
+      !(await this.prisma.customer.findFirst({
+        where: { id: dto.customerId, companyId, deletedAt: null },
+        select: { id: true },
+      }))
+    )
+      throw new NotFoundException("Cliente no encontrado");
 
     const productIds = [...new Set(dto.items.map((item) => item.productId))];
     const products = await this.prisma.product.findMany({
@@ -523,17 +665,43 @@ export class DistributorsService {
       };
     });
 
-    const { taxAmount, discountAmount, totalAmount } = saleAmounts(subtotal, dto.taxAmount, dto.discountAmount);
+    const { taxAmount, discountAmount, totalAmount } = saleAmounts(
+      subtotal,
+      dto.taxAmount,
+      dto.discountAmount,
+    );
     if (discountAmount.gt(0)) {
-      const capabilities = await this.planCapabilities.getCapabilities(companyId);
-      if (!this.planCapabilities.hasFeature(capabilities, "sales.discounts")) throw new ForbiddenException("El plan no incluye descuentos");
+      const capabilities =
+        await this.planCapabilities.getCapabilities(companyId);
+      if (!this.planCapabilities.hasFeature(capabilities, "sales.discounts"))
+        throw new ForbiddenException("El plan no incluye descuentos");
     }
     const saleNumber = `SALE-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;
 
     const sale = await this.prisma.$transaction(
       async (tx) => {
-        const balance = await tx.distributorBalance.updateMany({ where: { distributorId: distributor.id, balanceQuantity: { gte: totalQuantity } }, data: { soldQuantity: { increment: totalQuantity }, balanceQuantity: { decrement: totalQuantity } } });
-        if (balance.count !== 1) throw new BadRequestException("El distribuidor no tiene mercadería suficiente");
+        await requireDistributorStock(tx, companyId, id);
+        for (const item of saleItems)
+          await debitDistributorStock(
+            tx,
+            id,
+            item.productId,
+            item.baseQuantity,
+          );
+        const balance = await tx.distributorBalance.updateMany({
+          where: {
+            distributorId: distributor.id,
+            balanceQuantity: { gte: totalQuantity },
+          },
+          data: {
+            soldQuantity: { increment: totalQuantity },
+            balanceQuantity: { decrement: totalQuantity },
+          },
+        });
+        if (balance.count !== 1)
+          throw new BadRequestException(
+            "El distribuidor no tiene mercadería suficiente",
+          );
         const created = await tx.sale.create({
           data: {
             companyId,
@@ -640,9 +808,14 @@ export class DistributorsService {
         throw new BadRequestException("El monto excede la deuda pendiente.");
       }
 
-      const updated = await tx.distributorBalance.update({
-        where: { distributorId: distributor.id },
-        data: { debtAmount: debt.minus(amount) },
+      const claimed = await tx.distributorBalance.updateMany({
+        where: { distributorId: id, debtAmount: { gte: amount } },
+        data: { debtAmount: { decrement: amount } },
+      });
+      if (claimed.count !== 1)
+        throw new BadRequestException("La deuda cambió; actualiza el saldo");
+      const updated = await tx.distributorBalance.findUnique({
+        where: { distributorId: id },
       });
 
       await tx.financeRecord.create({

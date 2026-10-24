@@ -14,6 +14,7 @@ describe("CreditNotesService.create", () => {
     const sale = {
       id: "sale1",
       saleNumber: "S-001",
+      status: "COMPLETED",
       subtotal: dec(100),
       taxAmount: dec(18),
       totalAmount: dec(118),
@@ -52,6 +53,9 @@ describe("CreditNotesService.create", () => {
     const prisma: any = {
       sale: { findFirst: async () => sale },
       creditNote: {
+        aggregate: async () => ({
+          _sum: { totalAmount: dec(0), taxAmount: dec(0) },
+        }),
         create: async () => created,
         findFirst: async () => created,
       },
@@ -77,6 +81,7 @@ describe("CreditNotesService.create", () => {
     const prisma: any = {
       sale: { findFirst: async () => null },
     };
+    prisma.$transaction = async (work: any) => work(prisma);
     const audit: any = { log: async () => undefined };
 
     const svc = new CreditNotesService(prisma, audit);
@@ -98,9 +103,10 @@ describe("CreditNotesService.createFromRefund", () => {
     };
     const prisma: any = {
       creditNote: {
-        findFirst: async () => ({ id: "cn-existing" }),
+        findFirst: async () => existing,
       },
     };
+    prisma.$transaction = async (work: any) => work(prisma);
     const audit: any = { log: async () => undefined };
     const svc = new CreditNotesService(prisma, audit);
     svc.findOne = async () => existing as any;
@@ -113,6 +119,7 @@ describe("CreditNotesService.createFromRefund", () => {
     const sale = {
       id: "sale1",
       saleNumber: "S-001",
+      status: "REFUNDED",
       subtotal: dec(50),
       taxAmount: dec(9),
       totalAmount: dec(59),
@@ -138,6 +145,9 @@ describe("CreditNotesService.createFromRefund", () => {
 
     const prisma: any = {
       creditNote: {
+        aggregate: async () => ({
+          _sum: { totalAmount: dec(0), taxAmount: dec(0) },
+        }),
         findFirst: async () => null,
         create: async (args: any) => {
           createdReason = args.data.reason;
@@ -183,7 +193,7 @@ describe("CreditNotesService.updateStatus", () => {
     const prisma: any = {
       creditNote: {
         findFirst: async () => ({ id: "cn1", status: "ISSUED" }),
-        update: async () => undefined,
+        updateMany: async () => ({ count: 1 }),
       },
     };
     const audits: any[] = [];

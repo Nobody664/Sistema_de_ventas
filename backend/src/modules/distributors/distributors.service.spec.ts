@@ -14,7 +14,15 @@ function buildService(options: {
   const prisma = {
     distributor: { findFirst: async () => options.distributor },
     product: { findMany: async () => options.products },
-    $transaction: async (cb: (tx: unknown) => unknown) => cb(options.tx ?? {}),
+    $transaction: async (cb: (tx: unknown) => unknown) =>
+      cb({
+        distributor: { findFirst: async () => ({ stockReconciled: true }) },
+        distributorStock: {
+          upsert: async () => ({}),
+          updateMany: async () => ({ count: 1 }),
+        },
+        ...(options.tx ?? {}),
+      }),
   } as any;
 
   const kardexService = options.kardex ?? {};
@@ -152,10 +160,15 @@ describe("DistributorsService.registerSale", () => {
 
     await assert.rejects(
       () =>
-        svc.registerSale("com-a", "d1", {
-          items: [{ productId: "p1", quantity: 3 }],
-          paymentMethod: "CASH",
-        }, { userId: "manager", roles: ["MANAGER"] }),
+        svc.registerSale(
+          "com-a",
+          "d1",
+          {
+            items: [{ productId: "p1", quantity: 3 }],
+            paymentMethod: "CASH",
+          },
+          { userId: "manager", roles: ["MANAGER"] },
+        ),
       /mercaderia suficiente/i,
     );
   });
@@ -197,10 +210,15 @@ describe("DistributorsService.registerSale", () => {
       tx,
     });
 
-    const sale: any = await svc.registerSale("com-a", "d1", {
-      items: [{ productId: "p1", quantity: 2 }],
-      paymentMethod: "CASH",
-    }, { userId: "manager", roles: ["MANAGER"] });
+    const sale: any = await svc.registerSale(
+      "com-a",
+      "d1",
+      {
+        items: [{ productId: "p1", quantity: 2 }],
+        paymentMethod: "CASH",
+      },
+      { userId: "manager", roles: ["MANAGER"] },
+    );
 
     assert.equal(sale.id, "s1");
     assert.equal(saleCreateArgs.length, 1);
@@ -241,14 +259,15 @@ describe("DistributorsService.settle", () => {
   });
 
   it("reduces debt and registers an ENTRY finance record", async () => {
+    let debt = new Prisma.Decimal(100);
     const financeCreates: Array<Record<string, any>> = [];
     const tx = {
       distributorBalance: {
-        findUnique: async () => ({ debtAmount: new Prisma.Decimal(100) }),
-        update: async () => ({
-          distributorId: "d1",
-          debtAmount: new Prisma.Decimal(40),
-        }),
+        findUnique: async () => ({ debtAmount: debt }),
+        updateMany: async () => {
+          debt = debt.minus(60);
+          return { count: 1 };
+        },
       },
       financeRecord: {
         create: async (args: any) => {

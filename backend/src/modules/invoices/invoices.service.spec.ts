@@ -47,7 +47,11 @@ describe("InvoicesService tenant scoping", () => {
     const svc = new InvoicesService(prisma);
 
     await assert.rejects(
-      () => svc.generateInvoiceHtml("sale-other", "com-a", { userId: "admin", roles: ["COMPANY_ADMIN"] }),
+      () =>
+        svc.generateInvoiceHtml("sale-other", "com-a", {
+          userId: "admin",
+          roles: ["COMPANY_ADMIN"],
+        }),
       NotFoundException,
     );
     assert.deepEqual(saleWhere, { id: "sale-other", companyId: "com-a" });
@@ -86,7 +90,10 @@ describe("InvoicesService tenant scoping", () => {
     } as any;
     const svc = new InvoicesService(prisma);
 
-    const { html } = await svc.generateInvoiceHtml("sale-a", "com-a", { userId: "admin", roles: ["COMPANY_ADMIN"] });
+    const { html } = await svc.generateInvoiceHtml("sale-a", "com-a", {
+      userId: "admin",
+      roles: ["COMPANY_ADMIN"],
+    });
     assert.match(html, /Mi Empresa/);
     assert.match(html, /Producto A/);
     assert.match(html, /Presentación de 500 ml/);

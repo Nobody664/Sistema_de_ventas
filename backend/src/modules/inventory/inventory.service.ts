@@ -5,6 +5,8 @@ import {
 } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { ProductBatchesService } from "@/modules/product-batches/product-batches.service";
 import { AuditService } from "@/common/services/audit.service";
 import { KardexService } from "@/modules/kardex/kardex.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
@@ -23,6 +25,7 @@ export class InventoryService {
     private readonly auditService: AuditService,
     private readonly kardexService: KardexService,
     private readonly lowStockService: LowStockService,
+    private readonly batches: ProductBatchesService,
   ) {}
 
   async findLowStock(companyId: string) {
@@ -155,13 +158,31 @@ export class InventoryService {
       input.unitCost ?? Number(product.costPrice ?? 0),
     );
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await serializableTransaction(this.prisma, async (tx) => {
+      if (
+        input.presentationId &&
+        !(await tx.productPresentation.findFirst({
+          where: {
+            id: input.presentationId,
+            productId: input.productId,
+            companyId,
+          },
+          select: { id: true },
+        }))
+      )
+        throw new NotFoundException("Presentación no encontrada");
       const productUpdate = await tx.product.updateMany({
-        where: { id: input.productId, companyId },
+        where: {
+          id: input.productId,
+          companyId,
+          ...(delta.lt(0) ? { stockQuantity: { gte: delta.abs() } } : {}),
+        },
         data: { stockQuantity: { increment: delta } },
       });
       if (productUpdate.count === 0) {
-        throw new NotFoundException("Product not found.");
+        throw new BadRequestException(
+          "Producto no disponible o stock insuficiente para completar el ajuste.",
+        );
       }
 
       const updatedProduct = await tx.product.findUnique({
@@ -185,6 +206,17 @@ export class InventoryService {
       });
 
       if (delta.gt(0)) {
+        await tx.productBatch.create({
+          data: {
+            companyId,
+            productId: input.productId,
+            batchNumber: `ADJUST-${movement.id}`,
+            quantityReceived: delta,
+            quantityAvailable: delta,
+            purchasePrice: unitCost,
+            expirationDate: product.expiryDate,
+          },
+        });
         await this.kardexService.recordInMovement(
           companyId,
           input.productId,
@@ -194,6 +226,12 @@ export class InventoryService {
           tx,
         );
       } else {
+        await this.batches.reserveFromBatch(
+          companyId,
+          input.productId,
+          delta.abs(),
+          tx,
+        );
         await this.kardexService.recordOutMovement(
           companyId,
           input.productId,

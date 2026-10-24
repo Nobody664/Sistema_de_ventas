@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { AuditService } from "@/common/services/audit.service";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { creditAmounts } from "./credit-note-amounts.helper";
 import {
   CreateCreditNoteDto,
   QueryCreditNotesDto,
@@ -67,37 +70,45 @@ export class CreditNotesService {
     userId: string | undefined,
     dto: CreateCreditNoteDto,
   ) {
-    const sale = await this.prisma.sale.findFirst({
-      where: { id: dto.saleId, companyId },
-      include: { items: { include: { product: { select: { name: true } } } } },
-    });
-    if (!sale) throw new NotFoundException("Venta no encontrada.");
+    return serializableTransaction(this.prisma, async (tx) => {
+      const sale = await tx.sale.findFirst({
+        where: { id: dto.saleId, companyId },
+        include: {
+          items: { include: { product: { select: { name: true } } } },
+        },
+      });
+      if (!sale) throw new NotFoundException("Venta no encontrada.");
 
-    const note = await this.prisma.$transaction((tx) =>
-      this.buildNote(tx, companyId, userId, {
+      if (sale.status !== "COMPLETED")
+        throw new BadRequestException(
+          "La venta ya no admite nuevas notas manuales",
+        );
+      const note = await this.buildNote(tx, companyId, userId, {
         sale,
         type: dto.type ?? "CREDIT",
         reason: dto.reason ?? "DISCOUNT",
         description: dto.description,
         items: dto.items,
-      }),
-    );
+      });
 
-    await this.auditService.log({
-      companyId,
-      userId,
-      action: AuditAction.CREATE,
-      entity: "CreditNote",
-      entityId: note.id,
-      changes: {
-        noteNumber: note.noteNumber,
-        saleId: sale.id,
-        type: note.type,
-        totalAmount: Number(note.totalAmount),
-      },
+      await this.auditService.log(
+        {
+          companyId,
+          userId,
+          action: AuditAction.CREATE,
+          entity: "CreditNote",
+          entityId: note.id,
+          changes: {
+            noteNumber: note.noteNumber,
+            saleId: sale.id,
+            type: note.type,
+            totalAmount: Number(note.totalAmount),
+          },
+        },
+        tx,
+      );
+      return this.serialize(note);
     });
-
-    return this.findOne(companyId, note.id);
   }
 
   async createFromRefund(
@@ -106,52 +117,84 @@ export class CreditNotesService {
     saleId: string,
     reason?: string,
   ) {
-    const existing = await this.prisma.creditNote.findFirst({
-      where: {
+    return serializableTransaction(this.prisma, async (tx) => {
+      const note = await this.createFromRefundWithinTransaction(
+        tx,
         companyId,
+        userId,
         saleId,
-        reason: "RETURN",
-        status: { not: "CANCELLED" },
-      },
-      select: { id: true },
+        reason,
+      );
+      return note ? this.serialize(note) : null;
+    });
+  }
+
+  async createFromRefundWithinTransaction(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    userId: string | undefined,
+    saleId: string,
+    reason?: string,
+  ) {
+    const existing = await tx.creditNote.findFirst({
+      where: { companyId, operationKey: `reversal-${saleId}` },
+      include: CREDIT_NOTE_INCLUDE,
     });
     if (existing) {
-      return this.findOne(companyId, existing.id);
+      return existing;
     }
 
-    const sale = await this.prisma.sale.findFirst({
+    const sale = await tx.sale.findFirst({
       where: { id: saleId, companyId },
       include: { items: { include: { product: { select: { name: true } } } } },
     });
     if (!sale) throw new NotFoundException("Venta no encontrada.");
+    if (!["REFUNDED", "CANCELLED"].includes(sale.status))
+      throw new BadRequestException(
+        "La devolución debe confirmarse en la misma transacción que su nota",
+      );
 
-    const note = await this.prisma.$transaction((tx) =>
-      this.buildNote(tx, companyId, userId, {
-        sale,
-        type: "CREDIT",
-        reason: "RETURN",
-        description: reason
-          ? `Nota de crédito por devolución: ${reason}`
-          : "Nota de crédito por devolución",
-        items: undefined,
-      }),
-    );
-
-    await this.auditService.log({
-      companyId,
-      userId,
-      action: AuditAction.CREATE,
-      entity: "CreditNote",
-      entityId: note.id,
-      changes: {
-        noteNumber: note.noteNumber,
+    const credited = await tx.creditNote.aggregate({
+      where: {
+        companyId,
         saleId,
-        reason: "RETURN",
-        totalAmount: Number(note.totalAmount),
+        type: "CREDIT",
+        status: { not: "CANCELLED" },
       },
+      _sum: { totalAmount: true },
+    });
+    if (
+      (credited._sum.totalAmount ?? new Prisma.Decimal(0)).gte(sale.totalAmount)
+    )
+      return null;
+    const note = await this.buildNote(tx, companyId, userId, {
+      sale,
+      type: "CREDIT",
+      reason: sale.status === "REFUNDED" ? "RETURN" : "CORRECTION",
+      fullRefund: true,
+      description: reason
+        ? `Nota de crédito por devolución: ${reason}`
+        : "Nota de crédito por devolución",
+      items: undefined,
     });
 
-    return this.findOne(companyId, note.id);
+    await this.auditService.log(
+      {
+        companyId,
+        userId,
+        action: AuditAction.CREATE,
+        entity: "CreditNote",
+        entityId: note.id,
+        changes: {
+          noteNumber: note.noteNumber,
+          saleId,
+          reason: "RETURN",
+          totalAmount: Number(note.totalAmount),
+        },
+      },
+      tx,
+    );
+    return note;
   }
 
   async updateStatus(
@@ -162,17 +205,23 @@ export class CreditNotesService {
   ) {
     const note = await this.prisma.creditNote.findFirst({
       where: { id, companyId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, operationKey: true },
     });
     if (!note) throw new NotFoundException("Nota de crédito no encontrada.");
     if (note.status === "CANCELLED") {
       throw new BadRequestException("La nota ya está anulada.");
     }
+    if (note.operationKey && status === "CANCELLED")
+      throw new BadRequestException(
+        "Una nota de devolución confirmada no puede anularse sin revertir el proceso completo",
+      );
 
-    await this.prisma.creditNote.update({
-      where: { id },
+    const changed = await this.prisma.creditNote.updateMany({
+      where: { id, companyId, status: note.status },
       data: { status },
     });
+    if (changed.count !== 1)
+      throw new ConflictException("La nota cambió durante la operación");
 
     await this.auditService.log({
       companyId,
@@ -197,6 +246,7 @@ export class CreditNotesService {
         subtotal: Prisma.Decimal;
         taxAmount: Prisma.Decimal;
         totalAmount: Prisma.Decimal;
+        discountAmount?: Prisma.Decimal | null;
         items: Array<{
           productId: string;
           product: { name: string };
@@ -208,6 +258,7 @@ export class CreditNotesService {
       type: "CREDIT" | "DEBIT";
       reason: "RETURN" | "DISCOUNT" | "CORRECTION" | "OTHER";
       description?: string;
+      fullRefund?: boolean;
       items?: Array<{
         productId?: string;
         description: string;
@@ -232,6 +283,20 @@ export class CreditNotesService {
         const quantity = new Prisma.Decimal(item.quantity);
         const unitPrice = new Prisma.Decimal(item.unitPrice);
         const totalPrice = quantity.mul(unitPrice);
+        if (
+          !quantity.isFinite() ||
+          quantity.lte(0) ||
+          !unitPrice.isFinite() ||
+          unitPrice.isNegative()
+        )
+          throw new BadRequestException("Cantidad o precio inválido");
+        if (
+          item.productId &&
+          !input.sale.items.some((line) => line.productId === item.productId)
+        )
+          throw new BadRequestException(
+            "El producto no pertenece a la venta original",
+          );
         subtotal = subtotal.plus(totalPrice);
         return {
           productId: item.productId,
@@ -254,20 +319,58 @@ export class CreditNotesService {
       });
     }
 
-    const taxAmount = input.sale.taxAmount;
-    const totalAmount = subtotal.plus(taxAmount);
+    const previous = await tx.creditNote.aggregate({
+      where: {
+        companyId,
+        saleId: input.sale.id,
+        type: "CREDIT",
+        status: { not: "CANCELLED" },
+      },
+      _sum: { totalAmount: true, taxAmount: true },
+    });
+    const amounts = creditAmounts(
+      input.sale,
+      subtotal,
+      {
+        total: previous._sum.totalAmount ?? new Prisma.Decimal(0),
+        tax: previous._sum.taxAmount ?? new Prisma.Decimal(0),
+      },
+      Boolean(input.fullRefund),
+      input.type === "CREDIT",
+    );
+    if (amounts.totalAmount.lte(0))
+      throw new BadRequestException(
+        "La nota debe representar un importe positivo",
+      );
+    const raw = subtotal;
+    let allocated = new Prisma.Decimal(0);
+    itemsData = itemsData.map((item, index) => {
+      if (!item.quantity.isFinite() || item.quantity.lte(0))
+        throw new BadRequestException("Cantidad histórica inválida");
+      const amount =
+        index === itemsData.length - 1
+          ? amounts.subtotal.minus(allocated)
+          : raw.gt(0)
+            ? amounts.subtotal.mul(item.totalPrice).div(raw).toDecimalPlaces(2)
+            : new Prisma.Decimal(0);
+      allocated = allocated.plus(amount);
+      return {
+        ...item,
+        totalPrice: amount,
+        unitPrice: amount.div(item.quantity).toDecimalPlaces(4),
+      };
+    });
 
     return tx.creditNote.create({
       data: {
         companyId,
         saleId: input.sale.id,
         noteNumber,
+        operationKey: input.fullRefund ? `reversal-${input.sale.id}` : null,
         type: input.type,
         reason: input.reason,
         status: "ISSUED",
-        subtotal,
-        taxAmount,
-        totalAmount,
+        ...amounts,
         description: input.description,
         createdById: userId,
         items: { create: itemsData },

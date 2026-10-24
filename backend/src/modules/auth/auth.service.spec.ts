@@ -25,7 +25,9 @@ function makeService(overrides: {
   emailService?: any;
 }) {
   const prisma = overrides.prisma ?? {};
-  if (!prisma.$transaction) prisma.$transaction = async (work: (tx: unknown) => Promise<unknown>) => work(prisma);
+  if (!prisma.$transaction)
+    prisma.$transaction = async (work: (tx: unknown) => Promise<unknown>) =>
+      work(prisma);
   const usersService = overrides.usersService ?? {};
   const jwtService = overrides.jwtService ?? {
     signAsync: async () => "access-token",
@@ -182,7 +184,13 @@ describe("AuthService.refresh", () => {
     let revoked = false;
     const service = makeService({
       prisma: {
-        user: { findUnique: async () => ({ id: "user", globalRole: "USER", isActive: true }) },
+        user: {
+          findUnique: async () => ({
+            id: "user",
+            globalRole: "USER",
+            isActive: true,
+          }),
+        },
         refreshToken: {
           findUnique: async () => ({
             userId: "user",
@@ -245,7 +253,11 @@ describe("AuthService.refresh", () => {
     });
 
     await assert.rejects(() => svc.refresh("revoked"), UnauthorizedException);
-    assert.deepEqual(revokedFamily, { familyId: "fam-1", type: "SESSION", revokedAt: null });
+    assert.deepEqual(revokedFamily, {
+      familyId: "fam-1",
+      type: "SESSION",
+      revokedAt: null,
+    });
   });
 
   it("rotates the refresh token inside a transaction", async () => {
@@ -273,10 +285,23 @@ describe("AuthService.refresh", () => {
         }),
       },
       prisma: {
-        user: { findUnique: async () => ({ id: "u1", email: "a@a.com", fullName: "Admin", globalRole: "USER", isActive: true, authVersion: 0 }) },
-        refreshToken: { findUnique: async () => stored,
+        user: {
+          findUnique: async () => ({
+            id: "u1",
+            email: "a@a.com",
+            fullName: "Admin",
+            globalRole: "USER",
+            isActive: true,
+            authVersion: 0,
+          }),
+        },
+        refreshToken: {
+          findUnique: async () => stored,
           create: async ({ data }: any) => created.push(data),
-          updateMany: async ({ where, data }: any) => { updated.push({ where, data }); return { count: 1 }; },
+          updateMany: async ({ where, data }: any) => {
+            updated.push({ where, data });
+            return { count: 1 };
+          },
         },
         membership: {
           findFirst: async () => ({ role: "COMPANY_ADMIN", companyId: "c1" }),

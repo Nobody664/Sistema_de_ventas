@@ -30,6 +30,7 @@ import {
   RegisterDistributorSaleDto,
   SettleDistributorDto,
   UpdateDistributorDto,
+  ReconcileDistributorStockDto,
 } from "./dto/distributor.dto";
 
 type TenantRequest = { tenantId: string };
@@ -39,6 +40,23 @@ type TenantRequest = { tenantId: string };
 @Controller("distributors")
 export class DistributorsController {
   constructor(private readonly distributorsService: DistributorsService) {}
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.DISTRIBUTOR_TRANSFER)
+  @Post(":id/reconcile-stock")
+  reconcileStock(
+    @Req() request: TenantRequest,
+    @Param("id") id: string,
+    @Body() body: ReconcileDistributorStockDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.distributorsService.reconcileStock(
+      request.tenantId,
+      id,
+      body,
+      user.sub,
+    );
+  }
 
   @Roles("COMPANY_ADMIN", "MANAGER")
   @Permissions(Permission.DISTRIBUTOR_LIST)
@@ -124,12 +142,10 @@ export class DistributorsController {
     @Body() body: RegisterDistributorSaleDto,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.distributorsService.registerSale(
-      request.tenantId,
-      id,
-      body,
-      { userId: user.sub, roles: user.roles },
-    );
+    return this.distributorsService.registerSale(request.tenantId, id, body, {
+      userId: user.sub,
+      roles: user.roles,
+    });
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER")

@@ -1,12 +1,14 @@
 import {
   IsEnum,
+  IsIn,
+  IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
 } from "class-validator";
-import { PaymentProvider } from "@prisma/client";
+import { BillingCycle, PaymentProvider } from "@prisma/client";
 import { ALLOWED_IMAGE_MIME_PATTERN } from "@/common/helpers/image.helper";
 
 export class CreatePlanUpgradeRequestDto {
@@ -17,7 +19,7 @@ export class CreatePlanUpgradeRequestDto {
   @IsEnum(PaymentProvider)
   paymentMethod!: PaymentProvider;
 
-  @IsString()
+  @IsEnum(BillingCycle)
   @IsOptional()
   billingCycle?: "MONTHLY" | "YEARLY";
 
@@ -41,12 +43,16 @@ export class SubmitUpgradeProofDto {
   imageBase64!: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   paymentDate?: string;
 }
 
 export class ReviewPlanUpgradeDto {
-  @IsString()
+  @IsOptional()
+  @IsEnum(BillingCycle)
+  legacyBillingCycle?: BillingCycle;
+
+  @IsIn(["APPROVED", "REJECTED"])
   @IsNotEmpty()
   status!: "APPROVED" | "REJECTED";
 

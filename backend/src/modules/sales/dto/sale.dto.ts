@@ -26,7 +26,6 @@ class CreateSaleItemDto {
   @Min(0.001)
   @Type(() => Number)
   quantity!: number;
-
 }
 
 export class CreateSaleDto {

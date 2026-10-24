@@ -21,6 +21,7 @@ import {
 } from "@/modules/notifications/notifications.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { parseImageDataUrl } from "@/common/helpers/image.helper";
+import { subscriptionEndDate } from "@/common/helpers/subscription-period.helper";
 import {
   CreatePlanUpgradeRequestDto,
   SubmitUpgradeProofDto,
@@ -58,6 +59,7 @@ export class PlanUpgradeRequestsService {
         priceYearly: request.plan.priceYearly.toString(),
       },
       paymentMethod: request.provider,
+      billingCycle: request.billingCycle,
       paymentSettings: settings
         ? {
             provider: settings.provider,
@@ -172,6 +174,14 @@ export class PlanUpgradeRequestsService {
       });
 
     if (existingPendingRequest) {
+      if (
+        existingPendingRequest.planId !== newPlan.id ||
+        existingPendingRequest.billingCycle !== billingCycle ||
+        existingPendingRequest.provider !== input.paymentMethod
+      )
+        throw new ConflictException(
+          "Existe una solicitud pendiente con otras condiciones; revísala antes de crear otra",
+        );
       return this.buildUpgradeResponse(
         currentSubscription.plan,
         existingPendingRequest,
@@ -187,6 +197,7 @@ export class PlanUpgradeRequestsService {
             currentPlanId: currentSubscription.planId,
             planId: newPlan.id,
             provider: input.paymentMethod,
+            billingCycle,
             amount: price.toString(),
             currency: "PEN",
             status: PlanUpgradeStatus.PENDING,
@@ -321,6 +332,8 @@ export class PlanUpgradeRequestsService {
     reviewerId: string,
     input: ReviewPlanUpgradeDto,
   ) {
+    if (!["APPROVED", "REJECTED"].includes(input.status))
+      throw new BadRequestException("Decisión de revisión inválida");
     const request = await this.prisma.planUpgradeRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -345,6 +358,35 @@ export class PlanUpgradeRequestsService {
     }
 
     const adminUser = request.company.memberships[0]?.user;
+    const cycle = request.billingCycle ?? input.legacyBillingCycle;
+    if (input.status !== "REJECTED" && !cycle)
+      throw new ConflictException(
+        "La solicitud histórica requiere conciliar explícitamente su ciclo de facturación",
+      );
+    if (
+      input.status === "APPROVED" &&
+      !request.billingCycle &&
+      (!input.reviewNotes || input.reviewNotes.trim().length < 5)
+    )
+      throw new BadRequestException(
+        "Documenta la conciliación del ciclo histórico",
+      );
+    if (
+      input.status === "APPROVED" &&
+      (request.amount === null ||
+        !Number.isFinite(Number(request.amount)) ||
+        Number(request.amount) < 0 ||
+        (request.plan.code !== "FREE" && Number(request.amount) === 0))
+    )
+      throw new ConflictException(
+        "El importe contratado requiere conciliación",
+      );
+    if (
+      request.billingCycle &&
+      input.legacyBillingCycle &&
+      request.billingCycle !== input.legacyBillingCycle
+    )
+      throw new BadRequestException("No puedes cambiar el ciclo contratado");
 
     if (input.status === "REJECTED") {
       const rejected = await this.prisma.planUpgradeRequest.updateMany({
@@ -441,16 +483,13 @@ export class PlanUpgradeRequestsService {
       });
 
       const startDate = new Date();
-      const endDate = new Date();
-      endDate.setMonth(
-        endDate.getMonth() + (plan?.billingCycle === "YEARLY" ? 12 : 1),
-      );
+      const endDate = subscriptionEndDate(startDate, cycle!);
 
       const subscription = await tx.subscription.update({
         where: { id: currentSubscription.id },
         data: {
           planId: request.planId,
-          billingCycle: plan?.billingCycle || "MONTHLY",
+          billingCycle: cycle!,
           startDate,
           endDate,
           status: SubscriptionStatus.ACTIVE,
@@ -471,6 +510,7 @@ export class PlanUpgradeRequestsService {
           amount: request.amount || "0",
           currency: request.currency || "PEN",
           status: "SUCCEEDED",
+          paidAt: request.paymentDate ?? new Date(),
           providerPayload: {
             planUpgradeRequestId: request.id,
           },

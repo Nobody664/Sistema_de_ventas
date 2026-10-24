@@ -51,7 +51,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     )
       throw new UnauthorizedException("La sesión debe renovarse");
     const version = payload.authVersion ?? 0;
-    if (!Number.isSafeInteger(version) || version < 0) throw new UnauthorizedException("Versión de sesión inválida");
+    if (!Number.isSafeInteger(version) || version < 0)
+      throw new UnauthorizedException("Versión de sesión inválida");
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
@@ -96,7 +97,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
       },
     });
-    if (!user?.isActive || (user.authVersion ?? 0) !== version || user.refreshTokens.length === 0)
+    if (
+      !user?.isActive ||
+      (user.authVersion ?? 0) !== version ||
+      user.refreshTokens.length === 0
+    )
       throw new UnauthorizedException("Sesión revocada o usuario inactivo");
     const membership = user.memberships[0];
     if (

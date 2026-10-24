@@ -5,7 +5,10 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { parseImageSource } from "@/common/helpers/image.helper";
-import { SalesActor, salesVisibility } from "@/common/helpers/sales-visibility.helper";
+import {
+  SalesActor,
+  salesVisibility,
+} from "@/common/helpers/sales-visibility.helper";
 import {
   CreateInvoiceTemplateDto,
   UpdateInvoiceTemplateDto,

@@ -51,8 +51,12 @@ function fixture() {
 
 describe("JWT current identity and session", () => {
   it("rejects an old credential version even if a session-family record remains", async () => {
-    const { user, strategy, payload } = fixture(); user.authVersion = 1;
-    await assert.rejects(strategy.validate({} as Request, payload), UnauthorizedException);
+    const { user, strategy, payload } = fixture();
+    user.authVersion = 1;
+    await assert.rejects(
+      strategy.validate({} as Request, payload),
+      UnauthorizedException,
+    );
   });
   it("replaces stale token permissions with the current membership and returns the public session fields", async () => {
     const { strategy, payload } = fixture();

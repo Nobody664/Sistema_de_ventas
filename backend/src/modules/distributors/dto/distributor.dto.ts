@@ -13,15 +13,37 @@ import {
   Min,
   ValidateIf,
   ValidateNested,
+  MinLength,
 } from "class-validator";
 
 class DistributorStockItemDto {
   @IsString()
   productId!: string;
 
-  @IsInt()
-  @Min(1)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Type(() => Number)
+  @Min(0.001)
   quantity!: number;
+}
+
+class ReconciledStockItemDto {
+  @IsString()
+  productId!: string;
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0)
+  quantity!: number;
+}
+
+export class ReconcileDistributorStockDto {
+  @IsString()
+  @MinLength(5)
+  @MaxLength(500)
+  reason!: string;
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => ReconciledStockItemDto)
+  items!: ReconciledStockItemDto[];
 }
 
 class DistributorSaleItemDto {
@@ -159,6 +181,7 @@ export class UpdateDistributorDto {
 export class MoveDistributorStockDto {
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => DistributorStockItemDto)
   items!: DistributorStockItemDto[];

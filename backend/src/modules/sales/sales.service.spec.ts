@@ -80,10 +80,14 @@ describe("SalesService.createSale", () => {
   });
   it("creates a sale without throwing the TDZ reference error", async () => {
     const svc = makeSaleService();
-    const sale = await svc.createSale("com-a", {
-      items: [{ productId: "p1", quantity: 2 }],
-      paymentMethod: "CASH",
-    } as any, { userId: "cashier", roles: ["CASHIER"] });
+    const sale = await svc.createSale(
+      "com-a",
+      {
+        items: [{ productId: "p1", quantity: 2 }],
+        paymentMethod: "CASH",
+      } as any,
+      { userId: "cashier", roles: ["CASHIER"] },
+    );
 
     assert.equal(sale.id, "s1");
     assert.equal(sale.saleNumber, "SALE-1");
@@ -102,10 +106,14 @@ describe("SalesService.createSale", () => {
 
     await assert.rejects(
       () =>
-        svc.createSale("com-a", {
-          items: [{ productId: "p-other", quantity: 1 }],
-          paymentMethod: "CASH",
-        } as any, { userId: "cashier", roles: ["CASHIER"] }),
+        svc.createSale(
+          "com-a",
+          {
+            items: [{ productId: "p-other", quantity: 1 }],
+            paymentMethod: "CASH",
+          } as any,
+          { userId: "cashier", roles: ["CASHIER"] },
+        ),
       /not found/i,
     );
   });

@@ -28,7 +28,10 @@ import {
   UpdateCustomerDto,
 } from "./dto/customer.dto";
 import { CustomersService } from "./customers.service";
-import { AuthUser, CurrentUser } from "@/common/decorators/current-user.decorator";
+import {
+  AuthUser,
+  CurrentUser,
+} from "@/common/decorators/current-user.decorator";
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 @RequireModule("customers")
@@ -66,8 +69,15 @@ export class CustomersController {
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Permissions(Permission.CUSTOMER_LIST)
   @Get(":id/purchases")
-  getPurchases(@Req() request: { tenantId: string }, @Param("id") id: string, @CurrentUser() user: AuthUser) {
-    return this.customersService.getPurchases(request.tenantId, id, { userId: user.sub, roles: user.roles });
+  getPurchases(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.customersService.getPurchases(request.tenantId, id, {
+      userId: user.sub,
+      roles: user.roles,
+    });
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")

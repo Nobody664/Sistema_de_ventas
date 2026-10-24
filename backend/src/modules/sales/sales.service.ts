@@ -29,8 +29,20 @@ import { DiscountsService } from "@/modules/discounts/discounts.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { CreditNotesService } from "@/modules/credit-notes/credit-notes.service";
 import { AuditService } from "@/common/services/audit.service";
-import { SalesActor, salesVisibility, canReadCompanySales } from "@/common/helpers/sales-visibility.helper";
-import { resolveSaleLines, saleAmounts } from "@/common/helpers/sale-pricing.helper";
+import {
+  SalesActor,
+  salesVisibility,
+  canReadCompanySales,
+} from "@/common/helpers/sales-visibility.helper";
+import {
+  resolveSaleLines,
+  saleAmounts,
+} from "@/common/helpers/sale-pricing.helper";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import {
+  creditDistributorStock,
+  requireDistributorStock,
+} from "@/modules/distributors/distributor-stock.helper";
 import {
   buildCsvExport,
   buildPdfExport,
@@ -138,7 +150,11 @@ export class SalesService {
     return sale;
   }
 
-  async exportSales(companyId: string, query: ExportSalesQueryDto, viewer: SalesActor) {
+  async exportSales(
+    companyId: string,
+    query: ExportSalesQueryDto,
+    viewer: SalesActor,
+  ) {
     const where: Prisma.SaleWhereInput = salesVisibility(companyId, viewer);
 
     if (query.startDate) {
@@ -257,12 +273,28 @@ export class SalesService {
   async createSale(companyId: string, input: CreateSaleDto, actor: SalesActor) {
     salesVisibility(companyId, actor);
     saleAmounts(new Prisma.Decimal(0), input.taxAmount);
-    if (input.discountAmount !== undefined && (typeof input.discountAmount !== "number" || !Number.isFinite(input.discountAmount) || input.discountAmount < 0)) throw new BadRequestException("Descuento inválido");
+    if (
+      input.discountAmount !== undefined &&
+      (typeof input.discountAmount !== "number" ||
+        !Number.isFinite(input.discountAmount) ||
+        input.discountAmount < 0)
+    )
+      throw new BadRequestException("Descuento inválido");
     if (input.channel === "DISTRIBUTOR") {
-      if (!canReadCompanySales(actor)) throw new ForbiddenException("No tienes permisos para registrar ventas de distribuidores");
-      const capabilities = await this.planCapabilities.getCapabilities(companyId);
-      if (!this.planCapabilities.hasModule(capabilities, "distributors")) throw new ForbiddenException("El plan no incluye el canal distribuidor");
-      if (input.couponCode) throw new BadRequestException("Los cupones no están soportados en el canal distribuidor");
+      if (!canReadCompanySales(actor))
+        throw new ForbiddenException(
+          "No tienes permisos para registrar ventas de distribuidores",
+        );
+      const capabilities =
+        await this.planCapabilities.getCapabilities(companyId);
+      if (!this.planCapabilities.hasModule(capabilities, "distributors"))
+        throw new ForbiddenException(
+          "El plan no incluye el canal distribuidor",
+        );
+      if (input.couponCode)
+        throw new BadRequestException(
+          "Los cupones no están soportados en el canal distribuidor",
+        );
       if (!input.distributorId) {
         throw new BadRequestException(
           "Debe seleccionar un distribuidor para el canal Distribuidor.",
@@ -387,7 +419,11 @@ export class SalesService {
           discountAmount = applied.discountAmount;
         }
 
-        const { totalAmount } = saleAmounts(subtotal, input.taxAmount, discountAmount);
+        const { totalAmount } = saleAmounts(
+          subtotal,
+          input.taxAmount,
+          discountAmount,
+        );
 
         const created = await tx.sale.create({
           data: {
@@ -452,7 +488,7 @@ export class SalesService {
           ),
         );
 
-        await Promise.all(
+        const costs = await Promise.all(
           movements.map((movement, index) =>
             this.kardexService.recordOutMovement(
               companyId,
@@ -463,6 +499,16 @@ export class SalesService {
             ),
           ),
         );
+        for (let index = 0; index < costs.length; index++) {
+          if (costs[index]?.unitCost)
+            await tx.saleItem.updateMany({
+              where: {
+                saleId: created.id,
+                productId: resolvedItems[index].productId,
+              },
+              data: { unitCostSnapshot: costs[index].unitCost },
+            });
+        }
 
         return created;
       },
@@ -555,28 +601,30 @@ export class SalesService {
     userId: string | undefined,
     reason?: string,
   ) {
-    const sale = await this.prisma.sale.findFirst({
-      where: { id, companyId },
-      include: { items: true },
-    });
-
-    if (!sale) {
-      throw new NotFoundException("Venta no encontrada.");
-    }
-    if (sale.status !== SaleStatus.COMPLETED) {
-      throw new BadRequestException(
-        `Solo se pueden anular o reembolsar ventas completadas. Estado actual: ${sale.status}.`,
-      );
-    }
-
-    const label =
-      targetStatus === SaleStatus.REFUNDED ? "Reembolso" : "Anulacion";
-    const noteText = reason
-      ? `${sale.notes ? `${sale.notes}\n` : ""}${label}: ${reason}`
-      : sale.notes;
-
-    const updated = await this.prisma.$transaction(
+    return serializableTransaction(
+      this.prisma,
       async (tx) => {
+        const sale = await tx.sale.findFirst({
+          where: { id, companyId },
+          include: { items: true },
+        });
+
+        if (!sale) {
+          throw new NotFoundException("Venta no encontrada.");
+        }
+        if (sale.status === targetStatus) return sale;
+        if (sale.status !== SaleStatus.COMPLETED) {
+          throw new BadRequestException(
+            `Solo se pueden anular o reembolsar ventas completadas. Estado actual: ${sale.status}.`,
+          );
+        }
+
+        const label =
+          targetStatus === SaleStatus.REFUNDED ? "Reembolso" : "Anulacion";
+        const noteText = reason
+          ? `${sale.notes ? `${sale.notes}\n` : ""}${label}: ${reason}`
+          : sale.notes;
+
         const guard = await tx.sale.updateMany({
           where: { id, companyId, status: SaleStatus.COMPLETED },
           data: { status: targetStatus, notes: noteText },
@@ -595,6 +643,11 @@ export class SalesService {
         const productMap = new Map(
           products.map((product) => [product.id, product]),
         );
+        const distributed =
+          sale.channel === "DISTRIBUTOR" && sale.distributorId !== null;
+        if (distributed)
+          await requireDistributorStock(tx, companyId, sale.distributorId!);
+        let distributorQuantity = new Prisma.Decimal(0);
 
         for (const item of sale.items) {
           const product = productMap.get(item.productId);
@@ -604,15 +657,21 @@ export class SalesService {
             );
           }
 
-          const presentation = item.presentationId
-            ? product.presentations.find(
-                (entry) => entry.id === item.presentationId,
-              )
-            : undefined;
-          const factor = presentation
-            ? presentation.factor
-            : new Prisma.Decimal(1);
-          const baseQuantity = item.quantity.mul(factor);
+          if (item.baseQuantity === null && item.presentationId)
+            throw new BadRequestException(
+              "La venta histórica requiere conciliar su cantidad base antes de devolverla",
+            );
+          const baseQuantity = item.baseQuantity ?? item.quantity;
+          if (distributed) {
+            await creditDistributorStock(
+              tx,
+              sale.distributorId!,
+              item.productId,
+              baseQuantity,
+            );
+            distributorQuantity = distributorQuantity.plus(baseQuantity);
+            continue;
+          }
 
           await tx.product.update({
             where: { id: item.productId },
@@ -629,55 +688,81 @@ export class SalesService {
               notes: `${label} de venta ${sale.saleNumber}`,
             },
           });
+          const returnCost =
+            item.unitCostSnapshot ?? product.costPrice ?? new Prisma.Decimal(0);
+          await tx.productBatch.create({
+            data: {
+              companyId,
+              productId: item.productId,
+              batchNumber: `RETURN-${sale.id}-${item.productId}`,
+              quantityReceived: baseQuantity,
+              quantityAvailable: baseQuantity,
+              purchasePrice: returnCost,
+              expirationDate: product.expiryDate,
+            },
+          });
 
           await this.kardexService.recordInMovement(
             companyId,
             item.productId,
             baseQuantity,
-            product.costPrice ?? new Prisma.Decimal(0),
+            returnCost,
             movement.id,
             tx,
           );
         }
+        if (distributed) {
+          const balance = await tx.distributorBalance.updateMany({
+            where: {
+              distributorId: sale.distributorId!,
+              soldQuantity: { gte: distributorQuantity },
+            },
+            data: {
+              soldQuantity: { decrement: distributorQuantity },
+              balanceQuantity: { increment: distributorQuantity },
+            },
+          });
+          if (balance.count !== 1)
+            throw new BadRequestException(
+              "El saldo vendido del distribuidor requiere conciliación",
+            );
+        }
 
-        return tx.sale.findUnique({
+        const updated = await tx.sale.findUnique({
           where: { id },
           include: { items: true, customer: true, employee: true },
         });
-      },
-      { maxWait: 10_000, timeout: 15_000 },
-    );
 
-    await this.auditService.log({
-      companyId,
-      userId,
-      action: AuditAction.UPDATE,
-      entity: "Sale",
-      entityId: id,
-      changes: {
-        status: targetStatus,
-        reason: reason ?? null,
-        saleNumber: sale.saleNumber,
-        reversedItems: sale.items.map((item) => ({
-          productId: item.productId,
-          quantity: Number(item.quantity),
-        })),
-      },
-    });
+        await this.auditService.log(
+          {
+            companyId,
+            userId,
+            action: AuditAction.UPDATE,
+            entity: "Sale",
+            entityId: id,
+            changes: {
+              status: targetStatus,
+              reason: reason ?? null,
+              saleNumber: sale.saleNumber,
+              reversedItems: sale.items.map((item) => ({
+                productId: item.productId,
+                quantity: Number(item.quantity),
+              })),
+            },
+          },
+          tx,
+        );
 
-    if (targetStatus === SaleStatus.REFUNDED) {
-      try {
-        await this.creditNotesService.createFromRefund(
+        await this.creditNotesService.createFromRefundWithinTransaction(
+          tx,
           companyId,
           userId,
           id,
           reason,
         );
-      } catch {
-        // La emision de la nota de credito no debe bloquear el reembolso.
-      }
-    }
-
-    return updated;
+        return updated;
+      },
+      { timeout: 60000 },
+    );
   }
 }

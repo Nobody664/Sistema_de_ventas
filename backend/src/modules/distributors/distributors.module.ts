@@ -8,7 +8,13 @@ import { ProductBatchesModule } from "@/modules/product-batches/product-batches.
 import { PlanCapabilitiesModule } from "@/modules/plan-capabilities/plan-capabilities.module";
 
 @Module({
-  imports: [PrismaModule, KardexModule, LowStockModule, ProductBatchesModule, PlanCapabilitiesModule],
+  imports: [
+    PrismaModule,
+    KardexModule,
+    LowStockModule,
+    ProductBatchesModule,
+    PlanCapabilitiesModule,
+  ],
   controllers: [DistributorsController],
   providers: [DistributorsService],
   exports: [DistributorsService],

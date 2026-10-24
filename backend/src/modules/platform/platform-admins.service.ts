@@ -5,8 +5,17 @@ import {
 } from "@nestjs/common";
 
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 
 const PLATFORM_ROLES = ["SUPER_ADMIN", "SUPPORT_ADMIN"] as const;
+const PUBLIC_ADMIN = {
+  id: true,
+  email: true,
+  fullName: true,
+  globalRole: true,
+  isActive: true,
+  createdAt: true,
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class PlatformAdminsService {
@@ -53,7 +62,10 @@ export class PlatformAdminsService {
   }
 
   async grantSupportAdmin(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: PUBLIC_ADMIN,
+    });
     if (!user) {
       throw new NotFoundException(`Usuario #${userId} no encontrado`);
     }
@@ -67,11 +79,15 @@ export class PlatformAdminsService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { globalRole: "SUPPORT_ADMIN" },
+      select: PUBLIC_ADMIN,
     });
   }
 
   async revokeAdmin(userId: string, actorId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: PUBLIC_ADMIN,
+    });
     if (!user) {
       throw new NotFoundException(`Usuario #${userId} no encontrado`);
     }
@@ -88,6 +104,7 @@ export class PlatformAdminsService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { globalRole: "USER" },
+      select: PUBLIC_ADMIN,
     });
   }
 }

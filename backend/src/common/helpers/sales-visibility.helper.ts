@@ -7,13 +7,27 @@ export interface SalesActor {
 }
 
 export function canReadCompanySales(actor: SalesActor): boolean {
-  if (!actor?.userId || !Array.isArray(actor.roles)) throw new ForbiddenException("Se requiere un actor válido para consultar ventas");
-  return actor.roles.some((role) => ["SUPER_ADMIN", "COMPANY_ADMIN", "MANAGER"].includes(role));
+  if (!actor?.userId || !Array.isArray(actor.roles))
+    throw new ForbiddenException(
+      "Se requiere un actor válido para consultar ventas",
+    );
+  return actor.roles.some((role) =>
+    ["SUPER_ADMIN", "COMPANY_ADMIN", "MANAGER"].includes(role),
+  );
 }
 
-export function salesVisibility(companyId: string, actor: SalesActor): Prisma.SaleWhereInput {
-  if (!companyId) throw new ForbiddenException("Se requiere una empresa para consultar ventas");
-  return { companyId, ...(canReadCompanySales(actor) ? {} : { sellerId: actor.userId }) };
+export function salesVisibility(
+  companyId: string,
+  actor: SalesActor,
+): Prisma.SaleWhereInput {
+  if (!companyId)
+    throw new ForbiddenException(
+      "Se requiere una empresa para consultar ventas",
+    );
+  return {
+    companyId,
+    ...(canReadCompanySales(actor) ? {} : { sellerId: actor.userId }),
+  };
 }
 
 export function salesAudienceKey(actor: SalesActor): string {

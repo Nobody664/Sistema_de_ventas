@@ -1,7 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { CacheService } from "@/cache/cache.service";
-import { SalesActor, salesAudienceKey, salesVisibility, canReadCompanySales } from "@/common/helpers/sales-visibility.helper";
+import {
+  SalesActor,
+  salesAudienceKey,
+  salesVisibility,
+  canReadCompanySales,
+} from "@/common/helpers/sales-visibility.helper";
 
 type GlobalMetrics = {
   totalCompanies: number;
@@ -447,7 +452,9 @@ export class DashboardService {
     };
 
     const result = {
-      salesScope: canReadCompanySales(actor) ? "COMPANY" as const : "SELLER" as const,
+      salesScope: canReadCompanySales(actor)
+        ? ("COMPANY" as const)
+        : ("SELLER" as const),
       company,
       companyId,
       totalProducts,

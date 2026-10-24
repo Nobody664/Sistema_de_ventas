@@ -441,6 +441,7 @@ model Category {
 }
 
 model Product {
+  distributorStocks DistributorStock[]
   id            String    @id @default(cuid())
   companyId     String    @map("company_id")
   categoryId    String?   @map("category_id")
@@ -527,6 +528,7 @@ model Sale {
 }
 
 model SaleItem {
+  unitCostSnapshot Decimal? @map("unit_cost_snapshot") @db.Decimal(14, 4)
   baseQuantity   Decimal? @map("base_quantity") @db.Decimal(14, 3)
   unitFactor     Decimal? @map("unit_factor") @db.Decimal(14, 3)
   id             String   @id @default(cuid())
@@ -833,6 +835,7 @@ model Payment {
 }
 
 model PlanUpgradeRequest {
+  billingCycle BillingCycle? @map("billing_cycle")
   id               String            @id @default(cuid())
   companyId        String            @map("company_id")
   idempotencyKey   String?           @unique @map("idempotency_key")
@@ -950,6 +953,8 @@ model AuditLog {
 }
 
 model Distributor {
+  stockReconciled Boolean @default(true) @map("stock_reconciled")
+  productStocks DistributorStock[]
   id            String           @id @default(cuid())
   companyId     String           @map("company_id")
   userId        String?          @unique @map("user_id")
@@ -983,6 +988,18 @@ model Distributor {
   @@unique([companyId, code])
   @@index([companyId, status])
   @@map("distributors")
+}
+
+model DistributorStock {
+  distributorId String @map("distributor_id")
+  productId String @map("product_id")
+  quantity Decimal @default(0) @db.Decimal(14, 3)
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@id([distributorId, productId])
+  @@index([productId])
+  @@map("distributor_stocks")
 }
 
 model DistributorBalance {
@@ -1602,6 +1619,7 @@ model SupplierOrderItem {
 }
 
 model CreditNote {
+  operationKey String? @unique @map("operation_key")
   id            String             @id @default(cuid())
   companyId     String             @map("company_id")
   saleId        String             @map("sale_id")
