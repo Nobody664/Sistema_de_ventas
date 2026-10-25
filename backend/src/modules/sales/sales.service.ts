@@ -39,6 +39,7 @@ import {
   saleAmounts,
 } from "@/common/helpers/sale-pricing.helper";
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
 import {
   creditDistributorStock,
   requireDistributorStock,
@@ -510,6 +511,7 @@ export class SalesService {
             });
         }
 
+        await enqueueDomainEffect(tx, "SALE_COMMITTED", created.id);
         return created;
       },
       { maxWait: 10_000, timeout: 15_000 },
@@ -536,23 +538,6 @@ export class SalesService {
         })),
       },
     });
-
-    for (const [productId, baseQuantity] of baseQuantityByProduct) {
-      const product = productMap.get(productId);
-      if (!product) {
-        continue;
-      }
-
-      await this.lowStockService.notifyIfLowStock({
-        companyId,
-        productId,
-        productName: product.name,
-        currentStock: product.stockQuantity.minus(baseQuantity),
-        minStock: product.minStock,
-        baseUnit: product.baseUnit,
-        previousStock: product.stockQuantity,
-      });
-    }
 
     return sale;
   }

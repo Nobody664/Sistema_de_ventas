@@ -6,6 +6,7 @@ import nodemailer from "nodemailer";
 import { EMAIL_JOB_SEND, EMAIL_QUEUE } from "./email.constants";
 
 export interface SendEmailJob {
+  messageId?: string;
   to: string;
   subject: string;
   template: EmailTemplate;
@@ -184,6 +185,9 @@ export class EmailService {
       host: this.configService.get<string>("SMTP_HOST") || "smtp.gmail.com",
       port: smtpPort,
       secure: smtpPort === 465,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 30000,
       auth: {
         user: this.configService.get<string>("SMTP_USER"),
         pass: this.configService.get<string>("SMTP_PASSWORD"),
@@ -243,6 +247,7 @@ export class EmailService {
 
     try {
       await this.transporter.sendMail({
+        messageId: job.messageId,
         from: this.fromEmail,
         to: job.to,
         subject,

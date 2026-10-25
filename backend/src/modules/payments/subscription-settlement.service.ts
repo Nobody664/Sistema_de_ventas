@@ -5,7 +5,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  Optional,
 } from "@nestjs/common";
 import { BillingCycle, Prisma } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
@@ -14,8 +13,7 @@ import { subscriptionEndDate } from "@/common/helpers/subscription-period.helper
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
 import { CacheService } from "@/cache/cache.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
-import { NotificationsService } from "@/modules/notifications/notifications.service";
-import { EmailService, EmailTemplate } from "@/modules/email/email.service";
+import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
 import { ConfirmSubscriptionPaymentDto } from "./dto/confirm-subscription-payment.dto";
 import { MercadoPagoPayment } from "./mercado-pago.gateway";
 
@@ -58,11 +56,31 @@ export class SubscriptionSettlementService {
     private readonly prisma: PrismaService,
     private readonly capabilities: PlanCapabilitiesService,
     private readonly cache: CacheService,
-    @Optional() private readonly notifications?: NotificationsService,
-    @Optional() private readonly email?: EmailService,
   ) {}
 
   async confirmManual(
+    id: string,
+    actor: AuthUser,
+    input: ConfirmSubscriptionPaymentDto,
+  ) {
+    if (!actor.roles.includes("SUPER_ADMIN"))
+      throw new ForbiddenException(
+        "Solo SUPER_ADMIN puede confirmar cobros de plataforma",
+      );
+    const result = await this.transaction((tx) =>
+      this.confirmManualWithinTransaction(tx, id, actor, input),
+    );
+    await this.invalidate(result.companyId);
+    return {
+      ...result,
+      message: result.alreadyProcessed
+        ? "El pago ya estaba confirmado"
+        : "Cobro confirmado",
+    };
+  }
+
+  async confirmManualWithinTransaction(
+    tx: Prisma.TransactionClient,
     id: string,
     actor: AuthUser,
     input: ConfirmSubscriptionPaymentDto,
@@ -79,85 +97,100 @@ export class SubscriptionSettlementService {
       paidAt.getTime() > Date.now() + 60_000
     )
       throw new BadRequestException("Fecha de pago inválida");
-    const result = await this.transaction(async (tx) => {
-      const reviewer = await tx.user.findFirst({
-        where: { id: actor.sub, globalRole: "SUPER_ADMIN", isActive: true },
-        select: { id: true },
-      });
-      if (!reviewer)
-        throw new ForbiddenException("El revisor no tiene permisos vigentes");
-      const payment = await tx.payment.findUnique({
-        where: { id },
-        include: { subscription: { include: { company: true } } },
-      });
-      if (!payment) throw new NotFoundException("Pago no encontrado");
-      if (
-        !["CASH", "TRANSFER", "YAPE", "PLIN", "CARD"].includes(payment.provider)
-      )
-        throw new BadRequestException(
-          "El cobro debe ser confirmado por su proveedor",
-        );
-      if (payment.status === "SUCCEEDED")
-        return {
-          id,
-          companyId: payment.subscription.companyId,
-          alreadyProcessed: true,
-        };
-      if (payment.status !== "PENDING")
-        throw new ConflictException("El pago no está pendiente");
-      if (payment.amount.lte(0))
-        throw new BadRequestException("El importe del pago debe ser positivo");
-      const claimed = await tx.payment.updateMany({
-        where: { id, status: "PENDING" },
-        data: {
-          status: "SUCCEEDED",
-          paidAt,
-          providerPaymentId: `manual-${id}`,
-        },
-      });
-      if (claimed.count !== 1)
-        throw new ConflictException("El pago ya fue procesado");
-      const subscription = payment.subscription;
-      const start =
-        subscription.status === "ACTIVE" && subscription.endDate > new Date()
-          ? subscription.endDate
-          : new Date();
-      await tx.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          status: "ACTIVE",
-          endDate: subscriptionEndDate(start, subscription.billingCycle),
-        },
-      });
-      if (subscription.company.status !== "SUSPENDED")
-        await tx.company.update({
-          where: { id: subscription.companyId },
-          data: { status: "ACTIVE" },
-        });
-      await tx.platformAuditLog.create({
-        data: {
-          actorId: reviewer.id,
-          action: "UPDATE",
-          entity: "Payment",
-          entityId: id,
-          changes: {
-            source: "MANUAL_CONFIRMATION",
-            reason: input.reason.trim(),
-            paidAt: paidAt.toISOString(),
-            companyId: subscription.companyId,
-          },
-        },
-      });
-      return { id, companyId: subscription.companyId, alreadyProcessed: false };
+    const reviewer = await tx.user.findFirst({
+      where: { id: actor.sub, globalRole: "SUPER_ADMIN", isActive: true },
+      select: { id: true },
     });
-    await this.invalidate(result.companyId);
-    if (!result.alreadyProcessed) await this.announce(result.id);
-    return {
-      ...result,
-      message: result.alreadyProcessed
-        ? "El pago ya estaba confirmado"
-        : "Cobro confirmado",
-    };
+    if (!reviewer)
+      throw new ForbiddenException("El revisor no tiene permisos vigentes");
+    const payment = await tx.payment.findUnique({
+      where: { id },
+      include: { subscription: { include: { company: true, plan: true } } },
+    });
+    if (!payment) throw new NotFoundException("Pago no encontrado");
+    if (
+      !["CASH", "TRANSFER", "YAPE", "PLIN", "CARD"].includes(payment.provider)
+    )
+      throw new BadRequestException(
+        "El cobro debe ser confirmado por su proveedor",
+      );
+    if (payment.status === "SUCCEEDED")
+      return {
+        id,
+        companyId: payment.subscription.companyId,
+        alreadyProcessed: true,
+      };
+    if (payment.status !== "PENDING")
+      throw new ConflictException("El pago no está pendiente");
+    const snapshot = payment.providerPayload;
+    if (
+      snapshot &&
+      typeof snapshot === "object" &&
+      !Array.isArray(snapshot) &&
+      typeof snapshot.planId === "string"
+    ) {
+      if (
+        snapshot.planId !== payment.subscription.planId ||
+        snapshot.billingCycle !== payment.subscription.billingCycle
+      )
+        throw new ConflictException(
+          "El cobro corresponde a otras condiciones; requiere conciliación",
+        );
+    } else {
+      const expected =
+        payment.subscription.billingCycle === "YEARLY"
+          ? payment.subscription.plan.priceYearly
+          : payment.subscription.plan.priceMonthly;
+      if (!payment.amount.equals(expected))
+        throw new ConflictException(
+          "El cobro histórico requiere conciliar sus condiciones",
+        );
+    }
+    if (payment.amount.lte(0))
+      throw new BadRequestException("El importe del pago debe ser positivo");
+    const claimed = await tx.payment.updateMany({
+      where: { id, status: "PENDING" },
+      data: {
+        status: "SUCCEEDED",
+        paidAt,
+        providerPaymentId: `manual-${id}`,
+      },
+    });
+    if (claimed.count !== 1)
+      throw new ConflictException("El pago ya fue procesado");
+    const subscription = payment.subscription;
+    const start =
+      subscription.status === "ACTIVE" && subscription.endDate > new Date()
+        ? subscription.endDate
+        : new Date();
+    await tx.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: "ACTIVE",
+        endDate: subscriptionEndDate(start, subscription.billingCycle),
+      },
+    });
+    if (subscription.company.status !== "SUSPENDED")
+      await tx.company.update({
+        where: { id: subscription.companyId },
+        data: { status: "ACTIVE" },
+      });
+    await tx.platformAuditLog.create({
+      data: {
+        actorId: reviewer.id,
+        action: "UPDATE",
+        entity: "Payment",
+        entityId: id,
+        changes: {
+          source: "MANUAL_CONFIRMATION",
+          reason: input.reason.trim(),
+          paidAt: paidAt.toISOString(),
+          companyId: subscription.companyId,
+        },
+      },
+    });
+    await enqueueDomainEffect(tx, "PAYMENT_CONFIRMED", id);
+    return { id, companyId: subscription.companyId, alreadyProcessed: false };
   }
 
   async confirmMercadoPago(verified: MercadoPagoPayment) {
@@ -250,6 +283,7 @@ export class SubscriptionSettlementService {
           },
         },
       });
+      await enqueueDomainEffect(tx, "PAYMENT_CONFIRMED", payment.id);
       return {
         id: payment.id,
         companyId: snapshot.companyId,
@@ -257,7 +291,6 @@ export class SubscriptionSettlementService {
       };
     });
     await this.invalidate(result.companyId);
-    if (!result.alreadyProcessed) await this.announce(result.id);
     return result;
   }
 
@@ -287,83 +320,6 @@ export class SubscriptionSettlementService {
     } catch (error) {
       this.logger.error(
         `No se pudo invalidar la caché del pago confirmado: ${String(error)}`,
-      );
-    }
-  }
-
-  private async announce(id: string): Promise<void> {
-    if (!this.notifications) return;
-    try {
-      const payment = await this.prisma.payment.findUnique({
-        where: { id },
-        select: {
-          amount: true,
-          currency: true,
-          subscription: {
-            select: {
-              companyId: true,
-              company: {
-                select: {
-                  name: true,
-                  memberships: {
-                    where: {
-                      role: "COMPANY_ADMIN",
-                      isActive: true,
-                      user: { isActive: true },
-                    },
-                    select: { user: { select: { id: true, email: true } } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-      if (!payment) return;
-      const tasks: Promise<unknown>[] = [];
-      for (const membership of payment.subscription.company.memberships) {
-        tasks.push(
-          this.notifications.create({
-            userId: membership.user.id,
-            companyId: payment.subscription.companyId,
-            type: "PAYMENT_RECEIVED",
-            title: "Pago confirmado",
-            message: `Se confirmó el cobro de ${payment.currency} ${payment.amount.toFixed(2)}.`,
-            actionUrl: "/subscription",
-            data: { paymentId: id },
-          }),
-        );
-        if (this.email)
-          tasks.push(
-            this.email.sendEmail({
-              to: membership.user.email,
-              subject: "Pago confirmado",
-              template: EmailTemplate.PAYMENT_RECEIVED,
-              data: {
-                companyName: payment.subscription.company.name,
-                amount: payment.amount.toString(),
-              },
-            }),
-          );
-      }
-      tasks.push(
-        this.notifications.notifySuperAdmins({
-          title: "Cobro de suscripción confirmado",
-          type: "PAYMENT_RECEIVED",
-          message: `${payment.subscription.company.name}: ${payment.currency} ${payment.amount.toFixed(2)}`,
-          companyId: payment.subscription.companyId,
-          actionUrl: "/platform/finanzas",
-          data: { paymentId: id },
-        }),
-      );
-      const results = await Promise.allSettled(tasks);
-      if (results.some((result) => result.status === "rejected"))
-        this.logger.warn(
-          `El pago ${id} se confirmó, pero no se entregaron todos sus avisos`,
-        );
-    } catch (error) {
-      this.logger.warn(
-        `El pago ${id} se confirmó sin completar sus avisos: ${String(error)}`,
       );
     }
   }

@@ -24,7 +24,11 @@ describe("Upgrade contract and public admin responses", () => {
       company: { name: "Company", memberships: [] },
     };
     const tx = {
-      planUpgradeRequest: { updateMany: async () => ({ count: 1 }) },
+      outboxEvent: { upsert: async () => ({}) },
+      planUpgradeRequest: {
+        findUnique: async () => request,
+        updateMany: async () => ({ count: 1 }),
+      },
       subscription: {
         findUnique: async () => ({ id: "sub" }),
         update: async ({

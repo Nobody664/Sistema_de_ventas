@@ -3,6 +3,7 @@ import {
   IsDate,
   IsEmail,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   Matches,
@@ -96,6 +97,10 @@ export class SubmitCheckoutProofDto {
 }
 
 export class ReviewCheckoutRequestDto {
+  @IsOptional()
+  @IsIn(["MONTHLY", "YEARLY"])
+  legacyBillingCycle?: "MONTHLY" | "YEARLY";
+
   @IsEnum(CheckoutReviewStatus)
   status!: CheckoutReviewStatus;
 

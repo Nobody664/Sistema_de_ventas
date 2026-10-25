@@ -22,6 +22,8 @@ import {
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { parseImageDataUrl } from "@/common/helpers/image.helper";
 import { subscriptionEndDate } from "@/common/helpers/subscription-period.helper";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
 import {
   CreatePlanUpgradeRequestDto,
   SubmitUpgradeProofDto,
@@ -334,112 +336,77 @@ export class PlanUpgradeRequestsService {
   ) {
     if (!["APPROVED", "REJECTED"].includes(input.status))
       throw new BadRequestException("Decisión de revisión inválida");
-    const request = await this.prisma.planUpgradeRequest.findUnique({
-      where: { id: requestId },
-      include: {
-        company: {
-          include: {
-            memberships: {
-              include: { user: true },
-              where: { role: "COMPANY_ADMIN" },
-            },
-          },
-        },
-        plan: true,
-      },
-    });
-
-    if (!request) {
-      throw new NotFoundException("Solicitud no encontrada");
-    }
-
-    if (request.status !== PlanUpgradeStatus.PENDING) {
-      throw new ConflictException("La solicitud no está pendiente de revisión");
-    }
-
-    const adminUser = request.company.memberships[0]?.user;
-    const cycle = request.billingCycle ?? input.legacyBillingCycle;
-    if (input.status !== "REJECTED" && !cycle)
-      throw new ConflictException(
-        "La solicitud histórica requiere conciliar explícitamente su ciclo de facturación",
-      );
-    if (
-      input.status === "APPROVED" &&
-      !request.billingCycle &&
-      (!input.reviewNotes || input.reviewNotes.trim().length < 5)
-    )
-      throw new BadRequestException(
-        "Documenta la conciliación del ciclo histórico",
-      );
-    if (
-      input.status === "APPROVED" &&
-      (request.amount === null ||
-        !Number.isFinite(Number(request.amount)) ||
-        Number(request.amount) < 0 ||
-        (request.plan.code !== "FREE" && Number(request.amount) === 0))
-    )
-      throw new ConflictException(
-        "El importe contratado requiere conciliación",
-      );
-    if (
-      request.billingCycle &&
-      input.legacyBillingCycle &&
-      request.billingCycle !== input.legacyBillingCycle
-    )
-      throw new BadRequestException("No puedes cambiar el ciclo contratado");
-
-    if (input.status === "REJECTED") {
-      const rejected = await this.prisma.planUpgradeRequest.updateMany({
-        where: { id: requestId, status: PlanUpgradeStatus.PENDING },
-        data: {
-          status: PlanUpgradeStatus.REJECTED,
-          reviewedBy: reviewerId,
-          reviewedAt: new Date(),
-          reviewNotes: input.reviewNotes,
+    return serializableTransaction(this.prisma, async (tx) => {
+      const request = await tx.planUpgradeRequest.findUnique({
+        where: { id: requestId },
+        include: {
+          company: true,
+          plan: true,
         },
       });
-      if (rejected.count === 0) {
+
+      if (!request) {
+        throw new NotFoundException("Solicitud no encontrada");
+      }
+
+      if (request.status !== PlanUpgradeStatus.PENDING) {
+        if (request.status === input.status)
+          return { requestId, status: request.status, alreadyReviewed: true };
         throw new ConflictException(
           "La solicitud no está pendiente de revisión",
         );
       }
 
-      if (adminUser) {
-        await this.emailService.sendSubscriptionRejected(
-          adminUser.email,
-          request.company.name,
+      const cycle = request.billingCycle ?? input.legacyBillingCycle;
+      if (input.status !== "REJECTED" && !cycle)
+        throw new ConflictException(
+          "La solicitud histórica requiere conciliar explícitamente su ciclo de facturación",
         );
+      if (
+        input.status === "APPROVED" &&
+        !request.billingCycle &&
+        (!input.reviewNotes || input.reviewNotes.trim().length < 5)
+      )
+        throw new BadRequestException(
+          "Documenta la conciliación del ciclo histórico",
+        );
+      if (
+        input.status === "APPROVED" &&
+        (request.amount === null ||
+          !Number.isFinite(Number(request.amount)) ||
+          Number(request.amount) < 0 ||
+          (request.plan.code !== "FREE" && Number(request.amount) === 0))
+      )
+        throw new ConflictException(
+          "El importe contratado requiere conciliación",
+        );
+      if (
+        request.billingCycle &&
+        input.legacyBillingCycle &&
+        request.billingCycle !== input.legacyBillingCycle
+      )
+        throw new BadRequestException("No puedes cambiar el ciclo contratado");
 
-        await this.notificationsService
-          .create({
-            userId: adminUser.id,
-            companyId: request.companyId,
-            type: NotificationType.SUBSCRIPTION_REJECTED,
-            channel: NotificationChannel.IN_APP,
-            title: "Solicitud de plan rechazada",
-            message: `Tu solicitud de cambio al plan ${request.plan.name} fue rechazada.`,
-          })
-          .catch(() => undefined);
+      if (input.status === "REJECTED") {
+        const rejected = await tx.planUpgradeRequest.updateMany({
+          where: { id: requestId, status: PlanUpgradeStatus.PENDING },
+          data: {
+            status: PlanUpgradeStatus.REJECTED,
+            reviewedBy: reviewerId,
+            reviewedAt: new Date(),
+            reviewNotes: input.reviewNotes,
+          },
+        });
+        if (rejected.count === 0) {
+          throw new ConflictException(
+            "La solicitud no está pendiente de revisión",
+          );
+        }
+
+        await enqueueDomainEffect(tx, "UPGRADE_REVIEWED", request.id);
+        return { requestId, status: "REJECTED" };
       }
 
-      await this.notificationsService
-        .notifySuperAdmins({
-          type: NotificationType.SUBSCRIPTION_REJECTED,
-          title: "Solicitud rechazada",
-          message: `La solicitud de ${request.company.name} para el plan ${request.plan.name} fue rechazada.`,
-          companyId: request.companyId,
-          actionUrl: "/platform/upgrade-requests",
-          data: { planUpgradeRequestId: request.id },
-        })
-        .catch((error: unknown) =>
-          this.logger.warn(
-            `No se pudo notificar la revisión: ${String(error)}`,
-          ),
-        );
-      return { requestId, status: "REJECTED" };
-    }
-
-    const result = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.planUpgradeRequest.updateMany({
         where: { id: requestId, status: PlanUpgradeStatus.PENDING },
         data: {
@@ -517,39 +484,8 @@ export class PlanUpgradeRequestsService {
         },
       });
 
-      return { subscription };
+      await enqueueDomainEffect(tx, "UPGRADE_REVIEWED", request.id);
+      return { requestId, status: "APPROVED" };
     });
-
-    await this.planCapabilities.invalidate(request.companyId);
-
-    if (adminUser) {
-      await this.notificationsService.create({
-        userId: adminUser.id,
-        companyId: request.companyId,
-        type: NotificationType.SUBSCRIPTION_APPROVED,
-        channel: NotificationChannel.IN_APP,
-        title: "Plan actualizado",
-        message: `Tu cambio al plan ${request.plan.name} ha sido aprobado.`,
-      });
-
-      await this.emailService.sendSubscriptionApproved(
-        adminUser.email,
-        request.company.name,
-      );
-    }
-
-    await this.notificationsService
-      .notifySuperAdmins({
-        type: NotificationType.PAYMENT_RECEIVED,
-        title: "Pago y cambio de plan aprobados",
-        message: `${request.company.name}: cambio al plan ${request.plan.name} aprobado por ${request.currency} ${request.amount}.`,
-        companyId: request.companyId,
-        actionUrl: "/platform/finanzas",
-        data: { planUpgradeRequestId: request.id },
-      })
-      .catch((error: unknown) =>
-        this.logger.warn(`No se pudo notificar el pago: ${String(error)}`),
-      );
-    return { requestId, status: "APPROVED" };
   }
 }

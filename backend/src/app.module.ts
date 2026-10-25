@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { OutboxModule } from "./modules/outbox/outbox.module";
 import { ConfigModule } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { PassportModule } from "@nestjs/passport";
@@ -144,6 +145,7 @@ import { CreditNotesModule } from "./modules/credit-notes/credit-notes.module";
     FinanceModule,
     PlanCapabilitiesModule,
     SupportModule,
+    OutboxModule,
     SuppliersModule,
     CreditNotesModule,
   ],

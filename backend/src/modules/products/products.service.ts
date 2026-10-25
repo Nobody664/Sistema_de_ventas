@@ -8,6 +8,10 @@ import {
 import { AuditAction, Prisma } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import {
+  optionalDate,
+  rejectNullFields,
+} from "@/common/helpers/patch-contract.helper";
+import {
   CreateCategoryDto,
   CreatePresentationDto,
   CreateProductDto,
@@ -231,6 +235,7 @@ export class ProductsService {
   }
 
   async createProduct(companyId: string, input: CreateProductDto) {
+    const expiryDate = optionalDate(input.expiryDate);
     await this.limitService.validateLimit(companyId, "products");
 
     let categoryCode: string | undefined;
@@ -257,7 +262,7 @@ export class ProductsService {
         salePrice: input.salePrice,
         stockQuantity: input.stockQuantity ?? 0,
         minStock: input.minStock ?? 5,
-        expiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
+        expiryDate: expiryDate ?? null,
         ...(input.presentations && input.presentations.length > 0
           ? {
               presentations: {
@@ -319,6 +324,14 @@ export class ProductsService {
   }
 
   async updateProduct(companyId: string, id: string, input: UpdateProductDto) {
+    rejectNullFields(input, [
+      "name",
+      "baseUnit",
+      "salePrice",
+      "minStock",
+      "isActive",
+    ]);
+    const expiryDate = optionalDate(input.expiryDate);
     const existing = await this.ensureProduct(companyId, id);
 
     if (input.categoryId) {
@@ -330,15 +343,10 @@ export class ProductsService {
       data: {
         ...input,
         imageUrl: await parseImageSource(input.imageUrl),
-        categoryId: input.categoryId ?? undefined,
-        isActive: input.isActive ?? true,
-        deletedAt: input.isActive === false ? undefined : null,
-        expiryDate:
-          input.expiryDate === undefined
-            ? undefined
-            : input.expiryDate === null
-              ? null
-              : new Date(input.expiryDate),
+        categoryId: input.categoryId,
+        isActive: input.isActive,
+        deletedAt: input.isActive === true ? null : undefined,
+        expiryDate,
       },
     });
     if (product.count === 0) {
@@ -472,6 +480,7 @@ export class ProductsService {
     productId: string,
     input: CreatePresentationDto,
   ) {
+    rejectNullFields(input, ["name", "factor", "isActive"]);
     await this.ensureProduct(companyId, productId);
 
     if (input.barcode) {
@@ -503,6 +512,7 @@ export class ProductsService {
     presentationId: string,
     input: UpdatePresentationDto,
   ) {
+    rejectNullFields(input, ["name", "factor", "isActive"]);
     const presentation = await this.prisma.productPresentation.findFirst({
       where: { id: presentationId, companyId },
     });

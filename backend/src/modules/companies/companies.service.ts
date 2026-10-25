@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { rejectNullFields } from "@/common/helpers/patch-contract.helper";
 import { isProfileComplete } from "@/common/helpers/profile-completeness.helper";
 import {
   CreateCompanyDto,
@@ -19,11 +20,11 @@ interface ProfileFieldsInput {
 export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private profileSync(input: ProfileFieldsInput) {
+  private profileSync(input: ProfileFieldsInput, completedAt?: Date | null) {
     const complete = isProfileComplete(input);
     return {
       profileComplete: complete,
-      ...(complete ? { profileCompletedAt: new Date() } : {}),
+      profileCompletedAt: complete ? (completedAt ?? new Date()) : null,
     };
   }
 
@@ -222,25 +223,43 @@ export class CompaniesService {
   }
 
   async updateCurrent(companyId: string, input: UpdateCompanyDto) {
-    await this.findCurrent(companyId);
+    rejectNullFields(input, ["name", "timezone", "currency"]);
+    const existing = await this.findCurrent(companyId);
 
     return this.prisma.company.update({
       where: { id: companyId },
       data: {
         ...input,
-        ...this.profileSync(input),
+        ...this.profileSync(
+          {
+            ...existing,
+            ...Object.fromEntries(
+              Object.entries(input).filter(([, value]) => value !== undefined),
+            ),
+          },
+          existing.profileCompletedAt,
+        ),
       },
     });
   }
 
   async update(companyId: string, input: UpdateCompanyDto) {
-    await this.findOne(companyId);
+    rejectNullFields(input, ["name", "timezone", "currency"]);
+    const existing = await this.findOne(companyId);
 
     return this.prisma.company.update({
       where: { id: companyId },
       data: {
         ...input,
-        ...this.profileSync(input),
+        ...this.profileSync(
+          {
+            ...existing,
+            ...Object.fromEntries(
+              Object.entries(input).filter(([, value]) => value !== undefined),
+            ),
+          },
+          existing.profileCompletedAt,
+        ),
       },
     });
   }

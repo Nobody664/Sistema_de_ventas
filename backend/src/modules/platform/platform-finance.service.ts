@@ -12,6 +12,10 @@ import {
 
 import { PrismaService } from "@/database/prisma/prisma.service";
 import {
+  rejectNullFields,
+  optionalDate,
+} from "@/common/helpers/patch-contract.helper";
+import {
   CreatePlatformAccountDto,
   CreatePlatformTransactionDto,
   QueryPlatformFinanceSummaryDto,
@@ -328,6 +332,15 @@ export class PlatformFinanceService {
     input: CreatePlatformTransactionDto,
     createdById: string,
   ) {
+    rejectNullFields(input, [
+      "amount",
+      "accountId",
+      "description",
+      "type",
+      "currency",
+      "occurredAt",
+      "category",
+    ]);
     const account = await this.prisma.platformAccount.findUnique({
       where: { id: input.accountId },
     });
@@ -358,7 +371,7 @@ export class PlatformFinanceService {
         description: input.description.trim(),
         amount: new Prisma.Decimal(input.amount),
         currency: input.currency?.toUpperCase() || account.currency,
-        occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+        occurredAt: optionalDate(input.occurredAt, false) ?? new Date(),
         companyId: input.companyId ?? null,
         subscriptionId: input.subscriptionId ?? null,
         paymentId: input.paymentId ?? null,
@@ -371,6 +384,15 @@ export class PlatformFinanceService {
   }
 
   async updateTransaction(id: string, input: UpdatePlatformTransactionDto) {
+    rejectNullFields(input, [
+      "amount",
+      "accountId",
+      "description",
+      "type",
+      "currency",
+      "occurredAt",
+      "category",
+    ]);
     const existing = await this.prisma.platformTransaction.findUnique({
       where: { id },
     });
@@ -417,7 +439,7 @@ export class PlatformFinanceService {
             ? new Prisma.Decimal(input.amount)
             : undefined,
         currency: input.currency?.toUpperCase(),
-        occurredAt: input.occurredAt ? new Date(input.occurredAt) : undefined,
+        occurredAt: optionalDate(input.occurredAt, false),
         companyId: input.companyId,
       },
       include: { account: { select: { id: true, name: true, type: true } } },
@@ -487,6 +509,13 @@ export class PlatformFinanceService {
   }
 
   async createAccount(input: CreatePlatformAccountDto) {
+    rejectNullFields(input, [
+      "initialBalance",
+      "name",
+      "type",
+      "currency",
+      "isActive",
+    ]);
     return this.prisma.platformAccount.create({
       data: {
         name: input.name.trim(),
@@ -503,6 +532,13 @@ export class PlatformFinanceService {
   }
 
   async updateAccount(id: string, input: UpdatePlatformAccountDto) {
+    rejectNullFields(input, [
+      "initialBalance",
+      "name",
+      "type",
+      "currency",
+      "isActive",
+    ]);
     const account = await this.prisma.platformAccount.findUnique({
       where: { id },
     });
@@ -530,7 +566,7 @@ export class PlatformFinanceService {
           input.initialBalance !== undefined
             ? new Prisma.Decimal(input.initialBalance)
             : undefined,
-        notes: input.notes?.trim(),
+        notes: input.notes === null ? null : input.notes?.trim(),
         isActive: input.isActive,
       },
     });

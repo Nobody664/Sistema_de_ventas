@@ -12,6 +12,10 @@ import { Response } from "express";
 import { NotificationsService } from "./notifications.service";
 import { TenantGuard } from "@/common/guards/tenant.guard";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { Roles } from "@/common/decorators/roles.decorator";
+import { Permissions } from "@/common/decorators/permissions.decorator";
+import { PermissionsGuard } from "@/common/guards/permissions.guard";
+import { Permission } from "@/common/constants/permissions.constant";
 import {
   CurrentUser,
   AuthUser,
@@ -53,15 +57,22 @@ export class NotificationsController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, TenantGuard)
+  @Roles("COMPANY_ADMIN")
+  @Permissions(Permission.COMPANY_VIEW_AUDIT)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @Get("company")
   findByCompany(
     @Req() request: { tenantId: string },
+    @CurrentUser() user: AuthUser,
     @Query("unreadOnly") unreadOnly?: string,
   ) {
-    return this.notificationsService.findByCompany(request.tenantId, {
-      unreadOnly: unreadOnly === "true",
-    });
+    return this.notificationsService.findByCompany(
+      request.tenantId,
+      {
+        unreadOnly: unreadOnly === "true",
+      },
+      user,
+    );
   }
 
   @Get("unread-count")

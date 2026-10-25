@@ -7,6 +7,7 @@ import {
 import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { rejectNullFields } from "@/common/helpers/patch-contract.helper";
 import {
   CreateApiProviderDto,
   BillApiUsageDto,
@@ -345,6 +346,14 @@ export class PlatformApiUsageService {
   }
 
   async createProvider(input: CreateApiProviderDto) {
+    rejectNullFields(input, [
+      "name",
+      "slug",
+      "unit",
+      "costPerUnit",
+      "currency",
+      "isActive",
+    ]);
     const provider = await this.prisma.apiProvider.create({
       data: {
         slug: input.slug.trim().toLowerCase(),
@@ -363,6 +372,13 @@ export class PlatformApiUsageService {
   }
 
   async updateProvider(id: string, input: UpdateApiProviderDto) {
+    rejectNullFields(input, [
+      "name",
+      "unit",
+      "costPerUnit",
+      "currency",
+      "isActive",
+    ]);
     const provider = await this.prisma.apiProvider.findUnique({
       where: { id },
     });

@@ -13,6 +13,10 @@ import {
 } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { optionalDate } from "@/common/helpers/patch-contract.helper";
+import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
+import { subscriptionEndDate } from "@/common/helpers/subscription-period.helper";
 import { evaluateProfile } from "@/common/helpers/profile-completeness.helper";
 import { EmailService } from "@/modules/email/email.service";
 import {
@@ -48,7 +52,7 @@ export class CheckoutRequestsService {
       plan: {
         code: request.plan.code,
         name: request.plan.name,
-        billingCycle: request.plan.billingCycle,
+        billingCycle: request.billingCycle ?? request.plan.billingCycle,
         amount: request.amount,
       },
       paymentMethod: request.provider,
@@ -159,6 +163,7 @@ export class CheckoutRequestsService {
               email: "",
               passwordHash: "",
               planId: plan.id,
+              billingCycle: plan.billingCycle,
               provider: input.paymentMethod,
               amount: (plan.billingCycle === "YEARLY"
                 ? plan.priceYearly
@@ -264,6 +269,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
             email,
             passwordHash,
             planId: plan.id,
+            billingCycle: plan.billingCycle,
             taxId: input.taxId,
             legalName: input.legalName,
             address: input.address,
@@ -292,48 +298,53 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
     input: SubmitCheckoutProofDto,
   ) {
     const proofImage = (await parseImageDataUrl(input.imageBase64)).dataUrl;
+    const paymentDate = optionalDate(input.paymentDate, false) ?? new Date();
+    if (paymentDate.getTime() > Date.now() + 60000)
+      throw new BadRequestException("La fecha del pago no puede ser futura");
+    return serializableTransaction(this.prisma, async (tx) => {
+      const request = await tx.checkoutRequest.findFirst({
+        where: { id: requestId, ...(companyId ? { companyId } : {}) },
+        include: { plan: true },
+      });
+      if (!request) {
+        throw new NotFoundException("Solicitud no encontrada");
+      }
+      if (request.companyId && !companyId) {
+        throw new NotFoundException("Solicitud no encontrada");
+      }
+      if (
+        request.status === "SUBMITTED" &&
+        request.proofImageBase64 === proofImage
+      )
+        return { requestId: request.id, status: "SUBMITTED" };
+      if (request.status !== "DRAFT") {
+        throw new ConflictException("La solicitud ya fue enviada o revisada");
+      }
 
-    const request = await this.prisma.checkoutRequest.findFirst({
-      where: { id: requestId, ...(companyId ? { companyId } : {}) },
-      include: { plan: true },
-    });
-    if (!request) {
-      throw new NotFoundException("Solicitud no encontrada");
-    }
-    if (request.companyId && !companyId) {
-      throw new NotFoundException("Solicitud no encontrada");
-    }
-    if (request.status !== "DRAFT") {
-      throw new ConflictException("La solicitud ya fue enviada o revisada");
-    }
+      const updated = await tx.checkoutRequest.updateMany({
+        where: {
+          id: requestId,
+          status: "DRAFT",
+          ...(companyId ? { companyId } : {}),
+        },
+        data: {
+          proofImageBase64: proofImage,
+          paymentDate,
+          submittedAt: new Date(),
+          status: "SUBMITTED",
+        },
+      });
+      if (updated.count === 0) {
+        throw new ConflictException("La solicitud ya fue enviada o revisada");
+      }
 
-    const updated = await this.prisma.checkoutRequest.updateMany({
-      where: {
-        id: requestId,
-        status: "DRAFT",
-        ...(companyId ? { companyId } : {}),
-      },
-      data: {
-        proofImageBase64: proofImage,
-        paymentDate: input.paymentDate ?? new Date(),
-        submittedAt: new Date(),
+      await enqueueDomainEffect(tx, "CHECKOUT_SUBMITTED", request.id);
+
+      return {
+        requestId: request.id,
         status: "SUBMITTED",
-      },
+      };
     });
-    if (updated.count === 0) {
-      throw new ConflictException("La solicitud ya fue enviada o revisada");
-    }
-
-    await this.emailService.sendPaymentProofReceived(
-      request.email,
-      request.companyName || "",
-      request.plan.name,
-    );
-
-    return {
-      requestId: request.id,
-      status: "SUBMITTED",
-    };
   }
 
   async getPending() {
@@ -365,7 +376,11 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
   async review(
     requestId: string,
     reviewerId: string,
-    input: { status: CheckoutReviewStatus; reviewNotes?: string },
+    input: {
+      status: CheckoutReviewStatus;
+      reviewNotes?: string;
+      legacyBillingCycle?: "MONTHLY" | "YEARLY";
+    },
   ) {
     const request = await this.prisma.checkoutRequest.findUnique({
       where: { id: requestId },
@@ -375,35 +390,61 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
       throw new NotFoundException("Solicitud no encontrada");
     }
     if (request.status !== "SUBMITTED") {
+      if (request.status === input.status)
+        return { requestId, status: request.status, alreadyReviewed: true };
       throw new ConflictException("La solicitud no está pendiente de revisión");
     }
 
     if (input.status === CheckoutReviewStatus.REJECTED) {
-      const rejected = await this.prisma.checkoutRequest.updateMany({
-        where: { id: requestId, status: "SUBMITTED" },
-        data: {
+      return serializableTransaction(this.prisma, async (tx) => {
+        const rejected = await tx.checkoutRequest.updateMany({
+          where: { id: requestId, status: "SUBMITTED" },
+          data: {
+            status: "REJECTED",
+            reviewedBy: reviewerId,
+            reviewedAt: new Date(),
+            reviewNotes: input.reviewNotes,
+          },
+        });
+        if (rejected.count === 0) {
+          throw new ConflictException(
+            "La solicitud no está pendiente de revisión",
+          );
+        }
+
+        await enqueueDomainEffect(tx, "CHECKOUT_REVIEWED", requestId);
+
+        return {
+          requestId: requestId,
           status: "REJECTED",
-          reviewedBy: reviewerId,
-          reviewedAt: new Date(),
-          reviewNotes: input.reviewNotes,
-        },
+        };
       });
-      if (rejected.count === 0) {
-        throw new ConflictException(
-          "La solicitud no está pendiente de revisión",
-        );
-      }
-
-      await this.emailService.sendSubscriptionRejected(
-        request.email,
-        request.companyName || "",
-      );
-
-      return {
-        requestId: requestId,
-        status: "REJECTED",
-      };
     }
+
+    if (input.status !== CheckoutReviewStatus.APPROVED)
+      throw new BadRequestException("Decisión inválida");
+    const billingCycle = request.billingCycle ?? input.legacyBillingCycle;
+    if (!billingCycle)
+      throw new ConflictException(
+        "El checkout histórico requiere conciliar su ciclo de facturación",
+      );
+    if (
+      !request.billingCycle &&
+      (!input.reviewNotes || input.reviewNotes.trim().length < 5)
+    )
+      throw new BadRequestException(
+        "Documenta la conciliación del ciclo histórico",
+      );
+    if (input.legacyBillingCycle && input.legacyBillingCycle !== billingCycle)
+      throw new BadRequestException("No puedes cambiar el ciclo contratado");
+    if (
+      !Number.isFinite(Number(request.amount)) ||
+      Number(request.amount) < 0 ||
+      (request.plan.code !== "FREE" && Number(request.amount) === 0)
+    )
+      throw new ConflictException(
+        "El importe contratado requiere conciliación",
+      );
 
     const hasExistingCompany = !!request.companyId;
 
@@ -411,7 +452,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
       return this.handleUpgradeApproval(
         requestId,
         reviewerId,
-        request,
+        { ...request, billingCycle },
         input.reviewNotes,
       );
     }
@@ -419,7 +460,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
     return this.handleNewCustomerApproval(
       requestId,
       reviewerId,
-      request,
+      { ...request, billingCycle },
       input.reviewNotes,
     );
   }
@@ -442,11 +483,12 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
       }
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await serializableTransaction(this.prisma, async (tx) => {
       const claimed = await tx.checkoutRequest.updateMany({
         where: { id: requestId, status: "SUBMITTED" },
         data: {
           status: "REVIEWING",
+          billingCycle: request.billingCycle,
           reviewedBy: reviewerId,
           reviewedAt: new Date(),
           reviewNotes,
@@ -468,14 +510,11 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
       });
 
       const startDate = new Date();
-      const endDate = new Date();
-      endDate.setMonth(
-        endDate.getMonth() + (request.plan.billingCycle === "YEARLY" ? 12 : 1),
-      );
+      const endDate = subscriptionEndDate(startDate, request.billingCycle);
 
       const subscriptionData = {
         planId: request.planId,
-        billingCycle: request.plan.billingCycle,
+        billingCycle: request.billingCycle,
         startDate,
         endDate,
         status: SubscriptionStatus.ACTIVE,
@@ -501,6 +540,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
           amount: new Prisma.Decimal(request.amount),
           currency: request.currency,
           status: "SUCCEEDED",
+          paidAt: request.paymentDate ?? new Date(),
           providerPayload: {
             checkoutRequestId: request.id,
           },
@@ -512,36 +552,9 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
         data: { status: "APPROVED" },
       });
 
+      await enqueueDomainEffect(tx, "CHECKOUT_REVIEWED", requestId);
       return { subscription };
     });
-
-    const adminUsers = await this.prisma.user.findMany({
-      where: {
-        memberships: {
-          some: {
-            companyId: request.companyId,
-            role: "COMPANY_ADMIN",
-            isActive: true,
-          },
-        },
-      },
-    });
-
-    for (const admin of adminUsers) {
-      await this.notificationsService.create({
-        userId: admin.id,
-        companyId: request.companyId,
-        type: "PLAN_UPGRADED" as any,
-        channel: "IN_APP" as any,
-        title: "Plan actualizado",
-        message: `Tu cambio al plan ${request.plan.name} ha sido aprobado.`,
-      });
-    }
-
-    await this.emailService.sendSubscriptionApproved(
-      request.email || adminUsers[0]?.email || "",
-      request.companyName,
-    );
 
     return {
       requestId: requestId,
@@ -556,11 +569,12 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
     request: any,
     reviewNotes?: string,
   ) {
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await serializableTransaction(this.prisma, async (tx) => {
       const claimed = await tx.checkoutRequest.updateMany({
         where: { id: requestId, status: "SUBMITTED" },
         data: {
           status: "REVIEWING",
+          billingCycle: request.billingCycle,
           reviewedBy: reviewerId,
           reviewedAt: new Date(),
           reviewNotes,
@@ -634,17 +648,14 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
       });
 
       const startDate = new Date();
-      const endDate = new Date();
-      endDate.setMonth(
-        endDate.getMonth() + (request.plan.billingCycle === "YEARLY" ? 12 : 1),
-      );
+      const endDate = subscriptionEndDate(startDate, request.billingCycle);
 
       const subscription = await tx.subscription.create({
         data: {
           companyId: company.id,
           planId: request.planId,
           status: "ACTIVE",
-          billingCycle: request.plan.billingCycle,
+          billingCycle: request.billingCycle,
           startDate,
           endDate,
           autoRenew: true,
@@ -660,6 +671,7 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
           amount: new Prisma.Decimal(request.amount),
           currency: request.currency,
           status: "SUCCEEDED",
+          paidAt: request.paymentDate ?? new Date(),
           providerPayload: {
             checkoutRequestId: request.id,
           },
@@ -676,13 +688,9 @@ RUC de 11 dígitos, Razón Social, Dirección, Teléfono y Email). Campos pendie
         },
       });
 
+      await enqueueDomainEffect(tx, "CHECKOUT_REVIEWED", requestId);
       return { company, user };
     });
-
-    await this.emailService.sendSubscriptionApproved(
-      request.email,
-      request.companyName,
-    );
 
     return {
       requestId: requestId,

@@ -178,6 +178,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 
     Permission.COMPANY_VIEW,
     Permission.COMPANY_UPDATE,
+    Permission.COMPANY_VIEW_AUDIT,
 
     Permission.SUBSCRIPTION_VIEW,
 

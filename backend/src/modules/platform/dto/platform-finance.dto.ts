@@ -10,6 +10,7 @@ import {
   IsString,
   Min,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { PlatformAccountType, PlatformTransactionType } from "@prisma/client";
@@ -27,14 +28,14 @@ export class CreatePlatformAccountDto {
   @Matches(/^[A-Z]{3}$/)
   currency?: string;
 
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @Type(() => Number)
   @IsNumber()
   initialBalance?: number;
 
   @IsOptional()
   @IsString()
-  notes?: string;
+  notes?: string | null;
 
   @IsOptional()
   @IsBoolean()
@@ -55,14 +56,14 @@ export class UpdatePlatformAccountDto {
   @Matches(/^[A-Z]{3}$/)
   currency?: string;
 
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @Type(() => Number)
   @IsNumber()
   initialBalance?: number;
 
   @IsOptional()
   @IsString()
-  notes?: string;
+  notes?: string | null;
 
   @IsOptional()
   @IsBoolean()
@@ -128,7 +129,7 @@ export class UpdatePlatformTransactionDto {
   @MinLength(2)
   description?: string;
 
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @Type(() => Number)
   @IsNumber()
   @Min(0.01)

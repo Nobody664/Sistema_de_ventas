@@ -10,6 +10,7 @@ import {
 export class RegisterDto {
   @IsString()
   @MinLength(2)
+  @MaxLength(200)
   fullName!: string;
 
   @IsString()
@@ -21,6 +22,7 @@ export class RegisterDto {
 
   @IsString()
   @MinLength(8)
+  @MaxLength(256)
   password!: string;
 
   @IsOptional()

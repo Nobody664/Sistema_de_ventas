@@ -8,7 +8,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import * as argon2 from "argon2";
-import { randomBytes, createHash } from "crypto";
+import { randomBytes, createHash, randomUUID } from "crypto";
 import { Prisma, RefreshTokenType } from "@prisma/client";
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
 import { PrismaService } from "@/database/prisma/prisma.service";
@@ -78,74 +78,77 @@ export class AuthService {
   }
 
   async register(input: RegisterDto) {
-    try {
-      const existingUser = await this.usersService.findByEmail(input.email);
-      if (existingUser) {
+    const passwordHash = await argon2.hash(input.password);
+    return serializableTransaction(this.prisma, async (tx) => {
+      if (
+        await tx.user.findUnique({
+          where: { email: input.email },
+          select: { id: true },
+        })
+      )
         throw new ConflictException(
           "El correo electrónico ya está registrado.",
         );
-      }
-
+      const planCode = input.planCode || "FREE";
+      const plan = await tx.plan.findUnique({ where: { code: planCode } });
+      if (!plan?.isActive)
+        throw new BadRequestException("El plan no está disponible");
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
-      const company = await this.prisma.company.create({
+      const company = await tx.company.create({
         data: {
           name: input.companyName,
-          slug: `${input.companyName
-            .toLowerCase()
-            .replace(/[^a-z0-9\s-]/g, "")
-            .trim()
-            .replace(/\s+/g, "-")}-${Date.now().toString().slice(-6)}`,
+          slug: `${
+            input.companyName
+              .toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, "")
+              .trim()
+              .replace(/\s+/g, "-") || "empresa"
+          }-${randomUUID()}`,
           phone: input.phone || null,
           status: "TRIAL",
           trialEndsAt,
         },
       });
 
-      const planCode = input.planCode || "FREE";
-      const plan = await this.prisma.plan.findUnique({
-        where: { code: planCode },
-      });
-      if (!plan) {
-        throw new BadRequestException(
-          `Plan con código ${planCode} no encontrado.`,
-        );
-      }
-
-      const subscription = await this.prisma.subscription.create({
+      const subscription = await tx.subscription.create({
         data: {
           companyId: company.id,
           planId: plan.id,
-          status: planCode === "FREE" ? "TRIALING" : "TRIALING",
+          status: "TRIALING",
           billingCycle: plan.billingCycle,
           startDate: new Date(),
           endDate: trialEndsAt,
         },
       });
 
-      const passwordHash = await argon2.hash(input.password);
-      const user = await this.usersService.createOwner({
-        email: input.email,
-        fullName: input.fullName,
-        passwordHash,
-        companyId: company.id,
+      const user = await tx.user.create({
+        data: {
+          email: input.email,
+          fullName: input.fullName,
+          passwordHash,
+          globalRole: "USER",
+          memberships: {
+            create: { companyId: company.id, role: "COMPANY_ADMIN" },
+          },
+        },
       });
 
-      return this.createSession({
-        sub: user.id,
-        authVersion: user.authVersion,
-        email: user.email,
-        companyId: company.id,
-        roles: ["COMPANY_ADMIN"],
-        fullName: user.fullName,
-        planCode,
-        subscriptionStatus: subscription.status,
-      });
-    } catch (error) {
-      this.logger.error("Error during registration", error);
-      throw error;
-    }
+      return this.createSession(
+        {
+          sub: user.id,
+          authVersion: user.authVersion,
+          email: user.email,
+          companyId: company.id,
+          roles: ["COMPANY_ADMIN"],
+          fullName: user.fullName,
+          planCode,
+          subscriptionStatus: subscription.status,
+        },
+        tx,
+      );
+    });
   }
 
   async login(input: LoginDto) {
@@ -633,39 +636,44 @@ export class AuthService {
     return { accessToken, companyStatus, trialEndsAt };
   }
 
-  private async createSession(input: SessionClaims) {
+  private async createSession(
+    input: SessionClaims,
+    client?: Prisma.TransactionClient,
+  ) {
     const familyId = randomBytes(16).toString("hex");
 
     const refreshTokenPlain = this.generateOpaqueToken();
     const refreshTokenHash = this.hashToken(refreshTokenPlain);
 
-    const { accessToken, companyStatus, trialEndsAt } =
-      await serializableTransaction(this.prisma, async (tx) => {
-        const current = await tx.user.findFirst({
-          where: {
-            id: input.sub,
-            isActive: true,
-            authVersion: input.authVersion ?? 0,
-          },
-          select: { id: true },
-        });
-        if (!current)
-          throw new UnauthorizedException(
-            "La sesión cambió durante el inicio de sesión",
-          );
-        await tx.refreshToken.create({
-          data: {
-            userId: input.sub,
-            companyId: input.companyId ?? null,
-            tokenHash: refreshTokenHash,
-            familyId,
-            authVersion: input.authVersion ?? 0,
-            type: RefreshTokenType.SESSION,
-            expiresAt: new Date(Date.now() + this.getRefreshTtlMs()),
-          },
-        });
-        return this.signAccessToken({ ...input, sid: familyId }, tx);
+    const work = async (tx: Prisma.TransactionClient) => {
+      const current = await tx.user.findFirst({
+        where: {
+          id: input.sub,
+          isActive: true,
+          authVersion: input.authVersion ?? 0,
+        },
+        select: { id: true },
       });
+      if (!current)
+        throw new UnauthorizedException(
+          "La sesión cambió durante el inicio de sesión",
+        );
+      await tx.refreshToken.create({
+        data: {
+          userId: input.sub,
+          companyId: input.companyId ?? null,
+          tokenHash: refreshTokenHash,
+          familyId,
+          authVersion: input.authVersion ?? 0,
+          type: RefreshTokenType.SESSION,
+          expiresAt: new Date(Date.now() + this.getRefreshTtlMs()),
+        },
+      });
+      return this.signAccessToken({ ...input, sid: familyId }, tx);
+    };
+    const { accessToken, companyStatus, trialEndsAt } = client
+      ? await work(client)
+      : await serializableTransaction(this.prisma, work);
 
     return {
       accessToken,

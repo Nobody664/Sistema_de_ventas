@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ForbiddenException,
   Optional,
   OnModuleDestroy,
   OnModuleInit,
@@ -15,6 +16,8 @@ import {
   NotificationChannel as DbNotificationChannel,
 } from "@prisma/client";
 import Redis from "ioredis";
+import type { Notification as StoredNotification } from "@prisma/client";
+import { AuthUser } from "@/common/decorators/current-user.decorator";
 
 export const NOTIFICATIONS_CHANNEL = "notifications:events";
 
@@ -58,6 +61,8 @@ export enum NotificationChannel {
 }
 
 export interface CreateNotificationInput {
+  dedupeKey?: string;
+  globalTarget?: string;
   userId: string;
   companyId?: string;
   type: string;
@@ -191,32 +196,54 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async create(input: CreateNotificationInput) {
+    if (input.dedupeKey) {
+      const existing = await this.prisma.notification.findUnique({
+        where: { dedupeKey: input.dedupeKey },
+      });
+      if (existing) return existing;
+    }
     const platformEvent = [
       "NEW_COMPANY_REGISTRATION",
       "CHECKOUT_REQUEST_PENDING",
       "PLAN_UPGRADE_REQUEST",
       "PAYMENT_PROOF_PENDING",
     ].includes(input.type);
-    const notification = await this.prisma.notification.create({
-      data: {
-        userId: input.userId,
-        companyId: input.companyId ?? null,
-        type:
-          Object.values(DbNotificationType).find(
-            (value) => value === input.type,
-          ) ?? DbNotificationType.SYSTEM,
-        channel:
-          Object.values(DbNotificationChannel).find(
-            (value) => value === input.channel,
-          ) ?? DbNotificationChannel.IN_APP,
-        title: input.title,
-        message: input.message,
-        data: (input.data || {}) as Prisma.JsonObject,
-        scope: input.scope ?? (platformEvent ? "PLATFORM" : "COMPANY"),
-        actionUrl: input.actionUrl,
-        sentAt: input.channel === NotificationChannel.EMAIL ? new Date() : null,
-      },
-    });
+    const data: Prisma.NotificationUncheckedCreateInput = {
+      dedupeKey: input.dedupeKey,
+      globalTarget: input.globalTarget,
+      userId: input.userId,
+      companyId: input.companyId ?? null,
+      type:
+        Object.values(DbNotificationType).find(
+          (value) => value === input.type,
+        ) ?? DbNotificationType.SYSTEM,
+      channel:
+        Object.values(DbNotificationChannel).find(
+          (value) => value === input.channel,
+        ) ?? DbNotificationChannel.IN_APP,
+      title: input.title,
+      message: input.message,
+      data: (input.data || {}) as Prisma.JsonObject,
+      scope: input.scope ?? (platformEvent ? "PLATFORM" : "COMPANY"),
+      actionUrl: input.actionUrl,
+      sentAt: input.channel === NotificationChannel.EMAIL ? new Date() : null,
+    };
+    let notification: StoredNotification;
+    try {
+      notification = await this.prisma.notification.create({ data });
+    } catch (error) {
+      if (
+        input.dedupeKey &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const existing = await this.prisma.notification.findUnique({
+          where: { dedupeKey: input.dedupeKey },
+        });
+        if (existing) return existing;
+      }
+      throw error;
+    }
 
     await this.publishNotification(input.userId, notification);
 
@@ -224,6 +251,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async notifySuperAdmins(input: {
+    dedupeKey?: string;
     type?: string;
     title: string;
     message: string;
@@ -242,26 +270,25 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
 
     let count = 0;
     for (const admin of superAdmins) {
-      const notification = await this.prisma.notification.create({
-        data: {
-          userId: admin.id,
-          companyId: input.companyId ?? null,
-          type:
-            Object.values(DbNotificationType).find(
-              (value) => value === input.type,
-            ) ?? DbNotificationType.SYSTEM,
-          channel: NotificationChannel.IN_APP,
-          title: input.title,
-          message: input.message,
-          data: (input.data ?? {}) as Prisma.JsonObject,
-          scope: "PLATFORM",
-          globalTarget: "SUPER_ADMINS",
-          actionUrl: input.actionUrl ?? null,
-          isRead: false,
-        },
+      await this.create({
+        dedupeKey: input.dedupeKey
+          ? `${input.dedupeKey}:${admin.id}`
+          : undefined,
+        userId: admin.id,
+        companyId: input.companyId,
+        type:
+          Object.values(DbNotificationType).find(
+            (value) => value === input.type,
+          ) ?? DbNotificationType.SYSTEM,
+        channel: NotificationChannel.IN_APP,
+        title: input.title,
+        message: input.message,
+        data: input.data,
+        scope: "PLATFORM",
+        globalTarget: "SUPER_ADMINS",
+        actionUrl: input.actionUrl,
       });
       count++;
-      await this.publishNotification(admin.id, notification);
     }
 
     return { count };
@@ -286,8 +313,19 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
 
   async findByCompany(
     companyId: string,
-    options?: { unreadOnly?: boolean; limit?: number },
+    options: { unreadOnly?: boolean; limit?: number } | undefined,
+    actor: AuthUser,
   ) {
+    if (
+      !actor ||
+      actor.companyId !== companyId ||
+      !actor.roles.some((role) =>
+        ["SUPER_ADMIN", "COMPANY_ADMIN"].includes(role),
+      )
+    )
+      throw new ForbiddenException(
+        "No puedes auditar notificaciones de esta empresa",
+      );
     const where: Prisma.NotificationWhereInput = {
       companyId,
       scope: "COMPANY",

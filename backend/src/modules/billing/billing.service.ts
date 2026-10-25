@@ -75,10 +75,18 @@ export class BillingService {
       await this.prisma.payment.create({
         data: {
           subscriptionId: sub.id,
-          amount: sub.plan.priceMonthly,
+          amount:
+            sub.billingCycle === "YEARLY"
+              ? sub.plan.priceYearly
+              : sub.plan.priceMonthly,
           currency: "PEN",
           status: "PENDING",
           provider: sub.provider,
+          providerPayload: {
+            kind: "BILLING_RENEWAL",
+            planId: sub.planId,
+            billingCycle: sub.billingCycle,
+          },
         },
       });
 

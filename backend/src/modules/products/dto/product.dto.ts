@@ -5,6 +5,8 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
+  IsDateString,
+  ValidateIf,
   IsOptional,
   IsString,
   Max,
@@ -84,7 +86,7 @@ export class CreatePresentationDto {
   @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
   @Type(() => Number)
-  price?: number;
+  price?: number | null;
 
   @IsOptional()
   @IsString()
@@ -110,7 +112,7 @@ export class UpdatePresentationDto {
   @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
   @Type(() => Number)
-  price?: number;
+  price?: number | null;
 
   @IsOptional()
   @IsString()
@@ -150,11 +152,13 @@ export class CreateProductDto {
   @IsEnum(UnitOfMeasure)
   baseUnit?: UnitOfMeasure;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   @Type(() => Number)
   costPrice!: number;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   @Type(() => Number)
   salePrice!: number;
 
@@ -171,7 +175,7 @@ export class CreateProductDto {
   minStock?: number;
 
   @IsOptional()
-  @IsString()
+  @IsDateString({ strict: true })
   expiryDate?: string | null;
 
   @IsOptional()
@@ -188,32 +192,34 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsString()
-  barcode?: string;
+  barcode?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   name?: string;
 
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(2_000_000)
-  imageUrl?: string;
+  imageUrl?: string | null;
 
   @IsOptional()
   @IsEnum(UnitOfMeasure)
   baseUnit?: UnitOfMeasure;
 
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   @Type(() => Number)
-  costPrice?: number;
+  costPrice?: number | null;
 
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   @Type(() => Number)
   salePrice?: number;
 
@@ -224,7 +230,7 @@ export class UpdateProductDto {
   minStock?: number;
 
   @IsOptional()
-  @IsString()
+  @IsDateString({ strict: true })
   expiryDate?: string | null;
 
   @IsOptional()

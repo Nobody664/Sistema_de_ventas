@@ -5,7 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -68,7 +68,8 @@ export class CreateCompanyDto {
 }
 
 export class CreateCompanyWithPlanDto extends CreateCompanyDto {
-  @IsUUID()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_-]{1,128}$/)
   planId!: string;
 }
 
@@ -81,25 +82,25 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   @MaxLength(200)
-  legalName?: string;
+  legalName?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(20)
-  taxId?: string;
+  taxId?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  address?: string;
+  address?: string | null;
 
   @IsOptional()
   @IsEmail()
-  email?: string;
+  email?: string | null;
 
   @IsOptional()
   @IsString()
-  phone?: string;
+  phone?: string | null;
 
   @IsOptional()
   @IsString()

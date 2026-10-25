@@ -3,6 +3,15 @@ import { describe, it } from "node:test";
 import assert from "node:assert";
 import { NotFoundException } from "@nestjs/common";
 import { PaymentSettingsService } from "./payment-settings.service";
+import { PrismaService } from "@/database/prisma/prisma.service";
+import { Prisma } from "@prisma/client";
+
+function service(prisma: object) {
+  Object.assign(prisma, {
+    $transaction: async <T>(work: (tx: object) => Promise<T>) => work(prisma),
+  });
+  return new PaymentSettingsService(prisma as PrismaService, {} as never);
+}
 
 const VALID_PNG =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=";
@@ -17,7 +26,7 @@ describe("PaymentSettingsService proof scoping", () => {
         }),
       },
     } as any;
-    const svc = new PaymentSettingsService(prisma);
+    const svc = service(prisma);
 
     await assert.rejects(
       () => svc.getProofById("proof-1", "com-a"),
@@ -35,7 +44,7 @@ describe("PaymentSettingsService proof scoping", () => {
         }),
       },
     } as any;
-    const svc = new PaymentSettingsService(prisma);
+    const svc = service(prisma);
 
     const proof = (await svc.getProofById("proof-1", "com-a")) as any;
     assert.equal(proof.id, "proof-1");
@@ -46,7 +55,7 @@ describe("PaymentSettingsService proof scoping", () => {
     const prisma = {
       subscription: { findFirst: async () => null },
     } as any;
-    const svc = new PaymentSettingsService(prisma);
+    const svc = service(prisma);
 
     await assert.rejects(
       () =>
@@ -68,7 +77,16 @@ describe("PaymentSettingsService proof scoping", () => {
       subscription: {
         findFirst: async (args: any) =>
           args.where.id === "sub-a" && args.where.companyId === "com-a"
-            ? { id: "sub-a" }
+            ? {
+                id: "sub-a",
+                planId: "pro",
+                billingCycle: "MONTHLY",
+                provider: "CASH",
+                plan: {
+                  priceMonthly: new Prisma.Decimal(100),
+                  priceYearly: new Prisma.Decimal(1000),
+                },
+              }
             : null,
       },
       paymentProof: {
@@ -79,7 +97,11 @@ describe("PaymentSettingsService proof scoping", () => {
         },
       },
     } as any;
-    const svc = new PaymentSettingsService(prisma);
+    prisma.payment = {
+      findFirst: async () => null,
+      create: async () => ({ id: "payment" }),
+    };
+    const svc = service(prisma);
 
     const proof = (await svc.uploadPaymentProof(
       "sub-a",

@@ -21,6 +21,7 @@ function makeSaleService(
     items: [],
   };
   const tx = {
+    outboxEvent: { upsert: async () => ({}) },
     sale: {
       create: async ({ data }: { data: { sellerId?: string | null } }) => {
         lookups.onCreate?.(data);

@@ -44,6 +44,7 @@ function fixture() {
   let authorizedReviewer = true;
   let txCount = 0;
   const tx = {
+    outboxEvent: { upsert: async () => ({}) },
     user: {
       findFirst: async () => (authorizedReviewer ? { id: "admin" } : null),
     },

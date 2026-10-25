@@ -109,12 +109,17 @@ export class PaymentsService {
     if (payment.status !== "PENDING") {
       throw new BadRequestException("Este pago ya fue procesado");
     }
+    if (payment.provider === "MERCADOPAGO" || payment.provider === "STRIPE")
+      throw new BadRequestException(
+        "Este pago debe ser confirmado por su proveedor",
+      );
 
     const proofImage = await parseImageDataUrl(imageBase64);
 
     return this.prisma.paymentProof.create({
       data: {
         subscriptionId: payment.subscriptionId,
+        paymentId: payment.id,
         imageBase64: proofImage.dataUrl,
         amount: payment.amount.toString(),
         paymentDate: paymentDate ?? new Date(),

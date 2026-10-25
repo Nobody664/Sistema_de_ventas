@@ -230,28 +230,28 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  memberships   Membership[]
-  employee      Employee?
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  refreshTokens RefreshToken[]
-  distributor   Distributor?
-  platformSettings   PlatformSetting[] @relation("PlatformSettingAuthor")
-  platformAuditLogs  PlatformAuditLog[] @relation("PlatformAuditActor")
+  memberships       Membership[]
+  employee          Employee?
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  refreshTokens     RefreshToken[]
+  distributor       Distributor?
+  platformSettings  PlatformSetting[]  @relation("PlatformSettingAuthor")
+  platformAuditLogs PlatformAuditLog[] @relation("PlatformAuditActor")
 
-  supportTicketsRequested   SupportTicket[] @relation("SupportTicketRequester")
-  supportTicketsAssigned    SupportTicket[] @relation("SupportTicketAssignee")
-  supportComments           SupportTicketComment[] @relation("SupportCommentAuthor")
-  supportStatusChanges      SupportTicketStatusHistory[] @relation("SupportStatusChanger")
-  supportConversationsCreated  SupportConversation[] @relation("SupportConversationCreator")
-  supportConversationsAssigned SupportConversation[] @relation("SupportConversationAssignee")
-  supportParticipations     SupportConversationParticipant[] @relation("SupportParticipantUser")
-  supportMessages           SupportMessage[] @relation("SupportMessageSender")
-  supportFaqsCreated        SupportFaq[] @relation("SupportFaqCreator")
-  supportFaqsUpdated        SupportFaq[] @relation("SupportFaqUpdater")
-  supplierOrdersCreated     SupplierOrder[] @relation("SupplierOrderCreator")
-  creditNotesCreated        CreditNote[] @relation("CreditNoteCreator")
-  salesSold                 Sale[] @relation("SaleSeller")
+  supportTicketsRequested      SupportTicket[]                  @relation("SupportTicketRequester")
+  supportTicketsAssigned       SupportTicket[]                  @relation("SupportTicketAssignee")
+  supportComments              SupportTicketComment[]           @relation("SupportCommentAuthor")
+  supportStatusChanges         SupportTicketStatusHistory[]     @relation("SupportStatusChanger")
+  supportConversationsCreated  SupportConversation[]            @relation("SupportConversationCreator")
+  supportConversationsAssigned SupportConversation[]            @relation("SupportConversationAssignee")
+  supportParticipations        SupportConversationParticipant[] @relation("SupportParticipantUser")
+  supportMessages              SupportMessage[]                 @relation("SupportMessageSender")
+  supportFaqsCreated           SupportFaq[]                     @relation("SupportFaqCreator")
+  supportFaqsUpdated           SupportFaq[]                     @relation("SupportFaqUpdater")
+  supplierOrdersCreated        SupplierOrder[]                  @relation("SupplierOrderCreator")
+  creditNotesCreated           CreditNote[]                     @relation("CreditNoteCreator")
+  salesSold                    Sale[]                           @relation("SaleSeller")
 }
 
 model Company {
@@ -273,63 +273,63 @@ model Company {
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
 
-  products      Product[]
-  categories    Category[]
-  memberships   Membership[]
-  customers     Customer[]
-  presentations ProductPresentation[]
-  stockEntries  StockEntry[]
-  subscriptions Subscription[]
-  sales         Sale[]
-  employees     Employee[]
-  invoices      InvoiceTemplate[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
+  products         Product[]
+  categories       Category[]
+  memberships      Membership[]
+  customers        Customer[]
+  presentations    ProductPresentation[]
+  stockEntries     StockEntry[]
+  subscriptions    Subscription[]
+  sales            Sale[]
+  employees        Employee[]
+  invoices         InvoiceTemplate[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
   purchaseReceipts PurchaseReceipt[]
 
-  inventoryMovements  InventoryMovement[]
-  planUpgradeRequests PlanUpgradeRequest[]
-  checkoutRequests    CheckoutRequest[]
-  branches            Branch[]
-  productBatches      ProductBatch[]
-  kardexEntries       InventoryKardex[]
-  refreshTokens       RefreshToken[]
-  distributors        Distributor[]
+  inventoryMovements    InventoryMovement[]
+  planUpgradeRequests   PlanUpgradeRequest[]
+  checkoutRequests      CheckoutRequest[]
+  branches              Branch[]
+  productBatches        ProductBatch[]
+  kardexEntries         InventoryKardex[]
+  refreshTokens         RefreshToken[]
+  distributors          Distributor[]
   distributorDeliveries DistributorDelivery[]
-  financeRecords      FinanceRecord[]
-  supportTickets      SupportTicket[]
-  supportConversations SupportConversation[]
-  supportCategories   SupportCategory[]
-  supportFaqs         SupportFaq[]
-  apiUsage            ApiUsage[]
-  discountCoupons     DiscountCoupon[]
-  suppliers           Supplier[]
-  supplierProducts    SupplierProduct[]
-  supplierOrders      SupplierOrder[]
-  creditNotes         CreditNote[]
+  financeRecords        FinanceRecord[]
+  supportTickets        SupportTicket[]
+  supportConversations  SupportConversation[]
+  supportCategories     SupportCategory[]
+  supportFaqs           SupportFaq[]
+  apiUsage              ApiUsage[]
+  discountCoupons       DiscountCoupon[]
+  suppliers             Supplier[]
+  supplierProducts      SupplierProduct[]
+  supplierOrders        SupplierOrder[]
+  creditNotes           CreditNote[]
 
   @@map("companies")
 }
 
 model Plan {
-  id                    String       @id @default(cuid())
-  code                  String       @unique
-  name                  String
-  description           String?
-  priceMonthly          Decimal      @map("price_monthly") @db.Decimal(10, 2)
-  priceYearly           Decimal      @map("price_yearly") @db.Decimal(10, 2)
-  billingCycle          BillingCycle @default(MONTHLY)
-  maxUsers              Int          @default(1)
-  maxProducts           Int          @default(100)
-  features              Json?
-  modules               Json?
-  permissions           Json?
-  apiEnabled            Boolean      @default(false) @map("api_enabled")
-  apiSearchDniEnabled   Boolean      @default(false) @map("api_search_dni_enabled")
-  apiQuota              Int          @default(0) @map("api_quota")
-  isActive              Boolean      @default(true) @map("is_active")
-  createdAt             DateTime     @default(now()) @map("created_at")
-  updatedAt             DateTime     @updatedAt @map("updated_at")
+  id                  String       @id @default(cuid())
+  code                String       @unique
+  name                String
+  description         String?
+  priceMonthly        Decimal      @map("price_monthly") @db.Decimal(10, 2)
+  priceYearly         Decimal      @map("price_yearly") @db.Decimal(10, 2)
+  billingCycle        BillingCycle @default(MONTHLY)
+  maxUsers            Int          @default(1)
+  maxProducts         Int          @default(100)
+  features            Json?
+  modules             Json?
+  permissions         Json?
+  apiEnabled          Boolean      @default(false) @map("api_enabled")
+  apiSearchDniEnabled Boolean      @default(false) @map("api_search_dni_enabled")
+  apiQuota            Int          @default(0) @map("api_quota")
+  isActive            Boolean      @default(true) @map("is_active")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
 
   subscriptions       Subscription[]
   planUpgradeRequests PlanUpgradeRequest[]
@@ -442,31 +442,31 @@ model Category {
 
 model Product {
   distributorStocks DistributorStock[]
-  id            String    @id @default(cuid())
-  companyId     String    @map("company_id")
-  categoryId    String?   @map("category_id")
-  name          String
-  sku           String?
-  description   String?
-  salePrice     Decimal        @map("sale_price") @db.Decimal(12, 4)
-  costPrice     Decimal?       @map("cost_price") @db.Decimal(12, 4)
-  baseUnit      UnitOfMeasure  @default(UNIT) @map("base_unit")
-  stockQuantity Decimal        @default(0) @map("stock_quantity") @db.Decimal(14, 3)
-  minStock      Decimal        @default(5) @map("min_stock") @db.Decimal(14, 3)
-  reorderPoint  Decimal?       @map("reorder_point") @db.Decimal(14, 3)
-  safetyStock   Decimal?       @map("safety_stock") @db.Decimal(14, 3)
-  leadTimeDays  Int?           @map("lead_time_days")
-  lastSoldAt    DateTime?      @map("last_sold_at")
-  isActive      Boolean        @default(true) @map("is_active")
-  imageUrl      String?        @map("image_url")
-  barcode       String?
-  expiryDate    DateTime?      @map("expiry_date")
-  deletedAt     DateTime?      @map("deleted_at")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
+  id                String             @id @default(cuid())
+  companyId         String             @map("company_id")
+  categoryId        String?            @map("category_id")
+  name              String
+  sku               String?
+  description       String?
+  salePrice         Decimal            @map("sale_price") @db.Decimal(12, 4)
+  costPrice         Decimal?           @map("cost_price") @db.Decimal(12, 4)
+  baseUnit          UnitOfMeasure      @default(UNIT) @map("base_unit")
+  stockQuantity     Decimal            @default(0) @map("stock_quantity") @db.Decimal(14, 3)
+  minStock          Decimal            @default(5) @map("min_stock") @db.Decimal(14, 3)
+  reorderPoint      Decimal?           @map("reorder_point") @db.Decimal(14, 3)
+  safetyStock       Decimal?           @map("safety_stock") @db.Decimal(14, 3)
+  leadTimeDays      Int?               @map("lead_time_days")
+  lastSoldAt        DateTime?          @map("last_sold_at")
+  isActive          Boolean            @default(true) @map("is_active")
+  imageUrl          String?            @map("image_url")
+  barcode           String?
+  expiryDate        DateTime?          @map("expiry_date")
+  deletedAt         DateTime?          @map("deleted_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
 
-  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  category           Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  company            Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category           Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   saleItems          SaleItem[]
   inventoryMovements InventoryMovement[]
   batches            ProductBatch[]
@@ -507,11 +507,11 @@ model Sale {
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
-  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  employee    Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  seller      User?        @relation("SaleSeller", fields: [sellerId], references: [id], onDelete: SetNull)
-  distributor Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer    Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  employee    Employee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  seller      User?           @relation("SaleSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  distributor Distributor?    @relation(fields: [distributorId], references: [id], onDelete: SetNull)
   coupon      DiscountCoupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items       SaleItem[]
   creditNotes CreditNote[]
@@ -529,16 +529,16 @@ model Sale {
 
 model SaleItem {
   unitCostSnapshot Decimal? @map("unit_cost_snapshot") @db.Decimal(14, 4)
-  baseQuantity   Decimal? @map("base_quantity") @db.Decimal(14, 3)
-  unitFactor     Decimal? @map("unit_factor") @db.Decimal(14, 3)
-  id             String   @id @default(cuid())
-  saleId         String   @map("sale_id")
-  productId      String   @map("product_id")
-  presentationId String?  @map("presentation_id")
-  quantity       Decimal  @db.Decimal(14, 3)
-  unitPrice      Decimal  @db.Decimal(12, 4)
-  totalPrice     Decimal  @db.Decimal(12, 2)
-  createdAt      DateTime @default(now()) @map("created_at")
+  baseQuantity     Decimal? @map("base_quantity") @db.Decimal(14, 3)
+  unitFactor       Decimal? @map("unit_factor") @db.Decimal(14, 3)
+  id               String   @id @default(cuid())
+  saleId           String   @map("sale_id")
+  productId        String   @map("product_id")
+  presentationId   String?  @map("presentation_id")
+  quantity         Decimal  @db.Decimal(14, 3)
+  unitPrice        Decimal  @db.Decimal(12, 4)
+  totalPrice       Decimal  @db.Decimal(12, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
 
   sale         Sale                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
   product      Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -582,25 +582,25 @@ model DiscountCoupon {
 }
 
 model Employee {
-  id        String         @id @default(cuid())
-  companyId String         @map("company_id")
-  userId    String?        @unique @map("user_id")
-  firstName String         @map("first_name")
-  lastName  String?        @map("last_name")
-  email     String?
-  phone     String?
-  dni       String?
-  role      MembershipRole @default(CASHIER)
-  salary    Decimal?       @db.Decimal(12, 2)
-  paymentDay Int?          @map("payment_day")
-  isActive  Boolean        @default(true) @map("is_active")
-  deletedAt DateTime?      @map("deleted_at")
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime       @updatedAt @map("updated_at")
+  id         String         @id @default(cuid())
+  companyId  String         @map("company_id")
+  userId     String?        @unique @map("user_id")
+  firstName  String         @map("first_name")
+  lastName   String?        @map("last_name")
+  email      String?
+  phone      String?
+  dni        String?
+  role       MembershipRole @default(CASHIER)
+  salary     Decimal?       @db.Decimal(12, 2)
+  paymentDay Int?           @map("payment_day")
+  isActive   Boolean        @default(true) @map("is_active")
+  deletedAt  DateTime?      @map("deleted_at")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  sales   Sale[]
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sales          Sale[]
   financeRecords FinanceRecord[]
 
   @@unique([companyId, dni])
@@ -653,24 +653,24 @@ model ProductPresentation {
 
 model StockEntry {
   supplierOrder SupplierOrder?
-  id        String   @id @default(cuid())
-  companyId String   @map("company_id")
-  branchId  String?  @map("branch_id")
-  distributorId String? @map("distributor_id")
-  supplierId String? @map("supplier_id")
-  receiptId String?  @map("receipt_id")
-  reference String?
-  notes     String?
-  entryDate DateTime @default(now()) @map("entry_date")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String         @id @default(cuid())
+  companyId     String         @map("company_id")
+  branchId      String?        @map("branch_id")
+  distributorId String?        @map("distributor_id")
+  supplierId    String?        @map("supplier_id")
+  receiptId     String?        @map("receipt_id")
+  reference     String?
+  notes         String?
+  entryDate     DateTime       @default(now()) @map("entry_date")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
 
-  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  branch  Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  distributor Distributor? @relation(fields: [distributorId], references: [id], onDelete: SetNull)
-  supplier Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  receipt PurchaseReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
-  items   StockEntryItem[]
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch      Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  distributor Distributor?     @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  supplier    Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  receipt     PurchaseReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  items       StockEntryItem[]
 
   @@index([companyId, createdAt])
   @@index([branchId])
@@ -691,8 +691,8 @@ model StockEntryItem {
   expiryDate     DateTime? @map("expiry_date")
   createdAt      DateTime  @default(now()) @map("created_at")
 
-  stockEntry   StockEntry          @relation(fields: [stockEntryId], references: [id], onDelete: Cascade)
-  product      Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stockEntry   StockEntry           @relation(fields: [stockEntryId], references: [id], onDelete: Cascade)
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
   presentation ProductPresentation? @relation(fields: [presentationId], references: [id], onDelete: SetNull)
 
   @@index([stockEntryId])
@@ -815,6 +815,7 @@ model InventoryMovement {
 }
 
 model Payment {
+  proofs            PaymentProof[]
   id                String          @id @default(cuid())
   subscriptionId    String          @map("subscription_id")
   amount            Decimal         @db.Decimal(10, 2)
@@ -835,7 +836,7 @@ model Payment {
 }
 
 model PlanUpgradeRequest {
-  billingCycle BillingCycle? @map("billing_cycle")
+  billingCycle     BillingCycle?     @map("billing_cycle")
   id               String            @id @default(cuid())
   companyId        String            @map("company_id")
   idempotencyKey   String?           @unique @map("idempotency_key")
@@ -907,7 +908,25 @@ model InvoiceTemplate {
   @@map("invoice_templates")
 }
 
+model OutboxEvent {
+  id          String    @id @default(cuid())
+  dedupeKey   String    @unique @map("dedupe_key")
+  kind        String
+  aggregateId String    @map("aggregate_id")
+  attempts    Int       @default(0)
+  availableAt DateTime  @default(now()) @map("available_at")
+  lockedAt    DateTime? @map("locked_at")
+  leaseToken  String?   @map("lease_token")
+  processedAt DateTime? @map("processed_at")
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([processedAt, availableAt])
+  @@map("outbox_events")
+}
+
 model Notification {
+  dedupeKey    String?             @unique @map("dedupe_key")
   id           String              @id @default(cuid())
   userId       String?             @map("user_id")
   companyId    String?             @map("company_id")
@@ -953,36 +972,36 @@ model AuditLog {
 }
 
 model Distributor {
-  stockReconciled Boolean @default(true) @map("stock_reconciled")
-  productStocks DistributorStock[]
-  id            String           @id @default(cuid())
-  companyId     String           @map("company_id")
-  userId        String?          @unique @map("user_id")
-  code          String
-  name          String
-  documentType  String?          @map("document_type")
-  documentValue String?          @map("document_value")
-  email         String?
-  phone         String?
-  address       String?
-  type          DistributorType  @default(INDIVIDUAL)
-  status        DistributorStatus @default(ACTIVE)
-  commissionRate Decimal?        @map("commission_rate") @db.Decimal(5, 2)
-  priceListId   String?          @map("price_list_id")
-  notes         String?
-  deletedAt     DateTime?        @map("deleted_at")
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
+  stockReconciled Boolean            @default(true) @map("stock_reconciled")
+  productStocks   DistributorStock[]
+  id              String             @id @default(cuid())
+  companyId       String             @map("company_id")
+  userId          String?            @unique @map("user_id")
+  code            String
+  name            String
+  documentType    String?            @map("document_type")
+  documentValue   String?            @map("document_value")
+  email           String?
+  phone           String?
+  address         String?
+  type            DistributorType    @default(INDIVIDUAL)
+  status          DistributorStatus  @default(ACTIVE)
+  commissionRate  Decimal?           @map("commission_rate") @db.Decimal(5, 2)
+  priceListId     String?            @map("price_list_id")
+  notes           String?
+  deletedAt       DateTime?          @map("deleted_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
 
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   stockEntries StockEntry[]
 
-  movements InventoryMovement[]
-  sales     Sale[]
-  balances  DistributorBalance[]
-  deliveries DistributorDelivery[]
+  movements        InventoryMovement[]
+  sales            Sale[]
+  balances         DistributorBalance[]
+  deliveries       DistributorDelivery[]
   purchaseReceipts PurchaseReceipt[]
 
   @@unique([companyId, code])
@@ -991,11 +1010,11 @@ model Distributor {
 }
 
 model DistributorStock {
-  distributorId String @map("distributor_id")
-  productId String @map("product_id")
-  quantity Decimal @default(0) @db.Decimal(14, 3)
-  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  distributorId String      @map("distributor_id")
+  productId     String      @map("product_id")
+  quantity      Decimal     @default(0) @db.Decimal(14, 3)
+  distributor   Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@id([distributorId, productId])
   @@index([productId])
@@ -1003,15 +1022,15 @@ model DistributorStock {
 }
 
 model DistributorBalance {
-  id             String   @id @default(cuid())
-  distributorId  String   @unique @map("distributor_id")
+  id               String   @id @default(cuid())
+  distributorId    String   @unique @map("distributor_id")
   startingQuantity Decimal  @default(0) @map("starting_quantity") @db.Decimal(14, 3)
   returnedQuantity Decimal  @default(0) @map("returned_quantity") @db.Decimal(14, 3)
   soldQuantity     Decimal  @default(0) @map("sold_quantity") @db.Decimal(14, 3)
   balanceQuantity  Decimal  @default(0) @map("balance_quantity") @db.Decimal(14, 3)
-  debtAmount      Decimal? @map("debt_amount") @db.Decimal(12, 2)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  debtAmount       Decimal? @map("debt_amount") @db.Decimal(12, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
 
@@ -1040,15 +1059,15 @@ model DistributorDelivery {
 }
 
 model PlatformSetting {
-  id           String   @id @default(cuid())
-  key          String   @unique
-  value        Json
-  description  String?
-  updatedById  String?  @map("updated_by")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedById String?  @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  updatedBy    User?    @relation("PlatformSettingAuthor", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("PlatformSettingAuthor", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("platform_settings")
 }
@@ -1091,6 +1110,7 @@ model PaymentSetting {
 }
 
 model CheckoutRequest {
+  billingCycle     BillingCycle?         @map("billing_cycle")
   id               String                @id @default(cuid())
   companyId        String?               @map("company_id")
   idempotencyKey   String?               @unique @map("idempotency_key")
@@ -1128,6 +1148,8 @@ model CheckoutRequest {
 }
 
 model PaymentProof {
+  paymentId      String?     @map("payment_id")
+  payment        Payment?    @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   id             String      @id @default(cuid())
   subscriptionId String      @map("subscription_id")
   imageBase64    String      @map("image_base64")
@@ -1148,18 +1170,18 @@ model PaymentProof {
 
 model RefreshToken {
   authVersion Int              @default(0) @map("auth_version")
-  id         String            @id @default(cuid())
-  userId     String            @map("user_id")
-  companyId  String?           @map("company_id")
-  tokenHash  String            @unique @map("token_hash")
-  familyId   String            @map("family_id")
-  type       RefreshTokenType  @default(SESSION)
-  ipAddress  String?           @map("ip_address")
-  userAgent  String?           @map("user_agent")
-  expiresAt  DateTime          @map("expires_at")
-  revokedAt  DateTime?         @map("revoked_at")
-  replacedBy String?           @map("replaced_by")
-  createdAt  DateTime          @default(now()) @map("created_at")
+  id          String           @id @default(cuid())
+  userId      String           @map("user_id")
+  companyId   String?          @map("company_id")
+  tokenHash   String           @unique @map("token_hash")
+  familyId    String           @map("family_id")
+  type        RefreshTokenType @default(SESSION)
+  ipAddress   String?          @map("ip_address")
+  userAgent   String?          @map("user_agent")
+  expiresAt   DateTime         @map("expires_at")
+  revokedAt   DateTime?        @map("revoked_at")
+  replacedBy  String?          @map("replaced_by")
+  createdAt   DateTime         @default(now()) @map("created_at")
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1172,22 +1194,22 @@ model RefreshToken {
 }
 
 model FinanceRecord {
-  id          String          @id @default(cuid())
-  companyId   String          @map("company_id")
+  id          String           @id @default(cuid())
+  companyId   String           @map("company_id")
   direction   FinanceDirection
-  category    FinanceCategory @default(OTHER)
+  category    FinanceCategory  @default(OTHER)
   description String
-  amount      Decimal         @db.Decimal(12, 2)
-  currency    String          @default("PEN")
-  recordDate  DateTime        @map("record_date")
-  dueDate     DateTime?       @map("due_date")
+  amount      Decimal          @db.Decimal(12, 2)
+  currency    String           @default("PEN")
+  recordDate  DateTime         @map("record_date")
+  dueDate     DateTime?        @map("due_date")
   reference   String?
   supplier    String?
-  employeeId  String?         @map("employee_id")
+  employeeId  String?          @map("employee_id")
   notes       String?
-  createdById String?         @map("created_by_id")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  createdById String?          @map("created_by_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
 
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
@@ -1232,22 +1254,22 @@ model PlatformAccount {
 }
 
 model PlatformTransaction {
-  id             String                 @id @default(cuid())
-  accountId      String                 @map("account_id")
+  id             String                  @id @default(cuid())
+  accountId      String                  @map("account_id")
   type           PlatformTransactionType
-  category       String                 @default("GENERAL")
+  category       String                  @default("GENERAL")
   description    String
-  amount         Decimal                @db.Decimal(12, 2)
-  currency       String                 @default("PEN")
-  occurredAt     DateTime               @default(now()) @map("occurred_at")
-  companyId      String?                @map("company_id")
-  subscriptionId String?                @map("subscription_id")
-  paymentId      String?                @map("payment_id")
-  createdById    String?                @map("created_by_id")
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @updatedAt @map("updated_at")
+  amount         Decimal                 @db.Decimal(12, 2)
+  currency       String                  @default("PEN")
+  occurredAt     DateTime                @default(now()) @map("occurred_at")
+  companyId      String?                 @map("company_id")
+  subscriptionId String?                 @map("subscription_id")
+  paymentId      String?                 @map("payment_id")
+  createdById    String?                 @map("created_by_id")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
 
-  account PlatformAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account         PlatformAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   apiUsageRecords ApiUsageRecord[]
 
   @@index([accountId, occurredAt])
@@ -1277,19 +1299,19 @@ model ApiProvider {
 }
 
 model ApiUsageRecord {
-  id         String   @id @default(cuid())
-  companyId  String   @map("company_id")
-  providerId String?  @map("provider_id")
-  tokens     Int      @default(0)
-  cost       Decimal  @default(0) @db.Decimal(12, 4)
-  currency   String   @default("USD")
-  billed     Boolean  @default(false)
-  transactionId String? @map("transaction_id")
-  reference  String?
-  occurredAt DateTime @default(now()) @map("occurred_at")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id            String   @id @default(cuid())
+  companyId     String   @map("company_id")
+  providerId    String?  @map("provider_id")
+  tokens        Int      @default(0)
+  cost          Decimal  @default(0) @db.Decimal(12, 4)
+  currency      String   @default("USD")
+  billed        Boolean  @default(false)
+  transactionId String?  @map("transaction_id")
+  reference     String?
+  occurredAt    DateTime @default(now()) @map("occurred_at")
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  provider ApiProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  provider    ApiProvider?         @relation(fields: [providerId], references: [id], onDelete: SetNull)
   transaction PlatformTransaction? @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   @@index([companyId, occurredAt])
@@ -1348,28 +1370,28 @@ enum SupportScope {
 }
 
 model SupportTicket {
-  id              String                 @id @default(cuid())
-  companyId       String                 @map("company_id")
-  requesterId     String                 @map("requester_id")
-  assignedToId    String?                @map("assigned_to_id")
-  conversationId  String?                @unique @map("conversation_id")
+  id              String                @id @default(cuid())
+  companyId       String                @map("company_id")
+  requesterId     String                @map("requester_id")
+  assignedToId    String?               @map("assigned_to_id")
+  conversationId  String?               @unique @map("conversation_id")
   title           String
   description     String
-  status          SupportTicketStatus     @default(OPEN)
-  priority        SupportTicketPriority   @default(MEDIUM)
-  source          SupportTicketSource     @default(FORM)
-  slaDueAt        DateTime?              @map("sla_due_at")
-  firstResponseAt DateTime?              @map("first_response_at")
-  assignedAt      DateTime?              @map("assigned_at")
-  resolvedAt      DateTime?              @map("resolved_at")
-  closedAt        DateTime?              @map("closed_at")
-  createdAt       DateTime               @default(now()) @map("created_at")
-  updatedAt       DateTime               @updatedAt @map("updated_at")
+  status          SupportTicketStatus   @default(OPEN)
+  priority        SupportTicketPriority @default(MEDIUM)
+  source          SupportTicketSource   @default(FORM)
+  slaDueAt        DateTime?             @map("sla_due_at")
+  firstResponseAt DateTime?             @map("first_response_at")
+  assignedAt      DateTime?             @map("assigned_at")
+  resolvedAt      DateTime?             @map("resolved_at")
+  closedAt        DateTime?             @map("closed_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
 
-  company      Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  requester    User                    @relation("SupportTicketRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  assignedTo   User?                   @relation("SupportTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  conversation SupportConversation?    @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  company      Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requester    User                         @relation("SupportTicketRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  assignedTo   User?                        @relation("SupportTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  conversation SupportConversation?         @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   comments     SupportTicketComment[]
   history      SupportTicketStatusHistory[]
 
@@ -1379,12 +1401,12 @@ model SupportTicket {
 }
 
 model SupportTicketComment {
-  id        String   @id @default(cuid())
-  ticketId  String   @map("ticket_id")
-  authorId  String?  @map("author_id")
-  isInternal Boolean @default(false) @map("is_internal")
-  content   String
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String   @id @default(cuid())
+  ticketId   String   @map("ticket_id")
+  authorId   String?  @map("author_id")
+  isInternal Boolean  @default(false) @map("is_internal")
+  content    String
+  createdAt  DateTime @default(now()) @map("created_at")
 
   ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   author User?         @relation("SupportCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
@@ -1394,13 +1416,13 @@ model SupportTicketComment {
 }
 
 model SupportTicketStatusHistory {
-  id          String                @id @default(cuid())
-  ticketId    String                @map("ticket_id")
-  fromStatus  SupportTicketStatus?  @map("from_status")
-  toStatus    SupportTicketStatus   @map("to_status")
-  changedById String?               @map("changed_by_id")
+  id          String               @id @default(cuid())
+  ticketId    String               @map("ticket_id")
+  fromStatus  SupportTicketStatus? @map("from_status")
+  toStatus    SupportTicketStatus  @map("to_status")
+  changedById String?              @map("changed_by_id")
   reason      String?
-  createdAt   DateTime              @default(now()) @map("created_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
 
   ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   changedBy User?         @relation("SupportStatusChanger", fields: [changedById], references: [id], onDelete: SetNull)
@@ -1410,21 +1432,21 @@ model SupportTicketStatusHistory {
 }
 
 model SupportConversation {
-  id            String                    @id @default(cuid())
-  companyId     String?                   @map("company_id")
-  status        SupportConversationStatus @default(OPEN)
-  createdById   String                    @map("created_by_id")
-  assignedToId  String?                   @map("assigned_to_id")
-  assignedAt    DateTime?                  @map("assigned_at")
-  firstResponseAt DateTime?                @map("first_response_at")
-  subject       String?
-  lastMessageAt DateTime                  @default(now()) @map("last_message_at")
-  createdAt     DateTime                  @default(now()) @map("created_at")
-  updatedAt     DateTime                  @updatedAt @map("updated_at")
+  id              String                    @id @default(cuid())
+  companyId       String?                   @map("company_id")
+  status          SupportConversationStatus @default(OPEN)
+  createdById     String                    @map("created_by_id")
+  assignedToId    String?                   @map("assigned_to_id")
+  assignedAt      DateTime?                 @map("assigned_at")
+  firstResponseAt DateTime?                 @map("first_response_at")
+  subject         String?
+  lastMessageAt   DateTime                  @default(now()) @map("last_message_at")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
 
-  company      Company?                          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy    User                              @relation("SupportConversationCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  assignedTo   User?                             @relation("SupportConversationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  company      Company?                         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy    User                             @relation("SupportConversationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedTo   User?                            @relation("SupportConversationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   participants SupportConversationParticipant[]
   messages     SupportMessage[]
   ticket       SupportTicket?
@@ -1434,12 +1456,12 @@ model SupportConversation {
 }
 
 model SupportConversationParticipant {
-  id                 String                 @id @default(cuid())
-  conversationId     String                 @map("conversation_id")
-  userId             String                 @map("user_id")
-  role               SupportParticipantRole @default(REQUESTER)
-  lastReadAt         DateTime?              @map("last_read_at")
-  createdAt          DateTime               @default(now()) @map("created_at")
+  id             String                 @id @default(cuid())
+  conversationId String                 @map("conversation_id")
+  userId         String                 @map("user_id")
+  role           SupportParticipantRole @default(REQUESTER)
+  lastReadAt     DateTime?              @map("last_read_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
 
   conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User                @relation("SupportParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -1466,14 +1488,14 @@ model SupportMessage {
 }
 
 model SupportCategory {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   scope       SupportScope @default(GLOBAL)
-  companyId   String?     @map("company_id")
+  companyId   String?      @map("company_id")
   name        String
   slug        String
   description String?
-  isActive    Boolean     @default(true) @map("is_active")
-  createdAt   DateTime    @default(now()) @map("created_at")
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
 
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -1483,22 +1505,22 @@ model SupportCategory {
 }
 
 model SupportFaq {
-  id            String       @id @default(cuid())
-  scope         SupportScope @default(GLOBAL)
-  companyId     String?      @map("company_id")
-  category      String?
-  question      String
-  answer        String
-  keywords      String[]     @default([])
-  isPublished   Boolean      @default(true) @map("is_published")
-  viewCount     Int          @default(0) @map("view_count")
-  helpfulCount  Int          @default(0) @map("helpful_count")
-  notHelpfulCount Int        @default(0) @map("not_helpful_count")
-  sortOrder     Int          @default(0) @map("sort_order")
-  createdById   String?      @map("created_by_id")
-  updatedById   String?      @map("updated_by_id")
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @updatedAt @map("updated_at")
+  id              String       @id @default(cuid())
+  scope           SupportScope @default(GLOBAL)
+  companyId       String?      @map("company_id")
+  category        String?
+  question        String
+  answer          String
+  keywords        String[]     @default([])
+  isPublished     Boolean      @default(true) @map("is_published")
+  viewCount       Int          @default(0) @map("view_count")
+  helpfulCount    Int          @default(0) @map("helpful_count")
+  notHelpfulCount Int          @default(0) @map("not_helpful_count")
+  sortOrder       Int          @default(0) @map("sort_order")
+  createdById     String?      @map("created_by_id")
+  updatedById     String?      @map("updated_by_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy User?    @relation("SupportFaqCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1516,29 +1538,29 @@ enum SupplierOrderStatus {
 }
 
 model Supplier {
-  id              String   @id @default(cuid())
-  companyId       String   @map("company_id")
-  name            String
-  code            String?
-  contactName     String?  @map("contact_name")
-  email           String?
-  phone           String?
-  address         String?
-  documentType    String?  @map("document_type")
-  documentValue   String?  @map("document_value")
-  brands          String[] @default([])
-  leadTimeDays    Int?     @map("lead_time_days")
-  paymentTerms    String?  @map("payment_terms")
-  notes           String?
-  isActive        Boolean  @default(true) @map("is_active")
-  deletedAt       DateTime? @map("deleted_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id            String    @id @default(cuid())
+  companyId     String    @map("company_id")
+  name          String
+  code          String?
+  contactName   String?   @map("contact_name")
+  email         String?
+  phone         String?
+  address       String?
+  documentType  String?   @map("document_type")
+  documentValue String?   @map("document_value")
+  brands        String[]  @default([])
+  leadTimeDays  Int?      @map("lead_time_days")
+  paymentTerms  String?   @map("payment_terms")
+  notes         String?
+  isActive      Boolean   @default(true) @map("is_active")
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  products SupplierProduct[]
-  orders   SupplierOrder[]
-  stockEntries StockEntry[]
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products         SupplierProduct[]
+  orders           SupplierOrder[]
+  stockEntries     StockEntry[]
   purchaseReceipts PurchaseReceipt[]
 
   @@unique([companyId, name])
@@ -1570,28 +1592,28 @@ model SupplierProduct {
 }
 
 model SupplierOrder {
-  stockEntryId String? @unique @map("stock_entry_id")
-  receiptFingerprint String? @map("receipt_fingerprint")
-  stockEntry StockEntry? @relation(fields: [stockEntryId], references: [id], onDelete: Restrict)
-  id            String              @id @default(cuid())
-  companyId     String              @map("company_id")
-  supplierId    String              @map("supplier_id")
-  status        SupplierOrderStatus @default(DRAFT)
-  reference     String?
-  isAutoGenerated Boolean           @default(false) @map("is_auto_generated")
-  notes         String?
-  totalEstimated Decimal?           @map("total_estimated") @db.Decimal(14, 4)
-  sentAt        DateTime?           @map("sent_at")
-  confirmedAt   DateTime?           @map("confirmed_at")
-  cancelledAt   DateTime?           @map("cancelled_at")
-  receivedAt    DateTime?           @map("received_at")
-  createdById   String?             @map("created_by_id")
-  createdAt     DateTime            @default(now()) @map("created_at")
-  updatedAt     DateTime            @updatedAt @map("updated_at")
+  stockEntryId       String?             @unique @map("stock_entry_id")
+  receiptFingerprint String?             @map("receipt_fingerprint")
+  stockEntry         StockEntry?         @relation(fields: [stockEntryId], references: [id], onDelete: Restrict)
+  id                 String              @id @default(cuid())
+  companyId          String              @map("company_id")
+  supplierId         String              @map("supplier_id")
+  status             SupplierOrderStatus @default(DRAFT)
+  reference          String?
+  isAutoGenerated    Boolean             @default(false) @map("is_auto_generated")
+  notes              String?
+  totalEstimated     Decimal?            @map("total_estimated") @db.Decimal(14, 4)
+  sentAt             DateTime?           @map("sent_at")
+  confirmedAt        DateTime?           @map("confirmed_at")
+  cancelledAt        DateTime?           @map("cancelled_at")
+  receivedAt         DateTime?           @map("received_at")
+  createdById        String?             @map("created_by_id")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
 
-  company   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  supplier  Supplier           @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  createdBy User?              @relation("SupplierOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  company   Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier  Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy User?               @relation("SupplierOrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
   items     SupplierOrderItem[]
 
   @@index([companyId, status])
@@ -1600,7 +1622,7 @@ model SupplierOrder {
 }
 
 model SupplierOrderItem {
-  receivedQuantity Decimal @default(0) @map("received_quantity") @db.Decimal(14, 3)
+  receivedQuantity  Decimal  @default(0) @map("received_quantity") @db.Decimal(14, 3)
   id                String   @id @default(cuid())
   orderId           String   @map("order_id")
   productId         String   @map("product_id")
@@ -1619,26 +1641,26 @@ model SupplierOrderItem {
 }
 
 model CreditNote {
-  operationKey String? @unique @map("operation_key")
-  id            String             @id @default(cuid())
-  companyId     String             @map("company_id")
-  saleId        String             @map("sale_id")
-  noteNumber    String             @map("note_number")
-  type          CreditNoteType     @default(CREDIT)
-  reason        CreditNoteReason   @default(RETURN)
-  status        CreditNoteStatus   @default(ISSUED)
-  subtotal      Decimal            @db.Decimal(12, 2)
-  taxAmount     Decimal            @map("tax_amount") @default(0) @db.Decimal(12, 2)
-  totalAmount   Decimal            @map("total_amount") @db.Decimal(12, 2)
-  description   String?
-  issuedAt      DateTime           @default(now()) @map("issued_at")
-  createdById   String?            @map("created_by_id")
-  createdAt     DateTime           @default(now()) @map("created_at")
-  updatedAt     DateTime           @updatedAt @map("updated_at")
+  operationKey String?          @unique @map("operation_key")
+  id           String           @id @default(cuid())
+  companyId    String           @map("company_id")
+  saleId       String           @map("sale_id")
+  noteNumber   String           @map("note_number")
+  type         CreditNoteType   @default(CREDIT)
+  reason       CreditNoteReason @default(RETURN)
+  status       CreditNoteStatus @default(ISSUED)
+  subtotal     Decimal          @db.Decimal(12, 2)
+  taxAmount    Decimal          @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount  Decimal          @map("total_amount") @db.Decimal(12, 2)
+  description  String?
+  issuedAt     DateTime         @default(now()) @map("issued_at")
+  createdById  String?          @map("created_by_id")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
 
-  company   Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  sale      Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  createdBy User?           @relation("CreditNoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sale      Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  createdBy User?            @relation("CreditNoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
   items     CreditNoteItem[]
 
   @@unique([companyId, noteNumber])
