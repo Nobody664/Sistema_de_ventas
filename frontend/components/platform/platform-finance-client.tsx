@@ -11,6 +11,11 @@ import {
   Wallet,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import {
+  businessDateInputValue,
+  businessDateToInstant,
+  formatBusinessDate,
+} from "@/lib/business-date";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -114,7 +119,7 @@ export function PlatformFinanceClient() {
         body: {
           ...values,
           amount: Number(values.amount),
-          occurredAt: new Date(String(values.occurredAt)).toISOString(),
+          occurredAt: businessDateToInstant(String(values.occurredAt)),
         },
       });
     }
@@ -142,7 +147,8 @@ export function PlatformFinanceClient() {
           </h1>
           <p className="mt-3 max-w-xl text-sm text-foreground/60">
             Ingresos de suscripciones y tesorería de la plataforma. Resumen del
-            mes actual.
+            mes actual (período UTC). Las fechas de movimientos se muestran en
+            Lima (UTC−05:00).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -348,7 +354,7 @@ export function PlatformFinanceClient() {
                     </p>
                     <p className="text-xs text-foreground/50">
                       {entry.account.name} · {entry.category} ·{" "}
-                      {new Date(entry.occurredAt).toLocaleDateString("es-PE")}
+                      {formatBusinessDate(entry.occurredAt)}
                     </p>
                   </div>
                   <p className="font-medium tabular-nums">
@@ -572,14 +578,14 @@ export function PlatformFinanceClient() {
                       className={fieldClass}
                     />
                   </Field>
-                  <Field label="Fecha">
+                  <Field label="Fecha contable · Lima (UTC−05:00)">
                     <input
                       name="occurredAt"
                       type="date"
                       required
-                      defaultValue={(
-                        transaction?.occurredAt ?? new Date().toISOString()
-                      ).slice(0, 10)}
+                      defaultValue={businessDateInputValue(
+                        transaction?.occurredAt,
+                      )}
                       className={fieldClass}
                     />
                   </Field>

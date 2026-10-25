@@ -4,6 +4,11 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Cpu, Pencil, Plus, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import {
+  businessDateInputValue,
+  businessDateToInstant,
+  formatBusinessDate,
+} from "@/lib/business-date";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -122,7 +127,7 @@ export function PlatformApiUsageClient({ canManage }: { canManage: boolean }) {
         body: {
           ...values,
           tokens: Number(values.tokens),
-          occurredAt: new Date(String(values.occurredAt)).toISOString(),
+          occurredAt: businessDateToInstant(String(values.occurredAt)),
         },
       });
   }
@@ -178,7 +183,7 @@ export function PlatformApiUsageClient({ canManage }: { canManage: boolean }) {
                   )?.companyName ?? entry.companyId}
                 </p>
                 <p className="mt-1 text-xs text-foreground/50">
-                  {new Date(entry.occurredAt).toLocaleDateString("es-PE")} ·{" "}
+                  {formatBusinessDate(entry.occurredAt)} ·{" "}
                   {entry.tokens.toLocaleString("es-PE")} tokens ·{" "}
                   {money(entry.cost, entry.currency)}
                 </p>
@@ -549,12 +554,12 @@ export function PlatformApiUsageClient({ canManage }: { canManage: boolean }) {
                     className={fieldClass}
                   />
                 </Field>
-                <Field label="Fecha UTC">
+                <Field label="Fecha contable · Lima (UTC−05:00)">
                   <input
                     name="occurredAt"
                     type="date"
                     required
-                    defaultValue={new Date().toISOString().slice(0, 10)}
+                    defaultValue={businessDateInputValue()}
                     className={fieldClass}
                   />
                 </Field>

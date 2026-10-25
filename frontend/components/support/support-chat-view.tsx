@@ -17,6 +17,7 @@ export function SupportChatView({
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const followLatest = useRef(true);
 
   const {
     data: messages = [],
@@ -35,12 +36,14 @@ export function SupportChatView({
   });
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (followLatest.current)
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
+    const submittedText = text;
     setSending(true);
     try {
       await apiFetch(
@@ -48,10 +51,10 @@ export function SupportChatView({
         {
           method: "POST",
           token: getAccessToken(),
-          body: JSON.stringify({ content: text.trim() }),
+          body: JSON.stringify({ content: submittedText.trim() }),
         },
       );
-      setText("");
+      setText((current) => (current === submittedText ? "" : current));
       await loadMessages();
     } catch (err) {
       addToast(err instanceof Error ? err.message : "Error", "error");
@@ -95,7 +98,18 @@ export function SupportChatView({
         </Button>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <p role="status" aria-live="polite" className="sr-only">
+        {messages.length} mensajes cargados
+      </p>
+      <div
+        className="flex-1 space-y-3 overflow-y-auto p-4"
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          followLatest.current =
+            element.scrollHeight - element.scrollTop - element.clientHeight <
+            80;
+        }}
+      >
         {error && (
           <div
             role="alert"
@@ -150,10 +164,12 @@ export function SupportChatView({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Escribe un mensaje..."
+          aria-label="Mensaje de soporte"
           className="h-11 flex-1 rounded-xl border border-input bg-background px-4 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
         />
         <Button
           type="submit"
+          aria-label="Enviar mensaje"
           disabled={sending || !text.trim()}
           className="h-11 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 px-5 font-semibold text-white"
         >

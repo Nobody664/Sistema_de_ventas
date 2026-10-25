@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth.store";
+import { safeRedirect } from "@/lib/safe-redirect";
 
 const signInSchema = z.object({
   email: z.string().email("Correo electrónico inválido"),
@@ -16,14 +17,6 @@ const signInSchema = z.object({
 });
 
 type SignInValues = z.infer<typeof signInSchema>;
-
-function safeRedirect(raw: string | null): string {
-  if (!raw) return "/dashboard";
-  if (!raw.startsWith("/")) return "/dashboard";
-  if (raw.startsWith("//")) return "/dashboard";
-  if (raw.startsWith("/sign-in")) return "/dashboard";
-  return raw;
-}
 
 export function SignInForm() {
   const router = useRouter();
@@ -105,6 +98,10 @@ export function SignInForm() {
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={
+              showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+            }
+            aria-pressed={showPassword}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
           >
             {showPassword ? (

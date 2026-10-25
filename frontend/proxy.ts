@@ -8,6 +8,7 @@ import {
   readSetCookieValue,
 } from "@/lib/auth-cookies";
 import { BACKEND_API_URL } from "@/lib/backend-url";
+import { contentSecurityPolicy } from "@/lib/content-security-policy";
 
 const PUBLIC_ROUTES = [
   "/sign-in",
@@ -82,13 +83,13 @@ function signInRedirect(request: NextRequest): NextResponse {
   return response;
 }
 
-export async function proxy(request: NextRequest) {
+async function handleRequest(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPublicRoute =
     pathname === "/" ||
     PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
-  if (isPublicRoute) return NextResponse.next();
+  if (isPublicRoute) return NextResponse.next({ request });
 
   let accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
   let refreshedSetCookies: string[] = [];
@@ -148,6 +149,25 @@ export async function proxy(request: NextRequest) {
     NextResponse.next({ request }),
     refreshedSetCookies,
   );
+}
+
+export async function proxy(request: NextRequest) {
+  if (
+    request.nextUrl.pathname === "/api" ||
+    request.nextUrl.pathname.startsWith("/api/")
+  ) {
+    return NextResponse.next();
+  }
+  const nonce = btoa(crypto.randomUUID());
+  const policy = contentSecurityPolicy(
+    nonce,
+    process.env.NODE_ENV !== "production",
+  );
+  request.headers.set("x-nonce", nonce);
+  request.headers.set("Content-Security-Policy", policy);
+  const response = await handleRequest(request);
+  response.headers.set("Content-Security-Policy", policy);
+  return response;
 }
 
 export const config = {

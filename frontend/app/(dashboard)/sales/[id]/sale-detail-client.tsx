@@ -13,6 +13,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { apiFetch, getAccessToken } from "@/lib/api";
+import { printHtml } from "@/lib/print-html";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUiStore } from "@/store/ui-store";
 import { CreditNotesPanel } from "@/components/sales/credit-notes-panel";
@@ -40,28 +41,7 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
         return;
       }
 
-      const printFrame = document.createElement("iframe");
-      printFrame.setAttribute("aria-hidden", "true");
-      printFrame.style.position = "fixed";
-      printFrame.style.right = "0";
-      printFrame.style.bottom = "0";
-      printFrame.style.width = "0";
-      printFrame.style.height = "0";
-      printFrame.style.border = "0";
-
-      printFrame.onload = () => {
-        const frameWindow = printFrame.contentWindow;
-        if (!frameWindow) {
-          printFrame.remove();
-          return;
-        }
-        frameWindow.focus();
-        frameWindow.print();
-        window.setTimeout(() => printFrame.remove(), 1000);
-      };
-
-      printFrame.srcdoc = response.html;
-      document.body.appendChild(printFrame);
+      await printHtml(response.html);
     } catch (error) {
       console.error("Error generating invoice:", error);
       addToast(

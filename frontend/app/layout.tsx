@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, IBM_Plex_Sans } from "next/font/google";
+import { headers } from "next/headers";
 import { Providers } from "./providers";
 import { ToastContainer } from "@/components/common/toast";
 import "./globals.css";
@@ -21,15 +22,16 @@ export const metadata: Metadata = {
     "Plataforma SaaS multi-empresa para ventas, inventario y suscripciones.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="es" suppressHydrationWarning data-scroll-behavior="smooth">
       <body
         className={`${displayFont.variable} ${bodyFont.variable} font-body antialiased overflow-x-clip`}
       >
-        <Providers>
+        <Providers nonce={nonce}>
           {children}
           <ToastContainer />
         </Providers>

@@ -55,15 +55,15 @@ export function SupportTicketDetailActions({
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!comment.trim()) return;
+    const submittedComment = comment;
     setSaving(true);
     try {
       await apiFetch(`/support/tickets/${ticket.id}/comments`, {
         method: "POST",
         token: getAccessToken(),
-        body: JSON.stringify({ content: comment.trim(), isInternal }),
+        body: JSON.stringify({ content: submittedComment.trim(), isInternal }),
       });
-      setComment("");
-      setIsInternal(false);
+      setComment((current) => (current === submittedComment ? "" : current));
       addToast("Comentario agregado", "success");
       router.refresh();
     } catch (err) {

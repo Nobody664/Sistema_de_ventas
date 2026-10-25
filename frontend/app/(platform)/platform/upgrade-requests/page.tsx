@@ -94,7 +94,7 @@ const providerIcons: Record<string, typeof Smartphone> = {
 const providerColors: Record<string, string> = {
   YAPE: "bg-green-100 text-green-700",
   PLIN: "bg-blue-100 text-blue-700",
-  TRANSFER: "bg-gray-100 text-gray-700",
+  TRANSFER: "bg-muted text-muted-foreground",
 };
 
 const statusColors: Record<string, string> = {
@@ -102,7 +102,7 @@ const statusColors: Record<string, string> = {
   SUBMITTED: "bg-amber-100 text-amber-700",
   APPROVED: "bg-green-100 text-green-700",
   REJECTED: "bg-red-100 text-red-700",
-  DRAFT: "bg-gray-100 text-gray-700",
+  DRAFT: "bg-muted text-muted-foreground",
 };
 
 const statusLabels: Record<string, string> = {
@@ -311,7 +311,7 @@ export default function UpgradeRequestsPage() {
             <input
               type="text"
               placeholder="Buscar solicitudes..."
-              className="w-full rounded-2xl border border-foreground/10 bg-white py-3 pl-12 pr-4"
+              className="w-full rounded-2xl border border-border bg-background py-3 pl-12 pr-4"
             />
           </div>
         </div>
@@ -326,20 +326,22 @@ export default function UpgradeRequestsPage() {
               const ProviderIcon =
                 providerIcons[request.provider] || Smartphone;
               const providerColor =
-                providerColors[request.provider] || "bg-gray-100 text-gray-700";
+                providerColors[request.provider] ||
+                "bg-muted text-muted-foreground";
               const statusColor =
-                statusColors[request.status] || "bg-gray-100 text-gray-700";
+                statusColors[request.status] ||
+                "bg-muted text-muted-foreground";
               const statusLabel =
                 statusLabels[request.status] || request.status;
 
               return (
                 <Card
                   key={request.id}
-                  className="rounded-[30px] bg-white/80 p-6 transition hover:shadow-lg"
+                  className="rounded-[30px] bg-card/80 p-6 transition hover:shadow-lg"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-lg font-semibold text-muted-foreground">
                         {getCompanyName(request).charAt(0)}
                       </div>
                       <div className="min-w-0">
@@ -430,7 +432,7 @@ export default function UpgradeRequestsPage() {
 
         {showProofModal && selectedRequest && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <Card className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[34px] bg-white p-6 sm:p-8">
+            <Card className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-[34px] bg-card p-6 sm:p-8">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-2xl">Revisar solicitud</h2>
                 <button
@@ -467,11 +469,11 @@ export default function UpgradeRequestsPage() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="flex-1 rounded-lg bg-gray-50 p-3 text-center">
+                  <div className="flex-1 rounded-lg bg-muted p-3 text-center">
                     <p className="text-xs text-foreground/60">Método</p>
                     <p className="font-medium">{selectedRequest.provider}</p>
                   </div>
-                  <div className="flex-1 rounded-lg bg-gray-50 p-3 text-center">
+                  <div className="flex-1 rounded-lg bg-muted p-3 text-center">
                     <p className="text-xs text-foreground/60">Estado</p>
                     <p className="font-medium">
                       {statusLabels[selectedRequest.status] ||

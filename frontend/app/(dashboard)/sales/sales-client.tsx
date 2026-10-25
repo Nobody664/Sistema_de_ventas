@@ -14,6 +14,12 @@ import {
 } from "lucide-react";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { PermissionGuard } from "@/components/auth/permission-guard";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { useUiStore } from "@/store/ui-store";
 import type { Sale } from "@/types/api";
 import type { SalesMetrics } from "@/types/sales";
@@ -174,7 +180,7 @@ export function SalesPageClient({
         alcance de acceso.
       </p>
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-100">
+        <Card className="rounded-[30px] bg-card/80 p-6 card-hover animate-fade-in-up delay-100">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-orange-500/20 p-2">
               <ShoppingCart className="size-5 text-orange-600" />
@@ -188,7 +194,7 @@ export function SalesPageClient({
           </div>
         </Card>
 
-        <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-150">
+        <Card className="rounded-[30px] bg-card/80 p-6 card-hover animate-fade-in-up delay-150">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-green-500/20 p-2">
               <Banknote className="size-5 text-green-600" />
@@ -206,7 +212,7 @@ export function SalesPageClient({
           </div>
         </Card>
 
-        <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-200">
+        <Card className="rounded-[30px] bg-card/80 p-6 card-hover animate-fade-in-up delay-200">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-blue-500/20 p-2">
               <TrendingUp className="size-5 text-blue-600" />
@@ -220,7 +226,7 @@ export function SalesPageClient({
           </div>
         </Card>
 
-        <Card className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up delay-250">
+        <Card className="rounded-[30px] bg-card/80 p-6 card-hover animate-fade-in-up delay-250">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-violet-500/20 p-2">
               <CreditCard className="size-5 text-violet-600" />
@@ -237,7 +243,7 @@ export function SalesPageClient({
         </Card>
       </div>
 
-      <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-300">
+      <Card className="rounded-[34px] bg-card/85 p-6 animate-fade-in-up delay-300">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
@@ -261,32 +267,28 @@ export function SalesPageClient({
               })}
             </div>
             <PermissionGuard permission="sale:export">
-              <div className="relative group">
-                <button className="flex items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5">
-                  <Download className="size-4" />
-                  Exportar
-                </button>
-                <div className="absolute right-0 top-full z-10 mt-1 hidden min-w-[140px] rounded-xl border border-foreground/10 bg-white py-1 shadow-lg group-hover:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
-                    onClick={() => handleExport("csv")}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
+                    type="button"
+                    className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm transition hover:bg-muted"
                   >
+                    <Download className="size-4" />
+                    Exportar
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => void handleExport("csv")}>
                     CSV
-                  </button>
-                  <button
-                    onClick={() => handleExport("excel")}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
-                  >
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void handleExport("excel")}>
                     Excel
-                  </button>
-                  <button
-                    onClick={() => handleExport("pdf")}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
-                  >
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void handleExport("pdf")}>
                     PDF
-                  </button>
-                </div>
-              </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </PermissionGuard>
           </div>
         </div>
@@ -323,16 +325,16 @@ export function SalesPageClient({
                     href={`/sales/${sale.id}`}
                     className={`flex items-center justify-between rounded-2xl border p-4 transition hover:border-orange-500/30 card-hover ${
                       isToday
-                        ? "bg-orange-50/50 border-orange-200"
+                        ? "bg-orange-500/5 border-orange-500/30"
                         : "border-foreground/10"
                     }`}
                   >
                     <div className="flex items-center gap-4 min-w-0">
                       <div
-                        className={`rounded-2xl p-2 ${isToday ? "bg-orange-100" : "bg-slate-100"}`}
+                        className={`rounded-2xl p-2 ${isToday ? "bg-orange-500/10" : "bg-muted"}`}
                       >
                         <PaymentIcon
-                          className={`size-5 ${isToday ? "text-orange-600" : "text-slate-600"}`}
+                          className={`size-5 ${isToday ? "text-orange-500" : "text-muted-foreground"}`}
                         />
                       </div>
                       <div className="min-w-0">

@@ -6,7 +6,10 @@ import { PropsWithChildren, useState } from "react";
 import { AuthHydrator } from "@/components/auth/auth-hydrator";
 import { scopedQueryKeyHash } from "@/lib/query-scope";
 
-export function Providers({ children }: PropsWithChildren) {
+export function Providers({
+  children,
+  nonce,
+}: PropsWithChildren<{ nonce?: string }>) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -23,6 +26,7 @@ export function Providers({ children }: PropsWithChildren) {
   return (
     <ThemeProvider
       attribute="class"
+      nonce={nonce}
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange

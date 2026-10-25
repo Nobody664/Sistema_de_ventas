@@ -1,5 +1,7 @@
 "use client";
 
+import { printHtml } from "@/lib/print-html";
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
@@ -298,18 +300,14 @@ export function StockEntriesClient({
   <p class="total">Total comprado: S/ ${receipt.totalAmount.toFixed(2)}</p>
 </body></html>`;
 
-    const win = window.open("", "_blank", "width=820,height=900");
-    if (!win) {
+    void printHtml(html).catch((error: unknown) => {
       addToast(
-        "Permite las ventanas emergentes para imprimir la boleta.",
+        error instanceof Error
+          ? error.message
+          : "No se pudo imprimir la boleta",
         "error",
       );
-      return;
-    }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    win.print();
+    });
   };
 
   const issueReceipt = async (group: DistributorPurchaseSummary) => {
