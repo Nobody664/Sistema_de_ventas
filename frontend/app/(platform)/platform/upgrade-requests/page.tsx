@@ -18,6 +18,7 @@ import {
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { PageGuard } from "@/components/auth/page-guard";
 import { useUiStore } from "@/store/ui-store";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface CheckoutRequest {
   id: string;
@@ -115,6 +116,8 @@ const statusLabels: Record<string, string> = {
 export default function UpgradeRequestsPage() {
   const queryClient = useQueryClient();
   const addToast = useUiStore((state) => state.addToast);
+  const { hasPermission } = usePermissions();
+  const canReview = hasPermission("platform:companies_manage");
   const [selectedRequest, setSelectedRequest] = useState<AllRequest | null>(
     null,
   );
@@ -139,7 +142,7 @@ export default function UpgradeRequestsPage() {
       );
       return data || [];
     },
-    enabled: activeTab === "checkout",
+    enabled: canReview && activeTab === "checkout",
   });
 
   const {
@@ -157,7 +160,7 @@ export default function UpgradeRequestsPage() {
       );
       return data || [];
     },
-    enabled: activeTab === "subscriptions",
+    enabled: canReview && activeTab === "subscriptions",
   });
 
   const approveMutation = useMutation({
@@ -256,7 +259,7 @@ export default function UpgradeRequestsPage() {
     activeTab === "checkout" ? checkoutRequests : upgradeRequests;
 
   return (
-    <PageGuard requiredRoles={["SUPER_ADMIN", "SUPPORT_ADMIN"]}>
+    <PageGuard requiredPermissions={["platform:companies_manage"]}>
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>

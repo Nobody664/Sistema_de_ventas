@@ -52,10 +52,10 @@ export function useEmployees() {
   });
 }
 
-export function useSales() {
+export function useSales(page = 1, limit = 20) {
   return useQuery({
-    queryKey: QUERY_KEYS.sales,
-    queryFn: withToken<Sale[]>("/sales"),
+    queryKey: [...QUERY_KEYS.sales, { page, limit }],
+    queryFn: withToken<Sale[]>(`/sales?page=${page}&limit=${limit}`),
     staleTime: 5 * 60 * 1000,
   });
 }

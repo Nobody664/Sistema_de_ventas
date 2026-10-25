@@ -54,19 +54,17 @@ export default async function ProfilePage() {
     let companies: Company[] = [];
 
     if (accessToken) {
-      try {
-        stats = await serverApiFetch<DashboardStats>(
-          "/dashboard/global",
-          accessToken,
-        );
-      } catch {}
-      try {
+      stats = await serverApiFetch<DashboardStats>(
+        "/dashboard/global",
+        accessToken,
+      );
+      if (userRoles.includes("SUPER_ADMIN")) {
         const result = await serverApiFetch<{ data: Company[]; total: number }>(
           "/companies",
           accessToken,
         );
         companies = Array.isArray(result?.data) ? result.data : [];
-      } catch {}
+      }
     }
 
     return (

@@ -13,25 +13,16 @@ async function getProduct(
   id: string,
   accessToken: string | undefined,
 ): Promise<Product | null> {
-  try {
-    return await serverApiFetch<Product>(`/products/${id}`, accessToken);
-  } catch {
-    return null;
-  }
+  return serverApiFetch<Product>(`/products/${id}`, accessToken);
 }
 
 async function getCategories(
   accessToken: string | undefined,
 ): Promise<Category[]> {
-  try {
-    const categories = await serverApiFetch<Category[]>(
-      "/products/categories",
-      accessToken,
-    );
-    return categories || [];
-  } catch {
-    return [];
-  }
+  return (
+    (await serverApiFetch<Category[]>("/products/categories", accessToken)) ??
+    []
+  );
 }
 
 export default async function EditProductPage({

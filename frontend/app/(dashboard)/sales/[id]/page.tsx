@@ -13,11 +13,7 @@ async function getSale(
   id: string,
   accessToken: string | undefined,
 ): Promise<Sale | null> {
-  try {
-    return await serverApiFetch<Sale>(`/sales/${id}`, accessToken);
-  } catch {
-    return null;
-  }
+  return serverApiFetch<Sale>(`/sales/${id}`, accessToken);
 }
 
 export default async function SaleDetailPage({ params }: SaleDetailPageProps) {

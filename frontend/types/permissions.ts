@@ -327,3 +327,29 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "support:faq_manage",
   ],
 };
+
+export const ACTION_ROLES: Partial<Record<Permission, readonly string[]>> = {
+  "sale:list": ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
+  "sale:create": ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
+  "sale:view_detail": ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
+  "sale:export": ["COMPANY_ADMIN", "MANAGER"],
+  "sale:cancel": ["COMPANY_ADMIN", "MANAGER"],
+  "customer:list": ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
+  "customer:create": ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
+  "customer:update": ["COMPANY_ADMIN", "MANAGER"],
+  "customer:delete": ["COMPANY_ADMIN"],
+  "customer:export": ["COMPANY_ADMIN", "MANAGER"],
+  "platform:companies_manage": ["SUPER_ADMIN"],
+};
+
+export function hasEffectivePermission(
+  roles: readonly string[],
+  permission: Permission,
+): boolean {
+  if (roles.includes("SUPER_ADMIN")) return true;
+  const allowedRoles = ACTION_ROLES[permission];
+  return (
+    roles.some((role) => ROLE_PERMISSIONS[role]?.includes(permission)) &&
+    (!allowedRoles || roles.some((role) => allowedRoles.includes(role)))
+  );
+}

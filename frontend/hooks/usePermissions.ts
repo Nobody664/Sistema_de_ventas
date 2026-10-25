@@ -1,14 +1,14 @@
 "use client";
 
 import { useAuthStore } from "@/stores/auth.store";
-import { ROLE_PERMISSIONS, type Permission } from "@/types/permissions";
+import { hasEffectivePermission, type Permission } from "@/types/permissions";
 
 export function usePermissions() {
   const user = useAuthStore((state) => state.user);
   const roles = user?.roles ?? [];
 
   const hasPermission = (permission: Permission): boolean => {
-    return roles.some((role) => ROLE_PERMISSIONS[role]?.includes(permission));
+    return hasEffectivePermission(roles, permission);
   };
 
   const hasAnyPermission = (...permissions: Permission[]): boolean => {

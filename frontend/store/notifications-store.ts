@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { playNotificationChime } from "@/lib/sound";
 import type { Notification } from "@/types/api";
 
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let streamGeneration = 0;
 let reconnectAttempts = 0;
+let sessionGeneration = 0;
 
 interface NotificationsState {
   notifications: Notification[];
@@ -32,31 +33,38 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   eventSource: null,
 
   fetchNotifications: async (accessToken?: string) => {
+    const generation = sessionGeneration;
     set({ isLoading: true });
     try {
-      const notifications = await apiFetch<Notification[]>("/notifications", {
-        token: accessToken,
-      });
-      if (notifications) {
+      const [notifications, result] = await Promise.all([
+        apiFetch<Notification[]>("/notifications", { token: accessToken }),
+        apiFetch<{ count: number }>("/notifications/unread-count", {
+          token: accessToken,
+        }),
+      ]);
+      if (generation === sessionGeneration) {
         set({
-          notifications,
-          unreadCount: notifications.filter((n) => !n.isRead).length,
+          notifications: [
+            ...new Map(notifications.map((n) => [n.id, n])).values(),
+          ],
+          unreadCount: result.count,
         });
       }
     } catch (error) {
       console.error("Error fetching notifications:", error);
     } finally {
-      set({ isLoading: false });
+      if (generation === sessionGeneration) set({ isLoading: false });
     }
   },
 
   fetchUnreadCount: async (accessToken?: string) => {
+    const generation = sessionGeneration;
     try {
       const result = await apiFetch<{ count: number }>(
         "/notifications/unread-count",
         { token: accessToken },
       );
-      if (result) {
+      if (generation === sessionGeneration) {
         set({ unreadCount: result.count });
       }
     } catch (error) {
@@ -65,18 +73,23 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   markAsRead: async (id: string, accessToken?: string) => {
+    const generation = sessionGeneration;
     try {
       await apiFetch(`/notifications/${id}/read`, {
         method: "PATCH",
         token: accessToken,
       });
 
+      if (generation !== sessionGeneration) return;
+      const wasUnread = get().notifications.some(
+        (n) => n.id === id && !n.isRead,
+      );
       const notifications = get().notifications.map((n) =>
         n.id === id ? { ...n, isRead: true } : n,
       );
       set({
         notifications,
-        unreadCount: Math.max(0, get().unreadCount - 1),
+        unreadCount: Math.max(0, get().unreadCount - (wasUnread ? 1 : 0)),
       });
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -84,12 +97,14 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   markAllAsRead: async (accessToken?: string) => {
+    const generation = sessionGeneration;
     try {
       await apiFetch("/notifications/read-all", {
         method: "PATCH",
         token: accessToken,
       });
 
+      if (generation !== sessionGeneration) return;
       const notifications = get().notifications.map((n) => ({
         ...n,
         isRead: true,
@@ -116,9 +131,11 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       if (get().eventSource !== es) return;
       reconnectAttempts = 0;
       set({ isConnected: true });
+      void get().fetchNotifications();
     };
 
     es.onmessage = (event) => {
+      if (get().eventSource !== es) return;
       try {
         const notification = JSON.parse(event.data) as Notification;
         get().addNotification(notification);
@@ -148,11 +165,8 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
             })
             .catch((error: unknown) => {
               if (generation !== streamGeneration) return;
-              const cause = error instanceof Error ? error.cause : undefined;
               const status =
-                cause && typeof cause === "object" && "statusCode" in cause
-                  ? cause.statusCode
-                  : undefined;
+                error instanceof ApiError ? error.status : undefined;
               if (status !== 401 && status !== 403) schedule();
             });
         }, delay);
@@ -177,14 +191,29 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   addNotification: (notification: Notification) => {
     const { notifications, unreadCount } = get();
-    playNotificationChime();
+    const existing = notifications.find((n) => n.id === notification.id);
+    if (existing) {
+      const isRead = existing.isRead || notification.isRead;
+      set({
+        notifications: notifications.map((n) =>
+          n.id === notification.id ? { ...n, ...notification, isRead } : n,
+        ),
+        unreadCount: Math.max(
+          0,
+          unreadCount - (!existing.isRead && isRead ? 1 : 0),
+        ),
+      });
+      return;
+    }
+    if (!notification.isRead) playNotificationChime();
     set({
       notifications: [notification, ...notifications],
-      unreadCount: unreadCount + 1,
+      unreadCount: unreadCount + (notification.isRead ? 0 : 1),
     });
   },
 
   reset: () => {
+    sessionGeneration++;
     get().disconnectFromStream();
     set({
       notifications: [],

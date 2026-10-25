@@ -13,11 +13,16 @@ export default async function NewSalePage() {
   }
 
   const accessToken = session.accessToken;
+  const canUseDistributors = session.user.roles.some((role) =>
+    ["COMPANY_ADMIN", "MANAGER"].includes(role),
+  );
 
   const [products, customers, distributors] = await Promise.all([
     serverApiFetch<Product[]>("/products", accessToken),
     serverApiFetch<Customer[]>("/customers", accessToken),
-    serverApiFetch<Distributor[]>("/distributors", accessToken),
+    canUseDistributors
+      ? serverApiFetch<Distributor[]>("/distributors", accessToken)
+      : Promise.resolve([]),
   ]);
 
   return (

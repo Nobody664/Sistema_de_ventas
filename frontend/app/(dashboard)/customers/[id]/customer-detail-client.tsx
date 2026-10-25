@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import type { Customer, Sale } from "@/types/api";
 
 interface CustomerWithPurchases {
@@ -75,12 +76,14 @@ export function CustomerDetailClient({
               </div>
             </div>
             <div className="flex gap-2">
-              <Link href={`/customers/${customer.id}/edit`}>
-                <Button variant="outline">
-                  <Edit className="mr-2 h-4 w-4" />
-                  Editar
-                </Button>
-              </Link>
+              <PermissionGuard permission="customer:update">
+                <Link href={`/customers/${customer.id}/edit`}>
+                  <Button variant="outline">
+                    <Edit className="mr-2 h-4 w-4" />
+                    Editar
+                  </Button>
+                </Link>
+              </PermissionGuard>
             </div>
           </div>
         </div>

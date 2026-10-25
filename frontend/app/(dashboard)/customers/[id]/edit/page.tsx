@@ -4,6 +4,7 @@ import { CustomerForm } from "@/components/customers/customer-form";
 import { serverApiFetch } from "@/lib/server-api";
 import { getServerSession } from "@/lib/session";
 import type { Customer } from "@/types/api";
+import { hasEffectivePermission } from "@/types/permissions";
 
 interface EditCustomerPageProps {
   params: Promise<{ id: string }>;
@@ -13,11 +14,7 @@ async function getCustomer(
   id: string,
   accessToken: string | undefined,
 ): Promise<Customer | null> {
-  try {
-    return await serverApiFetch<Customer>(`/customers/${id}`, accessToken);
-  } catch {
-    return null;
-  }
+  return serverApiFetch<Customer>(`/customers/${id}`, accessToken);
 }
 
 export default async function EditCustomerPage({
@@ -28,6 +25,9 @@ export default async function EditCustomerPage({
 
   if (!session?.user) {
     redirect("/sign-in");
+  }
+  if (!hasEffectivePermission(session.user.roles, "customer:update")) {
+    redirect("/forbidden");
   }
 
   const { id } = await params;

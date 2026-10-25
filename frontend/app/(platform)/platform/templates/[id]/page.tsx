@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { serverApiFetch } from "@/lib/server-api";
 import { getServerSession } from "@/lib/session";
 import { TemplateEditor } from "../template-editor";
@@ -55,11 +55,11 @@ export default async function EditTemplatePage({
   let template: InvoiceTemplate | null = null;
 
   if (id !== "new") {
-    const templates = await serverApiFetch<InvoiceTemplate[]>(
-      "/invoices/templates",
+    template = await serverApiFetch<InvoiceTemplate>(
+      `/invoices/templates/${id}`,
       session?.accessToken,
     );
-    template = templates?.find((t) => t.id === id) || null;
+    if (!template) notFound();
   }
 
   return <TemplateEditor template={template} />;

@@ -24,6 +24,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { hasEffectivePermission } from "@/types/permissions";
 
 const platformMainItems = [
   {
@@ -112,8 +113,13 @@ function PlatformSidebarContent({
 }: PlatformSidebarContentProps) {
   const pathname = usePathname();
 
-  const visibleMain = platformMainItems.filter((item) =>
-    item.roles.some((role) => roles.includes(role)),
+  const visibleMain = platformMainItems.filter(
+    (item) =>
+      item.roles.some((role) => roles.includes(role)) &&
+      (!["/platform/upgrade-requests", "/platform/companies"].includes(
+        item.href,
+      ) ||
+        hasEffectivePermission(roles, "platform:companies_manage")),
   );
   const visibleAdmin = platformAdminItems.filter((item) =>
     item.roles.some((role) => roles.includes(role)),

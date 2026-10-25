@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, Send, TicketPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch, getAccessToken } from "@/lib/api";
@@ -13,31 +14,25 @@ export function SupportChatView({
   conversation: SupportConversation;
 }) {
   const addToast = useUiStore((state) => state.addToast);
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = useCallback(async () => {
-    try {
-      const data = await apiFetch<SupportMessage[]>(
+  const {
+    data: messages = [],
+    isPending: loading,
+    error,
+    isFetching,
+    refetch: loadMessages,
+  } = useQuery({
+    queryKey: ["support-messages", conversation.id],
+    queryFn: () =>
+      apiFetch<SupportMessage[]>(
         `/support/chat/conversations/${conversation.id}/messages`,
         { token: getAccessToken() },
-      );
-      setMessages(data);
-    } catch {
-      // ignore polling errors
-    } finally {
-      setLoading(false);
-    }
-  }, [conversation.id]);
-
-  useEffect(() => {
-    loadMessages();
-    const interval = setInterval(loadMessages, 7000);
-    return () => clearInterval(interval);
-  }, [loadMessages]);
+      ),
+    refetchInterval: 7000,
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -101,11 +96,32 @@ export function SupportChatView({
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        {error && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-500/30 p-3 text-sm"
+          >
+            <p>
+              {messages.length
+                ? "Sin sincronizar. Se conservan los últimos mensajes cargados."
+                : "No se pudieron cargar los mensajes."}{" "}
+              {error.message}
+            </p>
+            <Button
+              variant="outline"
+              disabled={isFetching}
+              onClick={() => void loadMessages()}
+              className="mt-2"
+            >
+              Reintentar
+            </Button>
+          </div>
+        )}
         {loading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="size-5 animate-spin text-foreground/40" />
           </div>
-        ) : messages.length === 0 ? (
+        ) : messages.length === 0 && !error ? (
           <p className="py-8 text-center text-sm text-foreground/50">
             No hay mensajes aún.
           </p>

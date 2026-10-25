@@ -22,15 +22,10 @@ export default async function CreditNotesPage() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
 
-  let notes: CreditNotesResponse | null = null;
-  try {
-    notes = await serverApiFetch<CreditNotesResponse>(
-      "/credit-notes",
-      accessToken,
-    );
-  } catch {
-    notes = null;
-  }
+  const notes = await serverApiFetch<CreditNotesResponse>(
+    "/credit-notes",
+    accessToken,
+  );
 
   const noteList = notes?.data ?? [];
 

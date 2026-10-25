@@ -23,25 +23,17 @@ async function getCustomer(
   id: string,
   accessToken: string | undefined,
 ): Promise<Customer | null> {
-  try {
-    return await serverApiFetch<Customer>(`/customers/${id}`, accessToken);
-  } catch {
-    return null;
-  }
+  return serverApiFetch<Customer>(`/customers/${id}`, accessToken);
 }
 
 async function getCustomerPurchases(
   id: string,
   accessToken: string | undefined,
 ): Promise<CustomerWithPurchases | null> {
-  try {
-    return await serverApiFetch<CustomerWithPurchases>(
-      `/customers/${id}/purchases`,
-      accessToken,
-    );
-  } catch {
-    return null;
-  }
+  return serverApiFetch<CustomerWithPurchases>(
+    `/customers/${id}/purchases`,
+    accessToken,
+  );
 }
 
 export default async function CustomerDetailPage({

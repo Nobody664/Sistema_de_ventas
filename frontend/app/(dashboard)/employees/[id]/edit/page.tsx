@@ -13,11 +13,7 @@ async function getEmployee(
   id: string,
   accessToken: string | undefined,
 ): Promise<Employee | null> {
-  try {
-    return await serverApiFetch<Employee>(`/employees/${id}`, accessToken);
-  } catch {
-    return null;
-  }
+  return serverApiFetch<Employee>(`/employees/${id}`, accessToken);
 }
 
 export default async function EditEmployeePage({

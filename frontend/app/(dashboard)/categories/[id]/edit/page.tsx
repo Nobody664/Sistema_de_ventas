@@ -13,14 +13,7 @@ async function getCategory(
   id: string,
   accessToken: string | undefined,
 ): Promise<Category | null> {
-  try {
-    return await serverApiFetch<Category>(
-      `/products/categories/${id}`,
-      accessToken,
-    );
-  } catch {
-    return null;
-  }
+  return serverApiFetch<Category>(`/products/categories/${id}`, accessToken);
 }
 
 export default async function EditCategoryPage({
