@@ -25,29 +25,30 @@ import {
 } from "./dto/invoice.dto";
 
 @Controller("invoices")
-@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Roles("SUPER_ADMIN")
   @Get("templates")
-  findTemplates(@Req() request: { tenantId: string }) {
-    return this.invoicesService.findTemplates(request.tenantId);
+  findTemplates(@CurrentUser() user: AuthUser) {
+    return this.invoicesService.findTemplates(user.companyId ?? undefined);
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Get("templates/default")
+  @UseGuards(TenantGuard)
   getDefaultTemplate(@Req() request: { tenantId: string }) {
     return this.invoicesService.getDefaultTemplate(request.tenantId);
   }
 
   @Roles("SUPER_ADMIN")
   @Get("templates/:id")
-  findTemplateById(
-    @Req() request: { tenantId: string },
-    @Param("id") id: string,
-  ) {
-    return this.invoicesService.findTemplateById(id, request.tenantId);
+  findTemplateById(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.invoicesService.findTemplateById(
+      id,
+      user.companyId ?? undefined,
+    );
   }
 
   @Roles("SUPER_ADMIN")
@@ -58,6 +59,7 @@ export class InvoicesController {
 
   @Roles("SUPER_ADMIN")
   @Post("templates")
+  @UseGuards(TenantGuard)
   createTemplate(
     @Req() request: { tenantId: string },
     @Body() body: CreateInvoiceTemplateDto,
@@ -68,24 +70,22 @@ export class InvoicesController {
   @Roles("SUPER_ADMIN")
   @Patch("templates/:id")
   updateTemplate(
-    @Req() request: { tenantId: string },
+    @CurrentUser() user: AuthUser,
     @Param("id") id: string,
     @Body() body: UpdateInvoiceTemplateDto,
   ) {
-    return this.invoicesService.update(id, request.tenantId, body);
+    return this.invoicesService.update(id, user.companyId ?? undefined, body);
   }
 
   @Roles("SUPER_ADMIN")
   @Delete("templates/:id")
-  removeTemplate(
-    @Req() request: { tenantId: string },
-    @Param("id") id: string,
-  ) {
-    return this.invoicesService.remove(id, request.tenantId);
+  removeTemplate(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.invoicesService.remove(id, user.companyId ?? undefined);
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Get("generate/:saleId")
+  @UseGuards(TenantGuard)
   generateInvoice(
     @Req() request: { tenantId: string },
     @Param("saleId") saleId: string,

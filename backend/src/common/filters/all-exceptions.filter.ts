@@ -12,8 +12,9 @@ import {
   PrismaClientValidationError,
 } from "@prisma/client/runtime/client";
 import type { Request, Response } from "express";
+import { PublicErrorDetails, publicErrorDetails } from "./public-error-details";
 
-type ErrorBody = {
+type ErrorBody = PublicErrorDetails & {
   statusCode: number;
   message: string | string[];
   error?: string;
@@ -73,6 +74,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       code: resolved.code,
       path: request.originalUrl ?? request.url,
       timestamp: new Date().toISOString(),
+      ...resolved.details,
     };
 
     if (resolved.status >= HttpStatus.INTERNAL_SERVER_ERROR) {
@@ -94,6 +96,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     message: string | string[];
     error?: string;
     code?: string;
+    details?: PublicErrorDetails;
   } {
     if (exception instanceof PrismaClientKnownRequestError) {
       const mapped = PRISMA_KNOWN_ERRORS[exception.code];
@@ -157,6 +160,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     message: string | string[];
     error?: string;
     code?: string;
+    details?: PublicErrorDetails;
   } {
     const status = exception.getStatus();
     const payload = exception.getResponse();
@@ -185,6 +189,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       error: typeof obj.error === "string" ? obj.error : undefined,
       code: typeof obj.code === "string" ? obj.code : undefined,
+      details: status < 500 ? publicErrorDetails(obj) : undefined,
     };
   }
 }

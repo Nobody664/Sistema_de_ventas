@@ -4,6 +4,9 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { Prisma } from "@prisma/client";
+import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { rejectNullFields } from "@/common/helpers/patch-contract.helper";
 import { parseImageSource } from "@/common/helpers/image.helper";
 import {
   SalesActor,
@@ -26,20 +29,50 @@ function escapeHtml(value: unknown): string {
   return text.replace(/[&<>"']/g, (chr) => map[chr] as string);
 }
 
+const TEMPLATE_CONTENT = "STRUCTURED_V1";
+const REQUIRED_TEMPLATE_FIELDS = [
+  "name",
+  "type",
+  "showLogo",
+  "showCompany",
+  "showCustomer",
+  "showEmployee",
+  "showItems",
+  "showSubtotal",
+  "showTax",
+  "showDiscount",
+  "showSaleNumber",
+  "showSaleDate",
+  "showSaleTime",
+  "showPaymentMethod",
+  "taxPercentage",
+  "fontFamily",
+  "fontSize",
+  "paperSize",
+  "isDefault",
+] as const;
+
+function templateVisibility(
+  companyId?: string,
+  includeGlobal = true,
+): Prisma.InvoiceTemplateWhereInput {
+  return {
+    OR: [
+      ...(companyId ? [{ companyId, isGlobal: false }] : []),
+      ...(includeGlobal ? [{ isGlobal: true, companyId: null }] : []),
+    ],
+  };
+}
+
 @Injectable()
 export class InvoicesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findTemplates(companyId?: string, includeGlobal = true) {
-    const where: Record<string, unknown> = {
+    const where: Prisma.InvoiceTemplateWhereInput = {
       isActive: true,
+      ...templateVisibility(companyId, includeGlobal),
     };
-
-    if (includeGlobal) {
-      where.OR = [{ companyId }, { isGlobal: true }];
-    } else {
-      where.companyId = companyId;
-    }
 
     return this.prisma.invoiceTemplate.findMany({
       where,
@@ -51,7 +84,7 @@ export class InvoicesService {
     const template = await this.prisma.invoiceTemplate.findFirst({
       where: {
         id,
-        OR: [{ companyId }, { isGlobal: true }],
+        ...templateVisibility(companyId),
       },
     });
 
@@ -71,7 +104,10 @@ export class InvoicesService {
       throw new ForbiddenException("Debe especificar una empresa");
     }
 
-    const data: any = {
+    rejectNullFields(input, REQUIRED_TEMPLATE_FIELDS);
+    const data: Prisma.InvoiceTemplateUncheckedCreateInput = {
+      content: TEMPLATE_CONTENT,
+      isDefault: input.isDefault ?? false,
       name: input.name || "Plantilla",
       description: input.description,
       isGlobal,
@@ -94,8 +130,11 @@ export class InvoicesService {
       showSaleTime: input.showSaleTime ?? false,
       showPaymentMethod: input.showPaymentMethod ?? true,
       footerText: input.footerText,
-      taxPercentage: input.taxPercentage || 18,
-      customFields: input.customFields,
+      taxPercentage: input.taxPercentage ?? 18,
+      customFields:
+        input.customFields === null
+          ? Prisma.DbNull
+          : (input.customFields as Prisma.InputJsonObject | undefined),
       fontFamily: input.fontFamily || "Arial",
       fontSize: input.fontSize || 12,
       paperSize: input.paperSize || "A4",
@@ -107,80 +146,91 @@ export class InvoicesService {
       data.companyId = companyId;
     }
 
-    if (input.isDefault) {
-      await this.prisma.invoiceTemplate.updateMany({
-        where: { companyId: isGlobal ? null : companyId },
-        data: { isDefault: false },
-      });
-    }
-
-    return this.prisma.invoiceTemplate.create({
-      data,
+    return serializableTransaction(this.prisma, async (tx) => {
+      if (data.isDefault)
+        await tx.invoiceTemplate.updateMany({
+          where: { companyId: isGlobal ? null : companyId, isGlobal },
+          data: { isDefault: false },
+        });
+      return tx.invoiceTemplate.create({ data });
     });
   }
 
-  async update(id: string, companyId: string, input: UpdateInvoiceTemplateDto) {
-    const template = await this.findTemplateById(id, companyId);
+  async update(
+    id: string,
+    companyId: string | undefined,
+    input: UpdateInvoiceTemplateDto,
+  ) {
+    rejectNullFields(input, REQUIRED_TEMPLATE_FIELDS);
     const logoUrl = await parseImageSource(input.logoUrl);
-
-    if (input.isDefault) {
-      await this.prisma.invoiceTemplate.updateMany({
-        where: {
-          companyId: template.companyId,
-          id: { not: id },
-        },
-        data: { isDefault: false },
+    return serializableTransaction(this.prisma, async (tx) => {
+      const template = await tx.invoiceTemplate.findFirst({
+        where: { id, ...templateVisibility(companyId) },
       });
-    }
+      if (!template) throw new NotFoundException("Plantilla no encontrada");
+      if (input.isDefault) {
+        await tx.invoiceTemplate.updateMany({
+          where: {
+            companyId: template.companyId,
+            isGlobal: template.isGlobal,
+            id: { not: id },
+          },
+          data: { isDefault: false },
+        });
+      }
 
-    const data: any = {};
-    if (input.name !== undefined) data.name = input.name;
-    if (input.description !== undefined) data.description = input.description;
-    if (input.type !== undefined) data.type = input.type;
-    if (input.headerText !== undefined) data.headerText = input.headerText;
-    if (input.logoUrl !== undefined) data.logoUrl = logoUrl;
-    if (input.companyRuc !== undefined) data.companyRuc = input.companyRuc;
-    if (input.companyAddress !== undefined)
-      data.companyAddress = input.companyAddress;
-    if (input.companyPhone !== undefined)
-      data.companyPhone = input.companyPhone;
-    if (input.showLogo !== undefined) data.showLogo = input.showLogo;
-    if (input.showCompany !== undefined) data.showCompany = input.showCompany;
-    if (input.showCustomer !== undefined)
-      data.showCustomer = input.showCustomer;
-    if (input.showEmployee !== undefined)
-      data.showEmployee = input.showEmployee;
-    if (input.showItems !== undefined) data.showItems = input.showItems;
-    if (input.showSubtotal !== undefined)
-      data.showSubtotal = input.showSubtotal;
-    if (input.showTax !== undefined) data.showTax = input.showTax;
-    if (input.showDiscount !== undefined)
-      data.showDiscount = input.showDiscount;
-    if (input.showSaleNumber !== undefined)
-      data.showSaleNumber = input.showSaleNumber;
-    if (input.showSaleDate !== undefined)
-      data.showSaleDate = input.showSaleDate;
-    if (input.showSaleTime !== undefined)
-      data.showSaleTime = input.showSaleTime;
-    if (input.showPaymentMethod !== undefined)
-      data.showPaymentMethod = input.showPaymentMethod;
-    if (input.footerText !== undefined) data.footerText = input.footerText;
-    if (input.taxPercentage !== undefined)
-      data.taxPercentage = input.taxPercentage;
-    if (input.customFields !== undefined)
-      data.customFields = input.customFields;
-    if (input.fontFamily !== undefined) data.fontFamily = input.fontFamily;
-    if (input.fontSize !== undefined) data.fontSize = input.fontSize;
-    if (input.paperSize !== undefined) data.paperSize = input.paperSize;
-    if (input.isDefault !== undefined) data.isDefault = input.isDefault;
+      const data: Prisma.InvoiceTemplateUncheckedUpdateInput = {};
+      if (input.name !== undefined) data.name = input.name;
+      if (input.description !== undefined) data.description = input.description;
+      if (input.type !== undefined) data.type = input.type;
+      if (input.headerText !== undefined) data.headerText = input.headerText;
+      if (input.logoUrl !== undefined) data.logoUrl = logoUrl;
+      if (input.companyRuc !== undefined) data.companyRuc = input.companyRuc;
+      if (input.companyAddress !== undefined)
+        data.companyAddress = input.companyAddress;
+      if (input.companyPhone !== undefined)
+        data.companyPhone = input.companyPhone;
+      if (input.showLogo !== undefined) data.showLogo = input.showLogo;
+      if (input.showCompany !== undefined) data.showCompany = input.showCompany;
+      if (input.showCustomer !== undefined)
+        data.showCustomer = input.showCustomer;
+      if (input.showEmployee !== undefined)
+        data.showEmployee = input.showEmployee;
+      if (input.showItems !== undefined) data.showItems = input.showItems;
+      if (input.showSubtotal !== undefined)
+        data.showSubtotal = input.showSubtotal;
+      if (input.showTax !== undefined) data.showTax = input.showTax;
+      if (input.showDiscount !== undefined)
+        data.showDiscount = input.showDiscount;
+      if (input.showSaleNumber !== undefined)
+        data.showSaleNumber = input.showSaleNumber;
+      if (input.showSaleDate !== undefined)
+        data.showSaleDate = input.showSaleDate;
+      if (input.showSaleTime !== undefined)
+        data.showSaleTime = input.showSaleTime;
+      if (input.showPaymentMethod !== undefined)
+        data.showPaymentMethod = input.showPaymentMethod;
+      if (input.footerText !== undefined) data.footerText = input.footerText;
+      if (input.taxPercentage !== undefined)
+        data.taxPercentage = input.taxPercentage;
+      if (input.customFields !== undefined)
+        data.customFields =
+          input.customFields === null
+            ? Prisma.DbNull
+            : (input.customFields as Prisma.InputJsonObject);
+      if (input.fontFamily !== undefined) data.fontFamily = input.fontFamily;
+      if (input.fontSize !== undefined) data.fontSize = input.fontSize;
+      if (input.paperSize !== undefined) data.paperSize = input.paperSize;
+      if (input.isDefault !== undefined) data.isDefault = input.isDefault;
 
-    return this.prisma.invoiceTemplate.update({
-      where: { id },
-      data,
+      return tx.invoiceTemplate.update({
+        where: { id },
+        data,
+      });
     });
   }
 
-  async remove(id: string, companyId: string) {
+  async remove(id: string, companyId?: string) {
     const template = await this.findTemplateById(id, companyId);
 
     return this.prisma.invoiceTemplate.delete({
@@ -192,14 +242,21 @@ export class InvoicesService {
     const template = await this.prisma.invoiceTemplate.findFirst({
       where: {
         OR: [
-          { companyId, isDefault: true },
+          ...(companyId
+            ? [{ companyId, isGlobal: false, isDefault: true }]
+            : []),
           { companyId: null, isGlobal: true, isDefault: true },
-          { companyId },
-          { isGlobal: true },
+          ...(companyId ? [{ companyId, isGlobal: false }] : []),
+          { companyId: null, isGlobal: true },
         ],
         isActive: true,
       },
-      orderBy: [{ isDefault: "desc" }, { isGlobal: "asc" }],
+      orderBy: [
+        { isDefault: "desc" },
+        { isGlobal: "asc" },
+        { createdAt: "asc" },
+        { id: "asc" },
+      ],
     });
 
     if (!template) {

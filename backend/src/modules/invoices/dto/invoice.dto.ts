@@ -9,6 +9,7 @@ import {
   Max,
   Matches,
   MaxLength,
+  MinLength,
 } from "class-validator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -16,12 +17,14 @@ export class CreateInvoiceTemplateDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MinLength(1)
+  @MaxLength(200)
   name?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -31,28 +34,28 @@ export class CreateInvoiceTemplateDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  headerText?: string;
+  headerText?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(2_000_000)
-  logoUrl?: string;
+  logoUrl?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  companyRuc?: string;
+  companyRuc?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  companyAddress?: string;
+  companyAddress?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  companyPhone?: string;
+  companyPhone?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -117,7 +120,7 @@ export class CreateInvoiceTemplateDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  footerText?: string;
+  footerText?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -129,7 +132,7 @@ export class CreateInvoiceTemplateDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
-  customFields?: Record<string, unknown>;
+  customFields?: Record<string, unknown> | null;
 
   @ApiPropertyOptional()
   @IsOptional()

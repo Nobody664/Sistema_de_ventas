@@ -24,8 +24,8 @@ export function financeLedger(
       record_date AS "recordDate", due_date AS "dueDate", reference, supplier, notes, employee_id AS "employeeId", created_at AS "createdAt"
     FROM finance_records WHERE company_id = ${companyId}
     UNION ALL
-    SELECT id, 'SALE'::text, 'EXIT'::text, 'SALE'::text, 'Venta ' || "saleNumber", total_amount, 'PEN'::text,
-      created_at, NULL::timestamp, "saleNumber", NULL::text, NULL::text, NULL::text, created_at
+    SELECT id, 'SALE'::text, 'EXIT'::text, 'SALE'::text, 'Venta ' || sale_number, total_amount, 'PEN'::text,
+      created_at, NULL::timestamp, sale_number, NULL::text, NULL::text, NULL::text, created_at
     FROM sales WHERE company_id = ${companyId} AND status = 'COMPLETED'
   ), filtered AS (SELECT * FROM ledger WHERE ${Prisma.join(conditions, " AND ")})`;
 }
