@@ -7,6 +7,7 @@ import { DistributorsService } from "./distributors.service";
 function buildService(options: {
   distributor: unknown;
   products: unknown[];
+  stock?: unknown[];
   tx?: Record<string, unknown>;
   kardex?: Record<string, unknown>;
   batches?: Record<string, unknown>;
@@ -14,6 +15,13 @@ function buildService(options: {
   const prisma = {
     distributor: { findFirst: async () => options.distributor },
     product: { findMany: async () => options.products },
+    distributorStock: {
+      findMany: async (args: any) => {
+        assert.equal(args.where.distributorId, "d1");
+        assert.equal(args.where.quantity.gt, 0);
+        return options.stock ?? [];
+      },
+    },
     $transaction: async (cb: (tx: unknown) => unknown) =>
       cb({
         distributor: { findFirst: async () => ({ stockReconciled: true }) },
@@ -38,6 +46,29 @@ function buildService(options: {
     auditService,
   );
 }
+
+describe("DistributorsService.findStock", () => {
+  it("returns only positive stock for the scoped distributor", async () => {
+    const stock = [
+      { productId: "p1", quantity: new Prisma.Decimal(2.5) },
+      { productId: "p2", quantity: new Prisma.Decimal(1) },
+    ];
+    const svc = buildService({
+      distributor: {
+        id: "d1",
+        companyId: "com-a",
+        status: "ACTIVE",
+        balances: [],
+      },
+      products: [],
+      stock,
+    });
+
+    const result = await svc.findStock("com-a", "d1");
+
+    assert.deepEqual(result, stock);
+  });
+});
 
 describe("DistributorsService.transfer", () => {
   it("rejects products from another tenant (lookup is scoped)", async () => {

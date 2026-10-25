@@ -83,3 +83,8 @@ export interface DistributorProductOption {
   stockQuantity: string;
   salePrice: string;
 }
+
+export interface DistributorStock {
+  productId: string;
+  quantity: string;
+}

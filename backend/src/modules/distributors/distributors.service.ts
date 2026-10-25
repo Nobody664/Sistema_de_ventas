@@ -238,6 +238,15 @@ export class DistributorsService {
     return this.getDistributorOrFail(companyId, id);
   }
 
+  async findStock(companyId: string, id: string) {
+    await this.getDistributorOrFail(companyId, id);
+    return this.prisma.distributorStock.findMany({
+      where: { distributorId: id, quantity: { gt: 0 } },
+      select: { productId: true, quantity: true },
+      orderBy: { productId: "asc" },
+    });
+  }
+
   async reconcileStock(
     companyId: string,
     id: string,

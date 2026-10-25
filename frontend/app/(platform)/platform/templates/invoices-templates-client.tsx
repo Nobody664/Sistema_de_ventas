@@ -61,13 +61,6 @@ interface InvoiceTemplate {
 
 interface InvoicesTemplatesClientProps {
   templates: InvoiceTemplate[];
-  companies?: Array<{
-    id: string;
-    name: string;
-    taxId: string | null;
-    address: string | null;
-    phone: string | null;
-  }>;
 }
 
 const templatePresets = [
@@ -99,7 +92,6 @@ const templatePresets = [
 
 export function InvoicesTemplatesClient({
   templates: initialTemplates,
-  companies: initialCompanies,
 }: InvoicesTemplatesClientProps) {
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
@@ -113,21 +105,6 @@ export function InvoicesTemplatesClient({
         token: getAccessToken(),
       }),
     initialData: initialTemplates,
-  });
-
-  const { data: companies } = useQuery({
-    queryKey: ["companies"],
-    queryFn: () =>
-      apiFetch<
-        Array<{
-          id: string;
-          name: string;
-          taxId: string | null;
-          address: string | null;
-          phone: string | null;
-        }>
-      >("/companies", { token: getAccessToken() }),
-    initialData: initialCompanies,
   });
 
   const deleteMutation = useMutation({

@@ -23,7 +23,7 @@ interface AuthState {
     fullName: string,
     companyName: string,
   ) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => Promise<boolean>;
   updateProfile: (fullName: string) => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
@@ -89,18 +89,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       await apiLogout();
-    } catch {
-      // Ignore logout errors
-    } finally {
       set({
         user: null,
         isAuthenticated: false,
         isLoading: false,
         error: null,
       });
+      return true;
+    } catch (error) {
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "No se pudo cerrar la sesión",
+      });
+      return false;
     }
   },
 

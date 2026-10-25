@@ -8,7 +8,7 @@
     "build:clean": "rimraf .next .tsbuildinfo && next build",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "test": "tsx --test \"lib/**/*.test.ts\" \"store/**/*.test.ts\"",
+    "test": "tsx --test \"lib/**/*.test.ts\" \"store/**/*.test.ts\" \"stores/**/*.test.ts\"",
     "format": "prettier --check \"**/*.{ts,tsx,css}\"",
     "analyze": "ANALYZE=true next build",
     "analyze:browser": "ANALYZE=browser next build"

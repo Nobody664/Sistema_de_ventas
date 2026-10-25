@@ -177,7 +177,9 @@ export function UpgradePlanModal({
         setStep("success");
       }, 2000);
     } catch (err) {
-      setError("Error al subir el comprobante");
+      setError(
+        err instanceof Error ? err.message : "Error al subir el comprobante",
+      );
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -32,15 +32,22 @@ import { useAuthStore } from "@/stores/auth.store";
 import { CustomerSearch } from "@/components/ui/customer-search";
 import { CustomerBoxSelector } from "@/components/ui/customer-box-selector";
 import { PermissionGuard } from "@/components/auth/permission-guard";
+import { QuantityInput } from "@/components/sales/quantity-input";
 import { useBarcodeScanner } from "@/components/scanner/hooks/useBarcodeScanner";
 import { ScannerStatus } from "@/components/scanner/components/scanner-status";
 import {
   playScanBeep,
   playErrorBeep,
 } from "@/components/scanner/services/sound";
+import {
+  maxSaleQuantity,
+  normalizeSaleQuantity,
+  quantityStep,
+  roundMoney,
+} from "@/lib/sale-quantity";
 import type { Product, Customer } from "@/types/api";
 import type { ProductPresentation } from "@/types/generated";
-import type { Distributor } from "@/types/distributors";
+import type { Distributor, DistributorStock } from "@/types/distributors";
 
 const UNIT_SHORT: Record<string, string> = {
   UNIT: "und",
@@ -112,6 +119,7 @@ export function SaleForm({
   const [items, setItems] = useState<SaleItem[]>([]);
   const [saleCompleted, setSaleCompleted] = useState(false);
   const [lastSaleNumber, setLastSaleNumber] = useState("");
+  const [lastSaleTotal, setLastSaleTotal] = useState<number | null>(null);
   const [flashProductId, setFlashProductId] = useState<string | null>(null);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(
@@ -120,19 +128,66 @@ export function SaleForm({
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
 
+  const centralStockByProduct = useMemo(
+    () =>
+      new Map(
+        products.map((product) => [product.id, Number(product.stockQuantity)]),
+      ),
+    [products],
+  );
+
+  const {
+    data: distributorStock,
+    isLoading: distributorStockLoading,
+    error: distributorStockError,
+  } = useQuery({
+    queryKey: ["distributors", distributorId, "stock"],
+    queryFn: () =>
+      apiFetch<DistributorStock[]>(`/distributors/${distributorId}/stock`, {
+        token: getAccessToken(),
+      }),
+    enabled: channel === "DISTRIBUTOR" && !!distributorId,
+    staleTime: 30_000,
+  });
+
+  const distributorStockByProduct = useMemo(
+    () =>
+      new Map(
+        (distributorStock ?? []).map((stock) => [
+          stock.productId,
+          Number(stock.quantity),
+        ]),
+      ),
+    [distributorStock],
+  );
+
+  const stockForProduct = (productId: string) => {
+    if (channel === "DISTRIBUTOR") {
+      if (!distributorId) return 0;
+      return distributorStockByProduct.get(productId) ?? 0;
+    }
+    return centralStockByProduct.get(productId) ?? 0;
+  };
+
   const { isConnected } = useBarcodeScanner({
     enabled: !saleCompleted,
     onScan: (barcode: string) => {
       const product = products.find((p) => p.barcode === barcode);
       if (product) {
-        if (Number(product.stockQuantity) > 0) {
+        const stock = stockForProduct(product.id);
+        if (
+          maxSaleQuantity(stock, 1, product.baseUnit ?? "UNIT", undefined) > 0
+        ) {
           addItem(product);
           setFlashProductId(product.id);
           setTimeout(() => setFlashProductId(null), 400);
           playScanBeep();
         } else {
           playErrorBeep();
-          addToast(`"${product.name}" no tiene stock disponible`, "error");
+          addToast(
+            `"${product.name}" no tiene stock disponible en este canal`,
+            "error",
+          );
         }
       } else {
         playErrorBeep();
@@ -141,49 +196,99 @@ export function SaleForm({
     },
   });
 
+  const productsForChannel = useMemo(
+    () =>
+      products.filter(
+        (product) =>
+          maxSaleQuantity(
+            stockForProduct(product.id),
+            1,
+            product.baseUnit ?? "UNIT",
+            undefined,
+          ) > 0,
+      ),
+    [
+      products,
+      channel,
+      distributorId,
+      centralStockByProduct,
+      distributorStockByProduct,
+    ],
+  );
+
   const availableProducts = useMemo(() => {
-    if (!searchProduct)
-      return products.filter((p) => Number(p.stockQuantity) > 0);
+    if (!searchProduct) return productsForChannel;
     const query = searchProduct.toLowerCase();
-    return products.filter(
+    return productsForChannel.filter(
       (p) =>
-        Number(p.stockQuantity) > 0 &&
-        (p.name.toLowerCase().includes(query) ||
-          p.description?.toLowerCase().includes(query) ||
-          p.sku?.toLowerCase().includes(query)),
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.sku?.toLowerCase().includes(query),
     );
-  }, [products, searchProduct]);
+  }, [productsForChannel, searchProduct]);
 
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
   const couponDiscount = appliedCoupon
-    ? Math.min(
-        appliedCoupon.type === "PERCENTAGE"
-          ? (subtotal * appliedCoupon.value) / 100
-          : appliedCoupon.value,
-        subtotal,
+    ? roundMoney(
+        Math.min(
+          appliedCoupon.type === "PERCENTAGE"
+            ? (subtotal * appliedCoupon.value) / 100
+            : appliedCoupon.value,
+          subtotal,
+        ),
       )
     : 0;
   const discountAmount = appliedCoupon
     ? couponDiscount
-    : subtotal * (discountPercent / 100);
-  const total = subtotal - discountAmount;
+    : roundMoney(subtotal * (discountPercent / 100));
+  const total = roundMoney(subtotal - discountAmount);
 
   const addItem = (product: Product) => {
+    const stock = stockForProduct(product.id);
+    const baseUnit = product.baseUnit ?? "UNIT";
+    const max = maxSaleQuantity(stock, 1, baseUnit, undefined);
+    if (max <= 0) {
+      addToast(
+        channel === "DISTRIBUTOR" && !distributorId
+          ? "Selecciona un distribuidor para consultar su stock"
+          : `"${product.name}" no tiene stock disponible en este canal`,
+        "error",
+      );
+      return;
+    }
     const existingItem = items.find((i) => i.productId === product.id);
     if (existingItem) {
-      if (existingItem.quantity + 1 > maxQuantityFor(existingItem)) return;
+      const step = quantityStep(
+        existingItem.baseUnit,
+        existingItem.presentationId,
+      );
+      const quantity = normalizeSaleQuantity(
+        existingItem.quantity + step,
+        existingItem.stock,
+        existingItem.factor,
+        existingItem.baseUnit,
+        existingItem.presentationId,
+      );
+      if (quantity <= existingItem.quantity) return;
       setItems(
         items.map((i) =>
           i.productId === product.id
             ? {
                 ...i,
-                quantity: i.quantity + 1,
-                total: (i.quantity + 1) * i.unitPrice,
+                quantity,
+                total: roundMoney(quantity * i.unitPrice),
               }
             : i,
         ),
       );
     } else {
+      const quantity = normalizeSaleQuantity(
+        Math.min(1, max),
+        stock,
+        1,
+        baseUnit,
+        undefined,
+      );
       setItems([
         ...items,
         {
@@ -192,23 +297,26 @@ export function SaleForm({
           productDescription: product.description,
           basePrice: Number(product.salePrice),
           presentations: product.presentations ?? [],
-          baseUnit: product.baseUnit ?? "UNIT",
+          baseUnit,
           presentationId: undefined,
           presentationName: undefined,
           factor: 1,
           unitPrice: Number(product.salePrice),
-          quantity: 1,
-          total: Number(product.salePrice),
-          stock: Number(product.stockQuantity),
+          quantity,
+          total: roundMoney(quantity * Number(product.salePrice)),
+          stock,
         },
       ]);
     }
   };
 
-  const maxQuantityFor = (item: SaleItem) => {
-    if (item.factor <= 0) return Math.floor(item.stock);
-    return Math.floor(item.stock / item.factor);
-  };
+  const maxQuantityFor = (item: SaleItem) =>
+    maxSaleQuantity(
+      item.stock,
+      item.factor,
+      item.baseUnit,
+      item.presentationId,
+    );
 
   const changeItemPresentation = (
     productId: string,
@@ -226,8 +334,20 @@ export function SaleForm({
             ? Number(presentation.price)
             : item.basePrice * factor
           : item.basePrice;
-        const max = factor > 0 ? Math.floor(item.stock / factor) : item.stock;
-        const quantity = Math.max(1, Math.min(item.quantity, max));
+        const max = maxSaleQuantity(
+          item.stock,
+          factor,
+          item.baseUnit,
+          presentation?.id,
+        );
+        if (max <= 0) return item;
+        const quantity = normalizeSaleQuantity(
+          item.quantity,
+          item.stock,
+          factor,
+          item.baseUnit,
+          presentation?.id,
+        );
         return {
           ...item,
           presentationId: presentation?.id,
@@ -235,22 +355,51 @@ export function SaleForm({
           factor,
           unitPrice,
           quantity,
-          total: quantity * unitPrice,
+          total: roundMoney(quantity * unitPrice),
         };
       }),
     );
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const setItemQuantity = (productId: string, value: number) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.productId !== productId) return item;
+        const quantity = normalizeSaleQuantity(
+          value,
+          item.stock,
+          item.factor,
+          item.baseUnit,
+          item.presentationId,
+        );
+        if (quantity <= 0) return item;
+        return {
+          ...item,
+          quantity,
+          total: roundMoney(quantity * item.unitPrice),
+        };
+      }),
+    );
+  };
+
+  const updateQuantity = (productId: string, direction: -1 | 1) => {
     setItems(
       items.map((item) => {
-        if (item.productId === productId) {
-          const newQty = item.quantity + delta;
-          if (newQty < 1) return item;
-          if (newQty > maxQuantityFor(item)) return item;
-          return { ...item, quantity: newQty, total: newQty * item.unitPrice };
-        }
-        return item;
+        if (item.productId !== productId) return item;
+        const step = quantityStep(item.baseUnit, item.presentationId);
+        const quantity = normalizeSaleQuantity(
+          item.quantity + direction * step,
+          item.stock,
+          item.factor,
+          item.baseUnit,
+          item.presentationId,
+        );
+        if (quantity <= 0 || quantity === item.quantity) return item;
+        return {
+          ...item,
+          quantity,
+          total: roundMoney(quantity * item.unitPrice),
+        };
       }),
     );
   };
@@ -320,26 +469,28 @@ export function SaleForm({
     }));
 
     try {
-      let saleNumber: string;
+      let result: { saleNumber: string; totalAmount?: number | string };
 
       if (channel === "DISTRIBUTOR") {
-        const result = await apiFetch<{ saleNumber: string }>(
-          `/distributors/${distributorId}/sales`,
-          {
-            method: "POST",
-            token: getAccessToken(),
-            body: JSON.stringify({
-              customerId: selectedCustomer?.id || undefined,
-              paymentMethod,
-              items: saleItems,
-              discountAmount,
-            }),
-          },
-        );
-        saleNumber = result.saleNumber;
+        result = await apiFetch<{
+          saleNumber: string;
+          totalAmount?: number | string;
+        }>(`/distributors/${distributorId}/sales`, {
+          method: "POST",
+          token: getAccessToken(),
+          body: JSON.stringify({
+            customerId: selectedCustomer?.id || undefined,
+            paymentMethod,
+            items: saleItems,
+            discountAmount,
+          }),
+        });
         queryClient.invalidateQueries({ queryKey: ["distributors"] });
       } else {
-        const result = await apiFetch<{ saleNumber: string }>("/sales", {
+        result = await apiFetch<{
+          saleNumber: string;
+          totalAmount?: number | string;
+        }>("/sales", {
           method: "POST",
           token: getAccessToken(),
           body: JSON.stringify({
@@ -352,14 +503,24 @@ export function SaleForm({
               : { discountAmount }),
           }),
         });
-        saleNumber = result.saleNumber;
       }
 
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 
-      setLastSaleNumber(saleNumber);
+      const confirmedTotal =
+        result.totalAmount !== undefined &&
+        result.totalAmount !== null &&
+        String(result.totalAmount).trim() !== ""
+          ? Number(result.totalAmount)
+          : NaN;
+      setLastSaleNumber(result.saleNumber);
+      setLastSaleTotal(
+        Number.isFinite(confirmedTotal) && confirmedTotal >= 0
+          ? confirmedTotal
+          : null,
+      );
       setSaleCompleted(true);
       addToast("Venta registrada correctamente", "success");
     } catch (err) {
@@ -384,6 +545,7 @@ export function SaleForm({
     setCouponError(null);
     setSaleCompleted(false);
     setLastSaleNumber("");
+    setLastSaleTotal(null);
   };
 
   if (saleCompleted) {
@@ -405,6 +567,19 @@ export function SaleForm({
             <p className="text-2xl font-bold text-foreground">
               {lastSaleNumber}
             </p>
+            {lastSaleTotal !== null ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Total confirmado por el servidor:{" "}
+                <span className="font-semibold text-foreground">
+                  S/ {lastSaleTotal.toFixed(2)}
+                </span>
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+                La venta fue registrada, pero no se recibió su total confirmado.
+                Consulta el detalle antes de cobrar.
+              </p>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -508,8 +683,7 @@ export function SaleForm({
                   Productos
                 </h2>
                 <span className="text-sm text-muted-foreground">
-                  {products.filter((p) => Number(p.stockQuantity) > 0).length}{" "}
-                  disponibles
+                  {productsForChannel.length} disponibles
                 </span>
               </div>
 
@@ -528,7 +702,15 @@ export function SaleForm({
               {availableProducts.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Package className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No se encontraron productos</p>
+                  <p className="text-sm">
+                    {channel === "DISTRIBUTOR" && !distributorId
+                      ? "Selecciona un distribuidor para consultar su stock"
+                      : channel === "DISTRIBUTOR" && distributorStockLoading
+                        ? "Consultando stock del distribuidor..."
+                        : channel === "DISTRIBUTOR"
+                          ? "El distribuidor no tiene productos disponibles"
+                          : "No se encontraron productos"}
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -565,15 +747,15 @@ export function SaleForm({
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`h-1.5 w-1.5 rounded-full ${
-                              Number(product.stockQuantity) > 10
+                              stockForProduct(product.id) > 10
                                 ? "bg-emerald-500"
-                                : Number(product.stockQuantity) > 0
+                                : stockForProduct(product.id) > 0
                                   ? "bg-amber-500"
                                   : "bg-red-500"
                             }`}
                           />
                           <span className="text-xs text-muted-foreground">
-                            Stock: {Number(product.stockQuantity)}{" "}
+                            Stock: {stockForProduct(product.id)}{" "}
                             {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
                           </span>
                         </div>
@@ -661,6 +843,14 @@ export function SaleForm({
                             <option
                               key={presentation.id}
                               value={presentation.id}
+                              disabled={
+                                maxSaleQuantity(
+                                  item.stock,
+                                  Number(presentation.factor),
+                                  item.baseUnit,
+                                  presentation.id,
+                                ) <= 0
+                              }
                             >
                               {presentation.name} (&times;{" "}
                               {Number(presentation.factor)})
@@ -674,13 +864,28 @@ export function SaleForm({
                           <button
                             onClick={() => updateQuantity(item.productId, -1)}
                             className="h-8 w-8 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-30"
-                            disabled={item.quantity <= 1}
+                            disabled={
+                              item.quantity <=
+                                quantityStep(
+                                  item.baseUnit,
+                                  item.presentationId,
+                                ) || maxQuantityFor(item) <= 0
+                            }
                           >
                             <Minus className="h-3.5 w-3.5" />
                           </button>
-                          <span className="w-8 text-center font-semibold text-foreground text-sm">
-                            {item.quantity}
-                          </span>
+                          <QuantityInput
+                            value={item.quantity}
+                            step={quantityStep(
+                              item.baseUnit,
+                              item.presentationId,
+                            )}
+                            max={maxQuantityFor(item)}
+                            label={`Cantidad de ${item.productName}`}
+                            onChange={(value) =>
+                              setItemQuantity(item.productId, value)
+                            }
+                          />
                           <button
                             onClick={() => updateQuantity(item.productId, 1)}
                             className="h-8 w-8 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-30"
@@ -727,7 +932,17 @@ export function SaleForm({
                         type="button"
                         disabled={isDisabled}
                         onClick={() => {
+                          if (
+                            value !== channel &&
+                            (value === "DISTRIBUTOR" ||
+                              channel === "DISTRIBUTOR")
+                          ) {
+                            setItems([]);
+                          }
                           setChannel(value);
+                          if (value !== "DISTRIBUTOR") {
+                            setDistributorId("");
+                          }
                           if (value === "DISTRIBUTOR") {
                             setAppliedCoupon(null);
                             setCouponInput("");
@@ -762,7 +977,10 @@ export function SaleForm({
                     </Label>
                     <select
                       value={distributorId}
-                      onChange={(e) => setDistributorId(e.target.value)}
+                      onChange={(e) => {
+                        setDistributorId(e.target.value);
+                        setItems([]);
+                      }}
                       className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
                     >
                       <option value="">Selecciona un distribuidor...</option>
@@ -773,6 +991,19 @@ export function SaleForm({
                         </option>
                       ))}
                     </select>
+                    {distributorStockError && (
+                      <p className="text-xs text-red-500">
+                        No se pudo consultar el stock consignado.
+                      </p>
+                    )}
+                    {distributorId &&
+                      !distributorStockLoading &&
+                      !distributorStockError &&
+                      distributorStockByProduct.size === 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          El distribuidor no tiene stock consignado disponible.
+                        </p>
+                      )}
                     <p className="text-xs text-muted-foreground">
                       La venta se registra contra la mercader&iacute;a en
                       consigna del distribuidor y suma a su deuda.

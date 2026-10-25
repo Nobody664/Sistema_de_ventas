@@ -510,7 +510,7 @@ export default function UpgradeRequestsPage() {
                   onClick={() =>
                     rejectMutation.mutate({
                       requestId: selectedRequest.id,
-                      type: activeTab as "checkout",
+                      type: activeTab,
                     })
                   }
                   disabled={rejectMutation.isPending}
@@ -523,7 +523,7 @@ export default function UpgradeRequestsPage() {
                   onClick={() =>
                     approveMutation.mutate({
                       requestId: selectedRequest.id,
-                      type: activeTab as "checkout",
+                      type: activeTab,
                     })
                   }
                   disabled={approveMutation.isPending}

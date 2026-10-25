@@ -16,7 +16,6 @@ interface InvoiceTemplate {
   name: string;
   description: string | null;
   type: string;
-  isGlobal: boolean;
   isDefault: boolean;
   paperSize: string;
   fontFamily: string;
@@ -50,7 +49,6 @@ const defaultTemplate: Omit<InvoiceTemplate, "id"> = {
   name: "",
   description: null,
   type: "BOLETA",
-  isGlobal: true,
   isDefault: false,
   paperSize: "A4",
   fontFamily: "Arial",
@@ -95,7 +93,6 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
         name: template.name,
         description: template.description,
         type: template.type,
-        isGlobal: template.isGlobal,
         isDefault: template.isDefault,
         paperSize: template.paperSize,
         fontFamily: template.fontFamily,
@@ -126,7 +123,7 @@ export function TemplateEditor({ template, preset }: TemplateEditorProps) {
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<InvoiceTemplate>) =>
-      apiFetch<InvoiceTemplate>("/invoices/templates", {
+      apiFetch<InvoiceTemplate>("/invoices/templates/global", {
         method: "POST",
         token: getAccessToken(),
         body: JSON.stringify(data),

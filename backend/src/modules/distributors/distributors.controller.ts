@@ -105,6 +105,13 @@ export class DistributorsController {
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.DISTRIBUTOR_VIEW)
+  @Get(":id/stock")
+  stock(@Req() request: TenantRequest, @Param("id") id: string) {
+    return this.distributorsService.findStock(request.tenantId, id);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
   @Permissions(Permission.DISTRIBUTOR_TRANSFER)
   @Post(":id/transfers")
   transfer(

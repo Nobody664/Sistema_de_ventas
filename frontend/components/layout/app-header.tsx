@@ -15,6 +15,7 @@ import type { ReactNode } from "react";
 import { ThemeToggle } from "./theme-toggle";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NotificationBell } from "./notification-bell";
 import { useAuthStore } from "@/stores/auth.store";
+import { useNotificationsStore } from "@/store/notifications-store";
+import { useUiStore } from "@/store/ui-store";
 
 type AppHeaderProps = {
   fullName: string;
@@ -43,7 +46,10 @@ export function AppHeader({
   nav,
 }: AppHeaderProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const logout = useAuthStore((state) => state.logout);
+  const resetNotifications = useNotificationsStore((state) => state.reset);
+  const addToast = useUiStore((state) => state.addToast);
   const initials = (fullName ?? "")
     .split(" ")
     .map((n) => n[0])
@@ -52,8 +58,18 @@ export function AppHeader({
     .slice(0, 2);
 
   const handleSignOut = async () => {
-    await logout();
-    router.push("/sign-in");
+    const success = await logout();
+
+    if (!success) {
+      addToast("No se pudo cerrar la sesión. La sesión sigue activa.", "error");
+      return;
+    }
+
+    resetNotifications();
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    router.replace("/sign-in");
+    router.refresh();
   };
 
   const isAdminOrManager =
