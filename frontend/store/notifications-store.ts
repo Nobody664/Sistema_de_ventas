@@ -3,6 +3,10 @@ import { apiFetch } from "@/lib/api";
 import { playNotificationChime } from "@/lib/sound";
 import type { Notification } from "@/types/api";
 
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let streamGeneration = 0;
+let reconnectAttempts = 0;
+
 interface NotificationsState {
   notifications: Notification[];
   unreadCount: number;
@@ -98,15 +102,18 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   connectToStream: () => {
     const { eventSource, isConnected } = get();
 
-    if (eventSource || isConnected) {
+    if (eventSource || isConnected || reconnectTimer) {
       return;
     }
 
     const es = new EventSource("/api/notifications/stream", {
       withCredentials: true,
     });
+    const generation = ++streamGeneration;
 
     es.onopen = () => {
+      if (get().eventSource !== es) return;
+      reconnectAttempts = 0;
       set({ isConnected: true });
     };
 
@@ -120,19 +127,51 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     };
 
     es.onerror = () => {
+      if (get().eventSource !== es) return;
       set({ isConnected: false, eventSource: null });
       es.close();
+      const schedule = (): void => {
+        if (generation !== streamGeneration) return;
+        const delay = Math.min(
+          30000,
+          1000 * 2 ** Math.min(reconnectAttempts++, 5),
+        );
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          if (generation !== streamGeneration) return;
+          void apiFetch<{ count: number }>("/notifications/unread-count")
+            .then((result) => {
+              if (generation !== streamGeneration) return;
+              set({ unreadCount: result.count });
+              get().connectToStream();
+            })
+            .catch((error: unknown) => {
+              if (generation !== streamGeneration) return;
+              const cause = error instanceof Error ? error.cause : undefined;
+              const status =
+                cause && typeof cause === "object" && "statusCode" in cause
+                  ? cause.statusCode
+                  : undefined;
+              if (status !== 401 && status !== 403) schedule();
+            });
+        }, delay);
+      };
+      schedule();
     };
 
     set({ eventSource: es });
   },
 
   disconnectFromStream: () => {
+    streamGeneration++;
+    reconnectAttempts = 0;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = null;
     const { eventSource } = get();
     if (eventSource) {
       eventSource.close();
-      set({ eventSource: null, isConnected: false });
     }
+    set({ eventSource: null, isConnected: false });
   },
 
   addNotification: (notification: Notification) => {

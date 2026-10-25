@@ -7,7 +7,9 @@ import {
   Post,
   Query,
   UseGuards,
+  Res,
 } from "@nestjs/common";
+import { Response } from "express";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { TenantGuard } from "@/common/guards/tenant.guard";
 import { PermissionsGuard } from "@/common/guards/permissions.guard";
@@ -23,6 +25,7 @@ import {
   QueryConversationsDto,
   SendMessageDto,
   UpdateConversationStatusDto,
+  QueryMessagesDto,
 } from "./dto/chat.dto";
 
 function toActor(user: AuthUser): ChatActor {
@@ -55,8 +58,20 @@ export class SupportChatController {
   }
 
   @Get("conversations/:id/messages")
-  listMessages(@CurrentUser() user: AuthUser, @Param("id") id: string) {
-    return this.chatService.listMessages(toActor(user), id);
+  async listMessages(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query() query: QueryMessagesDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const page = await this.chatService.listMessages(toActor(user), id, query);
+    response.setHeader("X-Has-More", String(page.hasMore));
+    response.setHeader("X-Next-Cursor", page.nextCursor ?? "");
+    response.setHeader(
+      "Access-Control-Expose-Headers",
+      "X-Has-More, X-Next-Cursor",
+    );
+    return page.items;
   }
 
   @Post("conversations")

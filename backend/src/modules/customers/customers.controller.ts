@@ -28,6 +28,7 @@ import {
   UpdateCustomerDto,
 } from "./dto/customer.dto";
 import { CustomersService } from "./customers.service";
+import { PaginationQueryDto } from "@/common/dto/pagination-query.dto";
 import {
   AuthUser,
   CurrentUser,
@@ -73,11 +74,17 @@ export class CustomersController {
     @Req() request: { tenantId: string },
     @Param("id") id: string,
     @CurrentUser() user: AuthUser,
+    @Query() query: PaginationQueryDto,
   ) {
-    return this.customersService.getPurchases(request.tenantId, id, {
-      userId: user.sub,
-      roles: user.roles,
-    });
+    return this.customersService.getPurchases(
+      request.tenantId,
+      id,
+      {
+        userId: user.sub,
+        roles: user.roles,
+      },
+      query,
+    );
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")

@@ -27,6 +27,7 @@ import {
 } from "@/modules/companies/dto/company.dto";
 import { CompaniesService } from "@/modules/companies/companies.service";
 import { PlatformAuditService } from "./platform-audit.service";
+import { PaginationQueryDto } from "@/common/dto/pagination-query.dto";
 
 @Controller("platform/companies")
 @UseGuards(JwtAuthGuard, PlatformGuard, PermissionsGuard)
@@ -38,8 +39,8 @@ export class PlatformCompaniesController {
 
   @Permissions(Permission.PLATFORM_VIEW)
   @Get()
-  findAll(@Query("page") page?: number, @Query("limit") limit?: number) {
-    return this.companiesService.findAll(page, limit);
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.companiesService.findAll(query.page, query.limit);
   }
 
   @Permissions(Permission.PLATFORM_VIEW)

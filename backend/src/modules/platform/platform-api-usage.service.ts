@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { rejectNullFields } from "@/common/helpers/patch-contract.helper";
+import { dateRange, pagination } from "@/common/helpers/query-bounds.helper";
 import {
   CreateApiProviderDto,
   BillApiUsageDto,
@@ -28,6 +29,7 @@ export class PlatformApiUsageService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getSummary(query: QueryApiUsageDto) {
+    const { page, limit, skip } = pagination(query.page, query.limit);
     const period = query.period || currentPeriod();
     const search = query.search?.trim();
     const start = this.periodStart(period);
@@ -35,38 +37,58 @@ export class PlatformApiUsageService {
       Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1),
     );
 
-    const [usage, records, providers, companies, plans] = await Promise.all([
-      this.prisma.apiUsage.findMany({
-        where: { period },
-        orderBy: { count: "desc" },
-      }),
-      this.prisma.apiUsageRecord.findMany({
-        where: { occurredAt: { gte: start, lt: end } },
-        include: {
-          provider: {
-            select: { id: true, name: true, slug: true, unit: true },
-          },
-        },
-        orderBy: { occurredAt: "desc" },
-      }),
-      this.prisma.apiProvider.findMany({ orderBy: { name: "asc" } }),
+    const companyWhere: Prisma.CompanyWhereInput = search
+      ? { name: { contains: search, mode: "insensitive" } }
+      : {};
+    const [companies, companyCount] = await Promise.all([
       this.prisma.company.findMany({
-        where: search
-          ? { name: { contains: search, mode: "insensitive" } }
-          : undefined,
+        where: companyWhere,
         select: { id: true, name: true, email: true, status: true },
-        orderBy: { name: "asc" },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        skip,
+        take: limit,
       }),
-      this.prisma.plan.findMany({
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          apiEnabled: true,
-          apiQuota: true,
-        },
-      }),
+      this.prisma.company.count({ where: companyWhere }),
     ]);
+    const companyIds = companies.map((company) => company.id);
+    const [usage, records, providers, subscriptions, providerCount] =
+      await Promise.all([
+        this.prisma.apiUsage.findMany({
+          where: { period, companyId: { in: companyIds } },
+          orderBy: { count: "desc" },
+        }),
+        this.prisma.apiUsageRecord.groupBy({
+          by: ["companyId", "providerId", "currency"],
+          where: {
+            occurredAt: { gte: start, lt: end },
+            companyId: { in: companyIds },
+          },
+          _sum: { tokens: true, cost: true },
+          _count: { _all: true },
+        }),
+        this.prisma.apiProvider.findMany({
+          orderBy: { name: "asc" },
+          take: 100,
+        }),
+        this.prisma.subscription.findMany({
+          where: { companyId: { in: companyIds } },
+          select: {
+            companyId: true,
+            planId: true,
+            status: true,
+            plan: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                apiEnabled: true,
+                apiQuota: true,
+              },
+            },
+          },
+        }),
+        this.prisma.apiProvider.count(),
+      ]);
 
     const usageByCompany = new Map(
       usage.map((entry) => [entry.companyId, entry]),
@@ -97,15 +119,16 @@ export class PlatformApiUsageService {
         costs: {},
         requests: 0,
       };
-      company.tokens += record.tokens;
+      company.tokens += record._sum.tokens ?? 0;
       company.costs[record.currency] =
-        (company.costs[record.currency] ?? 0) + record.cost.toNumber();
-      company.requests += 1;
+        (company.costs[record.currency] ?? 0) + Number(record._sum.cost ?? 0);
+      company.requests += record._count._all;
       recordsByCompany.set(record.companyId, company);
 
       if (record.providerId) {
         const provider = providerById.get(record.providerId);
-        const entry = recordsByProvider.get(record.providerId) ?? {
+        const providerKey = `${record.providerId}:${record.currency}`;
+        const entry = recordsByProvider.get(providerKey) ?? {
           name: provider?.name ?? "Proveedor",
           slug: provider?.slug ?? "proveedor",
           unit: provider?.unit ?? "tokens",
@@ -113,21 +136,18 @@ export class PlatformApiUsageService {
           cost: 0,
           currency: record.currency,
         };
-        entry.tokens += record.tokens;
-        entry.cost += record.cost.toNumber();
-        recordsByProvider.set(record.providerId, entry);
+        entry.tokens += record._sum.tokens ?? 0;
+        entry.cost += Number(record._sum.cost ?? 0);
+        recordsByProvider.set(providerKey, entry);
       }
     }
 
-    const companyIds = companies.map((company) => company.id);
-    const subscriptions = await this.prisma.subscription.findMany({
-      where: { companyId: { in: companyIds } },
-      select: { companyId: true, planId: true, status: true },
-    });
     const subscriptionByCompany = new Map(
       subscriptions.map((sub) => [sub.companyId, sub]),
     );
-    const planById = new Map(plans.map((plan) => [plan.id, plan]));
+    const planById = new Map(
+      subscriptions.map((sub) => [sub.planId, sub.plan]),
+    );
 
     const rows = companies.map((company) => {
       const aggregate = usageByCompany.get(company.id);
@@ -166,6 +186,12 @@ export class PlatformApiUsageService {
 
     return {
       period,
+      page,
+      limit,
+      total: companyCount,
+      totalsScope: "PAGE",
+      providerCatalogLimit: 100,
+      providerCatalogTruncated: providerCount > providers.length,
       totals: {
         requests: totalRequests,
         tokens: totalTokens,
@@ -173,10 +199,10 @@ export class PlatformApiUsageService {
         companies: rows.length,
         enabledCompanies: rows.filter((row) => row.apiEnabled).length,
       },
-      companies: rows.sort((a, b) => b.requests - a.requests),
+      companies: rows,
       providers: Array.from(recordsByProvider.entries()).map(
         ([providerId, entry]) => ({
-          providerId,
+          providerId: providerId.slice(0, providerId.lastIndexOf(":")),
           ...entry,
         }),
       ),
@@ -188,16 +214,19 @@ export class PlatformApiUsageService {
   }
 
   async listRecords(query: QueryApiUsageRecordsDto) {
-    const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 25, 100);
+    const { page, limit: pageSize } = pagination(
+      query.page,
+      query.pageSize ?? 25,
+    );
+    const range = dateRange(query.from, query.to);
     const where: Prisma.ApiUsageRecordWhereInput = {};
 
     if (query.companyId) where.companyId = query.companyId;
     if (query.providerId) where.providerId = query.providerId;
     if (query.from || query.to) {
       where.occurredAt = {
-        ...(query.from ? { gte: new Date(query.from) } : {}),
-        ...(query.to ? { lte: new Date(query.to) } : {}),
+        ...(range.from ? { gte: range.from } : {}),
+        ...(range.to ? { lte: range.to } : {}),
       };
     }
 
@@ -425,6 +454,8 @@ export class PlatformApiUsageService {
   }
 
   private periodStart(period: string): Date {
+    if (!/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(period))
+      throw new BadRequestException("Período inválido");
     const [year, month] = period.split("-").map(Number);
     return new Date(Date.UTC(year, Math.max(0, (month ?? 1) - 1), 1));
   }

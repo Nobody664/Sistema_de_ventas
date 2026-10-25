@@ -23,7 +23,13 @@ function encode(buffer: Buffer | Uint8Array): string {
 }
 
 function csvCell(value: unknown): string {
-  const text = String(value ?? "");
+  const raw = String(value ?? "");
+  const text =
+    typeof value === "string" &&
+    (/^[\s\u0000-\u001f\u007f\ufeff]*[=+\-@]/u.test(raw) ||
+      /^[\t\r\n\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(raw))
+      ? `'${raw}`
+      : raw;
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

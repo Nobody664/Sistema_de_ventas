@@ -6,6 +6,8 @@ export type AuthUser = {
   companyId?: string | null;
   roles: string[];
   sid?: string;
+  authVersion?: number;
+  tokenExpiresAt?: number;
   fullName?: string | null;
   companyStatus?: string | null;
   planCode?: string | null;

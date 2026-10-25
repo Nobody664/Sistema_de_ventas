@@ -7,7 +7,9 @@ import {
   Post,
   Query,
   UseGuards,
+  Res,
 } from "@nestjs/common";
+import { Response } from "express";
 import { AuditAction } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
@@ -30,6 +32,7 @@ import {
 } from "@/modules/support/dto/ticket.dto";
 import {
   QueryConversationsDto,
+  QueryMessagesDto,
   SendMessageDto,
   UpdateConversationStatusDto,
 } from "@/modules/support/dto/chat.dto";
@@ -195,8 +198,24 @@ export class PlatformSupportController {
   }
 
   @Get("chat/:id/messages")
-  messages(@CurrentUser() user: AuthUser, @Param("id") id: string) {
-    return this.chat.listMessages({ userId: user.sub, isPlatform: true }, id);
+  async messages(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query() query: QueryMessagesDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const page = await this.chat.listMessages(
+      { userId: user.sub, isPlatform: true },
+      id,
+      query,
+    );
+    response.setHeader("X-Has-More", String(page.hasMore));
+    response.setHeader("X-Next-Cursor", page.nextCursor ?? "");
+    response.setHeader(
+      "Access-Control-Expose-Headers",
+      "X-Has-More, X-Next-Cursor",
+    );
+    return page.items;
   }
 
   @Post("chat/:id/messages")

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { CacheService } from "@/cache/cache.service";
+import { withDeadline } from "@/common/helpers/deadline.helper";
 
 @Injectable()
 export class HealthService {
@@ -41,8 +42,10 @@ export class HealthService {
       uptime: number;
     };
   }> {
-    const databaseCheck = await this.checkDatabase();
-    const redisCheck = await this.checkRedis();
+    const [databaseCheck, redisCheck] = await Promise.all([
+      this.checkDatabase(),
+      this.checkRedis(),
+    ]);
     const memoryCheck = this.checkMemory();
     const uptime = Math.floor(process.uptime());
 
@@ -52,7 +55,12 @@ export class HealthService {
       memoryCheck.status === "ok";
 
     return {
-      status: allHealthy ? "ok" : "degraded",
+      status:
+        databaseCheck.status !== "ok"
+          ? "unavailable"
+          : allHealthy
+            ? "ok"
+            : "degraded",
       timestamp: new Date().toISOString(),
       service: "backend",
       version: process.env.npm_package_version || "1.0.0",
@@ -72,7 +80,7 @@ export class HealthService {
   }> {
     const start = Date.now();
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await withDeadline(this.prisma.$queryRaw`SELECT 1`);
       return {
         status: "ok",
         latency: Date.now() - start,
@@ -99,7 +107,7 @@ export class HealthService {
 
     const start = Date.now();
     try {
-      const pong = await this.cache.ping();
+      const pong = await withDeadline(this.cache.ping());
       if (pong !== "PONG") {
         return {
           status: "error",

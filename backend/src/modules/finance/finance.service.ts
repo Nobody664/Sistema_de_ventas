@@ -6,6 +6,8 @@ import {
 import { AuditAction, FinanceCategory, Prisma } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { AuditService } from "@/common/services/audit.service";
+import { dateRange, pagination } from "@/common/helpers/query-bounds.helper";
+import { financeLedger } from "./finance-query.helper";
 import {
   CreateFinanceRecordDto,
   QueryFinanceRecordDto,
@@ -44,6 +46,7 @@ export interface FinanceWeekBucket {
 }
 
 export interface FinanceSummary {
+  currency: string;
   from: string;
   to: string;
   entries: { total: number; count: number };
@@ -68,28 +71,36 @@ const EXPENSE_CATEGORIES: readonly string[] = [
   "OTHER",
 ];
 
-const MAX_MERGED_ROWS = 500;
+type LedgerRow = Omit<
+  FinanceRecordView,
+  "amount" | "recordDate" | "dueDate" | "createdAt" | "editable"
+> & {
+  amount: Prisma.Decimal;
+  recordDate: Date;
+  dueDate: Date | null;
+  createdAt: Date;
+};
 
 const toNumber = (value: unknown): number =>
   value === null || value === undefined ? 0 : Number(value);
 
 const startOfDay = (date: Date): Date => {
   const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
+  copy.setUTCHours(0, 0, 0, 0);
   return copy;
 };
 
 const endOfDay = (date: Date): Date => {
   const copy = new Date(date);
-  copy.setHours(23, 59, 59, 999);
+  copy.setUTCHours(23, 59, 59, 999);
   return copy;
 };
 
 const weekStartOf = (date: Date): Date => {
   const copy = startOfDay(date);
-  const day = copy.getDay();
+  const day = copy.getUTCDay();
   const diff = (day + 6) % 7;
-  copy.setDate(copy.getDate() - diff);
+  copy.setUTCDate(copy.getUTCDate() - diff);
   return copy;
 };
 
@@ -109,144 +120,57 @@ export class FinanceService {
     page: number;
     limit: number;
   }> {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    const skip = (page - 1) * limit;
-    const take = Math.min(skip + limit, MAX_MERGED_ROWS);
-    const range = this.resolveRange(query);
-    const search = query.search?.trim();
-
-    const includesSales =
-      (!query.direction || query.direction === "EXIT") &&
-      (!query.category || query.category === "SALE");
-
-    const manualWhere: Prisma.FinanceRecordWhereInput = {
+    const { page, limit, skip } = pagination(query.page, query.limit);
+    const ledger = financeLedger(
       companyId,
-      ...(range.from || range.to
-        ? {
-            recordDate: {
-              ...(range.from ? { gte: range.from } : {}),
-              ...(range.to ? { lte: range.to } : {}),
-            },
-          }
-        : {}),
-      ...(query.direction ? { direction: query.direction } : {}),
-      ...(query.category ? { category: query.category } : {}),
-      ...(search
-        ? {
-            OR: [
-              {
-                description: { contains: search, mode: "insensitive" as const },
-              },
-              { reference: { contains: search, mode: "insensitive" as const } },
-              { supplier: { contains: search, mode: "insensitive" as const } },
-            ],
-          }
-        : {}),
-    };
-
-    const saleWhere: Prisma.SaleWhereInput = {
-      companyId,
-      status: "COMPLETED",
-      ...(range.from || range.to
-        ? {
-            createdAt: {
-              ...(range.from ? { gte: range.from } : {}),
-              ...(range.to ? { lte: range.to } : {}),
-            },
-          }
-        : {}),
-      ...(search
-        ? { saleNumber: { contains: search, mode: "insensitive" as const } }
-        : {}),
-    };
-
-    const [manualRows, saleRows, manualCount, saleCount] = await Promise.all([
-      this.prisma.financeRecord.findMany({
-        where: manualWhere,
-        orderBy: [{ recordDate: "desc" }, { createdAt: "desc" }],
-        take,
-        include: { employee: { select: { firstName: true, lastName: true } } },
-      }),
-      includesSales
-        ? this.prisma.sale.findMany({
-            where: saleWhere,
-            orderBy: [{ createdAt: "desc" }],
-            take,
-            select: {
-              id: true,
-              saleNumber: true,
-              totalAmount: true,
-              createdAt: true,
-            },
-          })
-        : Promise.resolve(
-            [] as Array<{
-              id: string;
-              saleNumber: string;
-              totalAmount: Prisma.Decimal;
-              createdAt: Date;
-            }>,
-          ),
-      this.prisma.financeRecord.count({ where: manualWhere }),
-      includesSales
-        ? this.prisma.sale.count({ where: saleWhere })
-        : Promise.resolve(0),
-    ]);
-
-    const manualItems = manualRows.map((row) => this.mapManual(row));
-    const saleItems = includesSales
-      ? saleRows.map((row) => this.mapSale(row))
-      : [];
-
-    const merged = [...manualItems, ...saleItems].sort((a, b) => {
-      const byDate = b.recordDate.localeCompare(a.recordDate);
-      if (byDate !== 0) return byDate;
-      return b.createdAt.localeCompare(a.createdAt);
-    });
-
-    return {
-      items: merged.slice(skip, skip + limit),
-      total: manualCount + saleCount,
-      page,
-      limit,
-    };
+      query,
+      dateRange(query.from, query.to),
+    );
+    return this.prisma.$transaction(
+      async (tx) => {
+        const rows = await tx.$queryRaw<LedgerRow[]>(Prisma.sql`${ledger}
+        SELECT f.*, CASE WHEN e.id IS NULL THEN NULL ELSE concat_ws(' ', e.first_name, e.last_name) END AS "employeeName"
+        FROM filtered f LEFT JOIN employees e ON e.id = f."employeeId" AND e.company_id = ${companyId}
+        ORDER BY f."recordDate" DESC, f."createdAt" DESC, f.source ASC, f.id ASC LIMIT ${limit} OFFSET ${skip}`);
+        const counts = await tx.$queryRaw<Array<{ total: bigint }>>(
+          Prisma.sql`${ledger} SELECT count(*) AS total FROM filtered`,
+        );
+        return {
+          items: rows.map((row) => ({
+            ...row,
+            amount: Number(row.amount),
+            recordDate: row.recordDate.toISOString(),
+            dueDate: row.dueDate?.toISOString() ?? null,
+            createdAt: row.createdAt.toISOString(),
+            editable: row.source === "MANUAL",
+          })),
+          total: Number(counts[0]?.total ?? 0),
+          page,
+          limit,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 
   async getSummary(
     companyId: string,
     query: QueryFinanceRecordDto,
   ): Promise<FinanceSummary> {
-    const range = this.resolveRange(query, 30);
-
-    const [manualRows, saleRows] = await Promise.all([
-      this.prisma.financeRecord.findMany({
-        where: {
-          companyId,
-          recordDate: {
-            ...(range.from ? { gte: range.from } : {}),
-            ...(range.to ? { lte: range.to } : {}),
-          },
-        },
-        select: {
-          direction: true,
-          category: true,
-          amount: true,
-          recordDate: true,
-        },
-      }),
-      this.prisma.sale.findMany({
-        where: {
-          companyId,
-          status: "COMPLETED",
-          createdAt: {
-            ...(range.from ? { gte: range.from } : {}),
-            ...(range.to ? { lte: range.to } : {}),
-          },
-        },
-        select: { id: true, totalAmount: true, createdAt: true },
-      }),
-    ]);
+    const range = dateRange(query.from, query.to, 30);
+    const currency = query.currency ?? "PEN";
+    const ledger = financeLedger(companyId, { ...query, currency }, range);
+    const groups = await this.prisma.$queryRaw<
+      Array<{
+        direction: string;
+        category: string;
+        amount: Prisma.Decimal;
+        count: bigint;
+        week: Date;
+      }>
+    >(Prisma.sql`${ledger}
+      SELECT direction, category, sum(amount) AS amount, count(*) AS count, date_trunc('week', "recordDate") AS week
+      FROM filtered GROUP BY direction, category, date_trunc('week', "recordDate") ORDER BY week`);
 
     const weeks = new Map<string, FinanceWeekBucket>();
     const byCategory: Record<string, number> = {};
@@ -265,7 +189,7 @@ export class FinanceService {
       let bucket = weeks.get(key);
       if (!bucket) {
         const end = new Date(start.getTime());
-        end.setDate(end.getDate() + 6);
+        end.setUTCDate(end.getUTCDate() + 6);
         bucket = {
           start: start.toISOString(),
           end: endOfDay(end).toISOString(),
@@ -280,42 +204,30 @@ export class FinanceService {
       return bucket;
     };
 
-    for (const row of manualRows) {
+    for (const row of groups) {
       const amount = toNumber(row.amount);
-      const bucket = bucketFor(row.recordDate);
+      const count = Number(row.count);
+      const bucket = bucketFor(row.week);
       byCategory[row.category] = (byCategory[row.category] ?? 0) + amount;
 
       if (row.direction === "ENTRY") {
         entriesTotal += amount;
-        entriesCount += 1;
+        entriesCount += count;
         bucket.entries += amount;
       } else {
         exitsTotal += amount;
-        exitsCount += 1;
+        exitsCount += count;
         bucket.exits += amount;
         if (row.category === "SALE") {
           salesTotal += amount;
-          salesCount += 1;
+          salesCount += count;
           bucket.sales += amount;
         } else {
           expensesTotal += amount;
-          expensesCount += 1;
+          expensesCount += count;
           bucket.expenses += amount;
         }
       }
-    }
-
-    for (const sale of saleRows) {
-      const amount = toNumber(sale.totalAmount);
-      const bucket = bucketFor(sale.createdAt);
-      byCategory.SALE = (byCategory.SALE ?? 0) + amount;
-
-      exitsTotal += amount;
-      exitsCount += 1;
-      salesTotal += amount;
-      salesCount += 1;
-      bucket.exits += amount;
-      bucket.sales += amount;
     }
 
     const weeksList = [...weeks.values()]
@@ -323,6 +235,7 @@ export class FinanceService {
       .sort((a, b) => a.start.localeCompare(b.start));
 
     return {
+      currency,
       from: (range.from ?? new Date(0)).toISOString(),
       to: (range.to ?? new Date()).toISOString(),
       entries: { total: entriesTotal, count: entriesCount },
@@ -493,26 +406,6 @@ export class FinanceService {
     return { id };
   }
 
-  private resolveRange(
-    query: QueryFinanceRecordDto,
-    defaultDays?: number,
-  ): {
-    from?: Date;
-    to?: Date;
-  } {
-    let from = query.from ? startOfDay(new Date(query.from)) : undefined;
-    let to = query.to ? endOfDay(new Date(query.to)) : undefined;
-
-    if (!from && !to && defaultDays) {
-      const start = new Date();
-      start.setDate(start.getDate() - defaultDays);
-      from = startOfDay(start);
-      to = endOfDay(new Date());
-    }
-
-    return { from, to };
-  }
-
   private resolveCategory(
     direction: string,
     category?: string,
@@ -592,32 +485,6 @@ export class FinanceService {
       employeeId: row.employeeId,
       employeeName,
       editable: true,
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
-
-  private mapSale(row: {
-    id: string;
-    saleNumber: string;
-    totalAmount: unknown;
-    createdAt: Date;
-  }): FinanceRecordView {
-    return {
-      id: row.id,
-      source: "SALE",
-      direction: "EXIT",
-      category: "SALE",
-      description: `Venta ${row.saleNumber}`,
-      amount: toNumber(row.totalAmount),
-      currency: "PEN",
-      recordDate: row.createdAt.toISOString(),
-      dueDate: null,
-      reference: row.saleNumber,
-      supplier: null,
-      notes: null,
-      employeeId: null,
-      employeeName: null,
-      editable: false,
       createdAt: row.createdAt.toISOString(),
     };
   }

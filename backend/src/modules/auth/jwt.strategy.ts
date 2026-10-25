@@ -14,6 +14,7 @@ type JwtPayload = {
   companyStatus?: string;
   sid?: string;
   authVersion?: number;
+  exp?: number;
 };
 
 const extractJwtFromCookie = (req: Request): string | null => {
@@ -121,6 +122,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       sub: user.id,
       id: user.id,
       sid: payload.sid,
+      authVersion: version,
+      tokenExpiresAt:
+        typeof payload.exp === "number" ? payload.exp * 1000 : undefined,
       email: user.email,
       fullName: user.fullName,
       roles: membership

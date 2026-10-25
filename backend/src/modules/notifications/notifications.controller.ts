@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { Response } from "express";
 import { NotificationsService } from "./notifications.service";
+import { NotificationStreamService } from "./notification-stream.service";
 import { TenantGuard } from "@/common/guards/tenant.guard";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { Roles } from "@/common/decorators/roles.decorator";
@@ -24,27 +25,14 @@ import {
 @Controller("notifications")
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly streams: NotificationStreamService,
+  ) {}
 
   @Get("stream")
   streamNotifications(@CurrentUser() user: AuthUser, @Res() res: Response) {
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no");
-
-    const sendToClient = (data: unknown) => {
-      res.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
-
-    const unsubscribe = this.notificationsService.subscribe(
-      user.sub,
-      sendToClient,
-    );
-
-    res.on("close", () => {
-      unsubscribe();
-    });
+    return this.streams.open(user, res);
   }
 
   @Get()

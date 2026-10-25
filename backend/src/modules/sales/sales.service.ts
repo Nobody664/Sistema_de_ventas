@@ -39,6 +39,8 @@ import {
   saleAmounts,
 } from "@/common/helpers/sale-pricing.helper";
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { collectExportRows } from "@/common/helpers/export-batch.helper";
+import { dateRange } from "@/common/helpers/query-bounds.helper";
 import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
 import {
   creditDistributorStock,
@@ -157,17 +159,18 @@ export class SalesService {
     viewer: SalesActor,
   ) {
     const where: Prisma.SaleWhereInput = salesVisibility(companyId, viewer);
+    const range = dateRange(query.startDate, query.endDate);
 
     if (query.startDate) {
       where.createdAt = {
         ...(where.createdAt as object),
-        gte: new Date(query.startDate),
+        gte: range.from,
       };
     }
     if (query.endDate) {
       where.createdAt = {
         ...(where.createdAt as object),
-        lte: new Date(query.endDate),
+        lte: range.to,
       };
     }
     if (query.status) {
@@ -180,18 +183,22 @@ export class SalesService {
       where.channel = query.channel;
     }
 
-    const sales = await this.prisma.sale.findMany({
-      where,
-      include: {
-        customer: true,
-        employee: true,
-        seller: { select: SELLER_SELECT },
-        items: {
-          include: { product: true },
+    const sales = await collectExportRows((take, after) =>
+      this.prisma.sale.findMany({
+        take,
+        ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+        where,
+        include: {
+          customer: true,
+          employee: true,
+          seller: { select: SELLER_SELECT },
+          items: {
+            include: { product: true },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { id: "asc" },
+      }),
+    );
 
     const format = query.format || "csv";
 

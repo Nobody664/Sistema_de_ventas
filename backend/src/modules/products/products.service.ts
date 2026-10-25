@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { collectExportRows } from "@/common/helpers/export-batch.helper";
 import {
   optionalDate,
   rejectNullFields,
@@ -659,11 +660,15 @@ export class ProductsService {
       where.categoryId = query.categoryId;
     }
 
-    const products = await this.prisma.product.findMany({
-      where,
-      include: { category: true },
-      orderBy: { name: "asc" },
-    });
+    const products = await collectExportRows((take, after) =>
+      this.prisma.product.findMany({
+        take,
+        ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+        where,
+        include: { category: true },
+        orderBy: { id: "asc" },
+      }),
+    );
 
     const format = query.format || "csv";
 

@@ -9,7 +9,9 @@ import {
   Max,
   MaxLength,
   Min,
+  Matches,
 } from "class-validator";
+import { PaginationQueryDto } from "@/common/dto/pagination-query.dto";
 
 export const FINANCE_DIRECTIONS = ["ENTRY", "EXIT"] as const;
 export const FINANCE_CATEGORIES = [
@@ -114,7 +116,10 @@ export class UpdateFinanceRecordDto {
   notes?: string | null;
 }
 
-export class QueryFinanceRecordDto {
+export class QueryFinanceRecordDto extends PaginationQueryDto {
+  @IsOptional()
+  @Matches(/^[A-Z]{3}$/)
+  currency?: string;
   @IsOptional()
   @IsDateString()
   from?: string;
@@ -133,18 +138,6 @@ export class QueryFinanceRecordDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   search?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  page?: number = 1;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  @Type(() => Number)
-  limit?: number = 20;
 }

@@ -1,4 +1,5 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Res } from "@nestjs/common";
+import { Response } from "express";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { Public } from "@/common/decorators/public.decorator";
 import { HealthService } from "./health.service";
@@ -22,8 +23,11 @@ export class HealthController {
     summary: "Readiness probe - is the service ready to accept traffic?",
   })
   @ApiResponse({ status: 200, description: "Service is ready" })
-  async checkReady() {
-    return this.healthService.checkReady();
+  @ApiResponse({ status: 503, description: "Critical dependency unavailable" })
+  async checkReady(@Res({ passthrough: true }) response: Response) {
+    const result = await this.healthService.checkReady();
+    response.status(result.status === "unavailable" ? 503 : 200);
+    return result;
   }
 
   @Public()

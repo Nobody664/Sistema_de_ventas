@@ -13,15 +13,19 @@ import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
+  Max,
+  MaxLength,
 } from "class-validator";
+import { PaginationQueryDto } from "@/common/dto/pagination-query.dto";
 
-export class QueryApiUsageDto {
+export class QueryApiUsageDto extends PaginationQueryDto {
   @IsOptional()
   @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
   period?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   search?: string;
 }
 
@@ -148,11 +152,13 @@ export class QueryApiUsageRecordsDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(1000000)
   page?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(100)
   pageSize?: number;
 }

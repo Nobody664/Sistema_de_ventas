@@ -108,6 +108,7 @@ describe("Sales visibility across HTTP read paths and caches", () => {
         count: async ({ where }: { where: Prisma.SaleWhereInput }) =>
           matching(where).length,
         aggregate: async ({ where }: { where: Prisma.SaleWhereInput }) => ({
+          _count: { id: matching(where).length },
           _sum: {
             totalAmount: new Prisma.Decimal(
               matching(where).reduce(

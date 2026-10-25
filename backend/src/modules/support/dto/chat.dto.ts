@@ -8,6 +8,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Matches,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { SupportConversationStatus } from "@prisma/client";
@@ -61,4 +62,18 @@ export class SendMessageDto {
 export class UpdateConversationStatusDto {
   @IsEnum(SupportConversationStatus)
   status!: SupportConversationStatus;
+}
+
+export class QueryMessagesDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_-]{1,128}$/)
+  before?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 50;
 }

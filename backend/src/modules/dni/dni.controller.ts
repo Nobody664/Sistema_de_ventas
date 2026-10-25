@@ -6,6 +6,10 @@ import { RequireModule } from "@/modules/plan-capabilities/decorators/require-mo
 import { RequireFeature } from "@/modules/plan-capabilities/decorators/require-feature.decorator";
 import { ApiQuotaGuard } from "@/modules/plan-capabilities/guards/api-quota.guard";
 import { DniService } from "./dni.service";
+import {
+  AuthUser,
+  CurrentUser,
+} from "@/common/decorators/current-user.decorator";
 
 @Controller("dni")
 @UseGuards(JwtAuthGuard, ApiQuotaGuard)
@@ -17,13 +21,13 @@ export class DniController {
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Get(":dni")
-  async findByDni(@Param("dni") dni: string) {
-    return this.dniService.findByDni(dni);
+  async findByDni(@Param("dni") dni: string, @CurrentUser() user: AuthUser) {
+    return this.dniService.findByDni(dni, user.companyId ?? null);
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Get("ruc/:ruc")
-  async findByRuc(@Param("ruc") ruc: string) {
-    return this.dniService.findByRuc(ruc);
+  async findByRuc(@Param("ruc") ruc: string, @CurrentUser() user: AuthUser) {
+    return this.dniService.findByRuc(ruc, user.companyId ?? null);
   }
 }

@@ -22,7 +22,9 @@ import {
   QueryConversationsDto,
   SendMessageDto,
   UpdateConversationStatusDto,
+  QueryMessagesDto,
 } from "./dto/chat.dto";
+import { pagination } from "@/common/helpers/query-bounds.helper";
 import { AssignTicketDto } from "./dto/ticket.dto";
 
 export interface ChatActor {
@@ -90,6 +92,7 @@ export class SupportChatService {
   async findAll(actor: ChatActor, query: QueryConversationsDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    pagination(page, limit);
     const where: Record<string, unknown> = {};
 
     if (query.status) {
@@ -137,16 +140,50 @@ export class SupportChatService {
     return conversation;
   }
 
-  async listMessages(actor: ChatActor, id: string) {
+  async listMessages(
+    actor: ChatActor,
+    id: string,
+    query: QueryMessagesDto = {},
+  ) {
     await this.findById(actor, id);
-
-    return this.prisma.supportMessage.findMany({
-      where: { conversationId: id },
-      orderBy: { createdAt: "asc" },
+    const { limit } = pagination(1, query.limit ?? 50);
+    if (query.before && !/^[a-zA-Z0-9_-]{1,128}$/.test(query.before))
+      throw new BadRequestException("Cursor inválido");
+    const cursor = query.before
+      ? await this.prisma.supportMessage.findFirst({
+          where: { id: query.before, conversationId: id },
+          select: { id: true, createdAt: true },
+        })
+      : null;
+    if (query.before && !cursor)
+      throw new BadRequestException(
+        "Cursor no encontrado en esta conversación",
+      );
+    const rows = await this.prisma.supportMessage.findMany({
+      where: {
+        conversationId: id,
+        ...(cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
       include: {
         sender: { select: { id: true, email: true, fullName: true } },
       },
     });
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit).reverse();
+    return {
+      items,
+      hasMore,
+      nextCursor: hasMore ? (items[0]?.id ?? null) : null,
+    };
   }
 
   async sendMessage(actor: ChatActor, id: string, dto: SendMessageDto) {

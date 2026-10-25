@@ -8,8 +8,6 @@ import {
   Query,
   Req,
   UseGuards,
-  DefaultValuePipe,
-  ParseIntPipe,
 } from "@nestjs/common";
 import { Request } from "express";
 import { Public } from "@/common/decorators/public.decorator";
@@ -28,6 +26,8 @@ import { PermissionsGuard } from "@/common/guards/permissions.guard";
 import { Permission } from "@/common/constants/permissions.constant";
 import { Permissions } from "@/common/decorators/permissions.decorator";
 import { ConfirmSubscriptionPaymentDto } from "./dto/confirm-subscription-payment.dto";
+import { PaginationQueryDto } from "@/common/dto/pagination-query.dto";
+import { CreateCheckoutSessionDto } from "./dto/payment-query.dto";
 
 @Controller("payments")
 export class PaymentsController {
@@ -35,8 +35,15 @@ export class PaymentsController {
 
   @UseGuards(JwtAuthGuard, TenantGuard)
   @Get()
-  findAll(@Req() request: { tenantId: string }) {
-    return this.paymentsService.findByCompany(request.tenantId);
+  findAll(
+    @Req() request: { tenantId: string },
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.paymentsService.findByCompany(
+      request.tenantId,
+      query.page,
+      query.limit,
+    );
   }
 
   @UseGuards(JwtAuthGuard, TenantGuard)
@@ -49,13 +56,12 @@ export class PaymentsController {
   @Get("history")
   getHistory(
     @Req() request: { tenantId: string },
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page?: number,
-    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query() query: PaginationQueryDto,
   ) {
     return this.paymentsService.getPaymentHistory(
       request.tenantId,
-      page,
-      limit,
+      query.page,
+      query.limit,
     );
   }
 
@@ -107,11 +113,8 @@ export class PaymentsController {
   @Roles("SUPER_ADMIN")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get("admin/pending")
-  findAllPending(
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page?: number,
-    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit?: number,
-  ) {
-    return this.paymentsService.findAllPending(page, limit);
+  findAllPending(@Query() query: PaginationQueryDto) {
+    return this.paymentsService.findAllPending(query.page, query.limit);
   }
 
   @Roles("SUPER_ADMIN")
@@ -125,7 +128,7 @@ export class PaymentsController {
   @Post("checkout-session/:provider")
   createCheckoutSession(
     @Param("provider") provider: string,
-    @Body() body: { planCode: string },
+    @Body() body: CreateCheckoutSessionDto,
     @Req() request: { tenantId: string },
   ) {
     return this.paymentsService.createCheckoutSession({

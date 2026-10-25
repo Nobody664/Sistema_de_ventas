@@ -89,6 +89,11 @@ describe("Payment and identity HTTP security", () => {
         {
           provide: PaymentsService,
           useValue: {
+            getPaymentHistory: async (
+              _companyId: string,
+              page: number,
+              limit: number,
+            ) => ({ page, limit, data: [] }),
             markAsPaid: async () => {
               confirmations++;
               return { id: "payment", message: "confirmed" };
@@ -113,6 +118,35 @@ describe("Payment and identity HTTP security", () => {
 
   after(async () => {
     await app?.close();
+  });
+
+  it("validates payment pagination and the concrete checkout body through HTTP", async () => {
+    const headers = { Authorization: `Bearer ${token("COMPANY_ADMIN")}` };
+    for (const query of [
+      "page=0",
+      "limit=101",
+      "page=-1",
+      "limit=NaN",
+      "unexpected=1",
+    ])
+      assert.equal(
+        (await fetch(`${url}/payments/history?${query}`, { headers })).status,
+        400,
+      );
+    const valid = await fetch(`${url}/payments/history?page=2&limit=50`, {
+      headers,
+    });
+    assert.equal(valid.status, 200);
+    assert.equal(((await valid.json()) as { page: number }).page, 2);
+    const invalid = await fetch(
+      `${url}/payments/checkout-session/mercadopago`,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ planCode: "PRO", amount: 0 }),
+      },
+    );
+    assert.equal(invalid.status, 400);
   });
 
   it("invalidates an old access token after a credential-version change", async () => {

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { rejectNullFields } from "@/common/helpers/patch-contract.helper";
+import { pagination } from "@/common/helpers/query-bounds.helper";
 import { isProfileComplete } from "@/common/helpers/profile-completeness.helper";
 import {
   CreateCompanyDto,
@@ -29,12 +30,13 @@ export class CompaniesService {
   }
 
   async findAll(page = 1, limit = 20) {
+    pagination(page, limit);
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
       this.prisma.company.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         include: {
           subscriptions: { include: { plan: true }, take: 1 },
           _count: { select: { memberships: true, customers: true } },

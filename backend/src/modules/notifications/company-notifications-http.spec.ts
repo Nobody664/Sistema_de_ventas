@@ -13,6 +13,7 @@ import { RolesGuard } from "@/common/guards/roles.guard";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { NotificationsController } from "./notifications.controller";
 import { NotificationsService } from "./notifications.service";
+import { NotificationStreamService } from "./notification-stream.service";
 
 describe("Company notification HTTP audience", () => {
   let app: INestApplication;
@@ -38,6 +39,7 @@ describe("Company notification HTTP audience", () => {
       controllers: [NotificationsController],
       providers: [
         NotificationsService,
+        { provide: NotificationStreamService, useValue: {} },
         {
           provide: PrismaService,
           useValue: {

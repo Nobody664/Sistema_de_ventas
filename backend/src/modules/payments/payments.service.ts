@@ -14,6 +14,7 @@ import { PaymentProvider } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { AuthUser } from "@/common/decorators/current-user.decorator";
 import { parseImageDataUrl } from "@/common/helpers/image.helper";
+import { pagination } from "@/common/helpers/query-bounds.helper";
 import { ConfirmSubscriptionPaymentDto } from "./dto/confirm-subscription-payment.dto";
 import { MercadoPagoGateway } from "./mercado-pago.gateway";
 import { SubscriptionSettlementService } from "./subscription-settlement.service";
@@ -30,27 +31,12 @@ export class PaymentsService {
     private readonly settlements: SubscriptionSettlementService,
   ) {}
 
-  async findByCompany(companyId: string) {
-    const subscriptions = await this.prisma.subscription.findMany({
-      where: { companyId },
-      include: {
-        payments: {
-          orderBy: { createdAt: "desc" },
-        },
-        plan: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-    });
-
-    if (!subscriptions.length) {
-      return [];
-    }
-
-    return subscriptions[0].payments;
+  async findByCompany(companyId: string, page = 1, limit = 20) {
+    return (await this.getPaymentHistory(companyId, page, limit)).data;
   }
 
   async getPaymentHistory(companyId: string, page = 1, limit = 20) {
+    pagination(page, limit);
     const subscription = await this.prisma.subscription.findFirst({
       where: { companyId },
       select: { id: true },
@@ -64,7 +50,7 @@ export class PaymentsService {
         where: { subscriptionId: subscription.id },
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       this.prisma.payment.count({ where: { subscriptionId: subscription.id } }),
     ]);
@@ -215,6 +201,7 @@ export class PaymentsService {
   }
 
   async findAllPending(page = 1, limit = 20) {
+    pagination(page, limit);
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
       this.prisma.payment.findMany({
@@ -235,13 +222,13 @@ export class PaymentsService {
 
   async getStats() {
     const totalPending = await this.prisma.payment.aggregate({
-      where: { status: "PENDING" },
+      where: { status: "PENDING", currency: "PEN" },
       _sum: { amount: true },
       _count: true,
     });
 
     const totalSucceeded = await this.prisma.payment.aggregate({
-      where: { status: "SUCCEEDED" },
+      where: { status: "SUCCEEDED", currency: "PEN" },
       _sum: { amount: true },
       _count: true,
     });
@@ -253,12 +240,14 @@ export class PaymentsService {
     const monthlyRevenue = await this.prisma.payment.aggregate({
       where: {
         status: "SUCCEEDED",
-        createdAt: { gte: thisMonth },
+        currency: "PEN",
+        paidAt: { gte: thisMonth },
       },
       _sum: { amount: true },
     });
 
     return {
+      currency: "PEN",
       pending: {
         count: totalPending._count || 0,
         amount: totalPending._sum.amount?.toString() || "0",

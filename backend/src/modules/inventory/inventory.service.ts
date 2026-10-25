@@ -17,6 +17,7 @@ import {
   ExportColumn,
 } from "@/common/helpers/export.helper";
 import { CreateInventoryAdjustmentDto } from "./dto/inventory.dto";
+import { collectExportRows } from "@/common/helpers/export-batch.helper";
 
 @Injectable()
 export class InventoryService {
@@ -53,11 +54,15 @@ export class InventoryService {
     companyId: string,
     format: "csv" | "excel" | "pdf" = "csv",
   ) {
-    const products = await this.prisma.product.findMany({
-      where: { companyId, isActive: true },
-      include: { category: { select: { name: true } } },
-      orderBy: { name: "asc" },
-    });
+    const products = await collectExportRows((take, after) =>
+      this.prisma.product.findMany({
+        take,
+        ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+        where: { companyId, isActive: true },
+        include: { category: { select: { name: true } } },
+        orderBy: { id: "asc" },
+      }),
+    );
 
     const rows = products.map((product) => {
       const stock = Number(product.stockQuantity);

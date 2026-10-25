@@ -12,6 +12,8 @@ import {
 } from "./dto/customer.dto";
 import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
 import { AuditService } from "@/common/services/audit.service";
+import { collectExportRows } from "@/common/helpers/export-batch.helper";
+import { pagination } from "@/common/helpers/query-bounds.helper";
 import {
   buildCsvExport,
   buildPdfExport,
@@ -37,9 +39,18 @@ export class CustomersService {
     });
   }
 
-  async getPurchases(companyId: string, customerId: string, actor: SalesActor) {
+  async getPurchases(
+    companyId: string,
+    customerId: string,
+    actor: SalesActor,
+    query: { page?: number; limit?: number } = {},
+  ) {
+    const { page, limit, skip } = pagination(query.page, query.limit);
+    const where = { ...salesVisibility(companyId, actor), customerId };
     const purchases = await this.prisma.sale.findMany({
-      where: { ...salesVisibility(companyId, actor), customerId },
+      where,
+      take: limit,
+      skip,
       include: {
         employee: {
           select: { firstName: true, lastName: true },
@@ -52,19 +63,31 @@ export class CustomersService {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
 
-    const totalSpent = purchases.reduce(
-      (acc, s) => acc + Number(s.totalAmount),
-      0,
-    );
-    const purchaseCount = purchases.length;
-    const lastPurchase = purchases[0] || null;
+    const [stats, total, lastPurchase] = await Promise.all([
+      this.prisma.sale.aggregate({
+        where: { ...where, status: "COMPLETED" },
+        _sum: { totalAmount: true },
+        _count: { id: true },
+      }),
+      this.prisma.sale.count({ where }),
+      this.prisma.sale.findFirst({
+        where: { ...where, status: "COMPLETED" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { createdAt: true },
+      }),
+    ]);
+    const totalSpent = Number(stats._sum.totalAmount ?? 0);
+    const purchaseCount = stats._count.id;
     const averageTicket = purchaseCount > 0 ? totalSpent / purchaseCount : 0;
 
     return {
       purchases,
+      page,
+      limit,
+      total,
       stats: {
         totalSpent,
         purchaseCount,
@@ -77,6 +100,7 @@ export class CustomersService {
   findByCompany(companyId: string, query?: QueryCustomerDto) {
     const page = query?.page ?? 1;
     const limit = query?.limit ?? 50;
+    pagination(page, limit);
 
     return this.prisma.customer.findMany({
       where: { companyId, deletedAt: null },
@@ -100,14 +124,22 @@ export class CustomersService {
     companyId: string,
     format: "csv" | "excel" | "pdf" = "csv",
   ) {
-    const customers = await this.prisma.customer.findMany({
-      where: { companyId, deletedAt: null },
-      orderBy: { createdAt: "desc" },
-    });
+    const customers = await collectExportRows((take, after) =>
+      this.prisma.customer.findMany({
+        take,
+        ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+        where: { companyId, deletedAt: null },
+        orderBy: { id: "asc" },
+      }),
+    );
 
     const grouped = await this.prisma.sale.groupBy({
       by: ["customerId"],
-      where: { companyId, customerId: { not: null } },
+      where: {
+        companyId,
+        status: "COMPLETED",
+        customerId: { in: customers.map((customer) => customer.id) },
+      },
       _count: { _all: true },
       _sum: { totalAmount: true },
     });

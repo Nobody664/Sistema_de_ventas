@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { CacheService } from "@/cache/cache.service";
 import {
@@ -9,6 +9,8 @@ import {
 } from "@/common/helpers/sales-visibility.helper";
 
 type GlobalMetrics = {
+  currency: string;
+  collectedRevenueByCurrency: Record<string, number>;
   totalCompanies: number;
   activeCompanies: number;
   suspendedCompanies: number;
@@ -59,6 +61,21 @@ type CustomerStats = {
 };
 
 type TenantMetrics = {
+  dataCoverage: {
+    sales: {
+      limit: number;
+      returned: number;
+      total: number;
+      truncated: boolean;
+    };
+    inventory: {
+      limit: number;
+      returned: number;
+      total: number;
+      truncated: boolean;
+    };
+    topProducts: { source: string; limit: number };
+  };
   salesScope: "COMPANY" | "SELLER";
   company: { name: string; status: string; currency: string } | null;
   companyId: string;
@@ -138,7 +155,7 @@ export class DashboardService {
   ) {}
 
   async getGlobalMetrics(): Promise<GlobalMetrics> {
-    const cached = await this.cache.get<GlobalMetrics>("dashboard:global");
+    const cached = await this.cache.get<GlobalMetrics>("dashboard:global:v3");
     if (cached) return cached;
 
     const [
@@ -151,36 +168,53 @@ export class DashboardService {
       this.prisma.company.count(),
       this.prisma.company.count({ where: { status: "ACTIVE" } }),
       this.prisma.company.count({ where: { status: "SUSPENDED" } }),
-      this.prisma.subscription.findMany({
+      this.prisma.subscription.groupBy({
+        by: ["planId", "billingCycle"],
         where: { status: "ACTIVE" },
-        include: { plan: true },
+        _count: { _all: true },
       }),
-      this.prisma.payment.findMany({
+      this.prisma.payment.groupBy({
+        by: ["currency"],
         where: { status: "SUCCEEDED" },
+        _sum: { amount: true },
       }),
     ]);
 
-    const subscriptions = activeSubscriptions as Array<{
-      plan: { priceMonthly: unknown; priceYearly: unknown };
-    }>;
-    const payments = succeededPayments as Array<{ amount: unknown }>;
+    const plans = await this.prisma.plan.findMany({
+      where: {
+        id: {
+          in: activeSubscriptions.map((subscription) => subscription.planId),
+        },
+      },
+      select: { id: true, priceMonthly: true, priceYearly: true },
+    });
+    const planById = new Map(plans.map((plan) => [plan.id, plan]));
 
-    const monthlyRecurringRevenue = subscriptions.reduce(
-      (total: number, subscription) =>
-        total + Number(subscription.plan.priceMonthly),
+    const monthlyRecurringRevenue = activeSubscriptions.reduce(
+      (total, subscription) => {
+        const plan = planById.get(subscription.planId);
+        return (
+          total +
+          subscription._count._all *
+            (subscription.billingCycle === "YEARLY"
+              ? Number(plan?.priceYearly ?? 0) / 12
+              : Number(plan?.priceMonthly ?? 0))
+        );
+      },
       0,
     );
-    const annualRecurringRevenue = subscriptions.reduce(
-      (total: number, subscription) =>
-        total + Number(subscription.plan.priceYearly),
-      0,
+    const annualRecurringRevenue = monthlyRecurringRevenue * 12;
+    const collectedRevenueByCurrency = Object.fromEntries(
+      succeededPayments.map((payment) => [
+        payment.currency,
+        Number(payment._sum.amount ?? 0),
+      ]),
     );
-    const collectedRevenue = payments.reduce(
-      (total: number, payment) => total + Number(payment.amount),
-      0,
-    );
+    const collectedRevenue = collectedRevenueByCurrency.PEN ?? 0;
 
     const result = {
+      currency: "PEN",
+      collectedRevenueByCurrency,
       totalCompanies,
       activeCompanies,
       suspendedCompanies,
@@ -189,7 +223,7 @@ export class DashboardService {
       collectedRevenue,
     };
 
-    await this.cache.set("dashboard:global", result, 120);
+    await this.cache.set("dashboard:global:v3", result, 120);
     return result;
   }
 
@@ -199,7 +233,7 @@ export class DashboardService {
     }
 
     const visibility = salesVisibility(companyId, actor);
-    const cacheKey = `dashboard:tenant:v2:${companyId}:${salesAudienceKey(actor)}`;
+    const cacheKey = `dashboard:tenant:v3:${companyId}:${salesAudienceKey(actor)}`;
     const cached = await this.cache.get<TenantMetrics>(cacheKey);
     if (cached) return cached;
 
@@ -227,13 +261,19 @@ export class DashboardService {
       allSales,
       allProducts,
       newThisMonth,
+      periodTotals,
     ] = await Promise.all([
-      this.prisma.sale.findMany({
-        where: { ...visibility, createdAt: { gte: todayStart } },
-        select: { totalAmount: true },
+      this.prisma.sale.aggregate({
+        where: {
+          ...visibility,
+          status: "COMPLETED",
+          createdAt: { gte: todayStart },
+        },
+        _sum: { totalAmount: true },
+        _count: { id: true },
       }),
       this.prisma.sale.findMany({
-        where: visibility,
+        where: { ...visibility, status: "COMPLETED" },
         include: { items: { include: { product: true } } },
         orderBy: { createdAt: "desc" },
         take: 25,
@@ -246,7 +286,11 @@ export class DashboardService {
       this.prisma.customer.count({ where: { companyId } }),
       this.prisma.employee.count({ where: { companyId } }),
       this.prisma.sale.findMany({
-        where: { ...visibility, createdAt: { gte: thirtyDaysAgo } },
+        where: {
+          ...visibility,
+          status: "COMPLETED",
+          createdAt: { gte: thirtyDaysAgo },
+        },
         select: {
           id: true,
           createdAt: true,
@@ -271,9 +315,17 @@ export class DashboardService {
       this.prisma.customer.count({
         where: { companyId, createdAt: { gte: monthStart } },
       }),
+      this.prisma.sale.aggregate({
+        where: {
+          ...visibility,
+          status: "COMPLETED",
+          createdAt: { gte: thirtyDaysAgo },
+        },
+        _sum: { totalAmount: true },
+        _count: { id: true },
+      }),
     ]);
 
-    const todaySales = salesToday as Array<{ totalAmount: unknown }>;
     const salesWithItems = recentSales as unknown as Array<{
       items: Array<{
         productId: string;
@@ -282,10 +334,7 @@ export class DashboardService {
       }>;
     }>;
 
-    const revenueToday = todaySales.reduce(
-      (total, sale) => total + Number(sale.totalAmount),
-      0,
-    );
+    const revenueToday = Number(salesToday._sum.totalAmount ?? 0);
     const topProductMap = new Map<
       string,
       { productId: string; name: string; quantity: number }
@@ -432,9 +481,11 @@ export class DashboardService {
       weekly,
       monthly,
       averageTicket:
-        allSalesData.length > 0 ? totalRevenue / allSalesData.length : 0,
-      totalSales: allSalesData.length,
-      totalRevenue,
+        periodTotals._count.id > 0
+          ? Number(periodTotals._sum.totalAmount ?? 0) / periodTotals._count.id
+          : 0,
+      totalSales: periodTotals._count.id,
+      totalRevenue: Number(periodTotals._sum.totalAmount ?? 0),
     };
 
     const inventoryMetrics: InventoryMetrics = {
@@ -452,6 +503,21 @@ export class DashboardService {
     };
 
     const result = {
+      dataCoverage: {
+        sales: {
+          limit: 500,
+          returned: allSalesData.length,
+          total: periodTotals._count.id,
+          truncated: periodTotals._count.id > allSalesData.length,
+        },
+        inventory: {
+          limit: 10000,
+          returned: products.length,
+          total: totalProducts,
+          truncated: totalProducts > products.length,
+        },
+        topProducts: { source: "LATEST_COMPLETED_SALES", limit: 25 },
+      },
       salesScope: canReadCompanySales(actor)
         ? ("COMPANY" as const)
         : ("SELLER" as const),
@@ -460,7 +526,7 @@ export class DashboardService {
       totalProducts,
       totalCustomers,
       totalEmployees,
-      salesToday: salesToday.length,
+      salesToday: salesToday._count.id,
       revenueToday,
       lowStockProducts: lowStockCount,
       topProducts,
@@ -480,8 +546,15 @@ export class DashboardService {
     granularity: "day" | "week" | "month",
     actor: SalesActor,
   ): Promise<DashboardMetrics> {
+    if (
+      !Number.isInteger(days) ||
+      days < 1 ||
+      days > 366 ||
+      !["day", "week", "month"].includes(granularity)
+    )
+      throw new BadRequestException("Período o granularidad inválidos");
     const visibility = salesVisibility(companyId, actor);
-    const cacheKey = `dashboard:metrics:v2:${companyId}:${salesAudienceKey(actor)}:${days}:${granularity}`;
+    const cacheKey = `dashboard:metrics:v3:${companyId}:${salesAudienceKey(actor)}:${days}:${granularity}`;
     const cached = await this.cache.get<DashboardMetrics>(cacheKey);
     if (cached) return cached;
 
@@ -502,6 +575,7 @@ export class DashboardService {
 
     const [currentSales, previousSales] = await Promise.all([
       this.prisma.sale.findMany({
+        take: 10001,
         where: {
           ...visibility,
           status: "COMPLETED",
@@ -522,6 +596,7 @@ export class DashboardService {
         },
       }),
       this.prisma.sale.findMany({
+        take: 10001,
         where: {
           ...visibility,
           status: "COMPLETED",
@@ -530,6 +605,10 @@ export class DashboardService {
         select: { totalAmount: true },
       }),
     ]);
+    if (currentSales.length > 10000 || previousSales.length > 10000)
+      throw new BadRequestException(
+        "El período supera 10000 ventas; consulta un rango menor",
+      );
 
     const current = currentSales as unknown as Array<{
       id: string;

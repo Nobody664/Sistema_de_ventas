@@ -9,6 +9,7 @@ import {
   canReadCompanySales,
 } from "@/common/helpers/sales-visibility.helper";
 import { ReportsOverviewQueryDto } from "./dto/reports-query.dto";
+import { dateRange } from "@/common/helpers/query-bounds.helper";
 
 type SalesByChannel = {
   channel: SaleChannel;
@@ -51,21 +52,20 @@ export class ReportsService {
     actor: SalesActor,
   ): Promise<SalesOverview> {
     const channel = query.channel;
-    const startDate = query.startDate ? new Date(query.startDate) : undefined;
-    const endDate = query.endDate ? new Date(query.endDate) : undefined;
-    if (endDate) {
-      endDate.setHours(23, 59, 59, 999);
-    }
+    const { from: startDate, to: endDate } = dateRange(
+      query.startDate,
+      query.endDate,
+      30,
+    );
 
     const visibility = salesVisibility(companyId, actor);
-    const cacheKey = `reports:sales-overview:v2:${companyId}:${salesAudienceKey(actor)}:${channel ?? "all"}:${startDate?.toISOString() ?? ""}:${endDate?.toISOString() ?? ""}`;
+    const cacheKey = `reports:sales-overview:v3:${companyId}:${salesAudienceKey(actor)}:${channel ?? "all"}:${startDate?.toISOString() ?? ""}:${endDate?.toISOString() ?? ""}`;
     const cached = await this.cache.get<SalesOverview>(cacheKey);
     if (cached) return cached;
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     const dateWhere: Prisma.SaleWhereInput = {};
     if (startDate || endDate) {
@@ -75,12 +75,19 @@ export class ReportsService {
       };
     }
 
-    const where: Prisma.SaleWhereInput = { ...visibility, ...dateWhere };
+    const where: Prisma.SaleWhereInput = {
+      ...visibility,
+      ...dateWhere,
+      status: "COMPLETED",
+    };
     if (channel) {
       where.channel = channel;
     }
 
-    const channelWhere: Prisma.SaleWhereInput = { ...visibility };
+    const channelWhere: Prisma.SaleWhereInput = {
+      ...visibility,
+      status: "COMPLETED",
+    };
     if (channel) {
       channelWhere.channel = channel;
     }
@@ -102,13 +109,13 @@ export class ReportsService {
       }),
       this.prisma.customer.count({ where: { companyId } }),
       this.prisma.sale.aggregate({
-        where: { ...visibility, createdAt: { gte: startOfMonth } },
+        where: { ...channelWhere, createdAt: { gte: startOfMonth, lte: now } },
         _sum: { totalAmount: true },
       }),
       this.prisma.sale.aggregate({
         where: {
-          ...visibility,
-          createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+          ...channelWhere,
+          createdAt: { gte: startOfLastMonth, lt: startOfMonth },
         },
         _sum: { totalAmount: true },
       }),
@@ -117,16 +124,26 @@ export class ReportsService {
         where: { sale: where },
         _sum: { quantity: true, totalPrice: true },
         orderBy: { _sum: { quantity: "desc" } },
+        take: 8,
       }),
-      this.prisma.sale.findMany({
-        where: channelWhere,
-        select: { createdAt: true, totalAmount: true },
-        orderBy: { createdAt: "desc" },
-        take: 1000,
-      }),
+      Promise.all(
+        Array.from({ length: 7 }, (_, index) => {
+          const dayStart = new Date(endDate ?? now);
+          dayStart.setUTCDate(dayStart.getUTCDate() - (6 - index));
+          dayStart.setUTCHours(0, 0, 0, 0);
+          const dayEnd = new Date(dayStart.getTime() + 86400000);
+          return this.prisma.sale.aggregate({
+            where: {
+              AND: [where, { createdAt: { gte: dayStart, lt: dayEnd } }],
+            },
+            _count: { id: true },
+            _sum: { totalAmount: true },
+          });
+        }),
+      ),
       this.prisma.sale.groupBy({
         by: ["channel"],
-        where: { ...visibility, ...dateWhere },
+        where,
         _count: { id: true },
         _sum: { totalAmount: true },
       }),
@@ -149,22 +166,21 @@ export class ReportsService {
     const last7Days: { date: string; sales: number; revenue: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const dayStart = new Date(trendEnd);
-      dayStart.setDate(dayStart.getDate() - i);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCDate(dayStart.getUTCDate() - i);
+      dayStart.setUTCHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
-      const daySales = recentSales.filter(
-        (s) => s.createdAt >= dayStart && s.createdAt < dayEnd,
-      );
+      const daySales = recentSales[6 - i];
 
       last7Days.push({
         date: dayStart.toLocaleDateString("es-PE", {
           weekday: "short",
           day: "numeric",
+          timeZone: "UTC",
         }),
-        sales: daySales.length,
-        revenue: daySales.reduce((acc, s) => acc + Number(s.totalAmount), 0),
+        sales: daySales._count.id,
+        revenue: Number(daySales._sum.totalAmount ?? 0),
       });
     }
 

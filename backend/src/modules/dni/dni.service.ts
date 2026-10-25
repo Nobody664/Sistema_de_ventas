@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CacheService } from "@/cache/cache.service";
+import { ApiQuotaService } from "@/modules/plan-capabilities/api-quota.service";
 
 export interface DniResponse {
   dni: string;
@@ -33,6 +34,7 @@ export class DniService {
   constructor(
     private readonly configService: ConfigService,
     private readonly cache: CacheService,
+    private readonly quota: ApiQuotaService,
   ) {
     this.reniecUrl =
       this.configService.get<string>("RENIEC_API_URL") ||
@@ -43,7 +45,7 @@ export class DniService {
       "https://api.sunat.cloud/rucs";
   }
 
-  async findByDni(dni: string): Promise<DniResponse> {
+  async findByDni(dni: string, companyId: string | null): Promise<DniResponse> {
     if (!dni || dni.length !== 8 || !/^\d{8}$/.test(dni)) {
       throw new BadRequestException("DNI debe tener 8 dígitos");
     }
@@ -51,6 +53,7 @@ export class DniService {
     const cacheKey = `dni:${dni}`;
     const cached = await this.cache.get<DniResponse>(cacheKey);
     if (cached) return cached;
+    if (companyId) await this.quota.consume(companyId);
 
     try {
       const headers: Record<string, string> = {};
@@ -58,15 +61,10 @@ export class DniService {
         headers["Authorization"] = `Bearer ${this.reniecToken}`;
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
       const response = await fetch(`${this.reniecUrl}/${dni}`, {
         headers,
-        signal: controller.signal,
+        signal: AbortSignal.timeout(10000),
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -99,7 +97,7 @@ export class DniService {
       throw new NotFoundException("DNI no encontrado");
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.name === "AbortError") {
+        if (error.name === "AbortError" || error.name === "TimeoutError") {
           throw new BadRequestException(
             "Tiempo de conexión agotado con RENIEC",
           );
@@ -112,7 +110,7 @@ export class DniService {
     }
   }
 
-  async findByRuc(ruc: string): Promise<RucResponse> {
+  async findByRuc(ruc: string, companyId: string | null): Promise<RucResponse> {
     if (!ruc || ruc.length !== 11 || !/^\d{11}$/.test(ruc)) {
       throw new BadRequestException("RUC debe tener 11 dígitos");
     }
@@ -120,16 +118,12 @@ export class DniService {
     const cacheKey = `ruc:${ruc}`;
     const cached = await this.cache.get<RucResponse>(cacheKey);
     if (cached) return cached;
+    if (companyId) await this.quota.consume(companyId);
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
       const response = await fetch(`${this.sunatUrl}/${ruc}`, {
-        signal: controller.signal,
+        signal: AbortSignal.timeout(15000),
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -157,7 +151,7 @@ export class DniService {
       throw new NotFoundException("RUC no encontrado");
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.name === "AbortError") {
+        if (error.name === "AbortError" || error.name === "TimeoutError") {
           throw new BadRequestException("Tiempo de conexión agotado con SUNAT");
         }
         if (error.message.includes("RUC no encontrado")) {

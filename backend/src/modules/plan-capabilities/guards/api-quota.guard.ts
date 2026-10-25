@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
 import { ApiQuotaService } from "../api-quota.service";
 
 type RequestUser = {
@@ -26,10 +31,10 @@ export class ApiQuotaGuard implements CanActivate {
 
     const companyId = user.companyId;
     if (!companyId) {
-      return true;
+      throw new ForbiddenException("Se requiere contexto de empresa");
     }
 
-    await this.apiQuota.consume(companyId);
+    await this.apiQuota.assertAccess(companyId);
     return true;
   }
 }
