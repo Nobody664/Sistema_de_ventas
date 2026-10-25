@@ -4,7 +4,7 @@ const optionalSalary = z.preprocess(
   (value) =>
     value === "" || value === null || value === undefined ? null : value,
   z.coerce
-    .number({ invalid_type_error: "Monto inválido" })
+    .number({ error: "Monto inválido" })
     .min(0, "No puede ser negativo")
     .nullable(),
 );
@@ -13,7 +13,7 @@ const optionalPaymentDay = z.preprocess(
   (value) =>
     value === "" || value === null || value === undefined ? null : value,
   z.coerce
-    .number({ invalid_type_error: "Día inválido" })
+    .number({ error: "Día inválido" })
     .int("Debe ser un número entero")
     .min(1, "Debe estar entre 1 y 31")
     .max(31, "Entre 1 y 31")

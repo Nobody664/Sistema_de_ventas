@@ -8,6 +8,7 @@ import {
   refreshToken as apiRefreshToken,
   type AuthUser,
 } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 
 interface AuthState {
   user: AuthUser | null;
@@ -113,12 +114,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const user = await getMe();
       set({ user, isAuthenticated: true, isLoading: false, error: null });
-    } catch {
+    } catch (error) {
+      const status = error instanceof ApiError ? error.status : 0;
+
+      if (status === 401) {
+        set({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        });
+        return;
+      }
+
       set({
-        user: null,
-        isAuthenticated: false,
         isLoading: false,
-        error: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "No se pudo verificar la sesión",
       });
     }
   },

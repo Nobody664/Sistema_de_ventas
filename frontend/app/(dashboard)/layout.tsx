@@ -43,7 +43,7 @@ export default async function DashboardLayout({
           <div className="flex min-w-0 flex-1 flex-col border-l border-foreground/10">
             <AppHeader
               companyId={companyId ?? null}
-              fullName={session.user.fullName}
+              fullName={session.user.fullName ?? ""}
               roles={session.user.roles}
               email={session.user.email ?? ""}
               nav={<AppMobileNav roles={session.user.roles} />}

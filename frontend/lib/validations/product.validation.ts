@@ -17,16 +17,16 @@ export const createProductSchema = z.object({
     .optional()
     .or(z.literal("")),
   costPrice: z.coerce
-    .number({ invalid_type_error: "Ingrese un número válido" })
+    .number({ error: "Ingrese un número válido" })
     .min(0, "El precio debe ser positivo o cero"),
   salePrice: z.coerce
-    .number({ invalid_type_error: "Ingrese un número válido" })
+    .number({ error: "Ingrese un número válido" })
     .min(0, "El precio debe ser positivo o cero"),
   stockQuantity: z.coerce
-    .number({ invalid_type_error: "Ingrese un número válido" })
+    .number({ error: "Ingrese un número válido" })
     .min(0, "El stock no puede ser negativo"),
   minStock: z.coerce
-    .number({ invalid_type_error: "Ingrese un número válido" })
+    .number({ error: "Ingrese un número válido" })
     .min(0, "El stock mínimo no puede ser negativo"),
   baseUnit: z.enum(["UNIT", "KG", "LT", "MT"]).optional(),
   categoryId: z.string().optional().or(z.literal("")),

@@ -15,20 +15,19 @@ export const createDiscountCouponSchema = z
       .optional()
       .or(z.literal("")),
     type: z.enum(["PERCENTAGE", "FIXED"], {
-      required_error: "Selecciona el tipo de descuento",
-      invalid_type_error: "Selecciona el tipo de descuento",
+      error: "Selecciona el tipo de descuento",
     }),
     value: z.coerce
-      .number({ invalid_type_error: "Ingresa un valor válido" })
+      .number({ error: "Ingresa un valor válido" })
       .positive("Debe ser mayor a 0"),
     maxUses: z.coerce
-      .number({ invalid_type_error: "Cupo inválido" })
+      .number({ error: "Cupo inválido" })
       .int("Debe ser un número entero")
       .min(1, "Al menos 1 uso")
       .nullable()
       .optional(),
     minPurchase: z.coerce
-      .number({ invalid_type_error: "Monto inválido" })
+      .number({ error: "Monto inválido" })
       .min(0, "No puede ser negativo")
       .nullable()
       .optional(),

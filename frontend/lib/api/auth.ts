@@ -1,4 +1,5 @@
-const API_URL = "/api";
+import { parseSessionUser, type SessionUser } from "@/lib/session-contract";
+import { ApiError, apiFetch } from "./client";
 
 export interface LoginRequest {
   email: string;
@@ -13,92 +14,70 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  user: {
-    id: string;
-    email: string;
-    fullName: string | null;
-    roles: string[];
-    companyId: string | null;
-    companyStatus?: string | null;
-    planCode?: string | null;
-    subscriptionStatus?: string | null;
-    trialEndsAt?: string | null;
-  };
+  user: SessionUser;
   expiresIn?: string;
 }
 
-export type AuthUser = AuthResponse["user"];
+export type AuthUser = SessionUser;
 
 export interface RefreshResponse {
   expiresIn?: string;
 }
 
-export class AuthApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly code?: string,
-  ) {
-    super(message);
+export class AuthApiError extends ApiError {
+  constructor(message: string, status: number, code?: string) {
+    super(message, status, code);
     this.name = "AuthApiError";
   }
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let errorMessage = "Error de autenticación";
-    let errorCode: string | undefined;
-
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.message || errorData.error || errorMessage;
-      errorCode = errorData.code;
-    } catch {
-      errorMessage = `Error ${response.status}`;
-    }
-
-    throw new AuthApiError(errorMessage, response.status, errorCode);
-  }
-
-  return response.json() as Promise<T>;
+function parseAuthResponse(response: {
+  user: unknown;
+  expiresIn?: string;
+}): AuthResponse {
+  return {
+    user: parseSessionUser(response.user),
+    expiresIn: response.expiresIn,
+  };
 }
 
 export async function login(data: LoginRequest): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-    credentials: "include",
-  });
+  const response = await apiFetch<{ user: unknown; expiresIn?: string }>(
+    "/auth/login",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+      skipRefresh: true,
+    },
+  );
 
-  return handleResponse<AuthResponse>(response);
+  return parseAuthResponse(response);
 }
 
 export async function register(data: RegisterRequest): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-    credentials: "include",
-  });
+  const response = await apiFetch<{ user: unknown; expiresIn?: string }>(
+    "/auth/register",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+      skipRefresh: true,
+    },
+  );
 
-  return handleResponse<AuthResponse>(response);
+  return parseAuthResponse(response);
 }
 
 export async function logout(): Promise<void> {
-  await fetch(`${API_URL}/auth/logout`, {
+  await apiFetch<void>("/auth/logout", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    body: JSON.stringify({}),
+    skipRefresh: true,
   });
 }
 
 export async function getMe(): Promise<AuthUser> {
-  const response = await fetch(`${API_URL}/auth/me`, {
-    credentials: "include",
-  });
-
-  return handleResponse<AuthUser>(response);
+  const response = await apiFetch<unknown>("/auth/me");
+  return parseSessionUser(response);
 }
 
 export interface UpdateProfileResponse {
@@ -108,25 +87,20 @@ export interface UpdateProfileResponse {
 export async function updateProfile(
   fullName: string,
 ): Promise<UpdateProfileResponse> {
-  const response = await fetch(`${API_URL}/auth/me`, {
+  const response = await apiFetch<{ user: unknown }>("/auth/me", {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fullName }),
-    credentials: "include",
   });
 
-  return handleResponse<UpdateProfileResponse>(response);
+  return { user: parseSessionUser(response.user) };
 }
 
 export async function refreshToken(): Promise<RefreshResponse> {
-  const response = await fetch(`${API_URL}/auth/refresh`, {
+  return apiFetch<RefreshResponse>("/auth/refresh", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
-    credentials: "include",
+    skipRefresh: true,
   });
-
-  return handleResponse<RefreshResponse>(response);
 }
 
 export function getAccessToken(): undefined {

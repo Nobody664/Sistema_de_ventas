@@ -34,7 +34,7 @@ export default async function PlatformLayout({
         <div className="flex min-w-0 flex-1 flex-col border-l border-foreground/10">
           <AppHeader
             companyId={session.user.companyId ?? null}
-            fullName={session.user.fullName}
+            fullName={session.user.fullName ?? ""}
             roles={roles}
             email={session.user.email ?? ""}
             nav={<PlatformMobileNav roles={roles} />}

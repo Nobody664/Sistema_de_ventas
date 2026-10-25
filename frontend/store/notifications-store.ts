@@ -21,6 +21,7 @@ interface NotificationsState {
   connectToStream: (accessToken?: string) => void;
   disconnectFromStream: () => void;
   addNotification: (notification: Notification) => void;
+  reset: () => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>((set, get) => ({
@@ -180,6 +181,15 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     set({
       notifications: [notification, ...notifications],
       unreadCount: unreadCount + 1,
+    });
+  },
+
+  reset: () => {
+    get().disconnectFromStream();
+    set({
+      notifications: [],
+      unreadCount: 0,
+      isLoading: false,
     });
   },
 }));

@@ -12,8 +12,7 @@ export const FINANCE_EXPENSE_CATEGORIES = [
 export const createFinanceRecordSchema = z
   .object({
     direction: z.enum(FINANCE_DIRECTIONS, {
-      required_error: "Selecciona si es entrada o salida",
-      invalid_type_error: "Selecciona si es entrada o salida",
+      error: "Selecciona si es entrada o salida",
     }),
     category: z.string().optional().or(z.literal("")),
     description: z
@@ -22,7 +21,7 @@ export const createFinanceRecordSchema = z
       .min(3, "Mínimo 3 caracteres")
       .max(255, "Máximo 255 caracteres"),
     amount: z.coerce
-      .number({ invalid_type_error: "Ingresa un monto válido" })
+      .number({ error: "Ingresa un monto válido" })
       .positive("Debe ser mayor a 0"),
     recordDate: z.string().min(1, "Selecciona la fecha"),
     dueDate: z.string().optional().or(z.literal("")),
