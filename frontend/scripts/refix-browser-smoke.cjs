@@ -37,9 +37,12 @@ const currentPlan = {
   features: [],
 };
 const metrics = {
+  company: { name: "Negocio de prueba", currency: "PEN" },
   salesScope: "COMPANY",
   salesToday: 32,
   revenueToday: 500,
+  inventoryMetrics: { lowStockCount: 7, outOfStockCount: 2 },
+  dataCoverage: { inventory: { returned: 25, total: 25, truncated: false } },
   salesAnalytics: {
     totalSales: 1200,
     totalRevenue: 19000,
@@ -119,13 +122,28 @@ function data(resource) {
       planId: "plan",
       planCode: "PRO",
       planName: "Pro",
-      modules: ["sales", "inventory", "support", "dashboard", "notifications"],
+      modules: [
+        "sales",
+        "inventory",
+        "support",
+        "dashboard",
+        "notifications",
+        "products",
+        "categories",
+        "customers",
+        "distributors",
+        "reports",
+      ],
       features: [],
       apiEnabled: true,
       maxUsers: 10,
       maxProducts: 100,
     };
-  if (resource === "/dashboard/tenant") return metrics;
+  if (resource === "/dashboard/tenant")
+    return {
+      ...metrics,
+      salesScope: activeUser.roles.includes("CASHIER") ? "SELLER" : "COMPANY",
+    };
   if (resource === "/customers")
     return [
       {
@@ -435,6 +453,210 @@ async function main() {
 
     const accessFailures = [];
     const cases = [
+      {
+        name: "dashboard operativo sin informes duplicados, adaptable y compatible con ambos temas",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          await rolePage.setViewportSize({ width: 1440, height: 1050 });
+          const start = requestedResources.length;
+          await rolePage.goto(`${origin}/dashboard`);
+          await rolePage
+            .getByRole("heading", { name: "Lo importante, hoy.", exact: true })
+            .waitFor();
+          assert.equal(
+            await rolePage
+              .getByText("Importe vendido hoy", { exact: true })
+              .count(),
+            1,
+          );
+          assert.equal(
+            await rolePage.getByText("Ventas de hoy", { exact: true }).count(),
+            1,
+          );
+          assert.equal(
+            await rolePage
+              .getByText("Ticket promedio", { exact: true })
+              .count(),
+            1,
+          );
+          await rolePage
+            .getByRole("heading", {
+              name: "Atención al inventario",
+              exact: true,
+            })
+            .waitFor();
+          assert.equal(
+            await rolePage
+              .getByText("Rendimiento de Ventas", { exact: true })
+              .count(),
+            0,
+          );
+          assert.equal(
+            await rolePage
+              .getByRole("button", { name: "30 días", exact: true })
+              .count(),
+            0,
+          );
+          assert.equal(
+            requestedResources
+              .slice(start)
+              .some((resource) => resource.startsWith("/dashboard/metrics")),
+            false,
+          );
+          await rolePage.evaluate(() => document.fonts.ready);
+          if (process.env.REFIX_SCREENSHOT_DIR)
+            await rolePage.screenshot({
+              path: path.join(
+                process.env.REFIX_SCREENSHOT_DIR,
+                "dashboard-desktop-light.png",
+              ),
+              fullPage: true,
+            });
+          await rolePage.emulateMedia({ colorScheme: "dark" });
+          await rolePage.locator("html.dark").waitFor();
+          if (process.env.REFIX_SCREENSHOT_DIR)
+            await rolePage.screenshot({
+              path: path.join(
+                process.env.REFIX_SCREENSHOT_DIR,
+                "dashboard-desktop-dark.png",
+              ),
+              fullPage: true,
+            });
+          await rolePage.emulateMedia({ colorScheme: "light" });
+          await rolePage.locator("html:not(.dark)").waitFor();
+          await rolePage.setViewportSize({ width: 390, height: 844 });
+          assert.equal(
+            await rolePage.evaluate(
+              () => document.documentElement.scrollWidth <= window.innerWidth,
+            ),
+            true,
+          );
+          if (process.env.REFIX_SCREENSHOT_DIR)
+            await rolePage.screenshot({
+              path: path.join(
+                process.env.REFIX_SCREENSHOT_DIR,
+                "dashboard-mobile.png",
+              ),
+              fullPage: true,
+            });
+        },
+      },
+      {
+        name: "Operaciones abre a la derecha con cinco rutas y funciona dentro del menú móvil",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          await rolePage.setViewportSize({ width: 1440, height: 1000 });
+          await rolePage.goto(`${origin}/dashboard`);
+          const sidebar = rolePage.getByRole("complementary", {
+            name: "Menú de control",
+          });
+          assert.equal(
+            await sidebar
+              .getByRole("link", { name: "Notificaciones", exact: true })
+              .count(),
+            0,
+          );
+          await rolePage
+            .getByRole("button", { name: /^Notificaciones:/ })
+            .waitFor();
+          assert.equal(
+            await sidebar
+              .getByRole("link", { name: "Proveedores", exact: true })
+              .count(),
+            0,
+          );
+          const trigger = sidebar.getByRole("button", {
+            name: "Operaciones",
+            exact: true,
+          });
+          await trigger.click();
+          const menu = rolePage.getByRole("menu");
+          await menu.waitFor();
+          assert.equal(await menu.getAttribute("data-side"), "right");
+          const labels = [
+            "Cupones",
+            "Distribuidores",
+            "Proveedores",
+            "Órdenes de compra",
+            "Notas de crédito",
+          ];
+          assert.deepEqual(
+            (await menu.getByRole("menuitem").allTextContents()).map((label) =>
+              label.trim(),
+            ),
+            labels,
+          );
+          await menu
+            .getByRole("menuitem", { name: "Cupones", exact: true })
+            .focus();
+          await rolePage.keyboard.press("ArrowDown");
+          await rolePage.waitForFunction(
+            () => document.activeElement?.textContent === "Distribuidores",
+          );
+          await rolePage.keyboard.press("Escape");
+          await menu.waitFor({ state: "hidden" });
+          assert.equal(
+            await trigger.evaluate(
+              (element) => element === document.activeElement,
+            ),
+            true,
+          );
+          await rolePage.setViewportSize({ width: 390, height: 844 });
+          await rolePage
+            .getByRole("button", { name: "Abrir menú de navegación" })
+            .click();
+          const drawer = rolePage.getByRole("dialog", {
+            name: "Menú de navegación",
+          });
+          const mobileTrigger = drawer.getByRole("button", {
+            name: "Operaciones",
+            exact: true,
+          });
+          await mobileTrigger.click();
+          assert.equal(
+            await mobileTrigger.getAttribute("aria-expanded"),
+            "true",
+          );
+          for (const label of labels)
+            await drawer
+              .getByRole("link", { name: label, exact: true })
+              .waitFor();
+          await drawer
+            .getByRole("link", { name: "Proveedores", exact: true })
+            .click();
+          await rolePage.waitForURL("**/suppliers");
+          await drawer.waitFor({ state: "hidden" });
+        },
+      },
+      {
+        name: "el cajero ve sus ventas sin inventario ni operaciones administrativas",
+        roles: ["CASHIER"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          await rolePage.goto(`${origin}/dashboard`);
+          await rolePage.getByText(/Solo tus ventas/).waitFor();
+          await rolePage
+            .getByText("Tu importe vendido hoy", { exact: true })
+            .waitFor();
+          assert.equal(
+            await rolePage
+              .getByRole("heading", {
+                name: "Atención al inventario",
+                exact: true,
+              })
+              .count(),
+            0,
+          );
+          assert.equal(
+            await rolePage
+              .getByRole("button", { name: "Operaciones", exact: true })
+              .count(),
+            0,
+          );
+        },
+      },
       {
         name: "SUPER_ADMIN sin empresa entra a plataforma y no consulta dashboard tenant",
         roles: ["SUPER_ADMIN"],

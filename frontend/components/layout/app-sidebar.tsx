@@ -2,22 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   BarChart3,
-  Bell,
+  ChevronRight,
   ClipboardList,
-  ReceiptText,
+  FolderTree,
   Handshake,
   Landmark,
+  Layers3,
   LayoutDashboard,
   LifeBuoy,
   Menu,
   Package,
+  ReceiptText,
   ShoppingCart,
   TicketPercent,
   Truck,
-  FolderTree,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
@@ -28,16 +29,23 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { usePlanCapabilities } from "@/components/plan-capabilities/plan-capabilities-provider";
+import { cn } from "@/lib/utils";
 
-type NavItem = {
+interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
   roles: string[];
   module?: string;
-  hint?: string;
-};
+}
 
 const mainItems: NavItem[] = [
   {
@@ -45,31 +53,9 @@ const mainItems: NavItem[] = [
     href: "/dashboard",
     icon: LayoutDashboard,
     module: "dashboard",
-    roles: [
-      "SUPER_ADMIN",
-      "SUPPORT_ADMIN",
-      "COMPANY_ADMIN",
-      "MANAGER",
-      "CASHIER",
-      "VIEWER",
-    ],
-  },
-  {
-    label: "Notificaciones",
-    href: "/notifications",
-    icon: Bell,
-    module: "notifications",
-    roles: [
-      "SUPER_ADMIN",
-      "SUPPORT_ADMIN",
-      "COMPANY_ADMIN",
-      "MANAGER",
-      "CASHIER",
-      "VIEWER",
-    ],
+    roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER", "VIEWER"],
   },
 ];
-
 const companyItems: NavItem[] = [
   {
     label: "Inventario",
@@ -99,6 +85,8 @@ const companyItems: NavItem[] = [
     module: "sales",
     roles: ["COMPANY_ADMIN", "MANAGER", "CASHIER"],
   },
+];
+const operationItems: NavItem[] = [
   {
     label: "Cupones",
     href: "/discounts",
@@ -112,14 +100,12 @@ const companyItems: NavItem[] = [
     icon: Handshake,
     module: "distributors",
     roles: ["COMPANY_ADMIN", "MANAGER"],
-    hint: "A quién le vendes / consignas",
   },
   {
     label: "Proveedores",
     href: "/suppliers",
     icon: Truck,
     roles: ["COMPANY_ADMIN", "MANAGER"],
-    hint: "De quién compras",
   },
   {
     label: "Órdenes de compra",
@@ -133,6 +119,8 @@ const companyItems: NavItem[] = [
     icon: ReceiptText,
     roles: ["COMPANY_ADMIN", "MANAGER"],
   },
+];
+const utilityItems: NavItem[] = [
   {
     label: "Finanzas",
     href: "/finance",
@@ -154,177 +142,240 @@ const companyItems: NavItem[] = [
   },
 ];
 
-const adminItems: NavItem[] = [];
+const rowClass =
+  "flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-orange-400/70";
+const inactiveClass =
+  "text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground";
+const activeClass = "bg-orange-500/15 text-orange-400";
 
-type AppSidebarProps = {
-  roles: string[];
-};
-
-type SidebarContentProps = {
-  roles: string[];
+function SidebarLink({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: NavItem;
+  active: boolean;
   onNavigate?: () => void;
-};
-
-function SidebarContent({ roles, onNavigate }: SidebarContentProps) {
-  const pathname = usePathname();
-  const { can } = usePlanCapabilities();
-
-  const isPlatformAdmin =
-    roles.includes("SUPER_ADMIN") || roles.includes("SUPPORT_ADMIN");
-
-  const visibleMainItems = mainItems.filter(
-    (item) =>
-      item.roles.some((role) => roles.includes(role)) &&
-      (!item.module || can(item.module)),
-  );
-  const visibleCompanyItems = companyItems.filter(
-    (item) =>
-      item.roles.some((role) => roles.includes(role)) &&
-      (!item.module || can(item.module)),
-  );
-  const visibleAdminItems = adminItems.filter((item) =>
-    item.roles.some((role) => roles.includes(role)),
-  );
-
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + "/");
-
+}) {
+  const Icon = item.icon;
   return (
-    <>
-      <div className="flex min-h-0 flex-col gap-6 overflow-hidden">
-        <div className="rounded-2xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-sidebar-foreground/40">
-            Huanka-Saas
-          </p>
-          <p className="mt-2 font-display text-2xl text-sidebar-foreground">
-            Control
-          </p>
-          <p className="mt-1 text-xs font-medium text-orange-400">Stack</p>
-        </div>
-
-        <nav className="space-y-1 overflow-y-auto py-1">
-          {visibleMainItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                onClick={onNavigate}
-                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                  active
-                    ? "bg-orange-500/15 text-orange-400"
-                    : "text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground"
-                }`}
-              >
-                <Icon className={`size-4 ${active ? "text-orange-400" : ""}`} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {visibleCompanyItems.length > 0 && (
-          <nav className="space-y-1 overflow-y-auto py-1">
-            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">
-              Gestión
-            </p>
-            {visibleCompanyItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={onNavigate}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                    active
-                      ? "bg-orange-500/15 text-orange-400"
-                      : "text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground"
-                  }`}
-                >
-                  <Icon
-                    className={`size-4 ${active ? "text-orange-400" : ""}`}
-                  />
-                  <span className="flex flex-col">
-                    <span>{item.label}</span>
-                    {item.hint && (
-                      <span className="text-[10px] font-normal text-sidebar-foreground/40">
-                        {item.hint}
-                      </span>
-                    )}
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-
-        {visibleAdminItems.length > 0 && (
-          <nav className="space-y-1 overflow-y-auto py-1">
-            <p className="px-4 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/30">
-              Sistema
-            </p>
-            {visibleAdminItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={onNavigate}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                    active
-                      ? "bg-orange-500/15 text-orange-400"
-                      : "text-sidebar-foreground/60 hover:bg-sidebar-muted/50 hover:text-sidebar-foreground"
-                  }`}
-                >
-                  <Icon
-                    className={`size-4 ${active ? "text-orange-400" : ""}`}
-                  />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-      </div>
-
-      {isPlatformAdmin && (
-        <div className="rounded-xl border border-sidebar-muted/30 bg-sidebar-muted/30 p-4 shrink-0">
-          <Link
-            href="/platform"
-            onClick={onNavigate}
-            className="flex items-center gap-2 text-sm font-medium text-violet-400 hover:text-violet-300"
-          >
-            <LayoutDashboard className="size-4" />
-            Ir a Plataforma
-          </Link>
-          <p className="mt-1 text-xs text-sidebar-foreground/50">
-            Panel global del sistema
-          </p>
-        </div>
-      )}
-    </>
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={cn(rowClass, active ? activeClass : inactiveClass)}
+    >
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      <span>{item.label}</span>
+    </Link>
   );
 }
 
-export function AppSidebar({ roles }: AppSidebarProps) {
+function SidebarContent({
+  roles,
+  onNavigate,
+  mobile = false,
+}: {
+  roles: string[];
+  onNavigate?: () => void;
+  mobile?: boolean;
+}) {
+  const pathname = usePathname();
+  const { can } = usePlanCapabilities();
+  const visible = (item: NavItem) =>
+    item.roles.some((role) => roles.includes(role)) &&
+    (!item.module || can(item.module));
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
+  const operations = operationItems.filter(visible);
+  const groupActive = operations.some((item) => isActive(item.href));
+  const [expanded, setExpanded] = useState(groupActive);
+  const groupId = useId();
+  useEffect(() => {
+    setExpanded(groupActive);
+  }, [pathname, groupActive]);
+
+  const groupLabel = (
+    <>
+      <Layers3 className="size-4 shrink-0" aria-hidden="true" />
+      <span className="flex-1 text-left">Operaciones</span>
+      <ChevronRight
+        className={cn(
+          "size-3.5 shrink-0 transition-transform",
+          mobile && expanded && "rotate-90",
+        )}
+        aria-hidden="true"
+      />
+    </>
+  );
+
   return (
-    <aside className="sticky top-0 hidden h-screen flex-col justify-between border-r border-sidebar-muted/50 bg-sidebar px-4 py-6 lg:flex lg:w-64 shrink-0">
+    <div className="flex min-h-0 flex-1 flex-col gap-7">
+      <div className="shrink-0 rounded-2xl border border-sidebar-muted/50 bg-sidebar-muted/20 px-4 py-4">
+        <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-sidebar-foreground/40">
+          Huanka-Saas
+        </p>
+        <p className="mt-1.5 font-display text-2xl text-sidebar-foreground">
+          Control
+        </p>
+        <p className="mt-1 text-[11px] text-sidebar-foreground/45">
+          Tu espacio de trabajo
+        </p>
+      </div>
+      <nav
+        aria-label="Navegación principal"
+        className="min-h-0 space-y-6 overflow-y-auto pb-3"
+      >
+        <div className="space-y-1">
+          {mainItems.filter(visible).map((item) => (
+            <SidebarLink
+              key={item.href}
+              item={item}
+              active={isActive(item.href)}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+        <div className="space-y-1">
+          <p className="mb-2 px-3.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/30">
+            Gestión
+          </p>
+          {companyItems.filter(visible).map((item) => (
+            <SidebarLink
+              key={item.href}
+              item={item}
+              active={isActive(item.href)}
+              onNavigate={onNavigate}
+            />
+          ))}
+          {operations.length > 0 &&
+            (mobile ? (
+              <div>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-controls={groupId}
+                  onClick={() => setExpanded((value) => !value)}
+                  className={cn(
+                    rowClass,
+                    groupActive || expanded ? activeClass : inactiveClass,
+                  )}
+                >
+                  {groupLabel}
+                </button>
+                {expanded && (
+                  <div
+                    id={groupId}
+                    className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-muted pl-2"
+                  >
+                    {operations.map((item) => (
+                      <SidebarLink
+                        key={item.href}
+                        item={item}
+                        active={isActive(item.href)}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      rowClass,
+                      groupActive ? activeClass : inactiveClass,
+                      "data-[state=open]:bg-sidebar-muted/60 data-[state=open]:text-sidebar-foreground",
+                    )}
+                  >
+                    {groupLabel}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  side="right"
+                  align="start"
+                  sideOffset={12}
+                  collisionPadding={12}
+                  className="z-[70] w-64 rounded-2xl border-sidebar-muted bg-sidebar p-2 text-sidebar-foreground shadow-xl shadow-black/20"
+                >
+                  <DropdownMenuLabel className="px-3 pb-3 pt-2">
+                    <span className="block text-xs font-semibold">
+                      Operaciones
+                    </span>
+                    <span className="mt-1 block text-[11px] font-normal text-sidebar-foreground/45">
+                      Compras y gestión comercial
+                    </span>
+                  </DropdownMenuLabel>
+                  {operations.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.href);
+                    return (
+                      <DropdownMenuItem
+                        key={item.href}
+                        asChild
+                        className={cn(
+                          "gap-3 rounded-xl px-3 py-2.5 text-sm focus:bg-sidebar-muted focus:text-sidebar-foreground",
+                          active ? activeClass : "text-sidebar-foreground/70",
+                        )}
+                      >
+                        <Link
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          onClick={onNavigate}
+                        >
+                          <Icon
+                            className="size-4 shrink-0"
+                            aria-hidden="true"
+                          />
+                          {item.label}
+                          {active && (
+                            <span
+                              className="ml-auto size-1.5 rounded-full bg-orange-400"
+                              aria-hidden="true"
+                            />
+                          )}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
+        </div>
+        <div className="space-y-1 border-t border-sidebar-muted/50 pt-4">
+          {utilityItems.filter(visible).map((item) => (
+            <SidebarLink
+              key={item.href}
+              item={item}
+              active={isActive(item.href)}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+export function AppSidebar({ roles }: { roles: string[] }) {
+  return (
+    <aside
+      aria-label="Menú de control"
+      className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-muted/50 bg-sidebar px-4 py-6 lg:flex"
+    >
       <SidebarContent roles={roles} />
     </aside>
   );
 }
 
-export function AppMobileNav({ roles }: AppSidebarProps) {
+export function AppMobileNav({ roles }: { roles: string[] }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
-
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -341,8 +392,12 @@ export function AppMobileNav({ roles }: AppSidebarProps) {
         <SheetDescription className="sr-only">
           Accesos del sistema
         </SheetDescription>
-        <div className="flex min-h-0 flex-1 flex-col justify-between gap-6 overflow-y-auto px-4 py-6">
-          <SidebarContent roles={roles} onNavigate={() => setOpen(false)} />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6">
+          <SidebarContent
+            roles={roles}
+            mobile
+            onNavigate={() => setOpen(false)}
+          />
         </div>
       </SheetContent>
     </Sheet>

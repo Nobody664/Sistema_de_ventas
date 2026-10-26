@@ -4,182 +4,75 @@ import { getServerSession } from "@/lib/session";
 import { serverApiFetch } from "@/lib/server-api";
 import { isPlatformUser } from "@/lib/role-navigation";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
-
-type GlobalMetrics = {
-  totalCompanies: number;
-  activeCompanies: number;
-  suspendedCompanies: number;
-  monthlyRecurringRevenue: number;
-  annualRecurringRevenue: number;
-  collectedRevenue: number;
-};
-
-type SalesAnalytics = {
-  daily: Array<{ date: string; sales: number; revenue: number }>;
-  weekly: Array<{ week: string; sales: number; revenue: number }>;
-  monthly: Array<{ month: string; sales: number; revenue: number }>;
-  averageTicket: number;
-  totalSales: number;
-  totalRevenue: number;
-};
-
-type PaymentMethodStats = Array<{
-  method: string;
-  count: number;
-  total: number;
-}>;
-
-type InventoryMetrics = {
-  totalValue: number;
-  totalItems: number;
-  lowStockCount: number;
-  outOfStockCount: number;
-  slowMovingCount: number;
-};
-
-type CustomerStats = {
-  total: number;
-  newThisMonth: number;
-  topCustomers: Array<{
-    customerId: string;
-    name: string;
-    totalPurchases: number;
-    totalSpent: number;
-  }>;
-};
-
-type TenantMetrics = {
-  company: { name: string; status: string; currency: string } | null;
-  companyId: string;
-  totalProducts: number;
-  totalCustomers: number;
-  totalEmployees: number;
-  salesToday: number;
-  revenueToday: number;
-  lowStockProducts: number;
-  topProducts: Array<{ productId: string; name: string; quantity: number }>;
-  salesAnalytics: SalesAnalytics;
-  paymentMethods: PaymentMethodStats;
-  inventoryMetrics: InventoryMetrics;
-  customerStats: CustomerStats;
-};
-
-type AuditLog = {
-  id: string;
-  action: string;
-  entity: string;
-  entityId: string;
-  userId: string;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  user?: { email: string; fullName: string };
-  company?: { name: string };
-};
-
-type Subscription = {
-  id: string;
-  status: string;
-  provider: string;
-  billingCycle: string;
-  plan?: { name: string; priceMonthly: string };
-  company?: { name: string };
-};
-
-type SubscriberResponse = {
-  name: string;
-  subscription?: {
-    id: string;
-    status: string;
-    provider: string;
-    billingCycle: string;
-    plan?: { name: string; priceMonthly: string };
-  } | null;
-};
-
-type PaginatedSubscriptions = {
-  data: SubscriberResponse[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-};
+import type { DashboardOverview } from "@/types/dashboard";
 
 async function DashboardDataLoader() {
   const session = await getServerSession();
-  const accessToken = session?.accessToken;
-  const userRoles = session?.user?.roles ?? [];
-  if (isPlatformUser(userRoles)) redirect("/platform");
-  const isSuperAdmin =
-    userRoles.includes("SUPER_ADMIN") || userRoles.includes("SUPPORT_ADMIN");
-
-  let globalMetrics: GlobalMetrics | null = null;
-  let auditLogs: AuditLog[] | null = null;
-  let recentSubscriptions: Subscription[] | null = null;
-
-  const [tenantMetrics] = await Promise.all([
-    serverApiFetch<TenantMetrics | null>(
-      "/dashboard/tenant",
-      accessToken ?? undefined,
-    ),
-  ]);
-
-  if (isSuperAdmin) {
-    const [globals, logs, subsResponse] = await Promise.all([
-      serverApiFetch<GlobalMetrics | null>(
-        "/dashboard/global",
-        accessToken ?? undefined,
-      ),
-      serverApiFetch<{ items: AuditLog[] } | null>(
-        "/audit/global",
-        accessToken ?? undefined,
-      ),
-      serverApiFetch<PaginatedSubscriptions | null>(
-        "/subscriptions/subscribers",
-        accessToken ?? undefined,
-      ),
-    ]);
-    globalMetrics = globals;
-    auditLogs = logs?.items ?? null;
-    recentSubscriptions = (subsResponse?.data ?? []).flatMap(
-      (subscriber): Subscription[] => {
-        if (!subscriber.subscription) return [];
-
-        return [
-          {
-            id: subscriber.subscription.id,
-            status: subscriber.subscription.status,
-            provider: subscriber.subscription.provider,
-            billingCycle: subscriber.subscription.billingCycle,
-            plan: subscriber.subscription.plan,
-            company: { name: subscriber.name },
-          },
-        ];
-      },
-    );
-  }
-
+  if (!session?.user) redirect("/sign-in");
+  if (isPlatformUser(session.user.roles)) redirect("/platform");
+  const data = await serverApiFetch<DashboardOverview>(
+    "/dashboard/tenant",
+    session.accessToken,
+  );
+  const overview: DashboardOverview | null = data
+    ? {
+        company: data.company
+          ? { name: data.company.name, currency: data.company.currency }
+          : null,
+        salesScope: data.salesScope,
+        salesToday: data.salesToday,
+        revenueToday: data.revenueToday,
+        inventoryMetrics: {
+          lowStockCount: data.inventoryMetrics.lowStockCount,
+          outOfStockCount: data.inventoryMetrics.outOfStockCount,
+        },
+        dataCoverage: data.dataCoverage
+          ? { inventory: data.dataCoverage.inventory }
+          : undefined,
+      }
+    : null;
+  const consulted = new Date();
   return (
     <DashboardClient
-      globalMetrics={globalMetrics}
-      auditLogs={auditLogs}
-      recentSubscriptions={recentSubscriptions}
-      tenantMetrics={tenantMetrics}
-      isSuperAdmin={isSuperAdmin}
+      tenantMetrics={overview}
+      roles={session.user.roles}
+      dateLabel={new Intl.DateTimeFormat("es-PE", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        timeZone: "America/Lima",
+      }).format(consulted)}
+      consultedAt={new Intl.DateTimeFormat("es-PE", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Lima",
+      }).format(consulted)}
     />
   );
 }
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-        <div className="h-48 rounded-[34px] bg-gray-200" />
-        <div className="h-48 rounded-[34px] bg-gray-100" />
+    <div
+      role="status"
+      aria-label="Cargando resumen"
+      className="mx-auto max-w-6xl space-y-7 motion-safe:animate-pulse"
+    >
+      <div className="space-y-3">
+        <div className="h-4 w-40 rounded bg-muted" />
+        <div className="h-10 w-64 max-w-full rounded-lg bg-muted" />
       </div>
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-32 rounded-[30px] bg-gray-100" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {[0, 1, 2].map((index) => (
+          <div
+            key={index}
+            className="h-56 rounded-2xl border border-border/50 bg-card"
+          />
         ))}
+      </div>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <div className="h-72 rounded-2xl bg-card" />
+        <div className="h-72 rounded-2xl bg-card" />
       </div>
     </div>
   );

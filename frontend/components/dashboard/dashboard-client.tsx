@@ -1,712 +1,409 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { useAuthStore } from "@/stores/auth.store";
-import { RevenueChart } from "@/components/charts/revenue-chart";
-import { DashboardMetricsPanel } from "@/components/dashboard/dashboard-metrics-panel";
-import { ErrorBoundary } from "@/components/common/error-boundary";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import {
-  Building2,
-  CreditCard,
-  Banknote,
-  Users,
-  Activity,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle,
+  ArrowRight,
+  ArrowUpRight,
+  BarChart3,
+  Check,
+  CircleDollarSign,
+  Clock3,
   Package,
+  Plus,
+  RefreshCw,
+  ShoppingBag,
   ShoppingCart,
-  TrendingDown,
+  TriangleAlert,
+  Users,
   Wallet,
-  Receipt,
-  Star,
 } from "lucide-react";
-
-type GlobalMetrics = {
-  totalCompanies: number;
-  activeCompanies: number;
-  suspendedCompanies: number;
-  monthlyRecurringRevenue: number;
-  annualRecurringRevenue: number;
-  collectedRevenue: number;
-};
-
-type SalesAnalytics = {
-  daily: Array<{ date: string; sales: number; revenue: number }>;
-  weekly: Array<{ week: string; sales: number; revenue: number }>;
-  monthly: Array<{ month: string; sales: number; revenue: number }>;
-  averageTicket: number;
-  totalSales: number;
-  totalRevenue: number;
-};
-
-type PaymentMethodStats = Array<{
-  method: string;
-  count: number;
-  total: number;
-}>;
-
-type InventoryMetrics = {
-  totalValue: number;
-  totalItems: number;
-  lowStockCount: number;
-  outOfStockCount: number;
-  slowMovingCount: number;
-};
-
-type CustomerStats = {
-  total: number;
-  newThisMonth: number;
-  topCustomers: Array<{
-    customerId: string;
-    name: string;
-    totalPurchases: number;
-    totalSpent: number;
-  }>;
-};
-
-type TenantMetrics = {
-  company: { name: string; status: string; currency: string } | null;
-  companyId: string;
-  totalProducts: number;
-  totalCustomers: number;
-  totalEmployees: number;
-  salesToday: number;
-  revenueToday: number;
-  lowStockProducts: number;
-  topProducts: Array<{ productId: string; name: string; quantity: number }>;
-  salesAnalytics: SalesAnalytics;
-  paymentMethods: PaymentMethodStats;
-  inventoryMetrics: InventoryMetrics;
-  customerStats: CustomerStats;
-};
-
-type AuditLog = {
-  id: string;
-  action: string;
-  entity: string;
-  entityId: string;
-  userId: string;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  user?: { email: string; fullName: string };
-  company?: { name: string };
-};
-
-type Subscription = {
-  id: string;
-  status: string;
-  provider: string;
-  billingCycle: string;
-  plan?: { name: string; priceMonthly: string };
-  company?: { name: string };
-};
+import { usePlanCapabilities } from "@/components/plan-capabilities/plan-capabilities-provider";
+import { Button } from "@/components/ui/button";
+import { hasEffectivePermission } from "@/types/permissions";
+import type { DashboardOverview } from "@/types/dashboard";
 
 interface DashboardClientProps {
-  globalMetrics: GlobalMetrics | null;
-  auditLogs: AuditLog[] | null;
-  recentSubscriptions: Subscription[] | null;
-  tenantMetrics: TenantMetrics | null;
-  isSuperAdmin: boolean;
+  tenantMetrics: DashboardOverview | null;
+  roles: string[];
+  dateLabel: string;
+  consultedAt: string;
 }
 
 export function DashboardClient({
-  globalMetrics,
-  auditLogs,
-  recentSubscriptions,
-  tenantMetrics,
-  isSuperAdmin,
+  tenantMetrics: metrics,
+  roles,
+  dateLabel,
+  consultedAt,
 }: DashboardClientProps) {
-  const user = useAuthStore((state) => state.user);
-
-  const stats = isSuperAdmin
-    ? [
-        {
-          label: "Empresas",
-          value: globalMetrics?.totalCompanies ?? 0,
-          icon: Building2,
-          color: "blue",
-          delta: "total registradas",
-        },
-        {
-          label: "Activas",
-          value: globalMetrics?.activeCompanies ?? 0,
-          icon: CheckCircle,
-          color: "green",
-          delta: "operativas",
-        },
-        {
-          label: "MRR",
-          value: `S/ ${(globalMetrics?.monthlyRecurringRevenue ?? 0).toFixed(0)}`,
-          icon: Banknote,
-          color: "violet",
-          delta: "mensual",
-        },
-        {
-          label: "Cobrado",
-          value: `S/ ${(globalMetrics?.collectedRevenue ?? 0).toFixed(0)}`,
-          icon: CreditCard,
-          color: "emerald",
-          delta: "total",
-        },
-      ]
-    : [
-        {
-          label: "Ventas hoy",
-          value: tenantMetrics?.salesToday ?? 0,
-          icon: ShoppingCart,
-          color: "violet",
-          delta: "transacciones",
-        },
-        {
-          label: "Ingresos hoy",
-          value: `S/ ${(tenantMetrics?.revenueToday ?? 0).toFixed(2)}`,
-          icon: Banknote,
-          color: "green",
-          delta: "hoy",
-        },
-        {
-          label: "Stock bajo",
-          value: tenantMetrics?.lowStockProducts ?? 0,
-          icon: AlertCircle,
-          color: "amber",
-          delta: "productos",
-        },
-        {
-          label: "Valor inventario",
-          value: `S/ ${(tenantMetrics?.inventoryMetrics?.totalValue ?? 0).toFixed(0)}`,
-          icon: Wallet,
-          color: "blue",
-          delta: "total",
-        },
-      ];
-
-  const iconColors: Record<string, string> = {
-    blue: "bg-blue-500/20 text-blue-600",
-    green: "bg-green-500/20 text-green-600",
-    violet: "bg-violet-500/20 text-violet-600",
-    emerald: "bg-emerald-500/20 text-emerald-600",
-    amber: "bg-amber-500/20 text-amber-600",
-  };
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+  const { can } = usePlanCapabilities();
+  const canSell = hasEffectivePermission(roles, "sale:create") && can("sales");
+  const canSeeSales =
+    hasEffectivePermission(roles, "sale:list") && can("sales");
+  const canSeeInventory =
+    hasEffectivePermission(roles, "inventory:view") && can("inventory");
+  const canSeeCustomers =
+    hasEffectivePermission(roles, "customer:list") && can("customers");
+  const canSeeReports =
+    roles.some((role) =>
+      ["COMPANY_ADMIN", "MANAGER", "CASHIER"].includes(role),
+    ) && can("reports");
+  const personal = metrics?.salesScope === "SELLER";
+  const companyCurrency = metrics?.company?.currency;
+  const currency =
+    companyCurrency && /^[A-Z]{3}$/.test(companyCurrency)
+      ? companyCurrency
+      : "PEN";
+  const money = (value: number) =>
+    new Intl.NumberFormat("es-PE", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  const count = (value: number) => new Intl.NumberFormat("es-PE").format(value);
+  const average =
+    metrics && metrics.salesToday > 0
+      ? metrics.revenueToday / metrics.salesToday
+      : null;
+  const stock = metrics?.inventoryMetrics;
+  const inventoryCoverage = metrics?.dataCoverage?.inventory;
+  const partialInventory = inventoryCoverage?.truncated ?? false;
+  const hasStockAlerts =
+    !!stock && (stock.lowStockCount > 0 || stock.outOfStockCount > 0);
+  const refresh = () => startRefresh(() => router.refresh());
+  const shortcuts = [
+    ...(canSeeSales
+      ? [
+          {
+            href: "/sales",
+            title: "Historial de ventas",
+            description: personal
+              ? "Consulta las ventas que realizaste."
+              : "Busca y revisa tus operaciones.",
+            icon: ShoppingBag,
+          },
+        ]
+      : []),
+    ...(canSeeCustomers
+      ? [
+          {
+            href: "/customers",
+            title: "Clientes",
+            description: "Encuentra a quién atender después.",
+            icon: Users,
+          },
+        ]
+      : []),
+    ...(canSeeInventory
+      ? [
+          {
+            href: "/inventory",
+            title: "Inventario",
+            description: "Consulta existencias y movimientos.",
+            icon: Package,
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-        <Card className="rounded-[34px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 text-white animate-fade-in-up">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-white/50">
-                Panel de control
-              </p>
-              <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl sm:leading-none">
-                Consola {isSuperAdmin ? "Super Admin" : "Operativa"}
-              </h1>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">
-                {isSuperAdmin
-                  ? "Gestiona empresas, monitoreo de ingresos y actividad de la plataforma SaaS."
-                  : `Bienvenido a ${tenantMetrics?.company?.name || "tu empresa"}. Consulta tus métricas y operaciones.`}
-              </p>
-            </div>
-            {isSuperAdmin && (
-              <div className="hidden xl:block animate-fade-in-up delay-200">
-                <div className="rounded-3xl bg-white/10 p-6 backdrop-blur">
-                  <p className="text-sm uppercase tracking-[0.18em] text-white/60">
-                    Estado
-                  </p>
-                  <p className="mt-2 font-display text-3xl text-green-400">
-                    Operativo
-                  </p>
-                  <p className="mt-1 text-sm text-white/50">
-                    Todos los servicios activos
-                  </p>
-                </div>
-              </div>
-            )}
+    <div className="mx-auto max-w-6xl space-y-7 pb-4 sm:space-y-8">
+      <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span
+              className="size-1.5 rounded-full bg-orange-500"
+              aria-hidden="true"
+            />
+            <span>{metrics?.company?.name ?? "Tu espacio de trabajo"}</span>
+            <span className="text-border" aria-hidden="true">
+              /
+            </span>
+            <span>Resumen operativo</span>
           </div>
-        </Card>
-
-        <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-100">
-          <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-            {isSuperAdmin ? "Actividad reciente" : "Resumen"}
+          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            Lo importante, hoy.
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {personal
+              ? "Tus ventas y accesos para continuar el día."
+              : "El pulso de tu negocio y lo que necesita tu atención."}
           </p>
-          <div className="mt-5 space-y-4">
-            {isSuperAdmin && auditLogs ? (
-              auditLogs.slice(0, 5).map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-start gap-3 rounded-xl bg-foreground/[0.02] p-3 transition hover:bg-foreground/[0.04]"
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            aria-label="Actualizar resumen"
+            disabled={refreshing}
+            onClick={refresh}
+            className="h-10 w-10 rounded-xl bg-card p-0"
+          >
+            <RefreshCw
+              className={`size-4 ${refreshing ? "animate-spin" : ""}`}
+            />
+          </Button>
+          {canSell && (
+            <Button
+              asChild
+              className="h-10 rounded-xl bg-orange-600 px-4 text-white hover:bg-orange-700"
+            >
+              <Link href="/sales/new" prefetch={false}>
+                <Plus className="size-4" />
+                Nueva venta
+              </Link>
+            </Button>
+          )}
+        </div>
+      </header>
+
+      <section aria-labelledby="daily-summary-title" className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="daily-summary-title" className="text-sm font-semibold">
+            Resumen del día
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {dateLabel}
+            <span className="mx-2 text-border" aria-hidden="true">
+              ·
+            </span>
+            {personal ? "Solo tus ventas" : "Todo el negocio"}
+          </p>
+        </div>
+        {metrics ? (
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-[1.45fr_1fr_1fr]">
+            <div className="relative col-span-2 overflow-hidden rounded-2xl bg-slate-950 p-6 text-white sm:p-7 xl:col-span-1">
+              <div
+                className="absolute inset-y-7 left-0 w-1 rounded-r-full bg-orange-500"
+                aria-hidden="true"
+              />
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm font-medium text-white/65">
+                  {personal ? "Tu importe vendido hoy" : "Importe vendido hoy"}
+                </p>
+                <Wallet className="size-5 text-orange-400" aria-hidden="true" />
+              </div>
+              <p className="mt-7 break-words font-display text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">
+                {money(metrics.revenueToday)}
+              </p>
+              <div className="mt-6 flex items-center gap-2 border-t border-white/10 pt-4 text-xs text-white/55">
+                <span
+                  className="size-1.5 rounded-full bg-orange-400"
+                  aria-hidden="true"
+                />
+                Solo ventas completadas
+              </div>
+            </div>
+            <div className="flex flex-col rounded-2xl border border-border/70 bg-card p-4 sm:p-7">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Ventas de hoy
+                </p>
+                <ShoppingCart
+                  className="size-5 text-muted-foreground/60"
+                  aria-hidden="true"
+                />
+              </div>
+              <p className="mt-7 font-display text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">
+                {count(metrics.salesToday)}
+              </p>
+              <p className="mt-auto pt-5 text-xs leading-5 text-muted-foreground">
+                {metrics.salesToday === 0
+                  ? "Todavía no hay ventas completadas."
+                  : metrics.salesToday === 1
+                    ? "Una operación completada."
+                    : "Operaciones completadas."}
+              </p>
+            </div>
+            <div className="flex flex-col rounded-2xl border border-border/70 bg-card p-4 sm:p-7">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Ticket promedio
+                </p>
+                <CircleDollarSign
+                  className="size-5 text-muted-foreground/60"
+                  aria-hidden="true"
+                />
+              </div>
+              <p className="mt-7 break-words font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-4xl">
+                {average === null ? "—" : money(average)}
+              </p>
+              <p className="mt-auto pt-5 text-xs leading-5 text-muted-foreground">
+                {average === null
+                  ? "Se calcula con la primera venta del día."
+                  : "Importe promedio por venta de hoy."}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            role="status"
+            className="rounded-2xl border border-border bg-card p-8 text-center"
+          >
+            <TriangleAlert className="mx-auto mb-3 size-6 text-muted-foreground" />
+            <h3 className="font-semibold">El resumen no está disponible</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Actualiza para volver a consultar tus datos.
+            </p>
+            <Button
+              variant="outline"
+              onClick={refresh}
+              disabled={refreshing}
+              className="mt-4"
+            >
+              Volver a consultar
+            </Button>
+          </div>
+        )}
+      </section>
+
+      <div
+        className={`grid gap-5 ${canSeeInventory && stock ? "xl:grid-cols-[1.1fr_0.9fr]" : ""}`}
+      >
+        {canSeeInventory && stock && (
+          <section
+            aria-labelledby="attention-title"
+            className="flex flex-col rounded-2xl border border-border/70 bg-card p-6 sm:p-7"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Siguiente paso
+                </p>
+                <h2
+                  id="attention-title"
+                  className="font-display text-xl font-semibold"
                 >
-                  <div className="mt-1 rounded-lg bg-slate-100 p-1.5">
-                    <Activity className="size-4 text-slate-500" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {log.action.replace(/_/g, " ")}
-                    </p>
-                    <p className="truncate text-xs text-foreground/50">
-                      {log.company?.name || log.entity} ·{" "}
-                      {new Date(log.createdAt).toLocaleDateString("es-PE")}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : !isSuperAdmin && tenantMetrics ? (
-              <>
-                <div className="flex items-center justify-between rounded-xl bg-violet-50 p-4 transition hover:bg-violet-100">
-                  <div className="flex items-center gap-3">
-                    <Users className="size-5 text-violet-600" />
-                    <span className="font-medium">Clientes</span>
-                  </div>
-                  <span className="font-display text-xl text-violet-700">
-                    {tenantMetrics.totalCustomers}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-emerald-50 p-4 transition hover:bg-emerald-100">
-                  <div className="flex items-center gap-3">
-                    <Users className="size-5 text-emerald-600" />
-                    <span className="font-medium">Empleados</span>
-                  </div>
-                  <span className="font-display text-xl text-emerald-700">
-                    {tenantMetrics.totalEmployees}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-amber-50 p-4 transition hover:bg-amber-100">
-                  <div className="flex items-center gap-3">
-                    <Package className="size-5 text-amber-600" />
-                    <span className="font-medium">Productos</span>
-                  </div>
-                  <span className="font-display text-xl text-amber-700">
-                    {tenantMetrics.totalProducts}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-foreground/50">
-                No hay datos disponibles
+                  Atención al inventario
+                </h2>
+              </div>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${hasStockAlerts ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"}`}
+              >
+                {hasStockAlerts ? (
+                  <TriangleAlert className="size-3" />
+                ) : (
+                  <Check className="size-3" />
+                )}
+                {hasStockAlerts
+                  ? "Revisión sugerida"
+                  : partialInventory
+                    ? "Muestra sin alertas"
+                    : "Sin alertas de stock"}
+              </span>
+            </div>
+            <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+              {hasStockAlerts
+                ? "Revisa las existencias antes de tu siguiente reposición."
+                : "No hay alertas de reposición en los productos consultados."}
+            </p>
+            <div className="mt-6 grid grid-cols-2 divide-x divide-border rounded-xl bg-muted/40 py-4">
+              <div className="px-5">
+                <p className="font-display text-3xl font-semibold tabular-nums">
+                  {count(stock.lowStockCount)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Bajo el mínimo o agotados
+                </p>
+              </div>
+              <div className="px-5">
+                <p
+                  className={`font-display text-3xl font-semibold tabular-nums ${stock.outOfStockCount > 0 ? "text-orange-600 dark:text-orange-400" : ""}`}
+                >
+                  {count(stock.outOfStockCount)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  De ellos, sin existencias
+                </p>
+              </div>
+            </div>
+            {inventoryCoverage?.truncated && (
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                Resumen de {count(inventoryCoverage.returned)} de{" "}
+                {count(inventoryCoverage.total)} productos consultados.
               </p>
             )}
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card
-              key={stat.label}
-              className="rounded-[30px] bg-white/80 p-6 card-hover animate-fade-in-up"
-              style={{ animationDelay: `${(index + 1) * 75}ms` }}
+            <Link
+              href="/inventory"
+              className="mt-6 inline-flex items-center gap-2 self-start text-sm font-semibold text-foreground hover:text-orange-600"
             >
-              <div className="flex items-center justify-between">
-                <div className={`rounded-2xl p-2.5 ${iconColors[stat.color]}`}>
-                  <Icon className="size-5" />
-                </div>
-                <span className="text-xs text-foreground/40">{stat.delta}</span>
-              </div>
-              <p className="mt-4 font-display text-4xl">{stat.value}</p>
-              <p className="mt-1 text-sm text-foreground/50">{stat.label}</p>
-            </Card>
-          );
-        })}
+              Revisar inventario
+              <ArrowRight className="size-4" />
+            </Link>
+          </section>
+        )}
+
+        {shortcuts.length > 0 && (
+          <section
+            aria-labelledby="shortcuts-title"
+            className="rounded-2xl border border-border/70 bg-card p-6 sm:p-7"
+          >
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              A mano
+            </p>
+            <h2
+              id="shortcuts-title"
+              className="font-display text-xl font-semibold"
+            >
+              Continúa desde aquí
+            </h2>
+            <div className="mt-4 divide-y divide-border/60">
+              {shortcuts.map(({ href, title, description, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  prefetch={false}
+                  className="group flex items-center gap-3 py-4 first:pt-2 last:pb-0"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/35 transition-colors group-hover:border-orange-500/30 group-hover:bg-orange-500/10">
+                    <Icon className="size-4 text-muted-foreground transition-colors group-hover:text-orange-600" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{title}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                      {description}
+                    </span>
+                  </span>
+                  <ArrowUpRight
+                    className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
-      {!isSuperAdmin && (
-        <ErrorBoundary>
-          <DashboardMetricsPanel />
-        </ErrorBoundary>
+      {canSeeReports && (
+        <Link
+          href="/reports"
+          prefetch={false}
+          className="group flex flex-col justify-between gap-4 rounded-2xl border border-dashed border-border bg-muted/20 p-5 transition-colors hover:border-orange-500/40 hover:bg-muted/40 sm:flex-row sm:items-center"
+        >
+          <span className="flex items-center gap-3">
+            <BarChart3 className="size-5 shrink-0 text-muted-foreground" />
+            <span>
+              <span className="block text-sm font-semibold">
+                ¿Buscas un análisis más completo?
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                Compara períodos y consulta resultados detallados en Reportes.
+              </span>
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold">
+            Abrir reportes
+            <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+          </span>
+        </Link>
       )}
-
-      {isSuperAdmin && (
-        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-300">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Ingresos
-                </p>
-                <h2 className="mt-2 font-display text-2xl">Revenue Overview</h2>
-              </div>
-              <div className="flex items-center gap-2 rounded-full bg-green-500/10 px-3 py-1 text-sm text-green-600">
-                <TrendingUp className="size-4" />
-                +12.5%
-              </div>
-            </div>
-            <ErrorBoundary>
-              <RevenueChart />
-            </ErrorBoundary>
-          </Card>
-
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-350">
-            <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-              Suscripciones
-            </p>
-            <div className="mt-5 space-y-4">
-              {recentSubscriptions && recentSubscriptions.length > 0 ? (
-                recentSubscriptions.slice(0, 5).map((sub) => (
-                  <div
-                    key={sub.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-foreground/5 p-3 transition hover:border-violet-500/20"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div
-                        className={`rounded-lg p-2 ${sub.status === "ACTIVE" ? "bg-green-100" : "bg-amber-100"}`}
-                      >
-                        <CreditCard
-                          className={`size-4 ${sub.status === "ACTIVE" ? "text-green-600" : "text-amber-600"}`}
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {sub.company?.name || "Empresa"}
-                        </p>
-                        <p className="truncate text-xs text-foreground/50">
-                          {sub.plan?.name} · {sub.provider}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${sub.status === "ACTIVE" ? "border-green-500/30 bg-green-500/20 text-green-700" : "border-amber-500/30 bg-amber-500/20 text-amber-700"}`}
-                    >
-                      {sub.status}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-sm text-foreground/50">
-                  No hay suscripciones
-                </p>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {isSuperAdmin && (
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-400">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Empresas
-                </p>
-                <h2 className="mt-2 font-display text-2xl">
-                  Estado de empresas
-                </h2>
-              </div>
-              <a
-                href="/platform/companies"
-                className="text-sm text-violet-600 hover:underline"
-              >
-                Ver todas →
-              </a>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl bg-green-50 p-4 transition hover:bg-green-100">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="size-5 text-green-600" />
-                  <span className="font-medium">Activas</span>
-                </div>
-                <span className="font-display text-xl text-green-700">
-                  {globalMetrics?.activeCompanies ?? 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-amber-50 p-4 transition hover:bg-amber-100">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="size-5 text-amber-600" />
-                  <span className="font-medium">Suspendidas</span>
-                </div>
-                <span className="font-display text-xl text-amber-700">
-                  {globalMetrics?.suspendedCompanies ?? 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4 transition hover:bg-slate-100">
-                <div className="flex items-center gap-3">
-                  <Building2 className="size-5 text-slate-600" />
-                  <span className="font-medium">Total</span>
-                </div>
-                <span className="font-display text-xl text-slate-700">
-                  {globalMetrics?.totalCompanies ?? 0}
-                </span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-450">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Finanzas
-                </p>
-                <h2 className="mt-2 font-display text-2xl">
-                  Métricas financieras
-                </h2>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-foreground/50">
-                    MRR (Monthly Recurring Revenue)
-                  </p>
-                  <TrendingUp className="size-4 text-green-600" />
-                </div>
-                <p className="mt-2 font-display text-3xl">
-                  S/ {(globalMetrics?.monthlyRecurringRevenue ?? 0).toFixed(2)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-foreground/50">
-                    ARR (Annual Recurring Revenue)
-                  </p>
-                  <TrendingUp className="size-4 text-green-600" />
-                </div>
-                <p className="mt-2 font-display text-3xl">
-                  S/ {(globalMetrics?.annualRecurringRevenue ?? 0).toFixed(2)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-foreground/50">Total Cobrado</p>
-                  <Banknote className="size-4 text-violet-600" />
-                </div>
-                <p className="mt-2 font-display text-3xl">
-                  S/ {(globalMetrics?.collectedRevenue ?? 0).toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {!isSuperAdmin && tenantMetrics && (
-        <div className="grid gap-5 xl:grid-cols-3">
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-300">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Analytics
-                </p>
-                <h2 className="mt-2 font-display text-2xl">
-                  Rendimiento de Ventas
-                </h2>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-foreground/50">Ticket Promedio</p>
-                  <Receipt className="size-4 text-violet-600" />
-                </div>
-                <p className="mt-2 font-display text-3xl">
-                  S/{" "}
-                  {(tenantMetrics.salesAnalytics?.averageTicket ?? 0).toFixed(
-                    2,
-                  )}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-foreground/50">Ventas (30 días)</p>
-                  <ShoppingCart className="size-4 text-blue-600" />
-                </div>
-                <p className="mt-2 font-display text-3xl">
-                  {tenantMetrics.salesAnalytics?.totalSales ?? 0}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-foreground/10 p-5 transition hover:border-foreground/20">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-foreground/50">
-                    Ingresos (30 días)
-                  </p>
-                  <TrendingUp className="size-4 text-green-600" />
-                </div>
-                <p className="mt-2 font-display text-3xl">
-                  S/{" "}
-                  {(tenantMetrics.salesAnalytics?.totalRevenue ?? 0).toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-350">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Inventario
-                </p>
-                <h2 className="mt-2 font-display text-2xl">Estado del Stock</h2>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl bg-green-50 p-4 transition hover:bg-green-100">
-                <div className="flex items-center gap-3">
-                  <Package className="size-5 text-green-600" />
-                  <span className="font-medium">Total Items</span>
-                </div>
-                <span className="font-display text-xl text-green-700">
-                  {tenantMetrics.inventoryMetrics?.totalItems ?? 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-amber-50 p-4 transition hover:bg-amber-100">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="size-5 text-amber-600" />
-                  <span className="font-medium">Stock Bajo</span>
-                </div>
-                <span className="font-display text-xl text-amber-700">
-                  {tenantMetrics.inventoryMetrics?.lowStockCount ?? 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-red-50 p-4 transition hover:bg-red-100">
-                <div className="flex items-center gap-3">
-                  <TrendingDown className="size-5 text-red-600" />
-                  <span className="font-medium">Sin Stock</span>
-                </div>
-                <span className="font-display text-xl text-red-700">
-                  {tenantMetrics.inventoryMetrics?.outOfStockCount ?? 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4 transition hover:bg-slate-100">
-                <div className="flex items-center gap-3">
-                  <Wallet className="size-5 text-slate-600" />
-                  <span className="font-medium">Valor Total</span>
-                </div>
-                <span className="font-display text-xl text-slate-700">
-                  S/{" "}
-                  {(tenantMetrics.inventoryMetrics?.totalValue ?? 0).toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-400">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Métodos de Pago
-                </p>
-                <h2 className="mt-2 font-display text-2xl">Distribución</h2>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {tenantMetrics.paymentMethods &&
-              tenantMetrics.paymentMethods.length > 0 ? (
-                tenantMetrics.paymentMethods.slice(0, 4).map((method, idx) => (
-                  <div
-                    key={method.method}
-                    className="flex items-center justify-between rounded-xl bg-violet-50 p-3 transition hover:bg-violet-100"
-                  >
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="size-4 text-violet-600" />
-                      <span className="font-medium text-sm">
-                        {method.method}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-display text-lg text-violet-700">
-                        S/ {method.total.toFixed(2)}
-                      </span>
-                      <span className="ml-2 text-xs text-violet-500">
-                        ({method.count})
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-sm text-foreground/50">
-                  No hay datos
-                </p>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {!isSuperAdmin && tenantMetrics && (
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-450">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Productos
-                </p>
-                <h2 className="mt-2 font-display text-2xl">Más Vendidos</h2>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {tenantMetrics.topProducts &&
-              tenantMetrics.topProducts.length > 0 ? (
-                tenantMetrics.topProducts.map((product, idx) => (
-                  <div
-                    key={product.productId}
-                    className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.02] p-3 transition hover:bg-foreground/[0.04]"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-600">
-                        {idx + 1}
-                      </div>
-                      <span className="truncate font-medium">
-                        {product.name}
-                      </span>
-                    </div>
-                    <span className="shrink-0 font-display text-lg text-violet-700">
-                      {product.quantity} uds
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-sm text-foreground/50">
-                  No hay ventas registradas
-                </p>
-              )}
-            </div>
-          </Card>
-
-          <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-500">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Clientes
-                </p>
-                <h2 className="mt-2 font-display text-2xl">Mejores Clientes</h2>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {tenantMetrics.customerStats?.topCustomers &&
-              tenantMetrics.customerStats.topCustomers.length > 0 ? (
-                tenantMetrics.customerStats.topCustomers.map(
-                  (customer, idx) => (
-                    <div
-                      key={customer.customerId}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.02] p-3 transition hover:bg-foreground/[0.04]"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <Star className="size-4 shrink-0 text-amber-500" />
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">
-                            {customer.name}
-                          </p>
-                          <p className="text-xs text-foreground/50">
-                            {customer.totalPurchases} compras
-                          </p>
-                        </div>
-                      </div>
-                      <span className="shrink-0 font-display text-lg text-amber-700">
-                        S/ {customer.totalSpent.toFixed(2)}
-                      </span>
-                    </div>
-                  ),
-                )
-              ) : (
-                <p className="text-center text-sm text-foreground/50">
-                  No hay clientes
-                </p>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
+      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <Clock3 className="size-3" aria-hidden="true" />
+        Última consulta: {consultedAt}
+      </p>
     </div>
   );
 }
