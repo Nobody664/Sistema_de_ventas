@@ -90,7 +90,9 @@ export default async function ProfilePage() {
   const accessToken = session.accessToken;
 
   const [subscription, company] = await Promise.all([
-    serverApiFetch<Subscription>("/subscriptions/current", accessToken),
+    serverApiFetch<Subscription>("/subscriptions/current", accessToken, {
+      allowEmpty: true,
+    }),
     serverApiFetch<Company>("/companies/current", accessToken),
   ]);
 

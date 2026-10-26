@@ -1,7 +1,9 @@
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
 import { serverApiFetch } from "@/lib/server-api";
+import { isPlatformUser } from "@/lib/role-navigation";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
-import { Suspense } from "react";
 
 type GlobalMetrics = {
   totalCompanies: number;
@@ -106,6 +108,7 @@ async function DashboardDataLoader() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
   const userRoles = session?.user?.roles ?? [];
+  if (isPlatformUser(userRoles)) redirect("/platform");
   const isSuperAdmin =
     userRoles.includes("SUPER_ADMIN") || userRoles.includes("SUPPORT_ADMIN");
 

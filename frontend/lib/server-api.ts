@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import {
   fetchServerApiResult,
   type ServerApiFailureKind,
+  type ServerApiOptions,
 } from "./server-api-result";
 
 const API_URL = process.env.BACKEND_URL
@@ -21,10 +22,12 @@ export class ServerApiError extends Error {
 export async function serverApiFetch<T>(
   path: string,
   accessToken?: string,
+  options: ServerApiOptions = {},
 ): Promise<T | null> {
   const result = await fetchServerApiResult<T>(
     `${API_URL}${path.startsWith("/") ? path : `/${path}`}`,
     accessToken,
+    options,
   );
   if (result.ok) return result.data;
   if (result.kind === "unauthorized") redirect("/sign-in");

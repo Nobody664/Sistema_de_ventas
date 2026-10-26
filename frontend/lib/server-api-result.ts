@@ -10,9 +10,14 @@ export type ServerApiResult<T> =
   | { ok: true; status: number; data: T | null }
   | { ok: false; status: number; kind: ServerApiFailureKind };
 
+export interface ServerApiOptions {
+  allowEmpty?: boolean;
+}
+
 export async function fetchServerApiResult<T>(
   url: string,
   accessToken?: string,
+  options: ServerApiOptions = {},
 ): Promise<ServerApiResult<T>> {
   if (!accessToken) return { ok: false, status: 401, kind: "unauthorized" };
   let response: Response;
@@ -39,6 +44,9 @@ export async function fetchServerApiResult<T>(
     }
     if (response.status === 204) return { ok: true, status: 204, data: null };
     text = await response.text();
+    if (options.allowEmpty && text.trim() === "") {
+      return { ok: true, status: response.status, data: null };
+    }
   } catch {
     return { ok: false, status: 0, kind: "network" };
   }

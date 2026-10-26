@@ -3,13 +3,8 @@ import { getServerSession } from "@/lib/session";
 import { serverApiFetch } from "@/lib/server-api";
 import { SubscriptionPageClient } from "@/components/subscriptions/subscription-page-client";
 import type { Plan, Subscription } from "@/types/api";
-
-interface PlanUpgradeRequest {
-  id: string;
-  status: string;
-  currentPlan: { code: string; name: string };
-  newPlan: { code: string; name: string };
-}
+import type { PendingPlanUpgrade } from "@/types/subscriptions";
+import { isPlatformUser } from "@/lib/role-navigation";
 
 interface ProfileCompleteness {
   score: number;
@@ -22,11 +17,14 @@ interface ProfileCompleteness {
 export default async function SubscriptionPage() {
   const session = await getServerSession();
 
-  if (!session?.user?.companyId) {
+  if (!session?.user) {
     redirect("/sign-in");
   }
 
-  const roles: string[] = session?.user?.roles || [];
+  const roles = session.user.roles;
+  if (!session.user.companyId) {
+    redirect(isPlatformUser(roles) ? "/platform" : "/forbidden");
+  }
   if (!roles.includes("COMPANY_ADMIN")) {
     redirect("/dashboard");
   }
@@ -35,11 +33,14 @@ export default async function SubscriptionPage() {
 
   const [subscription, plans, pendingRequest, completeness] = await Promise.all(
     [
-      serverApiFetch<Subscription>(`/subscriptions/current`, accessToken),
+      serverApiFetch<Subscription>(`/subscriptions/current`, accessToken, {
+        allowEmpty: true,
+      }),
       serverApiFetch<Plan[]>("/plans", accessToken),
-      serverApiFetch<PlanUpgradeRequest | null>(
+      serverApiFetch<PendingPlanUpgrade | null>(
         "/subscriptions/upgrade-requests/my/pending",
         accessToken,
+        { allowEmpty: true },
       ),
       serverApiFetch<ProfileCompleteness>(
         "/company-profile/completeness",

@@ -19,6 +19,18 @@ const user = {
   subscriptionStatus: "ACTIVE",
   trialEndsAt: null,
 };
+let activeUser = user;
+let pendingUpgrade = null;
+const tenantRequests = [];
+const currentPlan = {
+  id: "plan-start",
+  code: "START",
+  name: "Plan Negocio",
+  isActive: true,
+  priceMonthly: "39.00",
+  priceYearly: "390.00",
+  features: [],
+};
 const metrics = {
   salesScope: "COMPANY",
   salesToday: 32,
@@ -43,7 +55,23 @@ const account = {
 };
 
 function data(resource) {
-  if (resource === "/auth/me") return user;
+  if (resource === "/auth/me") return activeUser;
+  if (resource === "/auth/login") return { user: activeUser };
+  if (resource === "/subscriptions/current")
+    return {
+      id: "subscription-1",
+      companyId: activeUser.companyId,
+      status: "ACTIVE",
+      plan: currentPlan,
+      billingCycle: "MONTHLY",
+      startDate: "2026-10-01T05:00:00Z",
+      endDate: "2026-11-01T05:00:00Z",
+    };
+  if (resource === "/subscriptions/upgrade-requests/my/pending")
+    return pendingUpgrade;
+  if (resource === "/company-profile/completeness")
+    return { complete: true, missingFields: [] };
+  if (resource === "/plans") return [currentPlan];
   if (resource === "/plan-capabilities/me")
     return {
       planId: "plan",
@@ -97,7 +125,19 @@ const backend = http.createServer((request, response) => {
     "",
   );
   response.setHeader("Content-Type", "application/json");
-  response.end(JSON.stringify(data(resource)));
+  if (resource === "/dashboard/tenant") {
+    tenantRequests.push(resource);
+    if (!activeUser.companyId) {
+      response.statusCode = 403;
+      return response.end(
+        JSON.stringify({
+          message: "Tenant context is required for this resource.",
+        }),
+      );
+    }
+  }
+  const body = data(resource);
+  response.end(body === null ? undefined : JSON.stringify(body));
 });
 
 async function main() {
@@ -316,9 +356,10 @@ async function main() {
         "sm:max-w-[425px]",
       ),
     );
-    await page.waitForTimeout(300);
     assert.equal(
-      Math.round((await page.getByRole("dialog").boundingBox()).width),
+      await page
+        .getByRole("dialog")
+        .evaluate((element) => parseFloat(getComputedStyle(element).width)),
       425,
     );
     await page.keyboard.press("Escape");
@@ -350,6 +391,119 @@ async function main() {
     console.log(
       "PASS: respuesta tardía conserva el borrador; sin errores de página ni violaciones CSP",
     );
+    await context.close();
+
+    const accessFailures = [];
+    const cases = [
+      {
+        name: "SUPER_ADMIN sin empresa entra a plataforma y no consulta dashboard tenant",
+        roles: ["SUPER_ADMIN"],
+        companyId: null,
+        run: async (rolePage) => {
+          const previousRequests = tenantRequests.length;
+          await rolePage.goto(`${origin}/sign-in?redirect=/dashboard`);
+          await rolePage
+            .getByLabel("Correo electrónico")
+            .fill("smoke@example.test");
+          await rolePage
+            .getByLabel("Contraseña", { exact: true })
+            .fill("fixture-password");
+          await rolePage
+            .getByRole("button", { name: "Iniciar sesión", exact: true })
+            .click();
+          await rolePage.waitForURL("**/platform");
+          await rolePage
+            .getByRole("heading", { name: "Panel de la Plataforma" })
+            .waitFor();
+          await rolePage.goto(`${origin}/dashboard`);
+          await rolePage.waitForURL("**/platform");
+          await rolePage.goto(`${origin}/subscription`);
+          await rolePage.waitForURL("**/platform");
+          assert.equal(tenantRequests.length, previousRequests);
+        },
+      },
+      {
+        name: "COMPANY_ADMIN consulta su plan sin solicitud pendiente (HTTP 200 vacío)",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          await rolePage.goto(`${origin}/subscription`);
+          await rolePage
+            .getByRole("heading", { name: "Mi Plan", exact: true })
+            .waitFor();
+          await rolePage
+            .getByRole("heading", { name: "Plan Negocio", exact: true })
+            .waitFor();
+          assert.ok(!rolePage.url().includes("forbidden"));
+        },
+      },
+      {
+        name: "COMPANY_ADMIN ve el plan y el destino real de una solicitud pendiente",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          pendingUpgrade = {
+            id: "upgrade-1",
+            status: "PENDING",
+            plan: { code: "SCALE", name: "Plan Scale" },
+          };
+          await rolePage.goto(`${origin}/subscription`);
+          await rolePage
+            .getByRole("heading", { name: "Cambio de Plan en Proceso" })
+            .waitFor();
+          await rolePage.getByText("Plan Scale", { exact: true }).waitFor();
+        },
+      },
+    ];
+    for (const scenario of cases) {
+      activeUser = {
+        ...user,
+        roles: scenario.roles,
+        companyId: scenario.companyId,
+      };
+      pendingUpgrade = null;
+      const roleContext = await browser.newContext();
+      const rolePayload = Buffer.from(
+        JSON.stringify({
+          ...activeUser,
+          sub: activeUser.id,
+          exp: Math.floor(Date.now() / 1000) + 3600,
+        }),
+      ).toString("base64url");
+      await roleContext.addCookies([
+        { name: "access_token", value: `e30.${rolePayload}.test`, url: origin },
+      ]);
+      await roleContext.route("**/api/**", (route) => {
+        const resource = new URL(route.request().url()).pathname.replace(
+          /^\/api/,
+          "",
+        );
+        if (resource.endsWith("/stream"))
+          return route.fulfill({
+            contentType: "text/event-stream",
+            body: ": heartbeat\n\n",
+          });
+        return route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify(data(resource)),
+        });
+      });
+      const rolePage = await roleContext.newPage();
+      rolePage.setDefaultTimeout(10_000);
+      const errors = [];
+      rolePage.on("pageerror", (error) => errors.push(error.message));
+      try {
+        await scenario.run(rolePage);
+        assert.deepEqual(errors, []);
+        console.log(`PASS: ${scenario.name}`);
+      } catch (error) {
+        accessFailures.push(`${scenario.name}: ${error.message}`);
+        console.error(`FAIL: ${scenario.name}: ${rolePage.url()}`);
+      } finally {
+        await roleContext.close();
+      }
+    }
+    assert.deepEqual(accessFailures, []);
   } finally {
     if (browser) await browser.close();
     app.kill();

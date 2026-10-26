@@ -19,18 +19,12 @@ import {
 } from "lucide-react";
 import type { Subscription, Plan } from "@/types/generated";
 import { usePlanCapabilities } from "@/components/plan-capabilities/plan-capabilities-provider";
-
-interface PlanUpgradeRequest {
-  id: string;
-  status: string;
-  currentPlan: { code: string; name: string };
-  newPlan: { code: string; name: string };
-}
+import type { PendingPlanUpgrade } from "@/types/subscriptions";
 
 interface SubscriptionPageClientProps {
   initialSubscription?: Subscription | null | undefined;
   initialPlans: Plan[];
-  pendingUpgrade?: PlanUpgradeRequest | null;
+  pendingUpgrade?: PendingPlanUpgrade | null;
   initialCompleteness?: { complete: boolean; missingFields: string[] };
 }
 
@@ -55,8 +49,8 @@ export function SubscriptionPageClient({
 
   const isTrialing = subscription?.status === "TRIALING";
   const isActive = subscription?.status === "ACTIVE";
-  const currentPlanCode = subscription?.plan?.code || "FREE";
-  const currentPlanName = subscription?.plan?.name || "Free";
+  const currentPlanCode = subscription?.plan?.code ?? "";
+  const currentPlanName = subscription?.plan?.name ?? "Sin suscripción";
 
   const PLAN_ORDER = ["FREE", "START", "GROWTH", "SCALE"];
   const currentPlanIndex = PLAN_ORDER.indexOf(currentPlanCode);
@@ -232,8 +226,8 @@ export function SubscriptionPageClient({
                       Esperando confirmación de cambio de plan
                     </p>
                     <p className="text-sm text-amber-700 mt-1">
-                      De <strong>{pendingUpgrade?.currentPlan.name}</strong> a{" "}
-                      <strong>{pendingUpgrade?.newPlan.name}</strong>
+                      De <strong>{currentPlanName}</strong> a{" "}
+                      <strong>{pendingUpgrade?.plan.name}</strong>
                     </p>
                     <p className="text-xs text-amber-600 mt-2">
                       Si aún no tienes respuesta, comunícate con soporte.

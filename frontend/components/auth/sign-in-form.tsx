@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth.store";
-import { safeRedirect } from "@/lib/safe-redirect";
+import { getSignInDestination } from "@/lib/role-navigation";
 
 const signInSchema = z.object({
   email: z.string().email("Correo electrónico inválido"),
@@ -40,7 +40,12 @@ export function SignInForm() {
 
     try {
       await login(values.email, values.password);
-      router.replace(safeRedirect(searchParams.get("redirect")));
+      router.replace(
+        getSignInDestination(
+          searchParams.get("redirect"),
+          useAuthStore.getState().user?.roles ?? [],
+        ),
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Credenciales incorrectas");
