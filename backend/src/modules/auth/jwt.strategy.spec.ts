@@ -50,6 +50,16 @@ function fixture() {
 }
 
 describe("JWT current identity and session", () => {
+  it("keeps platform identities free of tenant roles and plan data even with a legacy membership", async () => {
+    const { user, strategy, payload } = fixture();
+    user.globalRole = "SUPER_ADMIN";
+    const result = await strategy.validate({} as Request, payload);
+    assert.deepEqual(result.roles, ["SUPER_ADMIN"]);
+    assert.equal(result.companyId, null);
+    assert.equal(result.companyStatus, null);
+    assert.equal(result.planCode, null);
+    assert.equal(result.subscriptionStatus, null);
+  });
   it("rejects an old credential version even if a session-family record remains", async () => {
     const { user, strategy, payload } = fixture();
     user.authVersion = 1;

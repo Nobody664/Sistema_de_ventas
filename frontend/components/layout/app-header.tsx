@@ -29,6 +29,7 @@ import { NotificationBell } from "./notification-bell";
 import { useAuthStore } from "@/stores/auth.store";
 import { useNotificationsStore } from "@/store/notifications-store";
 import { useUiStore } from "@/store/ui-store";
+import { isPlatformUser } from "@/lib/role-navigation";
 
 type AppHeaderProps = {
   fullName: string;
@@ -72,11 +73,15 @@ export function AppHeader({
     router.refresh();
   };
 
+  const isPlatformAdmin = isPlatformUser(roles);
+  const isCompanyAdmin =
+    !isPlatformAdmin && !!companyId && roles.includes("COMPANY_ADMIN");
   const isAdminOrManager =
-    roles.includes("COMPANY_ADMIN") || roles.includes("MANAGER");
-  const canManageCustomers = roles.some((r) =>
-    ["COMPANY_ADMIN", "MANAGER", "CASHIER"].includes(r),
-  );
+    !isPlatformAdmin &&
+    (roles.includes("COMPANY_ADMIN") || roles.includes("MANAGER"));
+  const canManageCustomers =
+    !isPlatformAdmin &&
+    roles.some((r) => ["COMPANY_ADMIN", "MANAGER", "CASHIER"].includes(r));
 
   return (
     <header className="sticky top-0 z-20 border-b border-foreground/10 bg-background/85 backdrop-blur">
@@ -130,7 +135,7 @@ export function AppHeader({
                 <span>Perfil</span>
               </Link>
 
-              {roles.includes("COMPANY_ADMIN") && (
+              {isCompanyAdmin && (
                 <Link
                   href="/subscription"
                   className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted"
@@ -140,7 +145,7 @@ export function AppHeader({
                 </Link>
               )}
 
-              {isAdminOrManager && (
+              {isCompanyAdmin && (
                 <Link
                   href="/payments"
                   className="flex cursor-pointer items-center rounded-xl px-3 py-2 text-sm text-foreground hover:bg-muted"

@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { ProfileCompletenessIndicator } from "@/components/settings/profile-completeness";
 import { DangerZone } from "@/components/settings/danger-zone";
+import { isPlatformUser } from "@/lib/role-navigation";
 
 type SelectOption = { value: string; label: string; icon?: LucideIcon };
 
@@ -43,7 +44,8 @@ export default async function SettingsPage() {
   const session = await getServerSession();
   const roles: string[] = session?.user?.roles || [];
   const isPaymentAdmin = roles.includes("SUPER_ADMIN");
-  const isCompanyAdmin = roles.includes("COMPANY_ADMIN");
+  const isPlatformAdmin = isPlatformUser(roles);
+  const isCompanyAdmin = !isPlatformAdmin && roles.includes("COMPANY_ADMIN");
 
   const settingsSections: SettingsSection[] = [
     {
@@ -242,94 +244,100 @@ export default async function SettingsPage() {
         </div>
       </Card>
 
-      <ProfileCompletenessIndicator />
+      {!isPlatformAdmin && <ProfileCompletenessIndicator />}
 
       <div className="grid gap-6 xl:grid-cols-2">
-        {settingsSections.map((section) => {
-          const Icon = section.icon;
-          return (
-            <Card key={section.title} className="rounded-[30px] bg-card/80 p-6">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-muted p-2">
-                  <Icon className="size-5 text-muted-foreground" />
-                </div>
-                <h2 className="font-display text-xl">{section.title}</h2>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {section.items.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex flex-col gap-3 rounded-2xl border border-foreground/10 p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium">{item.label}</p>
-                      <p className="text-sm text-foreground/50">
-                        {item.description}
-                      </p>
-                    </div>
-
-                    {item.type === "toggle" && (
-                      <button
-                        className={`relative h-6 w-11 rounded-full transition-colors ${
-                          item.enabled ? "bg-foreground/80" : "bg-muted"
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-1 h-4 w-4 rounded-full bg-card transition-transform ${
-                            item.enabled ? "left-6" : "left-1"
-                          }`}
-                        />
-                      </button>
-                    )}
-
-                    {item.type === "select" && (
-                      <select className="w-full rounded-xl border border-foreground/10 bg-background px-3 py-2 text-sm sm:w-auto">
-                        {item.options?.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-
-                    {item.type === "button" && section.isPayment ? (
-                      <Link
-                        href={section.link || ""}
-                        className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
-                      >
-                        Configurar
-                      </Link>
-                    ) : item.type === "button" && item.action === "payments" ? (
-                      <Link
-                        href="/payments"
-                        className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
-                      >
-                        Ver
-                      </Link>
-                    ) : item.type === "button" && section.link ? (
-                      <Link
-                        href={section.link}
-                        className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
-                      >
-                        Ver
-                      </Link>
-                    ) : (
-                      item.type === "button" && (
-                        <button className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto">
-                          {item.action === "export" && "Exportar"}
-                          {item.action === "backup" && "Configurar"}
-                          {item.action === "keys" && "Gestionar"}
-                          {item.action === "webhooks" && "Configurar"}
-                        </button>
-                      )
-                    )}
+        {settingsSections
+          .filter((section) => !isPlatformAdmin || section.title !== "Empresa")
+          .map((section) => {
+            const Icon = section.icon;
+            return (
+              <Card
+                key={section.title}
+                className="rounded-[30px] bg-card/80 p-6"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-muted p-2">
+                    <Icon className="size-5 text-muted-foreground" />
                   </div>
-                ))}
-              </div>
-            </Card>
-          );
-        })}
+                  <h2 className="font-display text-xl">{section.title}</h2>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  {section.items.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex flex-col gap-3 rounded-2xl border border-foreground/10 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium">{item.label}</p>
+                        <p className="text-sm text-foreground/50">
+                          {item.description}
+                        </p>
+                      </div>
+
+                      {item.type === "toggle" && (
+                        <button
+                          className={`relative h-6 w-11 rounded-full transition-colors ${
+                            item.enabled ? "bg-foreground/80" : "bg-muted"
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-1 h-4 w-4 rounded-full bg-card transition-transform ${
+                              item.enabled ? "left-6" : "left-1"
+                            }`}
+                          />
+                        </button>
+                      )}
+
+                      {item.type === "select" && (
+                        <select className="w-full rounded-xl border border-foreground/10 bg-background px-3 py-2 text-sm sm:w-auto">
+                          {item.options?.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {item.type === "button" && section.isPayment ? (
+                        <Link
+                          href={section.link || ""}
+                          className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
+                        >
+                          Configurar
+                        </Link>
+                      ) : item.type === "button" &&
+                        item.action === "payments" ? (
+                        <Link
+                          href="/payments"
+                          className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
+                        >
+                          Ver
+                        </Link>
+                      ) : item.type === "button" && section.link ? (
+                        <Link
+                          href={section.link}
+                          className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto"
+                        >
+                          Ver
+                        </Link>
+                      ) : (
+                        item.type === "button" && (
+                          <button className="w-full rounded-xl border border-foreground/20 px-4 py-2 text-center text-sm font-medium transition hover:bg-foreground/5 sm:w-auto">
+                            {item.action === "export" && "Exportar"}
+                            {item.action === "backup" && "Configurar"}
+                            {item.action === "keys" && "Gestionar"}
+                            {item.action === "webhooks" && "Configurar"}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })}
       </div>
 
       <DangerZone canCancelSubscription={isCompanyAdmin} />

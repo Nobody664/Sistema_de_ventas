@@ -4,6 +4,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { Request } from "express";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { isPlatformRole } from "@/common/helpers/account-scope.helper";
 
 type JwtPayload = {
   sub: string;
@@ -104,8 +105,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       user.refreshTokens.length === 0
     )
       throw new UnauthorizedException("Sesión revocada o usuario inactivo");
-    const membership = user.memberships[0];
+    const platformUser = isPlatformRole(user.globalRole);
+    const membership = platformUser ? undefined : user.memberships[0];
     if (
+      !platformUser &&
       payload.companyId &&
       (!membership ||
         (user.employee?.companyId === payload.companyId &&

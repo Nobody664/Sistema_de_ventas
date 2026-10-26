@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
+import { getServerSession } from "@/lib/session";
+import { getHomeRoute } from "@/lib/role-navigation";
 
-export default function ForbiddenPage() {
+export default async function ForbiddenPage() {
+  const session = await getServerSession();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center max-w-md px-6">
@@ -17,7 +20,7 @@ export default function ForbiddenPage() {
         </p>
         <div className="mt-8 flex items-center justify-center gap-4">
           <Link
-            href="/dashboard"
+            href={getHomeRoute(session?.user?.roles ?? [])}
             className="rounded-2xl bg-foreground px-6 py-3 text-sm font-medium text-background transition hover:bg-foreground/90"
           >
             Volver al inicio

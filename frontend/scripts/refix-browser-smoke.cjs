@@ -12,7 +12,7 @@ const user = {
   id: "test-user",
   email: "smoke@example.test",
   fullName: "Usuario de prueba",
-  roles: ["SUPER_ADMIN", "COMPANY_ADMIN"],
+  roles: ["COMPANY_ADMIN"],
   companyId: "test-company",
   companyStatus: "ACTIVE",
   planCode: "PRO",
@@ -22,6 +22,11 @@ const user = {
 let activeUser = user;
 let pendingUpgrade = null;
 const tenantRequests = [];
+const requestedResources = [];
+const deleteRequests = [];
+let categoryDeleted = false;
+let billingAvailable = true;
+let pendingPayment = null;
 const currentPlan = {
   id: "plan-start",
   code: "START",
@@ -72,6 +77,43 @@ function data(resource) {
   if (resource === "/company-profile/completeness")
     return { complete: true, missingFields: [] };
   if (resource === "/plans") return [currentPlan];
+  if (resource === "/billing/status")
+    return billingAvailable
+      ? {
+          subscription: { ...data("/subscriptions/current"), autoRenew: true },
+          currentPending: pendingPayment,
+          lastPayment: null,
+          recentPayments: pendingPayment
+            ? [
+                {
+                  ...pendingPayment,
+                  paidAt: null,
+                  createdAt: "2026-10-01T05:00:00Z",
+                },
+              ]
+            : [],
+        }
+      : null;
+  if (resource === "/payments/current-pending") return null;
+  if (resource === "/products/categories")
+    return categoryDeleted
+      ? []
+      : [
+          {
+            id: "category-1",
+            name: "Galletas",
+            slug: "galletas",
+            _count: { products: 0 },
+          },
+        ];
+  if (resource === "/dashboard/global")
+    return {
+      totalCompanies: 2,
+      activeCompanies: 2,
+      totalUsers: 3,
+      totalSubscriptions: 2,
+    };
+  if (resource === "/companies") return { data: [], total: 0 };
   if (resource === "/plan-capabilities/me")
     return {
       planId: "plan",
@@ -125,6 +167,7 @@ const backend = http.createServer((request, response) => {
     "",
   );
   response.setHeader("Content-Type", "application/json");
+  requestedResources.push(resource);
   if (resource === "/dashboard/tenant") {
     tenantRequests.push(resource);
     if (!activeUser.companyId) {
@@ -314,6 +357,7 @@ async function main() {
     await page.getByRole("button", { name: "Exportar", exact: true }).focus();
     await page.keyboard.press("Enter");
     await page.getByRole("menuitem", { name: "CSV", exact: true }).waitFor();
+    await page.getByRole("menuitem", { name: "CSV", exact: true }).focus();
     assert.notEqual(
       await page
         .getByRole("menu")
@@ -321,6 +365,9 @@ async function main() {
       "rgb(255, 255, 255)",
     );
     await page.keyboard.press("ArrowDown");
+    await page.waitForFunction(
+      () => document.activeElement?.textContent === "Excel",
+    );
     assert.equal(
       await page.evaluate(() => document.activeElement.textContent),
       "Excel",
@@ -341,13 +388,6 @@ async function main() {
     await page.waitForURL("**/sales/new");
     assert.deepEqual(await page.evaluate(() => window.cspViolations), []);
 
-    await page.goto(`${origin}/platform/finanzas`);
-    await page.getByRole("button", { name: "Movimiento", exact: true }).click();
-    const dialog = page.getByRole("dialog");
-    await dialog.waitFor();
-    assert.ok((await dialog.getAttribute("class")).includes("max-w-lg"));
-    await page.keyboard.press("Escape");
-    await dialog.waitFor({ state: "hidden" });
     await page.goto(`${origin}/customers`);
     await page.getByRole("button", { name: "Eliminar", exact: true }).click();
     await page.getByRole("dialog").waitFor();
@@ -401,6 +441,7 @@ async function main() {
         companyId: null,
         run: async (rolePage) => {
           const previousRequests = tenantRequests.length;
+          const requestStart = requestedResources.length;
           await rolePage.goto(`${origin}/sign-in?redirect=/dashboard`);
           await rolePage
             .getByLabel("Correo electrónico")
@@ -418,8 +459,41 @@ async function main() {
           await rolePage.goto(`${origin}/dashboard`);
           await rolePage.waitForURL("**/platform");
           await rolePage.goto(`${origin}/subscription`);
-          await rolePage.waitForURL("**/platform");
+          await rolePage.waitForURL("**/platform/plans");
+          await rolePage.goto(`${origin}/checkout?plan=START`);
+          await rolePage.waitForURL("**/platform/plans");
+          await rolePage.goto(`${origin}/payments`);
+          await rolePage.waitForURL("**/platform/finanzas");
+          await rolePage.goto(`${origin}/settings`);
+          await rolePage
+            .getByRole("heading", { name: "Configuración", exact: true })
+            .waitFor();
+          assert.equal(
+            await rolePage
+              .getByRole("heading", { name: "Empresa", exact: true })
+              .count(),
+            0,
+          );
+          await rolePage.goto(`${origin}/profile`);
+          await rolePage
+            .getByRole("link", { name: "Plataforma", exact: true })
+            .first()
+            .waitFor();
           assert.equal(tenantRequests.length, previousRequests);
+          const forbiddenOwnResources = [
+            "/dashboard/tenant",
+            "/plan-capabilities/me",
+            "/company-profile/completeness",
+            "/subscriptions/current",
+            "/billing/status",
+            "/companies/current",
+          ];
+          assert.deepEqual(
+            requestedResources
+              .slice(requestStart)
+              .filter((resource) => forbiddenOwnResources.includes(resource)),
+            [],
+          );
         },
       },
       {
@@ -454,14 +528,138 @@ async function main() {
           await rolePage.getByText("Plan Scale", { exact: true }).waitFor();
         },
       },
+      {
+        name: "COMPANY_ADMIN consulta pagos pendientes sin consultas auxiliares de estado vacío",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          pendingPayment = {
+            id: "payment-1",
+            amount: "39.00",
+            status: "PENDING",
+            dueDate: "2026-11-01T05:00:00Z",
+            hasProof: false,
+            proofStatus: null,
+          };
+          const start = requestedResources.length;
+          await rolePage.goto(`${origin}/payments`);
+          await rolePage
+            .getByRole("heading", { name: "Mis Pagos", exact: true })
+            .waitFor();
+          await rolePage
+            .getByRole("heading", { name: "Pago Pendiente", exact: true })
+            .waitFor();
+          await rolePage
+            .getByRole("button", { name: "Subir comprobante de pago" })
+            .waitFor();
+          assert.equal(
+            requestedResources
+              .slice(start)
+              .includes("/payments/current-pending"),
+            false,
+          );
+          assert.equal(
+            requestedResources.slice(start).includes("/payments/history"),
+            false,
+          );
+        },
+      },
+      {
+        name: "COMPANY_ADMIN ve sus pagos aunque no tenga pagos pendientes",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          await rolePage.goto(`${origin}/payments`);
+          await rolePage
+            .getByRole("heading", { name: "Mis Pagos", exact: true })
+            .waitFor();
+          await rolePage
+            .getByText("No hay pagos registrados aún", { exact: true })
+            .waitFor();
+        },
+      },
+      {
+        name: "la ausencia de suscripción en pagos es un estado vacío legítimo",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          billingAvailable = false;
+          await rolePage.goto(`${origin}/payments`);
+          await rolePage
+            .getByRole("heading", {
+              name: "Sin suscripción activa",
+              exact: true,
+            })
+            .waitFor();
+        },
+      },
+      {
+        name: "el comprobante pendiente de revisión no se vuelve a solicitar",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          pendingPayment = {
+            id: "payment-1",
+            amount: "39.00",
+            status: "PENDING",
+            dueDate: "2026-11-01T05:00:00Z",
+            hasProof: true,
+            proofStatus: "PENDING",
+          };
+          await rolePage.goto(`${origin}/payments`);
+          await rolePage
+            .getByRole("heading", {
+              name: "Comprobante en revisión",
+              exact: true,
+            })
+            .waitFor();
+          assert.equal(
+            await rolePage
+              .getByRole("button", { name: "Subir comprobante de pago" })
+              .count(),
+            0,
+          );
+        },
+      },
+      {
+        name: "COMPANY_ADMIN elimina una categoría con JSON y CSRF activo",
+        roles: ["COMPANY_ADMIN"],
+        companyId: "test-company",
+        run: async (rolePage) => {
+          const start = deleteRequests.length;
+          await rolePage.goto(`${origin}/categories`);
+          await rolePage
+            .getByRole("heading", { name: "Galletas", exact: true })
+            .waitFor();
+          await rolePage
+            .getByRole("button", { name: "Eliminar", exact: true })
+            .click();
+          await rolePage
+            .getByRole("dialog")
+            .getByRole("button", { name: "Eliminar", exact: true })
+            .click();
+          await rolePage.getByRole("dialog").waitFor({ state: "hidden" });
+          await rolePage
+            .getByRole("heading", { name: "Galletas", exact: true })
+            .waitFor({ state: "hidden" });
+          assert.equal(deleteRequests.length, start + 1);
+          assert.match(deleteRequests[start], /^application\/json/);
+        },
+      },
     ];
     for (const scenario of cases) {
       activeUser = {
         ...user,
         roles: scenario.roles,
         companyId: scenario.companyId,
+        companyStatus: scenario.companyId ? "ACTIVE" : null,
+        planCode: scenario.companyId ? "START" : null,
+        subscriptionStatus: scenario.companyId ? "ACTIVE" : null,
       };
       pendingUpgrade = null;
+      pendingPayment = null;
+      billingAvailable = true;
+      categoryDeleted = false;
       const roleContext = await browser.newContext();
       const rolePayload = Buffer.from(
         JSON.stringify({
@@ -478,6 +676,24 @@ async function main() {
           /^\/api/,
           "",
         );
+        requestedResources.push(resource);
+        if (
+          resource === "/products/categories/category-1" &&
+          route.request().method() === "DELETE"
+        ) {
+          const contentType = route.request().headers()["content-type"] ?? "";
+          deleteRequests.push(contentType);
+          if (!contentType.startsWith("application/json"))
+            return route.fulfill({
+              status: 403,
+              contentType: "application/json",
+              body: JSON.stringify({
+                message: "Operación rechazada (protección CSRF)",
+              }),
+            });
+          categoryDeleted = true;
+          return route.fulfill({ status: 204 });
+        }
         if (resource.endsWith("/stream"))
           return route.fulfill({
             contentType: "text/event-stream",

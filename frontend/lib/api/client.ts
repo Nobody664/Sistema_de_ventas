@@ -139,7 +139,13 @@ function buildRequestInit(init?: ApiRequestInit): {
   }
 
   const body = init?.body;
-  if (body && !(body instanceof FormData) && !headers.has("Content-Type")) {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const isMutation = !["GET", "HEAD", "OPTIONS"].includes(method);
+  if (
+    (body || isMutation) &&
+    !(body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
     headers.set("Content-Type", "application/json");
   }
 

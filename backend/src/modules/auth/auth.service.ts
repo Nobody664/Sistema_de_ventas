@@ -11,6 +11,7 @@ import * as argon2 from "argon2";
 import { randomBytes, createHash, randomUUID } from "crypto";
 import { Prisma, RefreshTokenType } from "@prisma/client";
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { isPlatformRole } from "@/common/helpers/account-scope.helper";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { UsersService } from "@/modules/users/users.service";
 import { EmailService } from "@/modules/email/email.service";
@@ -165,11 +166,13 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials.");
     }
 
-    const membership = await this.prisma.membership.findFirst({
-      where: { userId: user.id, isActive: true },
-      include: { company: true },
-      orderBy: { createdAt: "asc" },
-    });
+    const membership = isPlatformRole(user.globalRole)
+      ? null
+      : await this.prisma.membership.findFirst({
+          where: { userId: user.id, isActive: true },
+          include: { company: true },
+          orderBy: { createdAt: "asc" },
+        });
 
     if (
       (!membership && user.globalRole === "USER") ||
@@ -248,19 +251,20 @@ export class AuthService {
           },
         },
       });
-      const membership = stored.companyId
-        ? await tx.membership.findFirst({
-            where: {
-              userId: stored.userId,
-              companyId: stored.companyId,
-              isActive: true,
-            },
-          })
-        : null;
+      const membership =
+        stored.companyId && !isPlatformRole(user?.globalRole)
+          ? await tx.membership.findFirst({
+              where: {
+                userId: stored.userId,
+                companyId: stored.companyId,
+                isActive: true,
+              },
+            })
+          : null;
       if (
         !user?.isActive ||
         (user.authVersion ?? 0) !== (stored.authVersion ?? 0) ||
-        (stored.companyId && !membership) ||
+        (stored.companyId && !membership && !isPlatformRole(user.globalRole)) ||
         (!membership && user.globalRole === "USER") ||
         (membership &&
           user.employee?.companyId === membership.companyId &&
@@ -299,7 +303,7 @@ export class AuthService {
         sub: user.id,
         email: user.email,
         fullName: user.fullName,
-        companyId: stored.companyId,
+        companyId: isPlatformRole(user.globalRole) ? null : stored.companyId,
         sid: stored.familyId,
         authVersion: user.authVersion ?? 0,
         roles: membership
@@ -541,10 +545,12 @@ export class AuthService {
       data: { fullName },
     });
 
-    const membership = await this.prisma.membership.findFirst({
-      where: { userId, isActive: true, companyId: companyId ?? "" },
-      orderBy: { createdAt: "asc" },
-    });
+    const membership = isPlatformRole(user.globalRole)
+      ? null
+      : await this.prisma.membership.findFirst({
+          where: { userId, isActive: true, companyId: companyId ?? "" },
+          orderBy: { createdAt: "asc" },
+        });
 
     let planCode: string | undefined;
     let subscriptionStatus: string | undefined;

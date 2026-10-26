@@ -53,7 +53,7 @@ export function SuperAdminProfileClient({
     .slice(0, 2);
 
   const menuItems = [
-    { label: "Dashboard", icon: Activity, href: "/dashboard", active: true },
+    { label: "Plataforma", icon: Activity, href: "/platform", active: true },
     { label: "Empresas", icon: Building2, href: "/platform/companies" },
     { label: "Planes", icon: CreditCard, href: "/platform/plans" },
     { label: "Usuarios", icon: Users, href: "/platform/subscribers" },

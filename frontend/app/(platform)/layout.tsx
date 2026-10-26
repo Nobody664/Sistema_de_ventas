@@ -1,12 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getServerSession } from "@/lib/session";
-import { AppScope } from "@/components/layout/app-scope";
-import {
-  PlatformSidebar,
-  PlatformMobileNav,
-} from "@/components/layout/platform-sidebar";
-import { AppHeader } from "@/components/layout/app-header";
+import { PlatformShell } from "@/components/layout/platform-shell";
 
 export default async function PlatformLayout({
   children,
@@ -26,22 +21,5 @@ export default async function PlatformLayout({
     redirect("/forbidden");
   }
 
-  return (
-    <div data-app className="min-h-screen bg-background">
-      <AppScope />
-      <div className="mx-auto flex min-h-screen max-w-[1600px]">
-        <PlatformSidebar roles={roles} />
-        <div className="flex min-w-0 flex-1 flex-col border-l border-foreground/10">
-          <AppHeader
-            companyId={session.user.companyId ?? null}
-            fullName={session.user.fullName ?? ""}
-            roles={roles}
-            email={session.user.email ?? ""}
-            nav={<PlatformMobileNav roles={roles} />}
-          />
-          <main className="flex-1 p-5 md:p-8">{children}</main>
-        </div>
-      </div>
-    </div>
-  );
+  return <PlatformShell user={session.user}>{children}</PlatformShell>;
 }

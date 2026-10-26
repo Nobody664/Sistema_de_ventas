@@ -48,6 +48,44 @@ function makeService(overrides: {
 }
 
 describe("AuthService.login", () => {
+  it("creates a platform session without consulting any legacy tenant membership or subscription", async () => {
+    const user = { ...(await makeUser()), globalRole: "SUPER_ADMIN" };
+    const claims: Record<string, unknown>[] = [];
+    const forbiddenTenantLookup = async () => {
+      throw new Error("A platform identity must not query tenant data");
+    };
+    const svc = makeService({
+      usersService: { findByEmail: async () => user },
+      prisma: {
+        user: { findFirst: async () => ({ id: user.id }) },
+        membership: { findFirst: forbiddenTenantLookup },
+        subscription: { findFirst: forbiddenTenantLookup },
+        company: { findUnique: forbiddenTenantLookup },
+        refreshToken: {
+          create: async ({ data }: { data: { companyId: string | null } }) => {
+            assert.equal(data.companyId, null);
+            return data;
+          },
+        },
+      },
+      jwtService: {
+        signAsync: async (value: Record<string, unknown>) => {
+          claims.push(value);
+          return "access-token";
+        },
+      },
+    });
+    const session = await svc.login({
+      email: user.email,
+      password: "secreta123",
+    });
+    assert.equal(session.user.companyId, null);
+    assert.deepEqual(session.user.roles, ["SUPER_ADMIN"]);
+    assert.equal(session.user.planCode, undefined);
+    assert.equal(session.user.subscriptionStatus, undefined);
+    assert.equal(claims[0].companyId, null);
+    assert.equal(claims[0].planCode, null);
+  });
   it("rejects an inactive user even with the correct password", async () => {
     const user = { ...(await makeUser()), isActive: false };
     const service = makeService({

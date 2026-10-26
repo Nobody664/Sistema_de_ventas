@@ -375,6 +375,7 @@ export class BillingService {
         paymentProofs: {
           orderBy: { createdAt: "desc" },
           take: 12,
+          select: { paymentId: true, status: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -388,6 +389,11 @@ export class BillingService {
     const lastPayment = subscription.payments.find(
       (p) => p.status === "SUCCEEDED",
     );
+    const proofFor = (paymentId: string) =>
+      subscription.paymentProofs.find((proof) => proof.paymentId === paymentId);
+    const pendingProof = currentPending
+      ? proofFor(currentPending.id)
+      : undefined;
 
     return {
       subscription: {
@@ -405,6 +411,8 @@ export class BillingService {
             amount: currentPending.amount.toString(),
             dueDate: subscription.endDate?.toISOString() ?? null,
             status: currentPending.status,
+            hasProof: !!pendingProof,
+            proofStatus: pendingProof?.status ?? null,
           }
         : null,
       lastPayment: lastPayment
@@ -419,8 +427,14 @@ export class BillingService {
         id: p.id,
         amount: p.amount.toString(),
         status: p.status,
+        dueDate:
+          p.status === "PENDING"
+            ? (subscription.endDate?.toISOString() ?? null)
+            : null,
         paidAt: p.paidAt,
         createdAt: p.createdAt,
+        hasProof: !!proofFor(p.id),
+        proofStatus: proofFor(p.id)?.status ?? null,
       })),
     };
   }

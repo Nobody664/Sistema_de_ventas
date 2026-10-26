@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getHomeRoute,
+  getPlatformDestination,
   getSignInDestination,
   isPlatformUser,
 } from "./role-navigation";
@@ -15,6 +16,30 @@ test("los administradores de plataforma no necesitan una empresa para tener un d
       "/platform",
     );
   }
+});
+
+test("las rutas de negocio llevan al administrador global a herramientas de plataforma", () => {
+  for (const [source, destination] of [
+    ["/dashboard", "/platform"],
+    ["/payments", "/platform/finanzas"],
+    ["/subscription", "/platform/plans"],
+    ["/checkout", "/platform/plans"],
+    ["/settings/company", "/platform/companies"],
+    ["/sales/new", "/platform"],
+    ["/products/product-1", "/platform"],
+    ["/notifications", "/platform/notifications"],
+    ["/support/chat", "/platform/support"],
+  ]) {
+    assert.equal(getPlatformDestination(source, ["SUPER_ADMIN"]), destination);
+    assert.equal(getSignInDestination(source, ["SUPER_ADMIN"]), destination);
+    assert.equal(getPlatformDestination(source, ["COMPANY_ADMIN"]), null);
+  }
+  assert.equal(getPlatformDestination("/profile", ["SUPER_ADMIN"]), null);
+  assert.equal(getPlatformDestination("/settings", ["SUPER_ADMIN"]), null);
+  assert.equal(
+    getPlatformDestination("/platform/companies", ["SUPER_ADMIN"]),
+    null,
+  );
 });
 
 test("el administrador de negocio conserva Mi plan y no se dirige a la plataforma", () => {

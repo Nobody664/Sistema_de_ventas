@@ -205,6 +205,19 @@ async function fixture() {
 }
 
 describe("Atomic token lifecycle", () => {
+  it("renews a legacy platform session without preserving its old company context", async () => {
+    const value = await fixture();
+    value.user.globalRole = "SUPER_ADMIN";
+    const old = value.add("legacy-platform-session", "SESSION");
+    await value.service.refresh("legacy-platform-session");
+    assert.ok(old.revokedAt);
+    const renewed = value.tokens.find(
+      (token) => token.id !== old.id && !token.revokedAt,
+    );
+    assert.ok(renewed);
+    assert.equal(renewed.companyId, null);
+    assert.equal(renewed.familyId, old.familyId);
+  });
   it("consumes a reset token once under competing requests and advances the identity version", async () => {
     const value = await fixture();
     value.add("reset", "RESET");

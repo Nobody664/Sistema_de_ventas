@@ -92,6 +92,51 @@ describe("BillingService.getBillingStatus", () => {
     assert.equal(status!.currentPending?.id, "p2");
     assert.equal(status!.lastPayment?.id, "p1");
     assert.equal(status!.recentPayments.length, 2);
+    assert.equal(status!.currentPending?.hasProof, false);
+  });
+
+  it("projects proof metadata by payment id without treating legacy unlinked proofs as payment confirmations", async () => {
+    const { svc } = makeService({
+      subscription: {
+        findFirst: async (args: {
+          where: { companyId: string };
+          include: { paymentProofs: { select: Record<string, boolean> } };
+        }) => {
+          assert.equal(args.where.companyId, "c1");
+          assert.deepEqual(args.include.paymentProofs.select, {
+            paymentId: true,
+            status: true,
+          });
+          return {
+            id: "s1",
+            status: "ACTIVE",
+            plan: { name: "Start" },
+            billingCycle: "MONTHLY",
+            startDate: new Date("2026-01-01"),
+            endDate: new Date("2026-02-01"),
+            autoRenew: true,
+            payments: [
+              {
+                id: "p1",
+                amount: 39,
+                status: "PENDING",
+                paidAt: null,
+                createdAt: new Date(),
+              },
+            ],
+            paymentProofs: [
+              { paymentId: null, status: "APPROVED" },
+              { paymentId: "p1", status: "PENDING" },
+            ],
+          };
+        },
+      },
+    });
+    const status = await svc.getBillingStatus("c1");
+    assert.equal(status?.currentPending?.hasProof, true);
+    assert.equal(status?.currentPending?.proofStatus, "PENDING");
+    assert.equal(status?.recentPayments[0].proofStatus, "PENDING");
+    assert.equal(status?.recentPayments[0].dueDate, "2026-02-01T00:00:00.000Z");
   });
 });
 

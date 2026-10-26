@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth-cookies";
 import { BACKEND_API_URL } from "@/lib/backend-url";
 import { contentSecurityPolicy } from "@/lib/content-security-policy";
+import { getPlatformDestination, isPlatformUser } from "@/lib/role-navigation";
 
 const PUBLIC_ROUTES = [
   "/sign-in",
@@ -110,12 +111,20 @@ async function handleRequest(request: NextRequest) {
   const isPlatformRoute =
     pathname === "/platform" || pathname.startsWith("/platform/");
 
-  if (isPlatformRoute) {
-    const roles = readJwtClaim(accessToken, "roles");
-    const isPlatformAdmin =
-      Array.isArray(roles) &&
-      roles.some((role) => role === "SUPER_ADMIN" || role === "SUPPORT_ADMIN");
+  const claimRoles = readJwtClaim(accessToken, "roles");
+  const roles = Array.isArray(claimRoles)
+    ? claimRoles.filter((role): role is string => typeof role === "string")
+    : [];
+  const isPlatformAdmin = isPlatformUser(roles);
+  const platformDestination = getPlatformDestination(pathname, roles);
+  if (platformDestination) {
+    return applyRefreshedCookies(
+      NextResponse.redirect(new URL(platformDestination, request.url)),
+      refreshedSetCookies,
+    );
+  }
 
+  if (isPlatformRoute) {
     if (!isPlatformAdmin) {
       return applyRefreshedCookies(
         NextResponse.redirect(new URL("/forbidden", request.url)),
@@ -123,6 +132,13 @@ async function handleRequest(request: NextRequest) {
       );
     }
 
+    return applyRefreshedCookies(
+      NextResponse.next({ request }),
+      refreshedSetCookies,
+    );
+  }
+
+  if (isPlatformAdmin) {
     return applyRefreshedCookies(
       NextResponse.next({ request }),
       refreshedSetCookies,

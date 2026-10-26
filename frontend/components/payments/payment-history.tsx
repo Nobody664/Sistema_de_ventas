@@ -20,47 +20,10 @@ import {
 import { apiFetch } from "@/lib/api";
 import { compressImage } from "@/lib/image-compression";
 import { useRouter } from "next/navigation";
-
-interface BillingStatus {
-  subscription: {
-    id: string;
-    status: string;
-    plan: { id: string; name: string; code: string; priceMonthly: string };
-    startDate: string;
-    endDate: string;
-    autoRenew: boolean;
-    billingCycle: string;
-  };
-  currentPending: {
-    id: string;
-    amount: string;
-    dueDate: string;
-    status: string;
-    hasProof: boolean;
-  } | null;
-  lastPayment: {
-    id: string;
-    amount: string;
-    paidAt: string;
-    status: string;
-  } | null;
-  recentPayments: Array<{
-    id: string;
-    amount: string;
-    status: string;
-    dueDate: string;
-    paidAt: string;
-    createdAt: string;
-    hasProof: boolean;
-    proofStatus: string;
-  }>;
-}
+import type { BillingStatus } from "@/types/billing";
 
 interface PaymentHistoryClientProps {
   billingStatus: BillingStatus | null;
-  pendingPayments: unknown;
-  paymentHistory: unknown;
-  isSuperAdmin: boolean;
 }
 
 function PaymentStatusBadge({ status }: { status: string }) {
@@ -155,7 +118,6 @@ function SubscriptionStatusBadge({ status }: { status: string }) {
 
 export function PaymentHistoryClient({
   billingStatus,
-  isSuperAdmin,
 }: PaymentHistoryClientProps) {
   const router = useRouter();
   const [showUpload, setShowUpload] = useState(false);
@@ -245,9 +207,12 @@ export function PaymentHistoryClient({
 
           <div className="mt-6 grid grid-cols-2 gap-4">
             <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-sm text-foreground/50">Monto mensual</p>
+              <p className="text-sm text-foreground/50">Monto del ciclo</p>
               <p className="mt-1 font-display text-2xl">
-                S/ {subscription.plan.priceMonthly}
+                S/{" "}
+                {subscription.billingCycle === "YEARLY"
+                  ? (subscription.plan.priceYearly ?? "—")
+                  : subscription.plan.priceMonthly}
               </p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
@@ -259,13 +224,17 @@ export function PaymentHistoryClient({
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-foreground/50">Inicio</p>
               <p className="mt-1 font-medium">
-                {new Date(subscription.startDate).toLocaleDateString("es-PE")}
+                {subscription.startDate
+                  ? new Date(subscription.startDate).toLocaleDateString("es-PE")
+                  : "—"}
               </p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-foreground/50">Próximo vencimiento</p>
               <p className="mt-1 font-medium">
-                {new Date(subscription.endDate).toLocaleDateString("es-PE")}
+                {subscription.endDate
+                  ? new Date(subscription.endDate).toLocaleDateString("es-PE")
+                  : "—"}
               </p>
             </div>
           </div>
@@ -296,160 +265,172 @@ export function PaymentHistoryClient({
         </Card>
       </div>
 
-      {currentPending && !currentPending.hasProof && (
-        <Card className="rounded-[30px] bg-amber-50 border border-amber-200 p-6">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 rounded-xl bg-amber-100 p-2">
-              <AlertCircle className="size-5 text-amber-700" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-display text-lg text-amber-800">
-                Pago Pendiente
-              </h3>
-              <p className="text-sm text-amber-700 mt-1">
-                Tienes un pago pendiente de{" "}
-                <strong>S/ {currentPending.amount}</strong>
-                {currentPending.dueDate && (
-                  <>
-                    {" "}
-                    con vencimiento el{" "}
-                    <strong>
-                      {new Date(currentPending.dueDate).toLocaleDateString(
-                        "es-PE",
-                      )}
-                    </strong>
-                  </>
-                )}
-                . Sube tu comprobante de pago para mantener tu suscripción
-                activa.
-              </p>
-
-              {!showUpload && (
-                <Button
-                  onClick={() => setShowUpload(true)}
-                  className="mt-4"
-                  variant="default"
-                >
-                  <Upload className="mr-2 size-4" />
-                  Subir comprobante de pago
-                </Button>
-              )}
-
-              {showUpload && (
-                <div className="mt-4 space-y-4">
-                  {!uploaded && (
+      {currentPending &&
+        (!currentPending.hasProof ||
+          currentPending.proofStatus === "REJECTED") && (
+          <Card className="rounded-[30px] bg-amber-50 border border-amber-200 p-6">
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 rounded-xl bg-amber-100 p-2">
+                <AlertCircle className="size-5 text-amber-700" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-display text-lg text-amber-800">
+                  Pago Pendiente
+                </h3>
+                <p className="text-sm text-amber-700 mt-1">
+                  Tienes un pago pendiente de{" "}
+                  <strong>S/ {currentPending.amount}</strong>
+                  {currentPending.dueDate && (
                     <>
-                      <div className="flex items-center gap-4">
-                        {proofImage ? (
-                          <div className="space-y-3">
-                            <img
-                              src={proofImage}
-                              alt="Comprobante"
-                              className="max-h-48 rounded-xl border object-contain"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setProofImage(null);
-                                setUploaded(false);
-                              }}
-                            >
-                              Cambiar imagen
-                            </Button>
-                          </div>
-                        ) : (
-                          <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 px-6 py-8 transition hover:bg-amber-100/50">
-                            <Upload className="size-8 text-amber-400" />
-                            <span className="mt-2 text-sm text-amber-600">
-                              Haz clic para subir tu comprobante
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp"
-                              className="hidden"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleImageUpload(f);
-                              }}
-                            />
-                          </label>
+                      {" "}
+                      con vencimiento el{" "}
+                      <strong>
+                        {new Date(currentPending.dueDate).toLocaleDateString(
+                          "es-PE",
                         )}
-                      </div>
-
-                      {message && (
-                        <div
-                          className={`flex items-center gap-2 rounded-lg p-3 ${message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                        >
-                          {message.type === "success" ? (
-                            <Check className="size-4" />
-                          ) : (
-                            <AlertCircle className="size-4" />
-                          )}
-                          <span className="text-sm">{message.text}</span>
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          onClick={handleSubmitProof}
-                          disabled={!proofImage || uploading}
-                        >
-                          {uploading ? (
-                            <Loader2 className="mr-2 size-4 animate-spin" />
-                          ) : (
-                            <Check className="mr-2 size-4" />
-                          )}
-                          Confirmar pago
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setShowUpload(false)}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-
-                      <div className="rounded-xl bg-blue-50 p-4">
-                        <div className="flex items-start gap-2">
-                          <Shield className="mt-0.5 size-4 text-blue-600 shrink-0" />
-                          <div className="text-sm text-blue-800">
-                            <p className="font-medium">Instrucciones:</p>
-                            <ol className="mt-1 list-inside list-decimal space-y-1">
-                              <li>
-                                Realiza el pago de S/ {currentPending.amount}{" "}
-                                por Yape, Plin o Transferencia
-                              </li>
-                              <li>
-                                Toma una captura de pantalla del comprobante
-                              </li>
-                              <li>
-                                Súbela aquí para que nuestro equipo la verifique
-                              </li>
-                            </ol>
-                          </div>
-                        </div>
-                      </div>
+                      </strong>
                     </>
                   )}
+                  . Sube tu comprobante de pago para mantener tu suscripción
+                  activa.
+                </p>
 
-                  {uploaded && (
-                    <div className="rounded-xl bg-green-100 p-4 text-green-800">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="size-5" />
-                        <p className="font-medium">
-                          Comprobante subido exitosamente
+                {!showUpload && (
+                  <Button
+                    onClick={() => setShowUpload(true)}
+                    className="mt-4"
+                    variant="default"
+                  >
+                    <Upload className="mr-2 size-4" />
+                    Subir comprobante de pago
+                  </Button>
+                )}
+
+                {showUpload && (
+                  <div className="mt-4 space-y-4">
+                    {!uploaded && (
+                      <>
+                        <div className="flex items-center gap-4">
+                          {proofImage ? (
+                            <div className="space-y-3">
+                              <img
+                                src={proofImage}
+                                alt="Comprobante"
+                                className="max-h-48 rounded-xl border object-contain"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setProofImage(null);
+                                  setUploaded(false);
+                                }}
+                              >
+                                Cambiar imagen
+                              </Button>
+                            </div>
+                          ) : (
+                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/50 px-6 py-8 transition hover:bg-amber-100/50">
+                              <Upload className="size-8 text-amber-400" />
+                              <span className="mt-2 text-sm text-amber-600">
+                                Haz clic para subir tu comprobante
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleImageUpload(f);
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+
+                        {message && (
+                          <div
+                            className={`flex items-center gap-2 rounded-lg p-3 ${message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                          >
+                            {message.type === "success" ? (
+                              <Check className="size-4" />
+                            ) : (
+                              <AlertCircle className="size-4" />
+                            )}
+                            <span className="text-sm">{message.text}</span>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            onClick={handleSubmitProof}
+                            disabled={!proofImage || uploading}
+                          >
+                            {uploading ? (
+                              <Loader2 className="mr-2 size-4 animate-spin" />
+                            ) : (
+                              <Check className="mr-2 size-4" />
+                            )}
+                            Enviar comprobante
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowUpload(false)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+
+                        <div className="rounded-xl bg-blue-50 p-4">
+                          <div className="flex items-start gap-2">
+                            <Shield className="mt-0.5 size-4 text-blue-600 shrink-0" />
+                            <div className="text-sm text-blue-800">
+                              <p className="font-medium">Instrucciones:</p>
+                              <ol className="mt-1 list-inside list-decimal space-y-1">
+                                <li>
+                                  Realiza el pago de S/ {currentPending.amount}{" "}
+                                  por Yape, Plin o Transferencia
+                                </li>
+                                <li>
+                                  Toma una captura de pantalla del comprobante
+                                </li>
+                                <li>
+                                  Súbela aquí para que nuestro equipo la
+                                  verifique
+                                </li>
+                              </ol>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {uploaded && (
+                      <div className="rounded-xl bg-green-100 p-4 text-green-800">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="size-5" />
+                          <p className="font-medium">
+                            Comprobante subido exitosamente
+                          </p>
+                        </div>
+                        <p className="mt-1 text-sm">
+                          Recibirás una notificación cuando sea revisado.
                         </p>
                       </div>
-                      <p className="mt-1 text-sm">
-                        Recibirás una notificación cuando sea revisado.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </Card>
+        )}
+
+      {currentPending?.hasProof && currentPending.proofStatus === "PENDING" && (
+        <Card className="rounded-[30px] bg-card p-6">
+          <h2 className="font-display text-xl">Comprobante en revisión</h2>
+          <p className="mt-2 text-muted-foreground">
+            Tu pago sigue pendiente de validación por la plataforma.
+          </p>
         </Card>
       )}
 

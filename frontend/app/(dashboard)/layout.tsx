@@ -7,6 +7,8 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar, AppMobileNav } from "@/components/layout/app-sidebar";
 import { AppScope } from "@/components/layout/app-scope";
 import { TrialBanner } from "@/components/layout/trial-banner";
+import { PlatformShell } from "@/components/layout/platform-shell";
+import { isPlatformUser } from "@/lib/role-navigation";
 
 export default async function DashboardLayout({
   children,
@@ -15,6 +17,9 @@ export default async function DashboardLayout({
 
   if (!session?.user) {
     redirect("/sign-in");
+  }
+  if (isPlatformUser(session.user.roles)) {
+    return <PlatformShell user={session.user}>{children}</PlatformShell>;
   }
 
   const { companyStatus, companyId } = session.user;
