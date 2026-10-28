@@ -47,6 +47,7 @@ export interface SupplierOrderItem {
   productId: string;
   suggestedQuantity: number;
   requestedQuantity: number;
+  receivedQuantity: number;
   unitCost: number | null;
   product?: {
     id: string;
@@ -69,6 +70,7 @@ export interface SupplierOrder {
   confirmedAt: string | null;
   cancelledAt: string | null;
   receivedAt: string | null;
+  stockEntryId: string | null;
   createdById: string | null;
   createdAt: string;
   updatedAt: string;

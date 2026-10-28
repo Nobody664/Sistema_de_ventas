@@ -5,7 +5,9 @@ import { getServerSession } from "@/lib/session";
 import { AutoOrdersPanel } from "@/components/suppliers/auto-orders-panel";
 import { OrderStatusBadge } from "@/components/suppliers/order-status-badge";
 import type { AutoOrdersPreview, SupplierOrder } from "@/types/suppliers";
-import { ClipboardList, Sparkles } from "lucide-react";
+import { ClipboardList, Sparkles, Plus } from "lucide-react";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import { Button } from "@/components/ui/button";
 
 export default async function PurchaseOrdersPage() {
   const session = await getServerSession();
@@ -24,18 +26,29 @@ export default async function PurchaseOrdersPage() {
   return (
     <div className="space-y-6">
       <Card className="rounded-[34px] bg-gradient-to-br from-slate-700 to-slate-900 p-6 sm:p-8 text-white animate-fade-in-up">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="rounded-2xl bg-white/20 p-3">
             <ClipboardList className="size-6" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <h1 className="font-display text-3xl sm:text-4xl">
               Órdenes de compra
             </h1>
             <p className="mt-1 text-sm text-white/70">
-              {orderList.length} órdenes registradas
+              {orderList.length} órdenes en esta vista · hasta 200 recientes
             </p>
           </div>
+          <PermissionGuard permission="supplier_order:manage">
+            <Button
+              asChild
+              className="rounded-xl bg-white text-slate-900 hover:bg-white/90"
+            >
+              <Link href="/purchase-orders/new">
+                <Plus className="size-4" />
+                Nueva orden de compra
+              </Link>
+            </Button>
+          </PermissionGuard>
         </div>
       </Card>
 

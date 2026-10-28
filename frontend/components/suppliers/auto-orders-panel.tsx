@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { useUiStore } from "@/store/ui-store";
 import { usePermissions } from "@/hooks/usePermissions";
-import type { AutoOrdersPreview } from "@/types/suppliers";
+import type { AutoOrdersPreview, SupplierOrder } from "@/types/suppliers";
 
 export function AutoOrdersPanel({ preview }: { preview: AutoOrdersPreview }) {
   const router = useRouter();
@@ -25,11 +25,14 @@ export function AutoOrdersPanel({ preview }: { preview: AutoOrdersPreview }) {
   const generate = async () => {
     setGenerating(true);
     try {
-      await apiFetch("/suppliers/auto-orders/generate", {
-        method: "POST",
-        token: getAccessToken(),
-      });
-      addToast("Órdenes borrador generadas", "success");
+      const orders = await apiFetch<SupplierOrder[]>(
+        "/suppliers/auto-orders/generate",
+        {
+          method: "POST",
+          token: getAccessToken(),
+        },
+      );
+      addToast(`${orders.length} órdenes borrador generadas`, "success");
       router.refresh();
     } catch (err) {
       addToast(err instanceof Error ? err.message : "Error", "error");
@@ -57,7 +60,7 @@ export function AutoOrdersPanel({ preview }: { preview: AutoOrdersPreview }) {
             ) : (
               <PackagePlus className="mr-2 size-4" />
             )}
-            Generar órdenes ({preview.groups.length})
+            Generar borradores
           </Button>
         )}
       </div>
@@ -76,7 +79,9 @@ export function AutoOrdersPanel({ preview }: { preview: AutoOrdersPreview }) {
               <div className="flex items-center justify-between">
                 <p className="font-medium">{group.supplier.name}</p>
                 <span className="text-sm text-foreground/50">
-                  S/ {group.estimatedTotal.toFixed(2)}
+                  {group.items.some((item) => item.estimatedCost === null)
+                    ? "Por cotizar"
+                    : `S/ ${group.estimatedTotal.toFixed(2)}`}
                 </span>
               </div>
               <div className="mt-3 space-y-2 text-sm">

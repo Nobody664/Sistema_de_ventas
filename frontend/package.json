@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit",
     "test": "tsx --test \"lib/**/*.test.ts\" \"store/**/*.test.ts\" \"stores/**/*.test.ts\"",
     "test:browser:refix": "node scripts/refix-browser-smoke.cjs",
+    "test:browser:purchases": "node scripts/products-purchases-smoke.cjs",
     "format": "prettier --check \"**/*.{ts,tsx,css}\"",
     "analyze": "ANALYZE=true next build",
     "analyze:browser": "ANALYZE=browser next build"

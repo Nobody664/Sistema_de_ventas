@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import {
   Package,
@@ -15,8 +16,10 @@ import {
 } from "@/components/products/product-actions";
 import { ImageLightbox } from "@/components/products/image-lightbox";
 import { apiFetch, getAccessToken } from "@/lib/api";
-import { useAuthStore } from "@/stores/auth.store";
-import type { Product, Category } from "@/types/api";
+import type { Category } from "@/types/api";
+import type { ProductCatalog } from "@/types/products";
+import { PermissionGuard } from "@/components/auth/permission-guard";
+import { useUiStore } from "@/store/ui-store";
 
 const UNIT_SHORT: Record<string, string> = {
   UNIT: "und",
@@ -56,40 +59,67 @@ function ExpiryBadge({ value }: { value?: Date | string | null }) {
 }
 
 interface ProductsPageClientProps {
-  initialProducts: Product[];
+  initialCatalog: ProductCatalog;
   categories: Category[];
 }
 
 export function ProductsPageClient({
-  initialProducts,
+  initialCatalog,
   categories,
 }: ProductsPageClientProps) {
-  const user = useAuthStore((state) => state.user);
-  const [products] = useState(initialProducts);
+  const addToast = useUiStore((state) => state.addToast);
   const [searchQuery, setSearchQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("");
+  useEffect(() => {
+    const timeout = setTimeout(() => setSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+  const {
+    data: catalog,
+    isPending,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: [
+      "products",
+      "catalog",
+      { page, categoryId: selectedCategory, search, limit: 50 },
+    ],
+    queryFn: ({ signal }) => {
+      const params = new URLSearchParams({ page: String(page), limit: "50" });
+      if (selectedCategory) params.set("categoryId", selectedCategory);
+      if (search) params.set("search", search);
+      return apiFetch<ProductCatalog>(`/products/catalog?${params}`, {
+        token: getAccessToken(),
+        signal,
+      });
+    },
+    initialData:
+      page === 1 && !selectedCategory && !search ? initialCatalog : undefined,
+  });
+  useEffect(() => {
+    if (catalog && page > Math.max(1, catalog.totalPages))
+      setPage(Math.max(1, catalog.totalPages));
+  }, [catalog, page]);
+  const products = catalog?.data ?? [];
+  const busy = isPending || searchQuery.trim() !== search;
   const [lightboxImage, setLightboxImage] = useState<{
     src: string;
     alt: string;
   } | null>(null);
 
   const lowStockProducts = products.filter(
-    (p) => Number(p.stockQuantity) <= Number(p.minStock ?? 10),
+    (p) => Number(p.stockQuantity) <= Number(p.minStock ?? 0),
   );
   const totalValue = products.reduce(
     (acc, p) => acc + Number(p.salePrice) * Number(p.stockQuantity),
     0,
   );
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "" || product.categoryId === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = products;
 
   const handleExport = async (format: "csv" | "excel" | "pdf") => {
     try {
@@ -111,7 +141,12 @@ export function ProductsPageClient({
         link.click();
       }
     } catch (error) {
-      console.error("Export failed:", error);
+      addToast(
+        error instanceof Error
+          ? error.message
+          : "No se pudo exportar el catálogo",
+        "error",
+      );
     }
   };
 
@@ -146,9 +181,9 @@ export function ProductsPageClient({
               </div>
               <div className="min-w-0">
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Total productos
+                  Productos encontrados
                 </p>
-                <p className="font-display text-3xl">{products.length}</p>
+                <p className="font-display text-3xl">{catalog?.total ?? "—"}</p>
               </div>
             </div>
           </Card>
@@ -160,7 +195,7 @@ export function ProductsPageClient({
               </div>
               <div className="min-w-0">
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Stock bajo
+                  Stock bajo · página
                 </p>
                 <p className="font-display text-3xl">
                   {lowStockProducts.length}
@@ -176,7 +211,7 @@ export function ProductsPageClient({
               </div>
               <div className="min-w-0">
                 <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
-                  Valor inventario
+                  Valor de venta · página
                 </p>
                 <p className="font-display text-3xl break-words">
                   S/ {totalValue.toFixed(2)}
@@ -192,22 +227,32 @@ export function ProductsPageClient({
               <p className="text-sm uppercase tracking-[0.18em] text-foreground/50">
                 Productos
               </p>
-              <h2 className="mt-2 font-display text-2xl">Lista completa</h2>
+              <h2 className="mt-2 font-display text-2xl">
+                Catálogo de productos
+              </h2>
             </div>
             <div className="flex flex-wrap gap-2">
               <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-foreground/30" />
                 <input
+                  aria-label="Buscar productos"
                   type="text"
                   placeholder="Buscar productos..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
                   className="w-full rounded-xl border border-foreground/10 bg-white py-2 pl-9 pr-4 text-sm transition focus:border-emerald-500/50 focus:outline-none sm:w-auto"
                 />
               </div>
               <select
+                aria-label="Filtrar por categoría"
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition focus:border-emerald-500/50 focus:outline-none sm:w-auto"
               >
                 <option value="">Todas las categorias</option>
@@ -217,37 +262,55 @@ export function ProductsPageClient({
                   </option>
                 ))}
               </select>
-              <details className="relative">
-                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5 [&::-webkit-details-marker]:hidden">
-                  <Download className="size-4" />
-                  Exportar
-                </summary>
-                <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-xl border border-foreground/10 bg-white py-1 shadow-lg">
-                  <button
-                    onClick={() => handleExport("csv")}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
-                  >
-                    CSV
-                  </button>
-                  <button
-                    onClick={() => handleExport("excel")}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
-                  >
-                    Excel
-                  </button>
-                  <button
-                    onClick={() => handleExport("pdf")}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
-                  >
-                    PDF
-                  </button>
-                </div>
-              </details>
+              <PermissionGuard permission="product:export">
+                <details className="relative">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5 [&::-webkit-details-marker]:hidden">
+                    <Download className="size-4" />
+                    Exportar
+                  </summary>
+                  <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-xl border border-foreground/10 bg-white py-1 shadow-lg">
+                    <button
+                      onClick={() => handleExport("csv")}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
+                    >
+                      CSV
+                    </button>
+                    <button
+                      onClick={() => handleExport("excel")}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
+                    >
+                      Excel
+                    </button>
+                    <button
+                      onClick={() => handleExport("pdf")}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-foreground/5"
+                    >
+                      PDF
+                    </button>
+                  </div>
+                </details>
+              </PermissionGuard>
               <div className="lg:hidden">
                 <NewProductButton />
               </div>
             </div>
           </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="mb-4 rounded-xl border border-red-500/30 p-4 text-sm"
+            >
+              No se pudo actualizar el catálogo. {error.message}
+              <button
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                className="ml-2 underline"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
 
           <div className="overflow-auto max-h-[600px] rounded-xl border border-foreground/10">
             <table className="w-full min-w-[800px]">
@@ -266,7 +329,16 @@ export function ProductsPageClient({
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.length > 0 ? (
+                {busy ? (
+                  <tr>
+                    <td
+                      colSpan={10}
+                      className="py-12 text-center text-muted-foreground"
+                    >
+                      Cargando productos...
+                    </td>
+                  </tr>
+                ) : filteredProducts.length > 0 ? (
                   filteredProducts.map((product, index) => (
                     <tr
                       key={product.id}
@@ -326,11 +398,11 @@ export function ProductsPageClient({
                       <td className="py-4 text-right">
                         <span
                           className={`inline-block font-medium ${
-                            Number(product.stockQuantity) <=
-                            Number(product.minStock ?? 10)
-                              ? "text-amber-600"
-                              : Number(product.stockQuantity) === 0
-                                ? "text-red-600"
+                            Number(product.stockQuantity) === 0
+                              ? "text-red-600"
+                              : Number(product.stockQuantity) <=
+                                  Number(product.minStock ?? 0)
+                                ? "text-amber-600"
                                 : "text-foreground"
                           }`}
                         >
@@ -338,7 +410,7 @@ export function ProductsPageClient({
                           {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
                         </span>
                         {Number(product.stockQuantity) <=
-                          Number(product.minStock ?? 10) && (
+                          Number(product.minStock ?? 0) && (
                           <AlertTriangle className="ml-1 inline-block size-3 text-amber-500" />
                         )}
                       </td>
@@ -377,9 +449,11 @@ export function ProductsPageClient({
                       colSpan={10}
                       className="py-12 text-center text-foreground/50"
                     >
-                      {searchQuery || selectedCategory
-                        ? "No se encontraron productos con los filtros aplicados."
-                        : "No hay productos registrados. Registra el Primero!!."}
+                      {error
+                        ? "El catálogo no está disponible. Reintenta la consulta."
+                        : searchQuery || selectedCategory
+                          ? "No se encontraron productos con los filtros aplicados."
+                          : "No hay productos registrados. Registra el Primero!!."}
                     </td>
                   </tr>
                 )}
@@ -387,14 +461,28 @@ export function ProductsPageClient({
             </table>
           </div>
 
-          {filteredProducts.length > 0 && (
-            <div className="mt-4 flex items-center justify-between border-t border-foreground/10 pt-4">
-              <p className="text-sm text-foreground/50">
-                Mostrando {filteredProducts.length} de {products.length}{" "}
-                productos
-              </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">
+              {catalog?.total ?? 0} resultados · Página {page} de{" "}
+              {Math.max(1, catalog?.totalPages ?? 0)}
+            </p>
+            <div className="flex gap-2">
+              <button
+                disabled={page <= 1 || isFetching}
+                onClick={() => setPage((value) => value - 1)}
+                className="rounded-xl border px-4 py-2 text-sm disabled:opacity-40"
+              >
+                Anterior
+              </button>
+              <button
+                disabled={isFetching || page >= (catalog?.totalPages ?? 0)}
+                onClick={() => setPage((value) => value + 1)}
+                className="rounded-xl border px-4 py-2 text-sm disabled:opacity-40"
+              >
+                Siguiente
+              </button>
             </div>
-          )}
+          </div>
         </Card>
       </div>
 

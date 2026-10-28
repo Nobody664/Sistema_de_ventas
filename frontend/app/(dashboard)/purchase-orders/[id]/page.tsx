@@ -70,13 +70,24 @@ export default async function PurchaseOrderDetailPage({
                   <p className="truncate font-medium">
                     {item.product?.name ?? item.productId}
                   </p>
+                  <p className="mt-1 break-all font-mono text-xs text-white/60">
+                    ID: {order.id}
+                  </p>
                   <p className="text-xs text-foreground/50">
                     {item.product?.sku ?? "Sin SKU"} ·{" "}
                     {item.product?.baseUnit ?? ""}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="font-medium">{item.requestedQuantity}</p>
+                  <p className="font-medium">
+                    Solicitado: {item.requestedQuantity}{" "}
+                    {item.product?.baseUnit}
+                  </p>
+                  {order.receivedAt && (
+                    <p className="mt-1 text-xs text-emerald-600">
+                      Recibido: {item.receivedQuantity} {item.product?.baseUnit}
+                    </p>
+                  )}
                   {item.unitCost !== null && (
                     <p className="text-xs text-foreground/50">
                       S/ {(item.unitCost * item.requestedQuantity).toFixed(2)}
@@ -93,6 +104,28 @@ export default async function PurchaseOrderDetailPage({
                 S/ {order.totalEstimated.toFixed(2)}
               </span>
             </div>
+          )}
+          {order.receivedAt && order.stockEntryId && (
+            <div className="mt-4 flex items-center justify-between border-t pt-4">
+              <span className="text-sm text-muted-foreground">
+                Total recibido
+              </span>
+              <span className="font-display text-xl">
+                S/{" "}
+                {order.items
+                  .reduce(
+                    (sum, item) =>
+                      sum + item.receivedQuantity * (item.unitCost ?? 0),
+                    0,
+                  )
+                  .toFixed(2)}
+              </span>
+            </div>
+          )}
+          {order.notes && (
+            <p className="mt-5 whitespace-pre-wrap text-sm text-muted-foreground">
+              {order.notes}
+            </p>
           )}
         </Card>
 
@@ -114,6 +147,20 @@ export default async function PurchaseOrderDetailPage({
                 <span>
                   {new Date(order.receivedAt).toLocaleDateString("es-PE")}
                 </span>
+              </div>
+            )}
+            {order.stockEntryId && (
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-muted-foreground">Entrada vinculada</p>
+                <p className="break-all font-mono text-xs">
+                  {order.stockEntryId}
+                </p>
+                <Link
+                  href="/inventory/entries"
+                  className="inline-block font-medium underline"
+                >
+                  Ver entradas de inventario
+                </Link>
               </div>
             )}
           </Card>
