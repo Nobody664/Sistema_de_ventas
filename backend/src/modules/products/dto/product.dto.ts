@@ -22,6 +22,20 @@ import { ALLOWED_IMAGE_MIME_PATTERN } from "@/common/helpers/image.helper";
 
 export class QueryProductDto {
   @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  search?: string;
+
+  @IsOptional()
+  @IsIn(["true", "false"])
+  isActive?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

@@ -36,6 +36,28 @@ import {
   ExportColumn,
 } from "@/common/helpers/export.helper";
 
+const PRODUCT_LIST_SELECT = {
+  id: true,
+  name: true,
+  sku: true,
+  barcode: true,
+  baseUnit: true,
+  salePrice: true,
+  costPrice: true,
+  stockQuantity: true,
+  minStock: true,
+  isActive: true,
+  imageUrl: true,
+  description: true,
+  createdAt: true,
+  expiryDate: true,
+  categoryId: true,
+  category: { select: { id: true, name: true } },
+  presentations: {
+    select: { id: true, name: true, factor: true, price: true },
+  },
+} satisfies Prisma.ProductSelect;
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -71,31 +93,49 @@ export class ProductsService {
     const limit = query?.limit ?? 50;
 
     return this.prisma.product.findMany({
-      where: { companyId },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        barcode: true,
-        baseUnit: true,
-        salePrice: true,
-        costPrice: true,
-        stockQuantity: true,
-        minStock: true,
-        isActive: true,
-        imageUrl: true,
-        description: true,
-        createdAt: true,
-        expiryDate: true,
-        category: { select: { id: true, name: true } },
-        presentations: {
-          select: { id: true, name: true, factor: true, price: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
+      where: this.productListWhere(companyId, query),
+      select: PRODUCT_LIST_SELECT,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (page - 1) * limit,
       take: limit,
     });
+  }
+
+  async findCatalog(companyId: string, query: QueryProductDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 50;
+    const where = this.productListWhere(companyId, query);
+    const [data, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        select: PRODUCT_LIST_SELECT,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  private productListWhere(
+    companyId: string,
+    query?: QueryProductDto,
+  ): Prisma.ProductWhereInput {
+    const search = query?.search?.trim();
+    return {
+      companyId,
+      deletedAt: null,
+      ...(query?.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(query?.isActive ? { isActive: query.isActive === "true" } : {}),
+      ...(search
+        ? {
+            OR: ["name", "sku", "barcode", "description"].map((field) => ({
+              [field]: { contains: search, mode: "insensitive" },
+            })),
+          }
+        : {}),
+    };
   }
 
   findCategories(companyId: string) {

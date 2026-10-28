@@ -11,6 +11,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Max,
   Min,
   ValidateNested,
 } from "class-validator";
@@ -190,12 +191,14 @@ class SupplierOrderItemDto {
 
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
+  @Max(99999999999.999)
   @Type(() => Number)
   requestedQuantity!: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 4 })
   @Min(0)
+  @Max(99999999.9999)
   @Type(() => Number)
   unitCost?: number;
 }
@@ -216,6 +219,7 @@ export class CreateSupplierOrderDto {
 
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => SupplierOrderItemDto)
   items!: SupplierOrderItemDto[];

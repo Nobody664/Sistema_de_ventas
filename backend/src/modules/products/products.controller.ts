@@ -141,6 +141,16 @@ export class ProductsController {
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
   @Permissions(Permission.PRODUCT_LIST)
+  @Get("catalog")
+  findCatalog(
+    @Req() request: { tenantId: string },
+    @Query() query: QueryProductDto,
+  ) {
+    return this.productsService.findCatalog(request.tenantId, query);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")
+  @Permissions(Permission.PRODUCT_LIST)
   @Get(":id")
   findProductById(
     @Req() request: { tenantId: string },
