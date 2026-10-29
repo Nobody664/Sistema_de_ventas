@@ -15,6 +15,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { useUiStore } from "@/store/ui-store";
+import Link from "next/link";
 
 interface DangerZoneProps {
   canCancelSubscription: boolean;
@@ -62,15 +63,9 @@ export function DangerZone({ canCancelSubscription }: DangerZoneProps) {
       </p>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <span title="Función no disponible. Contacta al administrador de la plataforma.">
-          <button
-            type="button"
-            disabled
-            className={`${buttonClassName} cursor-not-allowed opacity-60`}
-          >
-            Eliminar cuenta
-          </button>
-        </span>
+        <Link href="/support" className={buttonClassName}>
+          Solicitar cierre del negocio
+        </Link>
 
         {canCancelSubscription ? (
           <button

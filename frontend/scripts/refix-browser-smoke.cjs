@@ -63,6 +63,7 @@ const account = {
 };
 
 function data(resource) {
+  if (resource === "/companies/current") return { id: activeUser.companyId, name: "Negocio de prueba", legalName: null, taxId: null, address: null, email: null, phone: null, timezone: "America/Lima", currency: "PEN" };
   if (resource === "/auth/me") return activeUser;
   if (resource === "/auth/login") return { user: activeUser };
   if (resource === "/subscriptions/current")

@@ -7,6 +7,8 @@ import { getServerSession } from "@/lib/session";
 import { OrderStatusBadge } from "@/components/suppliers/order-status-badge";
 import { OrderActions } from "@/components/suppliers/order-actions";
 import type { SupplierOrder } from "@/types/suppliers";
+import { getCompanySettings } from "@/lib/company-settings-server";
+import { companyDateLabel, validCompanyZone } from "@/lib/company-format";
 
 export default async function PurchaseOrderDetailPage({
   params,
@@ -16,6 +18,8 @@ export default async function PurchaseOrderDetailPage({
   const { id } = await params;
   const session = await getServerSession();
   const accessToken = session?.accessToken;
+  const companySettings = await getCompanySettings(accessToken);
+  const zone = validCompanyZone(companySettings?.timezone);
 
   const order = await serverApiFetch<SupplierOrder>(
     `/suppliers/orders/${id}`,
@@ -137,16 +141,12 @@ export default async function PurchaseOrderDetailPage({
             </div>
             <div className="flex justify-between">
               <span className="text-foreground/50">Creada</span>
-              <span>
-                {new Date(order.createdAt).toLocaleDateString("es-PE")}
-              </span>
+              <span>{companyDateLabel(order.createdAt, zone)}</span>
             </div>
             {order.receivedAt && (
               <div className="flex justify-between">
                 <span className="text-foreground/50">Recibida</span>
-                <span>
-                  {new Date(order.receivedAt).toLocaleDateString("es-PE")}
-                </span>
+                <span>{companyDateLabel(order.receivedAt, zone)}</span>
               </div>
             )}
             {order.stockEntryId && (

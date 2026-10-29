@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
 import { useUiStore } from "@/store/ui-store";
 import { useAuthStore } from "@/stores/auth.store";
+import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
 
 interface CompanyData {
   id: string;
@@ -37,7 +38,9 @@ interface CompanyData {
 }
 
 export default function CompanySettingsPage() {
+  const sessionReady = useSessionQueryReady();
   const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.isLoading);
   const router = useRouter();
   const queryClient = useQueryClient();
   const addToast = useUiStore((state) => state.addToast);
@@ -54,16 +57,23 @@ export default function CompanySettingsPage() {
     phone: "",
   });
 
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [initializedCompany, setInitializedCompany] = useState<string | null>(
+    null,
+  );
 
-  const { data: company, isLoading } = useQuery({
+  const {
+    data: company,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["company-current"],
     queryFn: () => apiFetch<CompanyData>("/companies/current"),
-    enabled: isCompanyAdmin,
+    enabled: isCompanyAdmin && sessionReady,
   });
 
   useEffect(() => {
-    if (company && !isInitialized) {
+    if (company && company.id !== initializedCompany) {
       setFormData({
         name: company.name || "",
         legalName: company.legalName || "",
@@ -72,9 +82,9 @@ export default function CompanySettingsPage() {
         email: company.email || "",
         phone: company.phone || "",
       });
-      setIsInitialized(true);
+      setInitializedCompany(company.id);
     }
-  }, [company, isInitialized]);
+  }, [company, initializedCompany]);
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<CompanyData>) =>
@@ -84,6 +94,10 @@ export default function CompanySettingsPage() {
       }),
     onSuccess: (data) => {
       queryClient.setQueryData(["company-current"], data);
+      void queryClient.invalidateQueries({
+        queryKey: ["company-profile-completeness"],
+      });
+      router.refresh();
       addToast("Datos de la empresa actualizados correctamente", "success");
     },
     onError: (error: Error) => {
@@ -105,12 +119,12 @@ export default function CompanySettingsPage() {
     }
 
     updateMutation.mutate({
-      name: formData.name,
-      legalName: formData.legalName || null,
-      taxId: formData.taxId || null,
-      address: formData.address || null,
-      email: formData.email || null,
-      phone: formData.phone || null,
+      name: formData.name.trim(),
+      legalName: formData.legalName.trim() || null,
+      taxId: formData.taxId.trim() || null,
+      address: formData.address.trim() || null,
+      email: formData.email.trim() || null,
+      phone: formData.phone.trim() || null,
     });
   };
 
@@ -118,6 +132,28 @@ export default function CompanySettingsPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  if (!authLoading && !user)
+    return (
+      <div role="alert" className="rounded-2xl border bg-card p-6">
+        <h1 className="font-semibold">No se pudo verificar la sesión</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Reintenta la comprobación antes de editar la empresa.
+        </p>
+        <Button
+          variant="outline"
+          onClick={() => void useAuthStore.getState().checkAuth()}
+          className="mt-4"
+        >
+          Reintentar sesión
+        </Button>
+      </div>
+    );
+  if (authLoading || !sessionReady)
+    return (
+      <p role="status" className="p-8 text-sm text-muted-foreground">
+        Comprobando acceso...
+      </p>
+    );
   if (!isCompanyAdmin) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -144,6 +180,22 @@ export default function CompanySettingsPage() {
     );
   }
 
+  if (error)
+    return (
+      <div role="alert" className="rounded-2xl border bg-card p-6">
+        <h1 className="font-semibold">
+          No se pudieron cargar los datos de la empresa
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <Button
+          onClick={() => void refetch()}
+          variant="outline"
+          className="mt-4"
+        >
+          Reintentar
+        </Button>
+      </div>
+    );
   if (isLoading || !company) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -213,214 +265,216 @@ export default function CompanySettingsPage() {
         <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500"></div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-10 sm:p-8">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-500/20 dark:to-indigo-500/5">
-                <Building2 className="h-5 w-5 text-indigo-600" />
+          <fieldset disabled={updateMutation.isPending} className="space-y-10">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-500/20 dark:to-indigo-500/5">
+                  <Building2 className="h-5 w-5 text-indigo-600" />
+                </div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Información Principal
+                </h3>
               </div>
-              <h3 className="text-base font-semibold text-slate-900">
-                Información Principal
-              </h3>
+
+              <div className="grid gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="name"
+                    className="text-sm font-semibold text-slate-700"
+                  >
+                    Nombre de la Empresa <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative group">
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => updateField("name", e.target.value)}
+                      placeholder="Mi Empresa SAC"
+                      className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-indigo-100 group-focus-within:text-indigo-600 transition-colors">
+                      <Building2 className="h-5 w-5 text-slate-400" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="legalName"
+                    className="text-sm font-semibold text-slate-700"
+                  >
+                    Razón Social
+                  </Label>
+                  <Input
+                    id="legalName"
+                    value={formData.legalName}
+                    onChange={(e) => updateField("legalName", e.target.value)}
+                    placeholder="Mi Empresa Sociedad Anónima Cerrada"
+                    className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all text-base"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-6">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-500/20 dark:to-amber-500/5">
+                  <Hash className="h-5 w-5 text-amber-600" />
+                </div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Identificación Fiscal
+                </h3>
+              </div>
+
               <div className="space-y-2.5">
                 <Label
-                  htmlFor="name"
+                  htmlFor="taxId"
                   className="text-sm font-semibold text-slate-700"
                 >
-                  Nombre de la Empresa <span className="text-red-500">*</span>
+                  RUC{" "}
+                  <span className="text-slate-400 font-normal">
+                    (Registro Único de Contribuyente)
+                  </span>
                 </Label>
                 <div className="relative group">
                   <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => updateField("name", e.target.value)}
-                    placeholder="Mi Empresa SAC"
-                    className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
+                    id="taxId"
+                    value={formData.taxId}
+                    onChange={(e) =>
+                      updateField(
+                        "taxId",
+                        e.target.value.replace(/\D/g, "").slice(0, 11),
+                      )
+                    }
+                    placeholder="10472251271"
+                    maxLength={11}
+                    className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base font-mono tracking-widest"
                   />
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-indigo-100 group-focus-within:text-indigo-600 transition-colors">
-                    <Building2 className="h-5 w-5 text-slate-400" />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-amber-100 group-focus-within:text-amber-600 transition-colors">
+                    <FileText className="h-5 w-5 text-slate-400" />
                   </div>
                 </div>
+                <p className="text-xs text-slate-400 pl-1">
+                  El RUC debe tener 11 dígitos para ser válido
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-500/20 dark:to-rose-500/5">
+                  <MapPin className="h-5 w-5 text-rose-600" />
+                </div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Ubicación
+                </h3>
               </div>
 
               <div className="space-y-2.5">
                 <Label
-                  htmlFor="legalName"
+                  htmlFor="address"
                   className="text-sm font-semibold text-slate-700"
                 >
-                  Razón Social
+                  Dirección Fiscal
                 </Label>
-                <Input
-                  id="legalName"
-                  value={formData.legalName}
-                  onChange={(e) => updateField("legalName", e.target.value)}
-                  placeholder="Mi Empresa Sociedad Anónima Cerrada"
-                  className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all text-base"
-                />
+                <div className="relative group">
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => updateField("address", e.target.value)}
+                    placeholder="Av. Principal 123, Lima, Perú"
+                    className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
+                  />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-rose-100 group-focus-within:text-rose-600 transition-colors">
+                    <MapPin className="h-5 w-5 text-slate-400" />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-500/20 dark:to-amber-500/5">
-                <Hash className="h-5 w-5 text-amber-600" />
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 dark:from-cyan-500/20 dark:to-cyan-500/5">
+                  <Phone className="h-5 w-5 text-cyan-600" />
+                </div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Contacto
+                </h3>
               </div>
-              <h3 className="text-base font-semibold text-slate-900">
-                Identificación Fiscal
-              </h3>
+
+              <div className="grid gap-6">
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="email"
+                    className="text-sm font-semibold text-slate-700"
+                  >
+                    Correo Electrónico
+                  </Label>
+                  <div className="relative group">
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => updateField("email", e.target.value)}
+                      placeholder="contacto@miempresa.com"
+                      className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-cyan-100 group-focus-within:text-cyan-600 transition-colors">
+                      <Mail className="h-5 w-5 text-slate-400" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <Label
+                    htmlFor="phone"
+                    className="text-sm font-semibold text-slate-700"
+                  >
+                    Teléfono
+                  </Label>
+                  <div className="relative group">
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => updateField("phone", e.target.value)}
+                      placeholder="+51 999 999 999"
+                      className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-cyan-100 group-focus-within:text-cyan-600 transition-colors">
+                      <Phone className="h-5 w-5 text-slate-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="taxId"
-                className="text-sm font-semibold text-slate-700"
+            <div className="flex flex-col gap-4 pt-6 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between sm:pt-8">
+              <div className="flex items-center gap-3 text-sm text-slate-500">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span>Los cambios se aplicarán inmediatamente</span>
+              </div>
+              <Button
+                type="submit"
+                disabled={updateMutation.isPending}
+                className="h-14 w-full justify-center px-10 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-700 text-white font-semibold shadow-2xl shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group/btn sm:w-auto"
               >
-                RUC{" "}
-                <span className="text-slate-400 font-normal">
-                  (Registro Único de Contribuyente)
+                <span className="relative z-10 flex items-center gap-2">
+                  {updateMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-5 w-5" />
+                      Guardar Cambios
+                    </>
+                  )}
                 </span>
-              </Label>
-              <div className="relative group">
-                <Input
-                  id="taxId"
-                  value={formData.taxId}
-                  onChange={(e) =>
-                    updateField(
-                      "taxId",
-                      e.target.value.replace(/\D/g, "").slice(0, 11),
-                    )
-                  }
-                  placeholder="10472251271"
-                  maxLength={11}
-                  className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base font-mono tracking-widest"
-                />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-amber-100 group-focus-within:text-amber-600 transition-colors">
-                  <FileText className="h-5 w-5 text-slate-400" />
-                </div>
-              </div>
-              <p className="text-xs text-slate-400 pl-1">
-                El RUC debe tener 11 dígitos para ser válido
-              </p>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
+              </Button>
             </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-rose-100 to-rose-50 dark:from-rose-500/20 dark:to-rose-500/5">
-                <MapPin className="h-5 w-5 text-rose-600" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-900">
-                Ubicación
-              </h3>
-            </div>
-
-            <div className="space-y-2.5">
-              <Label
-                htmlFor="address"
-                className="text-sm font-semibold text-slate-700"
-              >
-                Dirección Fiscal
-              </Label>
-              <div className="relative group">
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => updateField("address", e.target.value)}
-                  placeholder="Av. Principal 123, Lima, Perú"
-                  className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
-                />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-rose-100 group-focus-within:text-rose-600 transition-colors">
-                  <MapPin className="h-5 w-5 text-slate-400" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 dark:from-cyan-500/20 dark:to-cyan-500/5">
-                <Phone className="h-5 w-5 text-cyan-600" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-900">
-                Contacto
-              </h3>
-            </div>
-
-            <div className="grid gap-6">
-              <div className="space-y-2.5">
-                <Label
-                  htmlFor="email"
-                  className="text-sm font-semibold text-slate-700"
-                >
-                  Correo Electrónico
-                </Label>
-                <div className="relative group">
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => updateField("email", e.target.value)}
-                    placeholder="contacto@miempresa.com"
-                    className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
-                  />
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-cyan-100 group-focus-within:text-cyan-600 transition-colors">
-                    <Mail className="h-5 w-5 text-slate-400" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                <Label
-                  htmlFor="phone"
-                  className="text-sm font-semibold text-slate-700"
-                >
-                  Teléfono
-                </Label>
-                <div className="relative group">
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => updateField("phone", e.target.value)}
-                    placeholder="+51 999 999 999"
-                    className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
-                  />
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-cyan-100 group-focus-within:text-cyan-600 transition-colors">
-                    <Phone className="h-5 w-5 text-slate-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 pt-6 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between sm:pt-8">
-            <div className="flex items-center gap-3 text-sm text-slate-500">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span>Los cambios se aplicarán inmediatamente</span>
-            </div>
-            <Button
-              type="submit"
-              disabled={updateMutation.isPending}
-              className="h-14 w-full justify-center px-10 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-700 text-white font-semibold shadow-2xl shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group/btn sm:w-auto"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                {updateMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-5 w-5" />
-                    Guardar Cambios
-                  </>
-                )}
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
-            </Button>
-          </div>
+          </fieldset>
         </form>
       </Card>
     </div>

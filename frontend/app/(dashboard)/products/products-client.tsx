@@ -20,6 +20,7 @@ import type { Category } from "@/types/api";
 import type { ProductCatalog } from "@/types/products";
 import { PermissionGuard } from "@/components/auth/permission-guard";
 import { useUiStore } from "@/store/ui-store";
+import { useCompanyFormat } from "@/components/settings/company-settings-provider";
 
 const UNIT_SHORT: Record<string, string> = {
   UNIT: "und",
@@ -67,6 +68,7 @@ export function ProductsPageClient({
   initialCatalog,
   categories,
 }: ProductsPageClientProps) {
+  const format = useCompanyFormat();
   const addToast = useUiStore((state) => state.addToast);
   const [searchQuery, setSearchQuery] = useState("");
   const [search, setSearch] = useState("");
@@ -420,9 +422,7 @@ export function ProductsPageClient({
                         </span>
                       </td>
                       <td className="py-4 text-center text-sm text-foreground/60">
-                        {new Date(product.createdAt).toLocaleDateString(
-                          "es-PE",
-                        )}
+                        {format.date(product.createdAt)}
                       </td>
                       <td className="py-4 text-center">
                         <ExpiryBadge value={product.expiryDate} />

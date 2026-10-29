@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle, AlertCircle, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
 
 type CompletenessData = {
   score: number;
@@ -13,17 +14,28 @@ type CompletenessData = {
 };
 
 export function ProfileCompletenessIndicator() {
-  const [data, setData] = useState<CompletenessData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    apiFetch<CompletenessData>("/company-profile/completeness")
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
-  }, []);
+  const ready = useSessionQueryReady();
+  const {
+    data,
+    isPending: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["company-profile-completeness"],
+    enabled: ready,
+    queryFn: () => apiFetch<CompletenessData>("/company-profile/completeness"),
+  });
 
   if (loading) return null;
+  if (error)
+    return (
+      <div role="alert" className="rounded-xl border p-4 text-sm">
+        No se pudo comprobar el perfil de la empresa.{" "}
+        <button onClick={() => void refetch()} className="underline">
+          Reintentar
+        </button>
+      </div>
+    );
   if (!data || data.score >= 100) return null;
 
   return (

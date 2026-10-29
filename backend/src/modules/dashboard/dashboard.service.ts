@@ -2,6 +2,13 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { CacheService } from "@/cache/cache.service";
 import {
+  companyDateKey,
+  companyDay,
+  companyMidnight,
+  companyTimeZone,
+  shiftDateKey,
+} from "@/common/helpers/company-timezone.helper";
+import {
   SalesActor,
   salesAudienceKey,
   salesVisibility,
@@ -233,28 +240,32 @@ export class DashboardService {
     }
 
     const visibility = salesVisibility(companyId, actor);
-    const cacheKey = `dashboard:tenant:v3:${companyId}:${salesAudienceKey(actor)}`;
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        currency: true,
+        timezone: true,
+        updatedAt: true,
+      },
+    });
+    const zone = companyTimeZone(company?.timezone);
+    const now = new Date();
+    const day = companyDay(now, zone);
+    const cacheKey = `dashboard:tenant:v4:${companyId}:${salesAudienceKey(actor)}:${zone}:${day.key}:${company?.updatedAt?.toISOString() ?? ""}`;
     const cached = await this.cache.get<TenantMetrics>(cacheKey);
     if (cached) return cached;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
+    const todayStart = day.start;
+    const monthStart = companyMidnight(`${day.key.slice(0, 7)}-01`, zone);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+    const sevenDaysAgo = companyMidnight(shiftDateKey(day.key, -6), zone);
 
     const [
       salesToday,
       recentSales,
-      company,
       totalProducts,
       totalCustomers,
       totalEmployees,
@@ -267,7 +278,7 @@ export class DashboardService {
         where: {
           ...visibility,
           status: "COMPLETED",
-          createdAt: { gte: todayStart },
+          createdAt: { gte: todayStart, lt: day.end },
         },
         _sum: { totalAmount: true },
         _count: { id: true },
@@ -277,10 +288,6 @@ export class DashboardService {
         include: { items: { include: { product: true } } },
         orderBy: { createdAt: "desc" },
         take: 25,
-      }),
-      this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: { id: true, name: true, status: true, currency: true },
       }),
       this.prisma.product.count({ where: { companyId } }),
       this.prisma.customer.count({ where: { companyId } }),
@@ -379,8 +386,8 @@ export class DashboardService {
     let totalRevenue = 0;
 
     allSalesData.forEach((sale) => {
-      const date = sale.createdAt.toISOString().split("T")[0];
-      const month = sale.createdAt.toISOString().slice(0, 7);
+      const date = companyDateKey(sale.createdAt, zone);
+      const month = date.slice(0, 7);
       const amount = Number(sale.totalAmount);
       totalRevenue += amount;
 
@@ -554,24 +561,21 @@ export class DashboardService {
     )
       throw new BadRequestException("Período o granularidad inválidos");
     const visibility = salesVisibility(companyId, actor);
-    const cacheKey = `dashboard:metrics:v3:${companyId}:${salesAudienceKey(actor)}:${days}:${granularity}`;
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { timezone: true },
+    });
+    const zone = companyTimeZone(company?.timezone);
+    const day = companyDay(new Date(), zone);
+    const cacheKey = `dashboard:metrics:v4:${companyId}:${salesAudienceKey(actor)}:${zone}:${day.key}:${days}:${granularity}`;
     const cached = await this.cache.get<DashboardMetrics>(cacheKey);
     if (cached) return cached;
 
-    const now = new Date();
-    const to = new Date(now);
-    to.setHours(23, 59, 59, 999);
-
-    const from = new Date(to);
-    from.setDate(from.getDate() - (days - 1));
-    from.setHours(0, 0, 0, 0);
-
-    const previousTo = new Date(from);
-    previousTo.setMilliseconds(-1);
-
-    const previousFrom = new Date(previousTo);
-    previousFrom.setDate(previousFrom.getDate() - (days - 1));
-    previousFrom.setHours(0, 0, 0, 0);
+    const to = new Date(day.end.getTime() - 1);
+    const fromKey = shiftDateKey(day.key, -(days - 1));
+    const from = companyMidnight(fromKey, zone);
+    const previousTo = new Date(from.getTime() - 1);
+    const previousFrom = companyMidnight(shiftDateKey(fromKey, -days), zone);
 
     const [currentSales, previousSales] = await Promise.all([
       this.prisma.sale.findMany({
@@ -647,10 +651,10 @@ export class DashboardService {
     >();
 
     const bucketKey = (date: Date): string => {
-      const iso = date.toISOString().split("T")[0];
+      const iso = companyDateKey(date, zone);
       if (granularity === "day") return iso;
       if (granularity === "month") return iso.slice(0, 7);
-      const monday = new Date(date);
+      const monday = new Date(`${iso}T12:00:00Z`);
       const dayIdx = (monday.getUTCDay() + 6) % 7;
       monday.setUTCDate(monday.getUTCDate() - dayIdx);
       return monday.toISOString().split("T")[0];

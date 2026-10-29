@@ -58,6 +58,7 @@ const createdPayloads = [];
 let stockWrites = 0;
 
 function handle(resource, params, method, body) {
+  if (resource === "/companies/current") return { id: user.companyId, name: "Negocio de prueba", legalName: null, taxId: null, address: null, email: null, phone: null, timezone: "America/Lima", currency: "PEN" };
   if (resource === "/auth/me") return { ...user, roles };
   if (resource === "/notifications/unread-count") return { count: 0 };
   if (resource === "/plan-capabilities/me")

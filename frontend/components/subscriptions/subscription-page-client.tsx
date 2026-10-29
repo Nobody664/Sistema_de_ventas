@@ -20,6 +20,7 @@ import {
 import type { Subscription, Plan } from "@/types/generated";
 import { usePlanCapabilities } from "@/components/plan-capabilities/plan-capabilities-provider";
 import type { PendingPlanUpgrade } from "@/types/subscriptions";
+import { useCompanyFormat } from "@/components/settings/company-settings-provider";
 
 interface SubscriptionPageClientProps {
   initialSubscription?: Subscription | null | undefined;
@@ -34,6 +35,7 @@ export function SubscriptionPageClient({
   pendingUpgrade,
   initialCompleteness,
 }: SubscriptionPageClientProps) {
+  const format = useCompanyFormat();
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
   const { capabilities } = usePlanCapabilities();
@@ -175,10 +177,7 @@ export function SubscriptionPageClient({
           {subscription?.startDate && (
             <div className="mt-4 flex items-center gap-2 text-sm text-foreground/60">
               <Calendar className="size-4" />
-              <span>
-                Iniciado el{" "}
-                {new Date(subscription.startDate).toLocaleDateString("es-PE")}
-              </span>
+              <span>Iniciado el {format.date(subscription.startDate)}</span>
             </div>
           )}
 
@@ -187,7 +186,7 @@ export function SubscriptionPageClient({
               <Calendar className="size-4" />
               <span>
                 {isTrialing ? "Termina el" : "Próximo cobro"}{" "}
-                {new Date(subscription.endDate).toLocaleDateString("es-PE")}
+                {format.date(subscription.endDate)}
               </span>
             </div>
           )}

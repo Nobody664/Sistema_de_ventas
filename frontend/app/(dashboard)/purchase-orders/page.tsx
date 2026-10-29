@@ -8,10 +8,14 @@ import type { AutoOrdersPreview, SupplierOrder } from "@/types/suppliers";
 import { ClipboardList, Sparkles, Plus } from "lucide-react";
 import { PermissionGuard } from "@/components/auth/permission-guard";
 import { Button } from "@/components/ui/button";
+import { getCompanySettings } from "@/lib/company-settings-server";
+import { companyDateLabel, validCompanyZone } from "@/lib/company-format";
 
 export default async function PurchaseOrdersPage() {
   const session = await getServerSession();
   const accessToken = session?.accessToken;
+  const companySettings = await getCompanySettings(accessToken);
+  const zone = validCompanyZone(companySettings?.timezone);
 
   const [orders, preview] = await Promise.all([
     serverApiFetch<SupplierOrder[]>("/suppliers/orders", accessToken),
@@ -78,7 +82,7 @@ export default async function PurchaseOrdersPage() {
                   </p>
                   <p className="mt-1 text-xs text-foreground/50">
                     {order.items.length} productos ·{" "}
-                    {new Date(order.createdAt).toLocaleDateString("es-PE")}
+                    {companyDateLabel(order.createdAt, zone)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
