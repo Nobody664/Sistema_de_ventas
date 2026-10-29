@@ -7,6 +7,7 @@ import { ThemeSettings } from "@/components/settings/theme-settings";
 import { RegionalSettings } from "@/components/settings/regional-settings";
 import { ProfileCompletenessIndicator } from "@/components/settings/profile-completeness";
 import { DangerZone } from "@/components/settings/danger-zone";
+import { NotificationSettings } from "@/components/settings/notification-settings";
 
 export default async function SettingsPage() {
   const session = await getServerSession();
@@ -113,6 +114,7 @@ export default async function SettingsPage() {
           </Link>
         ))}
       </section>
+      {owner && <NotificationSettings />}
       {owner && <DangerZone canCancelSubscription />}
     </div>
   );

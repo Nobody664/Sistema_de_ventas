@@ -13,6 +13,7 @@ interface NotificationsState {
   unreadCount: number;
   isLoading: boolean;
   isConnected: boolean;
+  soundEnabled: boolean;
   eventSource: EventSource | null;
 
   fetchNotifications: (accessToken?: string) => Promise<void>;
@@ -23,6 +24,7 @@ interface NotificationsState {
   disconnectFromStream: () => void;
   addNotification: (notification: Notification) => void;
   reset: () => void;
+  setSoundEnabled: (enabled: boolean) => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>((set, get) => ({
@@ -31,6 +33,8 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   isLoading: false,
   isConnected: false,
   eventSource: null,
+  soundEnabled: false,
+  setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
 
   fetchNotifications: async (accessToken?: string) => {
     const generation = sessionGeneration;
@@ -205,7 +209,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       });
       return;
     }
-    if (!notification.isRead) playNotificationChime();
+    if (!notification.isRead && get().soundEnabled) playNotificationChime();
     set({
       notifications: [notification, ...notifications],
       unreadCount: unreadCount + (notification.isRead ? 0 : 1),
@@ -219,6 +223,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       notifications: [],
       unreadCount: 0,
       isLoading: false,
+      soundEnabled: false,
     });
   },
 }));

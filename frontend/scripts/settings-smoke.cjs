@@ -23,6 +23,11 @@ let failClientAuth = false;
 let completenessReads = 0;
 const requests = [];
 const writes = [];
+const preferences = {
+  salesEnabled: true,
+  stockEnabled: true,
+  soundEnabled: true,
+};
 const platform = () => roles.includes("SUPER_ADMIN");
 const user = () => ({
   id: "user-a",
@@ -47,6 +52,7 @@ const complete = () =>
 function data(resource) {
   if (resource === "/auth/me") return user();
   if (resource === "/companies/current") return company;
+  if (resource === "/notifications/preferences") return preferences;
   if (resource === "/plan-capabilities/me")
     return {
       planId: "plan-a",
@@ -105,6 +111,11 @@ const backend = http.createServer(async (request, response) => {
   );
   requests.push({ resource, method: request.method, platform: platform() });
   response.setHeader("Content-Type", "application/json");
+  if (resource === "/notifications/preferences" && request.method === "PATCH") {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    Object.assign(preferences, JSON.parse(Buffer.concat(chunks).toString()));
+  }
   if (resource === "/companies/current" && request.method === "PATCH") {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
@@ -369,6 +380,38 @@ async function main() {
     assert.equal(await zone.inputValue(), "America/Mexico_City");
     console.log(
       "PASS: una comprobación de sesión fallida se puede reintentar sin spinner permanente",
+    );
+    await page
+      .getByRole("checkbox", { name: "Ventas registradas", exact: true })
+      .uncheck();
+    await page
+      .getByRole("checkbox", { name: "Sonido de nuevas alertas", exact: true })
+      .uncheck();
+    await page
+      .getByRole("button", { name: "Guardar alertas", exact: true })
+      .click();
+    await page.getByText("Preferencias guardadas.", { exact: true }).waitFor();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page
+      .getByRole("checkbox", { name: "Ventas registradas", exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("checkbox", { name: "Ventas registradas", exact: true })
+        .isChecked(),
+      false,
+    );
+    assert.equal(
+      await page
+        .getByRole("checkbox", {
+          name: "Sonido de nuevas alertas",
+          exact: true,
+        })
+        .isChecked(),
+      false,
+    );
+    console.log(
+      "PASS: preferencias de alertas guardadas por negocio y conservadas tras recargar",
     );
 
     const start = requests.length;

@@ -6,10 +6,28 @@ import { useNotificationsStore } from "@/store/notifications-store";
 import { useAuthStore } from "@/stores/auth.store";
 import { Bell, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
+import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
+import { isPlatformUser } from "@/lib/role-navigation";
+import type { NotificationPreferences } from "@/types/notification-preferences";
 
 export function NotificationBell() {
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
+  const ready = useSessionQueryReady();
+  const global = isPlatformUser(user?.roles ?? []);
+  const preferences = useQuery({
+    queryKey: ["notification-preferences"],
+    queryFn: () =>
+      apiFetch<NotificationPreferences>("/notifications/preferences"),
+    enabled: ready && !!user?.companyId && !global,
+  });
+  useEffect(() => {
+    useNotificationsStore
+      .getState()
+      .setSoundEnabled(global || preferences.data?.soundEnabled === true);
+  }, [global, preferences.data?.soundEnabled]);
 
   const {
     unreadCount,

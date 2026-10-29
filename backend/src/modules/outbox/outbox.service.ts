@@ -165,6 +165,22 @@ export class OutboxService {
         where: { id: event.aggregateId },
         select: {
           companyId: true,
+          saleNumber: true,
+          totalAmount: true,
+          channel: true,
+          company: {
+            select: {
+              currency: true,
+              memberships: {
+                where: {
+                  isActive: true,
+                  role: { in: ["COMPANY_ADMIN", "MANAGER"] },
+                  user: { isActive: true },
+                },
+                select: { userId: true },
+              },
+            },
+          },
           items: {
             select: {
               product: {
@@ -181,7 +197,19 @@ export class OutboxService {
         },
       });
       if (!sale) throw new Error("MISSING_AGGREGATE");
-      for (const item of sale.items)
+      for (const member of sale.company?.memberships ?? []) {
+        await this.notifications.create({
+          dedupeKey: `${event.id}:sale:${member.userId}`,
+          companyId: sale.companyId,
+          userId: member.userId,
+          type: "NEW_SALE",
+          channel: "IN_APP",
+          title: "Venta registrada",
+          message: `Se registró la venta ${sale.saleNumber} por ${sale.totalAmount} ${sale.company?.currency ?? "PEN"}.`,
+          actionUrl: `/sales/${event.aggregateId}`,
+        });
+      }
+      for (const item of sale.channel === "DISTRIBUTOR" ? [] : sale.items)
         await this.lowStock.notifyIfLowStock({
           companyId: sale.companyId,
           productId: item.product.id,

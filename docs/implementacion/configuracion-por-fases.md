@@ -5,13 +5,13 @@ Base inicial: `main` en `bb2d7f3`. Las cuatro subramas se crearon localmente des
 | Fase | Subrama                                     | Alcance                                                                                         | Estado                               |
 | ---- | ------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------ |
 | 1    | `refix/configuracion-fase-1-base`           | Tema, empresa, región, errores y actualización de preferencias usando infraestructura existente | Implementada y verificada localmente |
-| 2    | `refix/configuracion-fase-2-notificaciones` | Preferencias operativas por usuario/empresa sobre notificaciones persistidas y SSE              | Preparada; implementación pendiente  |
+| 2    | `refix/configuracion-fase-2-notificaciones` | Preferencias operativas por usuario/empresa sobre notificaciones persistidas y SSE              | Implementada y verificada localmente |
 | 3    | `refix/configuracion-fase-3-datos`          | Exportación de los datos propios del negocio con formato versionado                             | Preparada; implementación pendiente  |
 | 4    | `refix/configuracion-fase-4-integraciones`  | API Keys, webhooks salientes, Web Push, resumen por correo y traducciones                       | Preparada; implementación pendiente  |
 
 ## Forma de integración
 
-Las ramas 2, 3 y 4 son puntos de partida reservados, sin cambios de implementación. Antes de comenzar una fase deben actualizarse con la base consolidada de la fase anterior. No deben desarrollarse como copias independientes de una versión antigua.
+Cada rama se actualiza con la base consolidada de la fase anterior antes de implementar su alcance. No deben desarrollarse como copias independientes de una versión antigua.
 
 Secuencia propuesta para cada fase:
 

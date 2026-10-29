@@ -24,6 +24,7 @@ function buildService(options: {
     },
     $transaction: async (cb: (tx: unknown) => unknown) =>
       cb({
+        outboxEvent: { upsert: async () => ({}) },
         distributor: { findFirst: async () => ({ stockReconciled: true }) },
         distributorStock: {
           upsert: async () => ({}),
