@@ -235,6 +235,10 @@ enum StoreAccountStatus {
 }
 
 model StorefrontSettings {
+  checkoutEnabled Boolean @default(false) @map("checkout_enabled")
+  taxRate Decimal @default(0) @map("tax_rate") @db.Decimal(5,2)
+  pricesIncludeTax Boolean @default(true) @map("prices_include_tax")
+  reservationMinutes Int @default(30) @map("reservation_minutes")
   companyId String @id @map("company_id")
   enabled Boolean @default(false)
   registrationEnabled Boolean @default(true) @map("registration_enabled")
@@ -247,6 +251,8 @@ model StorefrontSettings {
 }
 
 model CustomerAccount {
+  cart StoreCart?
+  quotes StoreQuote[]
   id String @id @default(cuid())
   companyId String @map("company_id")
   userId String @map("user_id")
@@ -366,6 +372,8 @@ model User {
 }
 
 model Company {
+  storePaymentMethods StorePaymentMethod[]
+  storeShippingMethods StoreShippingMethod[]
   storefront StorefrontSettings?
   storeAccounts CustomerAccount[]
   productExpiryAlerts ProductExpiryAlert[]
@@ -666,6 +674,9 @@ model Category {
 }
 
 model Product {
+  reservedQuantity Decimal @default(0) @map("reserved_quantity") @db.Decimal(14,3)
+  storeCartItems StoreCartItem[]
+  storeReservations StockReservation[]
   storeVisible Boolean @default(false) @map("store_visible")
   storeSortOrder Int @default(0) @map("store_sort_order")
   expiryProfile ProductExpiryProfile @default(STANDARD) @map("expiry_profile")
@@ -996,6 +1007,8 @@ model BarcodeLookupCache {
 }
 
 model ProductBatch {
+  reservedQuantity Decimal @default(0) @map("reserved_quantity") @db.Decimal(14,3)
+  storeAllocations StockReservationAllocation[]
   id                String    @id @default(cuid())
   companyId         String    @map("company_id")
   productId         String    @map("product_id")
@@ -1018,6 +1031,109 @@ model ProductBatch {
   @@index([productId])
   @@index([branchId])
   @@map("product_batches")
+  @@unique([companyId, productId, id])
+}
+
+model StorePaymentMethod {
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  code String
+  label String
+  instructions String
+  enabled Boolean @default(true)
+  @@unique([companyId, code])
+  @@unique([companyId, id])
+  @@map("store_payment_methods")
+}
+
+model StoreShippingMethod {
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  kind String
+  label String
+  fee Decimal @db.Decimal(12,2)
+  districts String[] @default([])
+  pickupAddress String? @map("pickup_address")
+  enabled Boolean @default(true)
+  @@unique([companyId, id])
+  @@map("store_shipping_methods")
+}
+
+model StoreCart {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  accountId String @map("account_id")
+  version Int @default(1)
+  account CustomerAccount @relation(fields: [companyId, accountId], references: [companyId, id], onDelete: Cascade)
+  items StoreCartItem[]
+  @@unique([companyId, accountId])
+  @@unique([companyId, id])
+  @@map("store_carts")
+}
+
+model StoreCartItem {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  cartId String @map("cart_id")
+  productId String @map("product_id")
+  presentationId String? @map("presentation_id")
+  quantity Decimal @db.Decimal(14,3)
+  cart StoreCart @relation(fields: [companyId, cartId], references: [companyId, id], onDelete: Cascade)
+  product Product @relation(fields: [companyId, productId], references: [companyId, id], onDelete: Restrict)
+  @@unique([cartId, productId])
+  @@map("store_cart_items")
+}
+
+model StoreQuote {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  accountId String @map("account_id")
+  cartVersion Int @map("cart_version")
+  settingsVersion Int @map("settings_version")
+  snapshot Json
+  expiresAt DateTime @map("expires_at")
+  account CustomerAccount @relation(fields: [companyId, accountId], references: [companyId, id], onDelete: Restrict)
+  @@unique([companyId, id])
+  @@index([expiresAt])
+  @@map("store_quotes")
+}
+
+enum StockReservationState {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  EXPIRED
+}
+
+model StockReservation {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  productId String @map("product_id")
+  ownerId String @map("owner_id")
+  quantity Decimal @db.Decimal(14,3)
+  expiresAt DateTime @map("expires_at")
+  state StockReservationState @default(ACTIVE)
+  product Product @relation(fields: [companyId, productId], references: [companyId, id], onDelete: Restrict)
+  allocations StockReservationAllocation[]
+  @@unique([ownerId, productId])
+  @@unique([companyId, productId, id])
+  @@index([state, expiresAt])
+  @@map("stock_reservations")
+}
+
+model StockReservationAllocation {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  productId String @map("product_id")
+  reservationId String @map("reservation_id")
+  batchId String @map("batch_id")
+  quantity Decimal @db.Decimal(14,3)
+  reservation StockReservation @relation(fields: [companyId, productId, reservationId], references: [companyId, productId, id], onDelete: Restrict)
+  batch ProductBatch @relation(fields: [companyId, productId, batchId], references: [companyId, productId, id], onDelete: Restrict)
+  @@unique([reservationId, batchId])
+  @@map("stock_reservation_allocations")
 }
 
 model InventoryKardex {

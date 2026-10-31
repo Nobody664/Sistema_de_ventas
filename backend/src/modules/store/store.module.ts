@@ -10,12 +10,18 @@ import { StoreService } from "./store.service";
 import { StoreCryptoService } from "./store-crypto.service";
 import { StoreAuthService } from "./store-auth.service";
 import { StoreMailService } from "./store-mail.service";
+import { StoreStockService } from "./store-stock.service";
+import { StoreCartService } from "./store-cart.service";
+import { StoreMethodsService } from "./store-methods.service";
 
 @Global()
 @Module({
   imports: [PrismaModule, EmailModule, PassportModule, JwtModule.register({})],
   controllers: [StoreController, StoreAdminController],
   providers: [
+    StoreStockService,
+    StoreCartService,
+    StoreMethodsService,
     StoreAuthGuard,
     StoreStrategy,
     StoreService,

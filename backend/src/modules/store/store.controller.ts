@@ -38,6 +38,16 @@ import {
   StoreTokenDto,
 } from "./dto/store.dto";
 
+import { StoreCartService } from "./store-cart.service";
+import { StoreMethodsService } from "./store-methods.service";
+import {
+  StoreCartItemDto,
+  StoreCommerceSettingsDto,
+  StorePaymentMethodDto,
+  StoreQuoteDto,
+  StoreShippingMethodDto,
+} from "./dto/store-commerce.dto";
+
 type StoreRequest = Request & { user: StoreActor };
 
 @StoreAccess()
@@ -47,6 +57,8 @@ export class StoreController {
     private readonly auth: StoreAuthService,
     private readonly store: StoreService,
     private readonly prisma: PrismaService,
+    private readonly cartService: StoreCartService,
+    private readonly methodsService: StoreMethodsService,
   ) {}
   private cookies(
     res: Response,
@@ -186,6 +198,28 @@ export class StoreController {
         "Cuenta comercial cerrada. Conservamos los pedidos necesarios para atender tus operaciones.",
     };
   }
+  @Get("methods") methods(@Req() req: StoreRequest) {
+    return this.methodsService.list(req.user.companyId);
+  }
+  @Get("cart") cart(@Req() req: StoreRequest) {
+    return this.cartService.cart(req.user);
+  }
+  @Post("cart/items") changeCart(
+    @Param("slug") slug: string,
+    @Req() req: StoreRequest,
+    @Body() input: StoreCartItemDto,
+  ) {
+    return this.cartService.change(slug, req.user, input);
+  }
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
+  @Post("checkout/quote")
+  quote(
+    @Param("slug") slug: string,
+    @Req() req: StoreRequest,
+    @Body() input: StoreQuoteDto,
+  ) {
+    return this.cartService.quote(slug, req.user, input);
+  }
   @Get("catalog") catalog(
     @Param("slug") slug: string,
     @Query() query: StoreCatalogQuery,
@@ -202,7 +236,36 @@ export class StoreAdminController {
   constructor(
     private readonly store: StoreService,
     private readonly prisma: PrismaService,
+    private readonly methodsService: StoreMethodsService,
   ) {}
+  @Get("methods") methods(@Req() req: { tenantId: string }) {
+    return this.methodsService.list(req.tenantId, true);
+  }
+  @Patch("commerce") commerce(
+    @Req() req: { tenantId: string },
+    @Body() input: StoreCommerceSettingsDto,
+  ) {
+    return this.methodsService.settings(req.tenantId, input);
+  }
+  @Post("payment-methods") payment(
+    @Req() req: { tenantId: string },
+    @Body() input: StorePaymentMethodDto,
+  ) {
+    return this.methodsService.payment(req.tenantId, input);
+  }
+  @Post("shipping-methods") shipping(
+    @Req() req: { tenantId: string },
+    @Body() input: StoreShippingMethodDto,
+  ) {
+    return this.methodsService.shipping(req.tenantId, input);
+  }
+  @Patch("shipping-methods/:id") updateShipping(
+    @Req() req: { tenantId: string },
+    @Param("id") id: string,
+    @Body() input: StoreShippingMethodDto,
+  ) {
+    return this.methodsService.shipping(req.tenantId, input, id);
+  }
   @Get("settings") settings(@Req() req: { tenantId: string }) {
     return this.store.settings(req.tenantId);
   }

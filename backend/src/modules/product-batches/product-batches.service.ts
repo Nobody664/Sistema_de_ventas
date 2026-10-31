@@ -222,9 +222,9 @@ export class ProductBatchesService {
     for (const batch of batches) {
       if (remaining.lte(0)) break;
 
-      const deduct = batch.quantityAvailable.lt(remaining)
-        ? batch.quantityAvailable
-        : remaining;
+      const free = batch.quantityAvailable.minus(batch.reservedQuantity ?? 0);
+      if (free.lte(0)) continue;
+      const deduct = free.lt(remaining) ? free : remaining;
       const reservation = await tx.productBatch.updateMany({
         where: {
           id: batch.id,

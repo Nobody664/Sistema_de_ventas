@@ -6,12 +6,14 @@ import {
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { StoreCatalogQuery, StoreSettingsDto } from "./dto/store.dto";
+import { StoreStockService } from "./store-stock.service";
 
 @Injectable()
 export class StoreService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly plans: PlanCapabilitiesService,
+    private readonly stock: StoreStockService,
   ) {}
   async company(slug: string, commerce = true) {
     const company = await this.prisma.company.findUnique({
@@ -83,19 +85,32 @@ export class StoreService {
       }),
       this.prisma.product.count({ where }),
     ]);
+    const available = await this.stock.available(
+      company.id,
+      rows.map((row) => row.id),
+    );
     return {
-      data: rows.map(({ salePrice, stockQuantity, presentations, ...row }) => ({
-        ...row,
-        price: salePrice.toString(),
-        currency: company.currency,
-        availability: stockQuantity.gt(0) ? "AVAILABLE" : "OUT_OF_STOCK",
-        quantityStep: row.baseUnit === "UNIT" ? "1" : "0.001",
-        presentations: presentations.map((p) => ({
-          ...p,
-          factor: p.factor.toString(),
-          price: (p.price ?? salePrice.mul(p.factor)).toString(),
-        })),
-      })),
+      data: rows.map(
+        ({
+          salePrice,
+          stockQuantity: _stockQuantity,
+          presentations,
+          ...row
+        }) => ({
+          ...row,
+          price: salePrice.toString(),
+          currency: company.currency,
+          availability: available.get(row.id)?.gt(0)
+            ? "AVAILABLE"
+            : "OUT_OF_STOCK",
+          quantityStep: row.baseUnit === "UNIT" ? "1" : "0.001",
+          presentations: presentations.map((p) => ({
+            ...p,
+            factor: p.factor.toString(),
+            price: (p.price ?? salePrice.mul(p.factor)).toString(),
+          })),
+        }),
+      ),
       total,
       page: query.page,
       totalPages: Math.ceil(total / query.limit),
