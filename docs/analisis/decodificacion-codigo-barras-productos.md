@@ -2,13 +2,13 @@
 
 Fecha: 2026-10-31
 Alcance: módulo de productos (`/products/new`, `/products/[id]/edit`) y lector por cámara.
-Estado: Fases 1 a 4 implementadas y verificadas localmente. Activación externa configurable; migración pendiente de despliegue.
+Estado: Fases 1 a 5 implementadas y verificadas localmente. Activación externa configurable; migración de Fases 3 y 4 incluida para despliegue.
 
 ---
 
 ## 1. Resumen ejecutivo
 
-Al inicio de este análisis el escáner **sí decodificaba** las barras y espacios del símbolo: `BarcodeDetector` devolvía el texto del código. Las Fases 1 a 4 ahora interpretan ese texto, ofrecen sugerencias externas y registran lote/vencimiento con el inventario. Las secciones de estado inicial y arquitectura propuesta conservan el contexto del análisis; el alcance implementado se detalla en la sección 11.1.
+Al inicio de este análisis el escáner **sí decodificaba** las barras y espacios del símbolo: `BarcodeDetector` devolvía el texto del código. Las Fases 1 a 5 ahora interpretan ese texto, ofrecen sugerencias externas, registran lote/vencimiento con el inventario y permiten lectura por cámara o galería con fallback entre navegadores. Las secciones de estado inicial y arquitectura propuesta conservan el contexto del análisis; el alcance implementado se detalla en las secciones 11.1 y 11.2.
 
 La conclusión técnica más importante es esta:
 
@@ -614,7 +614,7 @@ TTL sugerido: 30–90 días para datos positivos, 7 días para negativos (no enc
 | 2 | Precarga en el formulario: GTIN, lote, vencimiento, aviso de duplicado; búsqueda normalizada en catálogo | Fase 1 | 1–2 días | Implementada |
 | 3 | Enriquecimiento externo en backend con caché, timeout y feature flag | Fase 2 | 3–5 días | Implementada |
 | 4 | Uso de lote/vencimiento GS1 en `ProductBatch` y perfiles de vigencia | Fase 2 | 2–3 días | Implementada |
-| 5 | Polyfill cross-browser, galería y flash | Fase 1 | 2–4 días | Pendiente |
+| 5 | Polyfill cross-browser, galería y flash | Fase 1 | 2–4 días | Implementada |
 
 Implementación actual: parser y pruebas en `frontend/lib/barcode/`; búsqueda normalizada en `backend/src/common/helpers/barcode.helper.ts` y `backend/src/modules/products/products.service.ts`; panel de datos detectados y aviso de duplicado en `frontend/components/products/product-form.tsx`; `format` del detector en `frontend/components/ui/barcode-scanner.tsx`.
 
@@ -658,6 +658,32 @@ El valor por defecto es `false`. Con ambos filtros vacíos se habilita a todas l
 - Antes de ejecutar esta versión contra una base existente: generar el cliente Prisma y aplicar las migraciones con `npx prisma migrate deploy`. El arranque de Render ya utiliza ese comando. La migración no se ha aplicado durante esta implementación.
 - Verificación local: `prisma generate`, `prisma validate`, lint y build de backend/frontend; 406 pruebas backend, 84 frontend; suite `test:browser:purchases` ampliada para sugerencias externas y entradas GS1, incluyendo preservación de datos y pantalla móvil.
 - Casos nuevos backend: caché positiva/negativa/vencida, fallo/timeout/tamaño de proveedor, ausencia de consulta cuando está deshabilitado, catálogo prioritario, deduplicación concurrente, lote inicial, dos lotes por producto, conversión de presentaciones, enlace por ID y rollback de recepción si falla el lote.
+
+### 11.2 Implementación de Fase 5
+
+**Compatibilidad y lectura local**
+
+- `frontend/lib/barcode/decoder.ts` prioriza `BarcodeDetector` nativo y usa ZXing como fallback si la API falta, falla, no admite algún formato o no encuentra el código. Se conserva el contrato `{ rawValue, format }` de las fases anteriores.
+- `frontend/lib/barcode/zxing-decoder.ts` carga `@zxing/library` mediante importación dinámica. La versión 0.21.3 es compatible con Node 22 del proyecto; las versiones 0.22/0.23 requieren Node 24. La librería se empaqueta en la aplicación, sin CDN, WebAssembly ni modificaciones de CSP.
+- Formatos habilitados: EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39, Code 93, Codabar, ITF, QR, DataMatrix, PDF417 y Aztec. ZXing conserva FNC1 de GS1 para el parser.
+- La cámara usa orientación trasera preferente, fotogramas de hasta 1280 píxeles por lado mayor y un intervalo de al menos 250 ms entre intentos, sin detecciones de cámara superpuestas.
+
+**Galería y flash**
+
+- El diálogo accesible de `barcode-scanner.tsx` permite elegir entre activar cámara y seleccionar imagen. Elegir galería no solicita permiso de cámara.
+- Se aceptan JPG, PNG, WebP, GIF y BMP de hasta 10 MiB y 40 megapíxeles. Las imágenes se preparan con un máximo de 2048 píxeles por lado mayor; los archivos SVG/HEIC se rechazan con un mensaje de formatos admitidos. Una imagen sin código o corrupta permite reintentar.
+- Las fotos se decodifican en el dispositivo y no se suben al backend. Las URLs blob temporales se revocan tanto al completar como al cancelar o fallar la lectura.
+- El botón de flash aparece solo cuando el track de cámara informa capacidad `torch`. Aplica restricciones de la cámara y muestra un error recuperable si el dispositivo las rechaza.
+- Al cerrar con Escape, botón o fondo, navegar, cambiar a galería, ocultar la pestaña o terminar una lectura, se detienen los tracks y se invalida la sesión. Si un permiso o resultado llega después de cerrar, se descarta y cualquier stream tardío se detiene. El permiso de cámara requiere HTTPS o localhost.
+- La integración se aplica tanto al alta/edición de productos como a las entradas directas de inventario, que comparten el componente de escáner.
+
+**Verificación**
+
+- `npm run lint`, `npm test` (84 pruebas) y build de producción con webpack aprobados.
+- `npm run test:browser:scanner`: imágenes generadas independientemente con `bwip-js` (dependencia de desarrollo) para EAN-13, GS1-128 con FNC1, QR Digital Link, GS1 DataMatrix y Aztec. Las pruebas verifican lectura real, formato, GTIN, lote y vencimiento sin detector nativo, además de fallback parcial y errores nativos.
+- Pruebas de galería aprobadas en Chromium, Firefox y WebKit de Playwright. En PowerShell se puede seleccionar motor con `$env:SCANNER_BROWSER = 'firefox'` o `'webkit'` antes de ejecutar el comando; el valor por defecto es Chromium.
+- En Chromium también se verifican streams de cámara simulados, lectura de fotogramas con fallback real, flash admitido/rechazado, entrega única, cierre y navegación, permiso tardío y pestaña oculta. Los ensayos de cámara/flash usan tracks simulados; no sustituyen la comprobación del hardware de cada teléfono.
+- `npm run test:browser:purchases` aprobado para comprobar que se mantienen las sugerencias externas, entradas GS1 y recepción de compras.
 
 ---
 

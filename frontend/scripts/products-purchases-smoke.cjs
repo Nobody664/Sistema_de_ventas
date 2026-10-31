@@ -2,7 +2,8 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { chromium } = require("playwright");
+const { chromium, firefox, webkit } = require("playwright");
+const { runScannerChecks } = require("./scanner-checks.cjs");
 
 const origin = "http://127.0.0.1:3318";
 const apiOrigin = "http://127.0.0.1:4408";
@@ -72,6 +73,8 @@ function handle(resource, params, method, body) {
       },
     };
   if (resource === "/products/barcode/09520123456788") return products[0];
+  if (resource === "/products/barcode/09520123456788/resolve")
+    return { source: "catalog", product: products[0], suggestion: null };
   if (resource === "/products/barcode/07701234567897") return products[1];
   if (resource === "/stock-entries" && method === "POST") {
     stockEntryPayloads.push(body);
@@ -297,7 +300,14 @@ async function main() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     assert.ok(ready, logs);
-    browser = await chromium.launch();
+    const browserType = { chromium, firefox, webkit }[
+      process.env.SCANNER_BROWSER || "chromium"
+    ];
+    assert.ok(
+      browserType,
+      "SCANNER_BROWSER debe ser chromium, firefox o webkit",
+    );
+    browser = await browserType.launch();
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
     });
@@ -319,22 +329,44 @@ async function main() {
       if (url.pathname.endsWith("/stream"))
         return route.fulfill({
           contentType: "text/event-stream",
+          headers: {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+          },
           body: ": heartbeat\n\n",
         });
-      const response = await fetch(`${apiOrigin}${url.pathname}${url.search}`, {
-        method: request.method(),
-        headers: { "Content-Type": request.headers()["content-type"] || "" },
-        body: request.postData() ?? undefined,
-      });
-      return route.fulfill({
-        status: response.status,
-        contentType: "application/json",
-        body: await response.text(),
-      });
+      try {
+        const response = await fetch(
+          `${apiOrigin}${url.pathname}${url.search}`,
+          {
+            method: request.method(),
+            headers: {
+              "Content-Type": request.headers()["content-type"] || "",
+            },
+            body: request.postData() ?? undefined,
+          },
+        );
+        return await route.fulfill({
+          status: response.status,
+          contentType: "application/json",
+          body: await response.text(),
+        });
+      } catch {
+        await route.abort().catch(() => undefined);
+      }
     });
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    if (process.argv.includes("--scanner-only")) {
+      await runScannerChecks(page, origin, {
+        galleryOnly:
+          process.env.SCANNER_BROWSER &&
+          process.env.SCANNER_BROWSER !== "chromium",
+      });
+      assert.deepEqual(errors, []);
+      return;
+    }
     await page.goto(`${origin}/products`);
     await page.getByText("Galletas integrales", { exact: true }).waitFor();
     assert.equal(
