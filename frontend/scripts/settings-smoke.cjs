@@ -20,6 +20,7 @@ const company = {
 };
 let failSave = false;
 let failClientAuth = false;
+let failExport = false;
 let completenessReads = 0;
 const requests = [];
 const writes = [];
@@ -50,6 +51,25 @@ const complete = () =>
   ].every(Boolean);
 
 function data(resource) {
+  if (resource === "/data-export/manifest")
+    return {
+      format: "ventas.business-data",
+      version: 1,
+      company,
+      startedAt: new Date().toISOString(),
+      collections: ["products", "sales"],
+      consistency: "live-read-with-creation-cutoff",
+      decimalEncoding: "string",
+      excluded: ["credentials", "sessions"],
+    };
+  if (resource === "/data-export/products")
+    return {
+      collection: "products",
+      rows: [{ id: "product-a", salePrice: "0.1234" }],
+      nextCursor: null,
+    };
+  if (resource === "/data-export/sales")
+    return { collection: "sales", rows: [], nextCursor: null };
   if (resource === "/auth/me") return user();
   if (resource === "/companies/current") return company;
   if (resource === "/notifications/preferences") return preferences;
@@ -111,6 +131,13 @@ const backend = http.createServer(async (request, response) => {
   );
   requests.push({ resource, method: request.method, platform: platform() });
   response.setHeader("Content-Type", "application/json");
+  if (resource === "/data-export/manifest" && failExport) {
+    failExport = false;
+    response.statusCode = 503;
+    return response.end(
+      JSON.stringify({ message: "Exportación temporalmente no disponible" }),
+    );
+  }
   if (resource === "/notifications/preferences" && request.method === "PATCH") {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
@@ -414,12 +441,43 @@ async function main() {
       "PASS: preferencias de alertas guardadas por negocio y conservadas tras recargar",
     );
 
+    failExport = true;
+    await page
+      .getByRole("button", { name: "Descargar datos JSON", exact: true })
+      .click();
+    await page
+      .getByText("Exportación temporalmente no disponible", { exact: true })
+      .waitFor();
+    const downloaded = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Descargar datos JSON", exact: true })
+      .click();
+    const download = await downloaded;
+    const stream = await download.createReadStream();
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const exported = JSON.parse(Buffer.concat(chunks).toString());
+    assert.equal(exported.manifest.company.id, company.id);
+    assert.equal(exported.manifest.version, 1);
+    assert.equal(exported.collections.products[0].salePrice, "0.1234");
+    assert.deepEqual(exported.collections.sales, []);
+    await page.getByText("Archivo JSON descargado.", { exact: true }).waitFor();
+    console.log(
+      "PASS: exportación JSON descargable, decimal exacto y error recuperable",
+    );
+
     const start = requests.length;
     roles = ["SUPER_ADMIN"];
     await context.clearCookies();
     await context.addCookies([cookie()]);
     await page.goto(`${origin}/settings`);
     await page.getByRole("combobox", { name: "Tema", exact: true }).waitFor();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Descargar datos JSON", exact: true })
+        .count(),
+      0,
+    );
     assert.equal(
       await page
         .getByRole("combobox", { name: "Zona horaria", exact: true })
