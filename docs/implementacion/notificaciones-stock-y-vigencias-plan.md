@@ -6,7 +6,7 @@ Base: `main` en `095cb99`. Trabajo en subramas encadenadas, con commits en espa√
 | --- | --- | --- | --- |
 | 1 | `mejora/notificaciones-fase-1-enlaces` | Abrir el producto exacto desde alertas de stock y vencimiento, incluidas las hist√≥ricas | Implementada y verificada |
 | 2 | `mejora/notificaciones-fase-2-vigencias` | Pol√≠tica de vida √∫til, revisi√≥n peri√≥dica y avisos durables de pr√≥ximos vencimientos y vencidos | Implementada y verificada |
-| 3 | `mejora/notificaciones-fase-3-interfaz` | Configuraci√≥n en producto, visibilidad de vigencias/lotes y pruebas funcionales | Pendiente |
+| 3 | `mejora/notificaciones-fase-3-interfaz` | Configuraci√≥n en producto, visibilidad de vigencias/lotes y pruebas funcionales | Implementada y verificada |
 
 ## Diagn√≥stico inicial
 
@@ -46,3 +46,10 @@ Las nuevas alertas incluyen `actionUrl` al producto. La interfaz resuelve tambi√
 - Entradas y edici√≥n de lotes disparan una comprobaci√≥n inmediata; el ciclo peri√≥dico cubre el resto.
 - Endpoint `GET /products/:id/expiry` para inspecci√≥n de fuentes y etapas, con alcance por empresa.
 - Verificaci√≥n: lint y build backend, 389 pruebas backend (incluye historial SQL con la nueva migraci√≥n), lint y 61 pruebas frontend. Migraci√≥n escrita y cliente Prisma local; no aplicada a la base compartida.
+
+### Resultado de etapa 3
+
+- El formulario de producto permite elegir perfil de vigencia y, en personalizado, los dÌas de aviso; la ayuda describe cada perfil, incluida la orientaciÛn para conservas y atunes.
+- La ficha del producto muestra el perfil, la ventana de aviso y el estado por lote o fecha general, con etapas y dÌas restantes; si el endpoint no responde, conserva la informaciÛn b·sica del producto.
+- Las notificaciones de vencimiento usan un estilo propio y siguen abriendo el producto exacto.
+- VerificaciÛn: lint, 64 pruebas frontend, build de producciÛn y suite de navegador de compras aprobadas.

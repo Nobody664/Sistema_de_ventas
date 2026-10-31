@@ -132,6 +132,12 @@ const typeConfig: Record<
     bg: "bg-orange-50",
     border: "border-orange-200",
   },
+  PRODUCT_EXPIRED: {
+    icon: AlertTriangle,
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+  },
   NEW_CUSTOMER: {
     icon: Building2,
     color: "text-blue-600",

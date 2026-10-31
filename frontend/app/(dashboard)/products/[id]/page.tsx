@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Barcode,
   Calendar,
+  CalendarClock,
   Edit,
   Layers,
   Package,
@@ -13,6 +14,14 @@ import {
 import { Card } from "@/components/ui/card";
 import { serverApiFetch } from "@/lib/server-api";
 import { getServerSession } from "@/lib/session";
+import {
+  EXPIRY_STAGE_LABELS,
+  expiryDaysLabel,
+  expiryProfileOption,
+  expiryStageTone,
+  expiryWarningLabel,
+  type ExpiryInspection,
+} from "@/lib/product-expiry";
 import type { Product } from "@/types/api";
 
 interface DetailPageProps {
@@ -42,6 +51,11 @@ export default async function ProductDetailPage({ params }: DetailPageProps) {
   if (!product) {
     notFound();
   }
+
+  const expiry = await serverApiFetch<ExpiryInspection>(
+    `/products/${id}/expiry`,
+    session.accessToken,
+  ).catch(() => null);
 
   const unit = UNIT_SHORT[product.baseUnit] ?? product.baseUnit;
   const stock = Number(product.stockQuantity);
@@ -91,6 +105,16 @@ export default async function ProductDetailPage({ params }: DetailPageProps) {
       value: product.category?.name || "Sin categoría",
     },
     { label: "Estado", value: product.isActive ? "Activo" : "Inactivo" },
+    {
+      label: "Vencimiento",
+      value: product.expiryDate
+        ? new Date(product.expiryDate).toLocaleDateString("es-PE", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })
+        : "Sin fecha general",
+    },
     {
       label: "Creado",
       value: new Date(product.createdAt).toLocaleDateString("es-PE", {
@@ -244,6 +268,89 @@ export default async function ProductDetailPage({ params }: DetailPageProps) {
           </div>
         </Card>
       </div>
+
+      <Card className="rounded-[34px] bg-white/85 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-amber-500/15 p-2 text-amber-600">
+              <CalendarClock className="size-5" />
+            </div>
+            <div>
+              <h2 className="font-display text-2xl">Vigencia</h2>
+              <p className="text-sm text-foreground/50">
+                {expiry
+                  ? `${expiryProfileOption(expiry.profile).label} · aviso ${expiryWarningLabel(expiry.profile, expiry.warningDays)}`
+                  : `${expiryProfileOption(product.expiryProfile).label} · aviso ${expiryWarningLabel(product.expiryProfile, product.expiryWarningDays)}`}
+              </p>
+            </div>
+          </div>
+          {expiry && (
+            <span className="rounded-full bg-foreground/5 px-3 py-1 text-xs text-foreground/60">
+              Revisado {new Date(expiry.checkedAt).toLocaleTimeString("es-PE")}
+            </span>
+          )}
+        </div>
+
+        {expiry ? (
+          <>
+            {!expiry.monitored && (
+              <p className="mt-4 rounded-2xl bg-amber-500/10 p-4 text-sm text-amber-800">
+                La revisión de vigencias se activa cuando el producto está
+                activo y tiene existencias.
+              </p>
+            )}
+            <div className="mt-4 space-y-3">
+              {expiry.sources.length > 0 ? (
+                expiry.sources.map((source) => (
+                  <div
+                    key={source.batchId ?? "general"}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-foreground/10 p-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {source.batchNumber
+                          ? `Lote ${source.batchNumber}`
+                          : "Fecha general del producto"}
+                      </p>
+                      <p className="text-sm text-foreground/50">
+                        {source.dateKey
+                          ? `Vence el ${source.dateKey} · ${expiryDaysLabel(source.daysLeft)}`
+                          : "Sin fecha de vencimiento"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-foreground/50">
+                        {Number(source.quantity)} {unit}
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${expiryStageTone(source.stage)}`}
+                      >
+                        {source.stage
+                          ? EXPIRY_STAGE_LABELS[source.stage]
+                          : "Sin alerta"}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="py-4 text-center text-foreground/50">
+                  Sin existencias o vigencias por revisar.
+                </p>
+              )}
+            </div>
+            {expiry.truncated && (
+              <p className="mt-3 text-xs text-foreground/50">
+                Se muestran {expiry.sources.length} de {expiry.totalBatches}{" "}
+                lotes.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-foreground/50">
+            No se pudo consultar el estado de vigencias en este momento.
+          </p>
+        )}
+      </Card>
 
       <div className="flex flex-wrap gap-6 text-sm text-foreground/50">
         {product.barcode && (

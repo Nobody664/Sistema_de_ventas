@@ -36,6 +36,12 @@ import {
   updateProductSchema,
 } from "@/lib/validations/product.validation";
 import type { Category, Product } from "@/types/api";
+import type { ProductExpiryProfile } from "@/types/generated";
+import {
+  EXPIRY_PROFILE_OPTIONS,
+  expiryProfileOption,
+  expiryWarningLabel,
+} from "@/lib/product-expiry";
 import { z } from "zod";
 
 type ProductFormData = z.infer<typeof createProductSchema>;
@@ -78,6 +84,14 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [barcodeValue, setBarcodeValue] = useState(product?.barcode || "");
   const [isActive, setIsActive] = useState(product?.isActive ?? true);
+  const [expiryProfile, setExpiryProfile] = useState<ProductExpiryProfile>(
+    product?.expiryProfile ?? "STANDARD",
+  );
+  const [expiryWarningDays, setExpiryWarningDays] = useState(
+    product?.expiryWarningDays != null
+      ? String(product.expiryWarningDays)
+      : "90",
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = !!product;
@@ -183,6 +197,11 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           ? undefined
           : imagePreview || undefined,
       expiryDate: (formData.get("expiryDate") as string) || undefined,
+      expiryProfile,
+      expiryWarningDays:
+        expiryProfile === "CUSTOM"
+          ? Number.parseInt(expiryWarningDays, 10) || undefined
+          : undefined,
     };
 
     const data = isEdit
@@ -748,8 +767,64 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                         <CalendarClock className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" />
                       </div>
                       <p className="text-xs text-slate-400">
-                        Te avisaremos 3 días antes del vencimiento.
+                        Te avisaremos {expiryWarningLabel(expiryProfile)} del
+                        vencimiento.
                       </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="expiryProfile"
+                        className="text-sm font-semibold text-slate-700"
+                      >
+                        Tipo de vigencia
+                      </Label>
+                      <select
+                        id="expiryProfile"
+                        name="expiryProfile"
+                        value={expiryProfile}
+                        onChange={(event) =>
+                          setExpiryProfile(
+                            event.target.value as ProductExpiryProfile,
+                          )
+                        }
+                        className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 text-sm focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      >
+                        {EXPIRY_PROFILE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-400">
+                        {expiryProfileOption(expiryProfile).description}
+                      </p>
+                      {expiryProfile === "CUSTOM" && (
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="expiryWarningDays"
+                            className="text-xs font-semibold text-slate-600"
+                          >
+                            Días de aviso anticipado
+                          </Label>
+                          <Input
+                            id="expiryWarningDays"
+                            name="expiryWarningDays"
+                            type="number"
+                            min={1}
+                            max={3650}
+                            value={expiryWarningDays}
+                            onChange={(event) =>
+                              setExpiryWarningDays(event.target.value)
+                            }
+                            className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.expiryWarningDays ? "border-red-500" : ""}`}
+                          />
+                          {fieldErrors.expiryWarningDays && (
+                            <p className="text-xs text-red-600">
+                              {fieldErrors.expiryWarningDays}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {!isEdit && (
                       <div className="space-y-2">
