@@ -227,7 +227,110 @@ enum ProofStatus {
 // MODELS
 // ==========================================
 
+enum StoreAccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+model StorefrontSettings {
+  companyId String @id @map("company_id")
+  enabled Boolean @default(false)
+  registrationEnabled Boolean @default(true) @map("registration_enabled")
+  title String?
+  description String?
+  version Int @default(1)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("storefront_settings")
+}
+
+model CustomerAccount {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  userId String @map("user_id")
+  customerId String @unique @map("customer_id")
+  status StoreAccountStatus @default(PENDING_VERIFICATION)
+  verifiedAt DateTime? @map("verified_at")
+  termsVersion String @default("2026-01") @map("terms_version")
+  createdAt DateTime @default(now()) @map("created_at")
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [companyId, customerId], references: [companyId, id], onDelete: Restrict)
+  sessions StoreSession[]
+  actions StoreAccountAction[]
+  addresses CustomerAddress[]
+  @@unique([companyId, userId])
+  @@unique([companyId, customerId])
+  @@unique([companyId, id])
+  @@map("customer_accounts")
+}
+
+model StoreSession {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  accountId String @map("account_id")
+  authVersion Int @map("auth_version")
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  account CustomerAccount @relation(fields: [companyId, accountId], references: [companyId, id], onDelete: Cascade)
+  tokens StoreRefreshToken[]
+  @@index([accountId, expiresAt])
+  @@map("store_sessions")
+}
+
+model StoreRefreshToken {
+  hash String @id
+  sessionId String @map("session_id")
+  usedAt DateTime? @map("used_at")
+  session StoreSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+  @@map("store_refresh_tokens")
+}
+
+model StoreAccountAction {
+  hash String @id
+  companyId String @map("company_id")
+  accountId String @map("account_id")
+  purpose String
+  expiresAt DateTime @map("expires_at")
+  usedAt DateTime? @map("used_at")
+  account CustomerAccount @relation(fields: [companyId, accountId], references: [companyId, id], onDelete: Cascade)
+  @@index([accountId, purpose])
+  @@map("store_account_actions")
+}
+
+model CustomerAddress {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  accountId String @map("account_id")
+  label String
+  recipient String
+  phone String
+  street String
+  district String
+  reference String?
+  isDefault Boolean @default(false) @map("is_default")
+  account CustomerAccount @relation(fields: [companyId, accountId], references: [companyId, id], onDelete: Cascade)
+  @@unique([companyId, id])
+  @@index([accountId])
+  @@map("customer_addresses")
+}
+
+model StoreMail {
+  id String @id @default(cuid())
+  encryptedBody String @map("encrypted_body")
+  attempts Int @default(0)
+  leaseUntil DateTime? @map("lease_until")
+  deliveredAt DateTime? @map("delivered_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([deliveredAt, leaseUntil])
+  @@map("store_mail")
+}
+
 model User {
+  storeAccounts CustomerAccount[]
   authVersion  Int        @default(0) @map("auth_version")
   id           String     @id @default(cuid())
   email        String     @unique
@@ -263,6 +366,8 @@ model User {
 }
 
 model Company {
+  storefront StorefrontSettings?
+  storeAccounts CustomerAccount[]
   productExpiryAlerts ProductExpiryAlert[]
   id                  String              @id @default(cuid())
   name                String
@@ -515,6 +620,7 @@ model PushDelivery {
 }
 
 model Customer {
+  storeAccount CustomerAccount?
   id            String    @id @default(cuid())
   companyId     String    @map("company_id")
   firstName     String    @map("first_name")
@@ -534,6 +640,7 @@ model Customer {
   sales   Sale[]
 
   @@unique([companyId, email])
+  @@unique([companyId, id])
   @@unique([companyId, documentValue])
   @@index([companyId])
   @@index([companyId, deletedAt])
@@ -559,6 +666,8 @@ model Category {
 }
 
 model Product {
+  storeVisible Boolean @default(false) @map("store_visible")
+  storeSortOrder Int @default(0) @map("store_sort_order")
   expiryProfile ProductExpiryProfile @default(STANDARD) @map("expiry_profile")
   expiryWarningDays Int? @map("expiry_warning_days")
   expiryAlerts ProductExpiryAlert[]
@@ -599,6 +708,7 @@ model Product {
   creditNoteItems    CreditNoteItem[]
 
   @@unique([companyId, sku])
+  @@unique([companyId, id])
   @@index([expiryProfile, expiryDate])
   @@unique([companyId, barcode])
   @@index([companyId, isActive])

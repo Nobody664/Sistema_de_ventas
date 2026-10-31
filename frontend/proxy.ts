@@ -89,6 +89,7 @@ async function handleRequest(request: NextRequest) {
 
   const isPublicRoute =
     pathname === "/" ||
+    pathname.startsWith("/tienda/") ||
     PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
   if (isPublicRoute) return NextResponse.next({ request });
 

@@ -1,4 +1,5 @@
 export const PLAN_MODULE_KEYS = [
+  "storefront",
   "dashboard",
   "notifications",
   "products",
