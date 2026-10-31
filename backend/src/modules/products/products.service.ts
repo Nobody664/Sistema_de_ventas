@@ -10,6 +10,7 @@ import { AuditAction, Prisma } from "@prisma/client";
 import { validateExpiryPolicy } from "@/modules/expiry-alerts/expiry-policy";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { collectExportRows } from "@/common/helpers/export-batch.helper";
+import { barcodeLookupCandidates } from "@/common/helpers/barcode.helper";
 import {
   optionalDate,
   rejectNullFields,
@@ -86,11 +87,38 @@ export class ProductsService {
     });
   }
 
-  findByBarcode(companyId: string, barcode: string) {
-    return this.prisma.product.findFirst({
-      where: { companyId, barcode },
+  async findByBarcode(companyId: string, barcode: string) {
+    const candidates = barcodeLookupCandidates(barcode);
+    if (candidates.length === 0) return null;
+
+    const product = await this.prisma.product.findFirst({
+      where: {
+        companyId,
+        deletedAt: null,
+        barcode: { in: candidates },
+      },
       include: { category: true },
     });
+    if (product) return product;
+
+    const presentation = await this.prisma.productPresentation.findFirst({
+      where: {
+        companyId,
+        isActive: true,
+        barcode: { in: candidates },
+      },
+      include: { product: { include: { category: true } } },
+    });
+    if (!presentation) return null;
+
+    return {
+      ...presentation.product,
+      matchedPresentation: {
+        id: presentation.id,
+        name: presentation.name,
+        barcode: presentation.barcode,
+      },
+    };
   }
 
   findByCompany(companyId: string, query?: QueryProductDto) {

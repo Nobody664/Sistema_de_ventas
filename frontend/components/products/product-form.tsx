@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -14,12 +15,13 @@ import {
   Boxes,
   AlertTriangle,
   ArrowLeft,
-  QrCode,
   Plus,
   Trash2,
   Layers,
   Ruler,
   CalendarClock,
+  ScanLine,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +30,12 @@ import { Switch } from "@/components/ui/switch";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { handleLimitError } from "@/lib/handle-limit-error";
 import { compressImage } from "@/lib/image-compression";
-import { BarcodeScanner } from "@/components/ui/barcode-scanner";
+import {
+  BarcodeScanner,
+  type ScanResult,
+} from "@/components/ui/barcode-scanner";
+import { barcodeFormatLabel, parseBarcode } from "@/lib/barcode";
+import type { ParsedBarcode } from "@/lib/barcode";
 import { useUiStore } from "@/store/ui-store";
 import { useAuthStore } from "@/stores/auth.store";
 import {
@@ -70,6 +77,11 @@ interface ProductFormProps {
   categories: Category[];
 }
 
+interface BarcodeLookupState {
+  status: "idle" | "loading" | "found" | "missing" | "error";
+  product?: { id: string; name: string; sku?: string | null };
+}
+
 export function ProductForm({ product, categories }: ProductFormProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -83,6 +95,18 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [imageLoading, setImageLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [barcodeValue, setBarcodeValue] = useState(product?.barcode || "");
+  const [scanResult, setScanResult] = useState<{
+    parsed: ParsedBarcode;
+    format: string;
+  } | null>(null);
+  const [barcodeLookup, setBarcodeLookup] = useState<BarcodeLookupState>({
+    status: "idle",
+  });
+  const [expiryDateValue, setExpiryDateValue] = useState(
+    product?.expiryDate
+      ? new Date(product.expiryDate).toISOString().slice(0, 10)
+      : "",
+  );
   const [isActive, setIsActive] = useState(product?.isActive ?? true);
   const [expiryProfile, setExpiryProfile] = useState<ProductExpiryProfile>(
     product?.expiryProfile ?? "STANDARD",
@@ -93,6 +117,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       : "90",
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lookupRequestRef = useRef(0);
 
   const isEdit = !!product;
 
@@ -130,6 +155,72 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
   const removePresentationRow = (index: number) =>
     setPresentations((prev) => prev.filter((_, i) => i !== index));
+
+  const checkBarcode = useCallback(
+    async (code: string) => {
+      const trimmed = code.trim();
+      if (!trimmed) {
+        setBarcodeLookup({ status: "idle" });
+        return;
+      }
+
+      const requestId = ++lookupRequestRef.current;
+      setBarcodeLookup({ status: "loading" });
+
+      try {
+        const found = await apiFetch<Product | null>(
+          `/products/barcode/${encodeURIComponent(trimmed)}`,
+          { token: getAccessToken() },
+        );
+        if (requestId !== lookupRequestRef.current) return;
+
+        if (!found) {
+          setBarcodeLookup({ status: "missing" });
+          return;
+        }
+        if (found.id === product?.id) {
+          setBarcodeLookup({ status: "idle" });
+          return;
+        }
+
+        setBarcodeLookup({
+          status: "found",
+          product: { id: found.id, name: found.name, sku: found.sku },
+        });
+      } catch {
+        if (requestId !== lookupRequestRef.current) return;
+        setBarcodeLookup({ status: "error" });
+      }
+    },
+    [product?.id],
+  );
+
+  const handleScan = useCallback(
+    (result: ScanResult) => {
+      const parsed = parseBarcode(result.rawValue, result.format);
+      setScanResult({ parsed, format: result.format });
+
+      const stored = parsed.gtinOriginal ?? parsed.raw;
+      setBarcodeValue(stored.length <= 50 ? stored : (parsed.gtin ?? stored));
+      if (parsed.expiry) setExpiryDateValue(parsed.expiry);
+
+      void checkBarcode(stored || parsed.raw);
+    },
+    [checkBarcode],
+  );
+
+  const dismissScan = () => {
+    lookupRequestRef.current++;
+    setScanResult(null);
+    setBarcodeLookup({ status: "idle" });
+  };
+
+  const handleBarcodeChange = (value: string) => {
+    lookupRequestRef.current++;
+    setBarcodeValue(value);
+    setScanResult(null);
+    setBarcodeLookup({ status: "idle" });
+  };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -552,18 +643,149 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                               id="barcode"
                               name="barcode"
                               value={barcodeValue}
-                              onChange={(e) => setBarcodeValue(e.target.value)}
+                              onChange={(e) =>
+                                handleBarcodeChange(e.target.value)
+                              }
+                              onBlur={(e) => {
+                                if (
+                                  !scanResult &&
+                                  e.currentTarget.value.trim().length > 0
+                                ) {
+                                  void checkBarcode(e.currentTarget.value);
+                                }
+                              }}
                               placeholder="100000000001"
                               className={`h-12 w-full rounded-xl border-slate-200 bg-slate-50/50 pl-10 pr-4 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.barcode ? "border-red-500" : ""}`}
                             />
                             <Barcode className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
                           </div>
-                          <BarcodeScanner
-                            onDetected={(code) => setBarcodeValue(code)}
-                          />
+                          <BarcodeScanner onDetected={handleScan} />
                         </div>
                       </div>
                     </div>
+
+                    {scanResult && (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-900">
+                                <ScanLine className="h-4 w-4" />
+                                Datos detectados
+                              </span>
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
+                                {barcodeFormatLabel(scanResult.format)}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              {scanResult.parsed.gtin && (
+                                <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
+                                  GTIN {scanResult.parsed.gtin}
+                                </span>
+                              )}
+                              {scanResult.parsed.lot && (
+                                <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
+                                  Lote {scanResult.parsed.lot}
+                                </span>
+                              )}
+                              {scanResult.parsed.expiry && (
+                                <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
+                                  Vence {scanResult.parsed.expiry}
+                                </span>
+                              )}
+                              {scanResult.parsed.productionDate && (
+                                <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
+                                  Producido {scanResult.parsed.productionDate}
+                                </span>
+                              )}
+                              {scanResult.parsed.netWeightKg != null && (
+                                <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
+                                  Peso {scanResult.parsed.netWeightKg} kg
+                                </span>
+                              )}
+                              {scanResult.parsed.price != null && (
+                                <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
+                                  Precio {scanResult.parsed.price}
+                                </span>
+                              )}
+                            </div>
+
+                            {scanResult.parsed.lot && (
+                              <p className="text-xs text-slate-500">
+                                El lote se muestra para que lo uses al registrar
+                                la entrada de inventario.
+                              </p>
+                            )}
+                            {scanResult.parsed.expiry && (
+                              <p className="text-xs text-emerald-700">
+                                La fecha de vencimiento se completó desde el
+                                código.
+                              </p>
+                            )}
+
+                            {scanResult.parsed.warnings.length > 0 && (
+                              <ul className="space-y-1 text-xs text-amber-700">
+                                {scanResult.parsed.warnings.map((warning) => (
+                                  <li key={warning} className="flex gap-1.5">
+                                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    {warning}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+
+                            {barcodeLookup.status === "loading" && (
+                              <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Buscando en tu catálogo…
+                              </p>
+                            )}
+                            {barcodeLookup.status === "found" &&
+                              barcodeLookup.product && (
+                                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">
+                                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                                  <span>
+                                    Ya existe un producto con este código:{" "}
+                                    <strong>
+                                      {barcodeLookup.product.name}
+                                    </strong>
+                                    {barcodeLookup.product.sku
+                                      ? ` (${barcodeLookup.product.sku})`
+                                      : ""}
+                                    .
+                                  </span>
+                                  <Link
+                                    href={`/products/${barcodeLookup.product.id}`}
+                                    className="font-semibold underline underline-offset-2"
+                                  >
+                                    Ver producto
+                                  </Link>
+                                </div>
+                              )}
+                            {barcodeLookup.status === "missing" && (
+                              <p className="text-xs text-slate-500">
+                                No está en tu catálogo. Completa el nombre y los
+                                precios manualmente.
+                              </p>
+                            )}
+                            {barcodeLookup.status === "error" && (
+                              <p className="text-xs text-slate-500">
+                                No se pudo verificar si el código ya existe.
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={dismissScan}
+                            className="flex size-8 shrink-0 items-center justify-center rounded-full text-emerald-700 transition-colors hover:bg-emerald-100"
+                            aria-label="Descartar datos detectados"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label
@@ -755,13 +977,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                           id="expiryDate"
                           name="expiryDate"
                           type="date"
-                          defaultValue={
-                            product?.expiryDate
-                              ? new Date(product.expiryDate)
-                                  .toISOString()
-                                  .slice(0, 10)
-                              : ""
-                          }
+                          value={expiryDateValue}
+                          onChange={(e) => setExpiryDateValue(e.target.value)}
                           className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 pr-10 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.expiryDate ? "border-red-500" : ""}`}
                         />
                         <CalendarClock className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" />

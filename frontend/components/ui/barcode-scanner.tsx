@@ -3,8 +3,13 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Camera, CameraOff, Loader2, X } from "lucide-react";
 
+export interface ScanResult {
+  rawValue: string;
+  format: string;
+}
+
 interface BarcodeScannerProps {
-  onDetected: (barcode: string) => void;
+  onDetected: (result: ScanResult) => void;
 }
 
 type BarcodeFormat =
@@ -12,14 +17,21 @@ type BarcodeFormat =
   | "ean_8"
   | "code_128"
   | "code_39"
+  | "code_93"
   | "upc_a"
   | "upc_e"
   | "codabar"
-  | "itf";
+  | "itf"
+  | "qr_code"
+  | "data_matrix"
+  | "pdf417"
+  | "aztec";
 
 declare global {
   interface BarcodeDetector {
-    detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>;
+    detect(
+      source: HTMLVideoElement,
+    ): Promise<Array<{ rawValue: string; format?: string }>>;
   }
 
   var BarcodeDetector: {
@@ -33,10 +45,15 @@ const FORMATS: BarcodeFormat[] = [
   "ean_8",
   "code_128",
   "code_39",
+  "code_93",
   "upc_a",
   "upc_e",
   "codabar",
   "itf",
+  "qr_code",
+  "data_matrix",
+  "pdf417",
+  "aztec",
 ];
 
 export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
@@ -100,7 +117,10 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
         try {
           const barcodes = await detectorRef.current.detect(videoRef.current);
           if (barcodes.length > 0) {
-            onDetected(barcodes[0].rawValue);
+            onDetected({
+              rawValue: barcodes[0].rawValue,
+              format: barcodes[0].format ?? "unknown",
+            });
             stopCamera();
             return;
           }
