@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { rejectNullFields } from "@/common/helpers/patch-contract.helper";
 import { pagination } from "@/common/helpers/query-bounds.helper";
@@ -227,6 +231,18 @@ export class CompaniesService {
   async updateCurrent(companyId: string, input: UpdateCompanyDto) {
     rejectNullFields(input, ["name", "timezone", "currency"]);
     const existing = await this.findCurrent(companyId);
+    if (input.timezone !== undefined) {
+      try {
+        new Intl.DateTimeFormat("es-PE", { timeZone: input.timezone }).format();
+      } catch {
+        throw new BadRequestException("Zona horaria inválida");
+      }
+    }
+    if (input.currency !== undefined && input.currency !== existing.currency) {
+      throw new BadRequestException(
+        "La moneda del negocio no se puede cambiar desde configuración. Requiere un proceso específico para conservar los importes históricos.",
+      );
+    }
 
     return this.prisma.company.update({
       where: { id: companyId },

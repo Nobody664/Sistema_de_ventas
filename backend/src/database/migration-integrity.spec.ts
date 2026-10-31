@@ -18,8 +18,11 @@ describe("PostgreSQL migration and financial SQL integrity", () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
-    assert.equal(migrations.at(-1), "20261104000000_invoice_template_defaults");
-    for (const migration of migrations.slice(0, -1)) {
+    const defaultsIndex = migrations.indexOf(
+      "20261104000000_invoice_template_defaults",
+    );
+    assert.ok(defaultsIndex >= 0);
+    for (const migration of migrations.slice(0, defaultsIndex)) {
       try {
         await db.exec(
           await readFile(
@@ -33,18 +36,19 @@ describe("PostgreSQL migration and financial SQL integrity", () => {
     }
     await db.exec(`
       INSERT INTO companies(id,name,slug,updated_at) VALUES ('company-a','Empresa A','company-a',now()),('company-b','Empresa B','company-b',now());
+      INSERT INTO "User"(id,email,password_hash,full_name,updated_at) VALUES ('owner','owner@example.test','fixture','Owner',now());
+      INSERT INTO memberships(id,user_id,company_id,role) VALUES ('owner-a','owner','company-a','COMPANY_ADMIN'),('owner-b','owner','company-b','COMPANY_ADMIN');
       INSERT INTO invoice_templates(id,name,content,is_global,is_default,company_id,updated_at) VALUES
         ('global-old','Global anterior','legacy',true,true,NULL,'2026-01-01'),
         ('global-new','Global reciente','legacy',true,true,NULL,'2026-02-01'),
         ('tenant-old','Empresa anterior','legacy',false,true,'company-a','2026-01-01'),
         ('tenant-new','Empresa reciente','legacy',false,true,'company-a','2026-02-01');
     `);
-    await db.exec(
-      await readFile(
-        resolve(directory, migrations.at(-1)!, "migration.sql"),
-        "utf8",
-      ),
-    );
+    for (const migration of migrations.slice(defaultsIndex)) {
+      await db.exec(
+        await readFile(resolve(directory, migration, "migration.sql"), "utf8"),
+      );
+    }
     await db.exec(`
       INSERT INTO sales(id,company_id,sale_number,status,subtotal,tax_amount,total_amount,paid_amount,change_amount,created_at,updated_at)
       SELECT 'sale-' || lpad(n::text,4,'0'),'company-a','SALE-' || n,'COMPLETED',1.25,0,1.25,1.25,0,'2026-10-10','2026-10-10' FROM generate_series(1,1205) n;
@@ -115,6 +119,33 @@ describe("PostgreSQL migration and financial SQL integrity", () => {
       "SELECT id FROM invoice_templates WHERE is_global AND is_default",
     );
     assert.equal(result.rows[0].id, "global-new");
+  });
+  it("backfills notification preferences and isolates changes between memberships of the same user", async () => {
+    const before = await db.query<{
+      notification_sales: boolean;
+      notification_stock: boolean;
+      notification_sound: boolean;
+    }>(
+      "SELECT notification_sales, notification_stock, notification_sound FROM memberships ORDER BY id",
+    );
+    assert.deepEqual(
+      before.rows,
+      Array.from({ length: 2 }, () => ({
+        notification_sales: true,
+        notification_stock: true,
+        notification_sound: true,
+      })),
+    );
+    await db.exec(
+      "UPDATE memberships SET notification_sales=false, notification_sound=false WHERE id='owner-a'",
+    );
+    const result = await db.query<{ id: string; notification_sales: boolean }>(
+      "SELECT id, notification_sales FROM memberships ORDER BY id",
+    );
+    assert.deepEqual(result.rows, [
+      { id: "owner-a", notification_sales: false },
+      { id: "owner-b", notification_sales: true },
+    ]);
   });
   it("executes deep merged pagination without the old 500-row cap", async () => {
     const result = await finance.findAll("company-a", {

@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   Optional,
   OnModuleDestroy,
   OnModuleInit,
@@ -18,6 +19,7 @@ import {
 import Redis from "ioredis";
 import type { Notification as StoredNotification } from "@prisma/client";
 import { AuthUser } from "@/common/decorators/current-user.decorator";
+import { NotificationPreferencesDto } from "./dto/notification-preferences.dto";
 
 export const NOTIFICATIONS_CHANNEL = "notifications:events";
 
@@ -196,6 +198,40 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async create(input: CreateNotificationInput) {
+    const salesEvent = [
+      "SALE",
+      "NEW_SALE",
+      "SALE_COMPLETED",
+      "SALE_RETURNED",
+    ].includes(input.type);
+    const stockEvent = ["LOW_STOCK", "PRODUCT_EXPIRING_SOON"].includes(
+      input.type,
+    );
+    if (
+      input.companyId &&
+      input.scope !== "PLATFORM" &&
+      (salesEvent || stockEvent)
+    ) {
+      const membership = await this.prisma.membership.findUnique({
+        where: {
+          userId_companyId: {
+            userId: input.userId,
+            companyId: input.companyId,
+          },
+        },
+        select: {
+          isActive: true,
+          notificationSales: true,
+          notificationStock: true,
+        },
+      });
+      if (
+        !membership?.isActive ||
+        (salesEvent && !membership.notificationSales) ||
+        (stockEvent && !membership.notificationStock)
+      )
+        return null;
+    }
     if (input.dedupeKey) {
       const existing = await this.prisma.notification.findUnique({
         where: { dedupeKey: input.dedupeKey },
@@ -309,6 +345,58 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       orderBy: { createdAt: "desc" },
       take: options?.limit || 50,
     });
+  }
+
+  async getPreferences(user: AuthUser) {
+    if (
+      !user.companyId ||
+      user.roles.some((role) => ["SUPER_ADMIN", "SUPPORT_ADMIN"].includes(role))
+    ) {
+      throw new ForbiddenException(
+        "Las preferencias de negocio requieren una membresía de empresa",
+      );
+    }
+    const membership = await this.prisma.membership.findUnique({
+      where: {
+        userId_companyId: { userId: user.sub, companyId: user.companyId },
+      },
+      select: {
+        isActive: true,
+        notificationSales: true,
+        notificationStock: true,
+        notificationSound: true,
+      },
+    });
+    if (!membership?.isActive)
+      throw new ForbiddenException("La membresía no está activa");
+    return {
+      salesEnabled: membership.notificationSales,
+      stockEnabled: membership.notificationStock,
+      soundEnabled: membership.notificationSound,
+    };
+  }
+
+  async updatePreferences(user: AuthUser, input: NotificationPreferencesDto) {
+    await this.getPreferences(user);
+    for (const value of [
+      input.salesEnabled,
+      input.stockEnabled,
+      input.soundEnabled,
+    ]) {
+      if (value !== undefined && typeof value !== "boolean")
+        throw new BadRequestException("Preferencia inválida");
+    }
+    const changed = await this.prisma.membership.updateMany({
+      where: { userId: user.sub, companyId: user.companyId!, isActive: true },
+      data: {
+        notificationSales: input.salesEnabled,
+        notificationStock: input.stockEnabled,
+        notificationSound: input.soundEnabled,
+      },
+    });
+    if (changed.count !== 1)
+      throw new ForbiddenException("La membresía ya no está activa");
+    return this.getPreferences(user);
   }
 
   async findByCompany(

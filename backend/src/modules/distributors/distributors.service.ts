@@ -23,6 +23,7 @@ import {
 } from "@/common/helpers/sale-pricing.helper";
 import { randomUUID } from "crypto";
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
 import {
   creditDistributorStock,
   debitDistributorStock,
@@ -731,6 +732,7 @@ export class DistributorsService {
           include: { items: true },
         });
 
+        await enqueueDomainEffect(tx, "SALE_COMMITTED", created.id);
         return created;
       },
       { maxWait: 10_000, timeout: 15_000 },

@@ -35,6 +35,7 @@ describe("Exhaustive and scoped financial reads", () => {
         },
       },
       customer: { count: async () => 0 },
+      company: { findUnique: async () => ({ timezone: "America/Lima" }) },
       saleItem: { groupBy: async () => [] },
       product: { findMany: async () => [] },
     } as unknown as PrismaService;

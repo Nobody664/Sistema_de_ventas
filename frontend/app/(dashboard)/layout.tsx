@@ -9,6 +9,8 @@ import { AppScope } from "@/components/layout/app-scope";
 import { TrialBanner } from "@/components/layout/trial-banner";
 import { PlatformShell } from "@/components/layout/platform-shell";
 import { isPlatformUser } from "@/lib/role-navigation";
+import { getCompanySettings } from "@/lib/company-settings-server";
+import { CompanySettingsProvider } from "@/components/settings/company-settings-provider";
 
 export default async function DashboardLayout({
   children,
@@ -32,35 +34,40 @@ export default async function DashboardLayout({
     redirect("/account-suspended");
   }
 
-  const capabilities = await fetchPlanCapabilities(session.accessToken);
+  const [capabilities, company] = await Promise.all([
+    fetchPlanCapabilities(session.accessToken),
+    getCompanySettings(session.accessToken),
+  ]);
 
   return (
     <PlanCapabilitiesProvider capabilities={capabilities}>
-      <div data-app className="min-h-screen bg-background">
-        <AppScope />
-        <TrialBanner
-          companyStatus={companyStatus ?? ""}
-          trialEndsAt={session.user.trialEndsAt ?? null}
-          roles={session.user.roles}
-        />
-        <div className="mx-auto flex min-h-screen max-w-[1600px]">
-          <AppSidebar roles={session.user.roles} />
-          <div className="flex min-w-0 flex-1 flex-col border-l border-foreground/10">
-            <AppHeader
-              companyId={companyId ?? null}
-              fullName={session.user.fullName ?? ""}
-              roles={session.user.roles}
-              email={session.user.email ?? ""}
-              nav={<AppMobileNav roles={session.user.roles} />}
-            />
-            <main className="flex-1 p-5 md:p-8">
-              <PlanRouteGuard roles={session.user.roles}>
-                {children}
-              </PlanRouteGuard>
-            </main>
+      <CompanySettingsProvider initialCompany={company}>
+        <div data-app className="min-h-screen bg-background">
+          <AppScope />
+          <TrialBanner
+            companyStatus={companyStatus ?? ""}
+            trialEndsAt={session.user.trialEndsAt ?? null}
+            roles={session.user.roles}
+          />
+          <div className="mx-auto flex min-h-screen max-w-[1600px]">
+            <AppSidebar roles={session.user.roles} />
+            <div className="flex min-w-0 flex-1 flex-col border-l border-foreground/10">
+              <AppHeader
+                companyId={companyId ?? null}
+                fullName={session.user.fullName ?? ""}
+                roles={session.user.roles}
+                email={session.user.email ?? ""}
+                nav={<AppMobileNav roles={session.user.roles} />}
+              />
+              <main className="flex-1 p-5 md:p-8">
+                <PlanRouteGuard roles={session.user.roles}>
+                  {children}
+                </PlanRouteGuard>
+              </main>
+            </div>
           </div>
         </div>
-      </div>
+      </CompanySettingsProvider>
     </PlanCapabilitiesProvider>
   );
 }

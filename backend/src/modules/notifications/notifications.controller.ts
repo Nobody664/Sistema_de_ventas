@@ -1,5 +1,6 @@
 import {
   Controller,
+  Body,
   Get,
   Patch,
   Param,
@@ -17,6 +18,7 @@ import { Roles } from "@/common/decorators/roles.decorator";
 import { Permissions } from "@/common/decorators/permissions.decorator";
 import { PermissionsGuard } from "@/common/guards/permissions.guard";
 import { Permission } from "@/common/constants/permissions.constant";
+import { NotificationPreferencesDto } from "./dto/notification-preferences.dto";
 import {
   CurrentUser,
   AuthUser,
@@ -29,6 +31,21 @@ export class NotificationsController {
     private readonly notificationsService: NotificationsService,
     private readonly streams: NotificationStreamService,
   ) {}
+
+  @UseGuards(TenantGuard)
+  @Get("preferences")
+  getPreferences(@CurrentUser() user: AuthUser) {
+    return this.notificationsService.getPreferences(user);
+  }
+
+  @UseGuards(TenantGuard)
+  @Patch("preferences")
+  updatePreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() body: NotificationPreferencesDto,
+  ) {
+    return this.notificationsService.updatePreferences(user, body);
+  }
 
   @Get("stream")
   streamNotifications(@CurrentUser() user: AuthUser, @Res() res: Response) {

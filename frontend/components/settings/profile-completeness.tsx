@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle, AlertCircle, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
+import { useT } from "./locale-provider";
 
 type CompletenessData = {
   score: number;
@@ -13,17 +15,29 @@ type CompletenessData = {
 };
 
 export function ProfileCompletenessIndicator() {
-  const [data, setData] = useState<CompletenessData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    apiFetch<CompletenessData>("/company-profile/completeness")
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
-  }, []);
+  const t = useT();
+  const ready = useSessionQueryReady();
+  const {
+    data,
+    isPending: loading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["company-profile-completeness"],
+    enabled: ready,
+    queryFn: () => apiFetch<CompletenessData>("/company-profile/completeness"),
+  });
 
   if (loading) return null;
+  if (error)
+    return (
+      <div role="alert" className="rounded-xl border p-4 text-sm">
+        {t("No se pudo comprobar el perfil de la empresa.")}{" "}
+        <button onClick={() => void refetch()} className="underline">
+          {t("Reintentar")}
+        </button>
+      </div>
+    );
   if (!data || data.score >= 100) return null;
 
   return (
@@ -58,10 +72,11 @@ export function ProfileCompletenessIndicator() {
             </div>
             <div>
               <p className="font-semibold text-amber-800">
-                Perfil {data.score}% completo
+                {t("Perfil")} {data.score}% {t("completo")}
               </p>
               <p className="text-xs text-amber-600">
-                {data.completedFields} de {data.totalFields} campos completados
+                {data.completedFields} {t("de")} {data.totalFields}{" "}
+                {t("campos completados")}
               </p>
             </div>
           </div>
@@ -73,7 +88,9 @@ export function ProfileCompletenessIndicator() {
                   className="flex items-center gap-2 text-sm text-amber-700"
                 >
                   <AlertCircle className="size-3.5 shrink-0" />
-                  <span>Falta: {field}</span>
+                  <span>
+                    {t("Falta")}: {t(field)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -83,7 +100,7 @@ export function ProfileCompletenessIndicator() {
           href="/settings/company"
           className="ml-4 flex shrink-0 items-center gap-1 rounded-full bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700"
         >
-          Completar
+          {t("Completar")}
           <ChevronRight className="size-4" />
         </Link>
       </div>

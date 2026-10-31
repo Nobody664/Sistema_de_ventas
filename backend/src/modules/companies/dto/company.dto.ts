@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsTimeZone,
   Matches,
   Max,
   MaxLength,
@@ -60,10 +61,12 @@ export class CreateCompanyDto {
 
   @IsOptional()
   @IsString()
+  @IsTimeZone()
   timezone?: string;
 
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Z]{3}$/)
   currency?: string;
 }
 
@@ -104,10 +107,12 @@ export class UpdateCompanyDto {
 
   @IsOptional()
   @IsString()
+  @IsTimeZone()
   timezone?: string;
 
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Z]{3}$/)
   currency?: string;
 }
 

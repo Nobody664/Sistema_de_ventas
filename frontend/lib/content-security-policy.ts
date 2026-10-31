@@ -10,6 +10,7 @@ export function contentSecurityPolicy(
     "font-src 'self' data:",
     `connect-src 'self'${development ? " ws: wss:" : ""}`,
     "frame-src 'self' blob:",
+    "worker-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

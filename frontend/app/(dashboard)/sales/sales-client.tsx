@@ -23,6 +23,7 @@ import {
 import { useUiStore } from "@/store/ui-store";
 import type { Sale } from "@/types/api";
 import type { SalesMetrics } from "@/types/sales";
+import { useCompanyFormat } from "@/components/settings/company-settings-provider";
 
 interface SalesPageClientProps {
   sales: Sale[];
@@ -33,6 +34,7 @@ export function SalesPageClient({
   sales: initialSales,
   metrics: initialMetrics,
 }: SalesPageClientProps) {
+  const format = useCompanyFormat();
   const [page, setPage] = useState(1);
   const limit = 20;
   const addToast = useUiStore((state) => state.addToast);
@@ -68,14 +70,8 @@ export function SalesPageClient({
   const totalSalesCount = metrics?.salesAnalytics.totalSales;
   const avgTicket = metrics?.salesAnalytics.averageTicket;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const parseSaleDate = (sale: Sale) => {
-    return new Date(sale.createdAt);
-  };
   const isTodaySale = (sale: Sale) => {
-    const date = parseSaleDate(sale);
-    return date >= today;
+    return format.dayKey(sale.createdAt) === format.dayKey(new Date());
   };
   const salesToday = metrics?.salesToday;
   const revenueToday = metrics?.revenueToday;
@@ -260,7 +256,8 @@ export function SalesPageClient({
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-foreground/50">
               <Calendar className="size-4" />
-              {new Date().toLocaleDateString("es-PE", {
+              {format.date(new Date(), {
+                year: undefined,
                 weekday: "long",
                 day: "numeric",
                 month: "long",
@@ -371,7 +368,8 @@ export function SalesPageClient({
                         S/ {Number(sale.totalAmount || 0).toFixed(2)}
                       </p>
                       <p className="text-sm text-foreground/50">
-                        {new Date(sale.createdAt).toLocaleString("es-PE", {
+                        {format.date(sale.createdAt, {
+                          year: undefined,
                           day: "numeric",
                           month: "short",
                           hour: "2-digit",

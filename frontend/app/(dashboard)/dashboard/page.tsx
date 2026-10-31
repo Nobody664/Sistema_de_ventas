@@ -5,15 +5,18 @@ import { serverApiFetch } from "@/lib/server-api";
 import { isPlatformUser } from "@/lib/role-navigation";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import type { DashboardOverview } from "@/types/dashboard";
+import { getCompanySettings } from "@/lib/company-settings-server";
+import { validCompanyZone } from "@/lib/company-format";
 
 async function DashboardDataLoader() {
   const session = await getServerSession();
   if (!session?.user) redirect("/sign-in");
   if (isPlatformUser(session.user.roles)) redirect("/platform");
-  const data = await serverApiFetch<DashboardOverview>(
-    "/dashboard/tenant",
-    session.accessToken,
-  );
+  const [data, companySettings] = await Promise.all([
+    serverApiFetch<DashboardOverview>("/dashboard/tenant", session.accessToken),
+    getCompanySettings(session.accessToken),
+  ]);
+  const timeZone = validCompanyZone(companySettings?.timezone);
   const overview: DashboardOverview | null = data
     ? {
         company: data.company
@@ -40,12 +43,12 @@ async function DashboardDataLoader() {
         weekday: "long",
         day: "numeric",
         month: "long",
-        timeZone: "America/Lima",
+        timeZone,
       }).format(consulted)}
       consultedAt={new Intl.DateTimeFormat("es-PE", {
         hour: "2-digit",
         minute: "2-digit",
-        timeZone: "America/Lima",
+        timeZone,
       }).format(consulted)}
     />
   );

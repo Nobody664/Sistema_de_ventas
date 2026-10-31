@@ -5,6 +5,7 @@ export type DomainEffect =
   | "UPGRADE_REVIEWED"
   | "CHECKOUT_SUBMITTED"
   | "CHECKOUT_REVIEWED"
+  | "DAILY_DIGEST"
   | "SALE_COMMITTED";
 
 export async function enqueueDomainEffect(

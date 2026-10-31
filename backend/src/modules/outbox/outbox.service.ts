@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, Logger } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  Optional,
+} from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { randomUUID } from "crypto";
 import { OutboxEvent } from "@prisma/client";
@@ -10,6 +15,8 @@ import { EmailService, EmailTemplate } from "@/modules/email/email.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { CacheService } from "@/cache/cache.service";
+import { WebhooksService } from "@/modules/integrations/webhooks.service";
+import { DigestService } from "@/modules/notification-channels/digest.service";
 
 const owners = {
   where: {
@@ -31,6 +38,8 @@ export class OutboxService {
     private readonly capabilities: PlanCapabilitiesService,
     private readonly cache: CacheService,
     private readonly config: ConfigService,
+    @Optional() private readonly webhooks?: WebhooksService,
+    @Optional() private readonly digest?: DigestService,
   ) {}
 
   @Cron("*/10 * * * * *", { waitForCompletion: true })
@@ -160,11 +169,32 @@ export class OutboxService {
   ): Promise<void> {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(event.aggregateId))
       throw new Error("INVALID_EFFECT");
+    if (event.kind === "DAILY_DIGEST") {
+      if (!this.digest) throw new Error("DIGEST_UNAVAILABLE");
+      await this.digest.deliver(event.aggregateId);
+      return;
+    }
     if (event.kind === "SALE_COMMITTED") {
       const sale = await this.prisma.sale.findUnique({
         where: { id: event.aggregateId },
         select: {
           companyId: true,
+          saleNumber: true,
+          totalAmount: true,
+          channel: true,
+          company: {
+            select: {
+              currency: true,
+              memberships: {
+                where: {
+                  isActive: true,
+                  role: { in: ["COMPANY_ADMIN", "MANAGER"] },
+                  user: { isActive: true },
+                },
+                select: { userId: true },
+              },
+            },
+          },
           items: {
             select: {
               product: {
@@ -181,7 +211,19 @@ export class OutboxService {
         },
       });
       if (!sale) throw new Error("MISSING_AGGREGATE");
-      for (const item of sale.items)
+      for (const member of sale.company?.memberships ?? []) {
+        await this.notifications.create({
+          dedupeKey: `${event.id}:sale:${member.userId}`,
+          companyId: sale.companyId,
+          userId: member.userId,
+          type: "NEW_SALE",
+          channel: "IN_APP",
+          title: "Venta registrada",
+          message: `Se registró la venta ${sale.saleNumber} por ${sale.totalAmount} ${sale.company?.currency ?? "PEN"}.`,
+          actionUrl: `/sales/${event.aggregateId}`,
+        });
+      }
+      for (const item of sale.channel === "DISTRIBUTOR" ? [] : sale.items)
         await this.lowStock.notifyIfLowStock({
           companyId: sale.companyId,
           productId: item.product.id,
@@ -191,6 +233,11 @@ export class OutboxService {
           baseUnit: item.product.baseUnit,
           force: true,
         });
+      await this.webhooks?.enqueueSale(
+        event.id,
+        event.aggregateId,
+        sale.companyId,
+      );
       return;
     }
     if (event.kind === "PAYMENT_CONFIRMED") {

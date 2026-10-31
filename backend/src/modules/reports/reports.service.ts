@@ -10,6 +10,13 @@ import {
 } from "@/common/helpers/sales-visibility.helper";
 import { ReportsOverviewQueryDto } from "./dto/reports-query.dto";
 import { dateRange } from "@/common/helpers/query-bounds.helper";
+import {
+  companyDateKey,
+  companyDay,
+  companyMidnight,
+  companyTimeZone,
+  shiftDateKey,
+} from "@/common/helpers/company-timezone.helper";
 
 type SalesByChannel = {
   channel: SaleChannel;
@@ -52,20 +59,50 @@ export class ReportsService {
     actor: SalesActor,
   ): Promise<SalesOverview> {
     const channel = query.channel;
-    const { from: startDate, to: endDate } = dateRange(
-      query.startDate,
-      query.endDate,
-      30,
-    );
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { timezone: true },
+    });
+    const zone = companyTimeZone(company?.timezone);
+    const validated = dateRange(query.startDate, query.endDate, 30);
+    const now = new Date();
+    const today = companyDay(now, zone);
+    const dateOnly = (value?: string) =>
+      !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const endDate = query.endDate
+      ? dateOnly(query.endDate)
+        ? new Date(
+            companyMidnight(shiftDateKey(query.endDate, 1), zone).getTime() - 1,
+          )
+        : validated.to!
+      : new Date(today.end.getTime() - 1);
+    const startDate = query.startDate
+      ? dateOnly(query.startDate)
+        ? companyMidnight(query.startDate, zone)
+        : validated.from!
+      : companyMidnight(shiftDateKey(companyDateKey(endDate, zone), -29), zone);
+    dateRange(startDate.toISOString(), endDate.toISOString());
 
     const visibility = salesVisibility(companyId, actor);
-    const cacheKey = `reports:sales-overview:v3:${companyId}:${salesAudienceKey(actor)}:${channel ?? "all"}:${startDate?.toISOString() ?? ""}:${endDate?.toISOString() ?? ""}`;
+    const cacheKey = `reports:sales-overview:v4:${companyId}:${salesAudienceKey(actor)}:${zone}:${channel ?? "all"}:${startDate.toISOString()}:${endDate.toISOString()}`;
     const cached = await this.cache.get<SalesOverview>(cacheKey);
     if (cached) return cached;
 
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const monthKey = `${today.key.slice(0, 7)}-01`;
+    const previousMonth = new Date(`${monthKey}T12:00:00Z`);
+    previousMonth.setUTCMonth(previousMonth.getUTCMonth() - 1);
+    const startOfMonth = companyMidnight(monthKey, zone);
+    const startOfLastMonth = companyMidnight(
+      previousMonth.toISOString().slice(0, 10),
+      zone,
+    );
+    const trendDays = Array.from({ length: 7 }, (_, index) => {
+      const key = shiftDateKey(companyDateKey(endDate, zone), index - 6);
+      return {
+        start: companyMidnight(key, zone),
+        end: companyMidnight(shiftDateKey(key, 1), zone),
+      };
+    });
 
     const dateWhere: Prisma.SaleWhereInput = {};
     if (startDate || endDate) {
@@ -127,11 +164,7 @@ export class ReportsService {
         take: 8,
       }),
       Promise.all(
-        Array.from({ length: 7 }, (_, index) => {
-          const dayStart = new Date(endDate ?? now);
-          dayStart.setUTCDate(dayStart.getUTCDate() - (6 - index));
-          dayStart.setUTCHours(0, 0, 0, 0);
-          const dayEnd = new Date(dayStart.getTime() + 86400000);
+        trendDays.map(({ start: dayStart, end: dayEnd }) => {
           return this.prisma.sale.aggregate({
             where: {
               AND: [where, { createdAt: { gte: dayStart, lt: dayEnd } }],
@@ -162,22 +195,16 @@ export class ReportsService {
       revenue: Number(p._sum.totalPrice || 0),
     }));
 
-    const trendEnd = endDate ?? now;
     const last7Days: { date: string; sales: number; revenue: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const dayStart = new Date(trendEnd);
-      dayStart.setUTCDate(dayStart.getUTCDate() - i);
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
-
-      const daySales = recentSales[6 - i];
+    for (let index = 0; index < trendDays.length; index++) {
+      const dayStart = trendDays[index].start;
+      const daySales = recentSales[index];
 
       last7Days.push({
         date: dayStart.toLocaleDateString("es-PE", {
           weekday: "short",
           day: "numeric",
-          timeZone: "UTC",
+          timeZone: zone,
         }),
         sales: daySales._count.id,
         revenue: Number(daySales._sum.totalAmount ?? 0),

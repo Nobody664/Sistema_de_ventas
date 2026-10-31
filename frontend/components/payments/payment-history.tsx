@@ -21,6 +21,7 @@ import { apiFetch } from "@/lib/api";
 import { compressImage } from "@/lib/image-compression";
 import { useRouter } from "next/navigation";
 import type { BillingStatus } from "@/types/billing";
+import { useCompanyFormat } from "@/components/settings/company-settings-provider";
 
 interface PaymentHistoryClientProps {
   billingStatus: BillingStatus | null;
@@ -119,6 +120,7 @@ function SubscriptionStatusBadge({ status }: { status: string }) {
 export function PaymentHistoryClient({
   billingStatus,
 }: PaymentHistoryClientProps) {
+  const format = useCompanyFormat();
   const router = useRouter();
   const [showUpload, setShowUpload] = useState(false);
   const [proofImage, setProofImage] = useState<string | null>(null);
@@ -225,16 +227,14 @@ export function PaymentHistoryClient({
               <p className="text-sm text-foreground/50">Inicio</p>
               <p className="mt-1 font-medium">
                 {subscription.startDate
-                  ? new Date(subscription.startDate).toLocaleDateString("es-PE")
+                  ? format.date(subscription.startDate)
                   : "—"}
               </p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-sm text-foreground/50">Próximo vencimiento</p>
               <p className="mt-1 font-medium">
-                {subscription.endDate
-                  ? new Date(subscription.endDate).toLocaleDateString("es-PE")
-                  : "—"}
+                {subscription.endDate ? format.date(subscription.endDate) : "—"}
               </p>
             </div>
           </div>
@@ -284,11 +284,7 @@ export function PaymentHistoryClient({
                     <>
                       {" "}
                       con vencimiento el{" "}
-                      <strong>
-                        {new Date(currentPending.dueDate).toLocaleDateString(
-                          "es-PE",
-                        )}
-                      </strong>
+                      <strong>{format.date(currentPending.dueDate)}</strong>
                     </>
                   )}
                   . Sube tu comprobante de pago para mantener tu suscripción
@@ -467,10 +463,10 @@ export function PaymentHistoryClient({
                     <p className="font-medium">S/ {payment.amount}</p>
                     <p className="text-xs text-foreground/50">
                       {payment.dueDate
-                        ? `Vence: ${new Date(payment.dueDate).toLocaleDateString("es-PE")}`
+                        ? `Vence: ${format.date(payment.dueDate)}`
                         : payment.paidAt
-                          ? `Pagado: ${new Date(payment.paidAt).toLocaleDateString("es-PE")}`
-                          : `Creado: ${new Date(payment.createdAt).toLocaleDateString("es-PE")}`}
+                          ? `Pagado: ${format.date(payment.paidAt)}`
+                          : `Creado: ${format.date(payment.createdAt)}`}
                     </p>
                   </div>
                 </div>

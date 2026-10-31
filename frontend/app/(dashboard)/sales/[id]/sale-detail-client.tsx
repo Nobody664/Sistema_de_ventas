@@ -18,12 +18,14 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useUiStore } from "@/store/ui-store";
 import { CreditNotesPanel } from "@/components/sales/credit-notes-panel";
 import type { Sale } from "@/types/api";
+import { useCompanyFormat } from "@/components/settings/company-settings-provider";
 
 interface SaleDetailClientProps {
   sale: Sale;
 }
 
 export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
+  const format = useCompanyFormat();
   const user = useAuthStore((state) => state.user);
   const addToast = useUiStore((state) => state.addToast);
 
@@ -82,7 +84,7 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
                 </h1>
                 <p className="text-sm text-slate-500">
                   {initialSale.createdAt
-                    ? new Date(initialSale.createdAt).toLocaleString("es-PE", {
+                    ? format.date(initialSale.createdAt, {
                         day: "numeric",
                         month: "long",
                         year: "numeric",
