@@ -24,6 +24,7 @@ import { apiFetch } from "@/lib/api";
 import { useUiStore } from "@/store/ui-store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
+import { useT } from "@/components/settings/locale-provider";
 
 interface CompanyData {
   id: string;
@@ -38,6 +39,7 @@ interface CompanyData {
 }
 
 export default function CompanySettingsPage() {
+  const t = useT();
   const sessionReady = useSessionQueryReady();
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.isLoading);
@@ -98,7 +100,7 @@ export default function CompanySettingsPage() {
         queryKey: ["company-profile-completeness"],
       });
       router.refresh();
-      addToast("Datos de la empresa actualizados correctamente", "success");
+      addToast(t("Datos de la empresa actualizados correctamente"), "success");
     },
     onError: (error: Error) => {
       addToast(error.message, "error");
@@ -109,12 +111,12 @@ export default function CompanySettingsPage() {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      addToast("El nombre de la empresa es requerido", "error");
+      addToast(t("El nombre de la empresa es requerido"), "error");
       return;
     }
 
     if (formData.taxId && formData.taxId.length !== 11) {
-      addToast("El RUC debe tener 11 dígitos", "error");
+      addToast(t("El RUC debe tener 11 dígitos"), "error");
       return;
     }
 
@@ -135,23 +137,23 @@ export default function CompanySettingsPage() {
   if (!authLoading && !user)
     return (
       <div role="alert" className="rounded-2xl border bg-card p-6">
-        <h1 className="font-semibold">No se pudo verificar la sesión</h1>
+        <h1 className="font-semibold">{t("No se pudo verificar la sesión")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Reintenta la comprobación antes de editar la empresa.
+          {t("Reintenta la comprobación antes de editar la empresa.")}
         </p>
         <Button
           variant="outline"
           onClick={() => void useAuthStore.getState().checkAuth()}
           className="mt-4"
         >
-          Reintentar sesión
+          {t("Reintentar sesión")}
         </Button>
       </div>
     );
   if (authLoading || !sessionReady)
     return (
       <p role="status" className="p-8 text-sm text-muted-foreground">
-        Comprobando acceso...
+        {t("Comprobando acceso...")}
       </p>
     );
   if (!isCompanyAdmin) {
@@ -162,18 +164,19 @@ export default function CompanySettingsPage() {
             <Building2 className="w-8 h-8 text-red-500" />
           </div>
           <h2 className="text-xl font-bold text-slate-900">
-            Acceso restringido
+            {t("Acceso restringido")}
           </h2>
           <p className="text-slate-500 max-w-md">
-            Solo el administrador de la empresa puede editar la información de
-            la organización.
+            {t(
+              "Solo el administrador de la empresa puede editar la información de la organización.",
+            )}
           </p>
           <Button
             onClick={() => router.push("/dashboard")}
             variant="outline"
             className="rounded-xl"
           >
-            Volver al inicio
+            {t("Volver al inicio")}
           </Button>
         </div>
       </div>
@@ -184,7 +187,7 @@ export default function CompanySettingsPage() {
     return (
       <div role="alert" className="rounded-2xl border bg-card p-6">
         <h1 className="font-semibold">
-          No se pudieron cargar los datos de la empresa
+          {t("No se pudieron cargar los datos de la empresa")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
         <Button
@@ -192,7 +195,7 @@ export default function CompanySettingsPage() {
           variant="outline"
           className="mt-4"
         >
-          Reintentar
+          {t("Reintentar")}
         </Button>
       </div>
     );
@@ -205,7 +208,7 @@ export default function CompanySettingsPage() {
             <Building2 className="absolute inset-0 m-auto h-6 w-6 text-indigo-500" />
           </div>
           <p className="mt-4 text-sm text-slate-500">
-            Cargando datos de la empresa...
+            {t("Cargando datos de la empresa...")}
           </p>
         </div>
       </div>
@@ -221,7 +224,7 @@ export default function CompanySettingsPage() {
           className="text-slate-500 hover:text-slate-900 hover:bg-slate-100/50 -ml-3"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver
+          {t("Volver")}
         </Button>
       </div>
 
@@ -234,7 +237,7 @@ export default function CompanySettingsPage() {
         <div className="absolute top-4 right-4">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-xs text-white/70">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Configuración</span>
+            <span>{t("Configuración")}</span>
           </div>
         </div>
 
@@ -249,13 +252,13 @@ export default function CompanySettingsPage() {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/50">
-              Empresa
+              {t("Empresa")}
             </p>
             <h1 className="font-display text-2xl tracking-tight mt-1 sm:text-4xl">
-              Datos de la Empresa
+              {t("Datos de la Empresa")}
             </h1>
             <p className="mt-2 text-white/70">
-              Gestiona la información legal, fiscal y de contacto
+              {t("Gestiona la información legal, fiscal y de contacto")}
             </p>
           </div>
         </div>
@@ -272,7 +275,7 @@ export default function CompanySettingsPage() {
                   <Building2 className="h-5 w-5 text-indigo-600" />
                 </div>
                 <h3 className="text-base font-semibold text-slate-900">
-                  Información Principal
+                  {t("Información Principal")}
                 </h3>
               </div>
 
@@ -282,14 +285,15 @@ export default function CompanySettingsPage() {
                     htmlFor="name"
                     className="text-sm font-semibold text-slate-700"
                   >
-                    Nombre de la Empresa <span className="text-red-500">*</span>
+                    {t("Nombre de la Empresa")}{" "}
+                    <span className="text-red-500">*</span>
                   </Label>
                   <div className="relative group">
                     <Input
                       id="name"
                       value={formData.name}
                       onChange={(e) => updateField("name", e.target.value)}
-                      placeholder="Mi Empresa SAC"
+                      placeholder={t("Mi Empresa SAC")}
                       className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
                     />
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-indigo-100 group-focus-within:text-indigo-600 transition-colors">
@@ -303,13 +307,13 @@ export default function CompanySettingsPage() {
                     htmlFor="legalName"
                     className="text-sm font-semibold text-slate-700"
                   >
-                    Razón Social
+                    {t("Razón Social")}
                   </Label>
                   <Input
                     id="legalName"
                     value={formData.legalName}
                     onChange={(e) => updateField("legalName", e.target.value)}
-                    placeholder="Mi Empresa Sociedad Anónima Cerrada"
+                    placeholder={t("Mi Empresa Sociedad Anónima Cerrada")}
                     className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all text-base"
                   />
                 </div>
@@ -322,7 +326,7 @@ export default function CompanySettingsPage() {
                   <Hash className="h-5 w-5 text-amber-600" />
                 </div>
                 <h3 className="text-base font-semibold text-slate-900">
-                  Identificación Fiscal
+                  {t("Identificación Fiscal")}
                 </h3>
               </div>
 
@@ -333,7 +337,7 @@ export default function CompanySettingsPage() {
                 >
                   RUC{" "}
                   <span className="text-slate-400 font-normal">
-                    (Registro Único de Contribuyente)
+                    {t("(Registro Único de Contribuyente)")}
                   </span>
                 </Label>
                 <div className="relative group">
@@ -355,7 +359,7 @@ export default function CompanySettingsPage() {
                   </div>
                 </div>
                 <p className="text-xs text-slate-400 pl-1">
-                  El RUC debe tener 11 dígitos para ser válido
+                  {t("El RUC debe tener 11 dígitos para ser válido")}
                 </p>
               </div>
             </div>
@@ -366,7 +370,7 @@ export default function CompanySettingsPage() {
                   <MapPin className="h-5 w-5 text-rose-600" />
                 </div>
                 <h3 className="text-base font-semibold text-slate-900">
-                  Ubicación
+                  {t("Ubicación")}
                 </h3>
               </div>
 
@@ -375,14 +379,14 @@ export default function CompanySettingsPage() {
                   htmlFor="address"
                   className="text-sm font-semibold text-slate-700"
                 >
-                  Dirección Fiscal
+                  {t("Dirección Fiscal")}
                 </Label>
                 <div className="relative group">
                   <Input
                     id="address"
                     value={formData.address}
                     onChange={(e) => updateField("address", e.target.value)}
-                    placeholder="Av. Principal 123, Lima, Perú"
+                    placeholder={t("Av. Principal 123, Lima, Perú")}
                     className="h-14 rounded-2xl border-2 border-slate-100 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-0 focus:shadow-lg focus:shadow-indigo-500/10 transition-all pl-12 text-base"
                   />
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 group-focus-within:bg-rose-100 group-focus-within:text-rose-600 transition-colors">
@@ -398,7 +402,7 @@ export default function CompanySettingsPage() {
                   <Phone className="h-5 w-5 text-cyan-600" />
                 </div>
                 <h3 className="text-base font-semibold text-slate-900">
-                  Contacto
+                  {t("Contacto")}
                 </h3>
               </div>
 
@@ -408,7 +412,7 @@ export default function CompanySettingsPage() {
                     htmlFor="email"
                     className="text-sm font-semibold text-slate-700"
                   >
-                    Correo Electrónico
+                    {t("Correo Electrónico")}
                   </Label>
                   <div className="relative group">
                     <Input
@@ -430,7 +434,7 @@ export default function CompanySettingsPage() {
                     htmlFor="phone"
                     className="text-sm font-semibold text-slate-700"
                   >
-                    Teléfono
+                    {t("Teléfono")}
                   </Label>
                   <div className="relative group">
                     <Input
@@ -451,7 +455,7 @@ export default function CompanySettingsPage() {
             <div className="flex flex-col gap-4 pt-6 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between sm:pt-8">
               <div className="flex items-center gap-3 text-sm text-slate-500">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span>Los cambios se aplicarán inmediatamente</span>
+                <span>{t("Los cambios se aplicarán inmediatamente")}</span>
               </div>
               <Button
                 type="submit"
@@ -462,12 +466,12 @@ export default function CompanySettingsPage() {
                   {updateMutation.isPending ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
-                      Guardando...
+                      {t("Guardando...")}
                     </>
                   ) : (
                     <>
                       <Save className="h-5 w-5" />
-                      Guardar Cambios
+                      {t("Guardar Cambios")}
                     </>
                   )}
                 </span>

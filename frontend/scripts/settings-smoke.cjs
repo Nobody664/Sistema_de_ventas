@@ -21,6 +21,7 @@ const company = {
 let failSave = false;
 let failClientAuth = false;
 let failExport = false;
+let failDigest = false;
 let completenessReads = 0;
 const requests = [];
 const writes = [];
@@ -28,6 +29,14 @@ const preferences = {
   salesEnabled: true,
   stockEnabled: true,
   soundEnabled: true,
+};
+const apiKeys = [];
+const webhooks = [];
+const channels = {
+  available: true,
+  dailyDigestEnabled: false,
+  locale: "es",
+  hour: "08:00",
 };
 const platform = () => roles.includes("SUPER_ADMIN");
 const user = () => ({
@@ -51,6 +60,29 @@ const complete = () =>
   ].every(Boolean);
 
 function data(resource) {
+  if (resource === "/integrations/api-keys") return apiKeys;
+  if (resource === "/integrations/webhooks")
+    return {
+      available: true,
+      allowedHosts: ["hooks.example.test"],
+      events: ["sale.created"],
+      endpoints: webhooks,
+    };
+  if (resource.endsWith("/deliveries"))
+    return [
+      {
+        id: "delivery-a",
+        eventId: "event-a",
+        attempts: 1,
+        deliveredAt: "2026-10-30T12:00:00Z",
+        stoppedAt: null,
+        statusCode: 200,
+        lastError: null,
+      },
+    ];
+  if (resource === "/notification-channels/preferences") return channels;
+  if (resource === "/notification-channels/push")
+    return { available: false, publicKey: null, subscriptions: [] };
   if (resource === "/data-export/manifest")
     return {
       format: "ventas.business-data",
@@ -87,8 +119,8 @@ function data(resource) {
         "notifications",
         "reports",
       ],
-      features: [],
-      apiEnabled: false,
+      features: ["api.access", "webhooks.manage"],
+      apiEnabled: true,
       maxUsers: 10,
       maxProducts: 100,
     };
@@ -131,6 +163,70 @@ const backend = http.createServer(async (request, response) => {
   );
   requests.push({ resource, method: request.method, platform: platform() });
   response.setHeader("Content-Type", "application/json");
+  if (resource === "/integrations/api-keys" && request.method === "POST") {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks).toString());
+    assert.equal("companyId" in body, false);
+    assert.deepEqual(body.scopes, ["catalog.read"]);
+    const row = {
+      id: "key-a",
+      name: body.name,
+      scopes: body.scopes,
+      expiresAt: "2027-01-30T00:00:00Z",
+      revokedAt: null,
+      lastUsedAt: null,
+    };
+    apiKeys.push(row);
+    return response.end(
+      JSON.stringify({ ...row, key: "vsk_fixture.secret-visible-once" }),
+    );
+  }
+  if (
+    resource === "/integrations/api-keys/key-a/revoke" &&
+    request.method === "POST"
+  ) {
+    apiKeys[0].revokedAt = new Date().toISOString();
+    return response.end(JSON.stringify(apiKeys[0]));
+  }
+  if (resource === "/integrations/webhooks" && request.method === "POST") {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks).toString());
+    assert.equal("companyId" in body, false);
+    const row = {
+      id: "webhook-a",
+      name: body.name,
+      url: body.url,
+      isActive: true,
+    };
+    webhooks.push(row);
+    return response.end(
+      JSON.stringify({ ...row, secret: "webhook-secret-visible-once" }),
+    );
+  }
+  if (
+    resource === "/integrations/webhooks/webhook-a/disable" &&
+    request.method === "POST"
+  ) {
+    webhooks[0].isActive = false;
+    return response.end(JSON.stringify({ disabled: true }));
+  }
+  if (
+    resource === "/notification-channels/preferences" &&
+    request.method === "PATCH"
+  ) {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    if (failDigest) {
+      failDigest = false;
+      response.statusCode = 503;
+      return response.end(
+        JSON.stringify({ message: "No se pudo guardar el resumen diario" }),
+      );
+    }
+    Object.assign(channels, JSON.parse(Buffer.concat(chunks).toString()));
+  }
   if (resource === "/data-export/manifest" && failExport) {
     failExport = false;
     response.statusCode = 503;
@@ -464,6 +560,149 @@ async function main() {
     await page.getByText("Archivo JSON descargado.", { exact: true }).waitFor();
     console.log(
       "PASS: exportación JSON descargable, decimal exacto y error recuperable",
+    );
+
+    await page
+      .getByRole("textbox", { name: "Nombre de la integración", exact: true })
+      .fill("Conector catálogo");
+    await page
+      .getByRole("button", { name: "Crear API Key", exact: true })
+      .click();
+    await page.getByLabel("Nueva API Key", { exact: true }).waitFor();
+    assert.equal(
+      await page.getByLabel("Nueva API Key", { exact: true }).textContent(),
+      "vsk_fixture.secret-visible-once",
+    );
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page
+      .getByRole("button", { name: "Revocar Conector catálogo", exact: true })
+      .waitFor();
+    assert.equal(
+      await page.getByLabel("Nueva API Key", { exact: true }).count(),
+      0,
+    );
+    await page
+      .getByRole("button", { name: "Revocar Conector catálogo", exact: true })
+      .click();
+    await page.getByText("Clave revocada.", { exact: true }).waitFor();
+    assert.ok(apiKeys[0].revokedAt);
+    console.log(
+      "PASS: API Key creada con permisos de lectura, secreto efímero y revocación funcional",
+    );
+
+    await page
+      .getByRole("textbox", { name: "Nombre del webhook", exact: true })
+      .fill("Conector ventas");
+    await page
+      .getByRole("textbox", { name: "URL HTTPS de destino", exact: true })
+      .fill("https://hooks.example.test/sales");
+    await page
+      .getByRole("button", { name: "Crear webhook", exact: true })
+      .click();
+    await page.getByLabel("Secreto de firma", { exact: true }).waitFor();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page
+      .getByRole("button", {
+        name: "Ver entregas de Conector ventas",
+        exact: true,
+      })
+      .click();
+    await page.getByText(/delivery-a.*Entregado.*HTTP 200/).waitFor();
+    assert.equal(
+      await page.getByLabel("Secreto de firma", { exact: true }).count(),
+      0,
+    );
+    await page
+      .getByRole("button", { name: "Desactivar Conector ventas", exact: true })
+      .click();
+    await page.getByText("Webhook desactivado.", { exact: true }).waitFor();
+    assert.equal(webhooks[0].isActive, false);
+    console.log(
+      "PASS: webhook creado, secreto efímero, historial de entrega y desactivación",
+    );
+
+    failDigest = true;
+    await page
+      .getByRole("checkbox", { name: "Recibir resumen diario", exact: true })
+      .click();
+    await page
+      .getByText("No se pudo guardar el resumen diario", { exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("checkbox", { name: "Recibir resumen diario", exact: true })
+        .isChecked(),
+      false,
+    );
+    await page
+      .getByRole("checkbox", { name: "Recibir resumen diario", exact: true })
+      .check();
+    await page
+      .getByText("Preferencia de resumen guardada.", { exact: true })
+      .waitFor();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page
+      .getByRole("checkbox", { name: "Recibir resumen diario", exact: true })
+      .waitFor();
+    await page.waitForFunction(
+      () =>
+        document.querySelector('input[aria-label="Recibir resumen diario"]')
+          ?.checked === true,
+    );
+    assert.equal(
+      await page
+        .getByRole("checkbox", { name: "Recibir resumen diario", exact: true })
+        .isChecked(),
+      true,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Activar en este navegador", exact: true })
+        .isDisabled(),
+      true,
+    );
+    console.log(
+      "PASS: resumen diario opt-in persistente y Web Push indisponible sin claves de servidor",
+    );
+
+    await page
+      .getByRole("combobox", { name: "Idioma", exact: true })
+      .selectOption("en");
+    await page
+      .getByRole("button", { name: "Guardar idioma", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Settings", exact: true })
+      .waitFor();
+    await page
+      .getByRole("heading", { name: "Read-only API keys", exact: true })
+      .waitFor();
+    await page
+      .getByRole("checkbox", { name: "Receive daily summary", exact: true })
+      .waitFor();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    assert.equal(await page.locator("html").getAttribute("lang"), "en");
+    assert.equal(channels.locale, "en");
+    await page.getByRole("link", { name: /Company details/ }).click();
+    await page
+      .getByRole("heading", { name: "Company details", exact: true })
+      .waitFor();
+    assert.equal(
+      await page.getByRole("textbox", { name: /Company name/ }).inputValue(),
+      company.name,
+    );
+    await page.goto(`${origin}/settings`);
+    await page
+      .getByRole("combobox", { name: "Language", exact: true })
+      .selectOption("es");
+    await page
+      .getByRole("button", { name: "Save language", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Configuración", exact: true })
+      .waitFor();
+    console.log(
+      "PASS: Configuración y canales traducidos, idioma persistente y SSR coherente",
     );
 
     const start = requests.length;

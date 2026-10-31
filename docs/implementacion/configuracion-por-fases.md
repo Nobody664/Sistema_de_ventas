@@ -7,7 +7,7 @@ Base inicial: `main` en `bb2d7f3`. Las cuatro subramas se crearon localmente des
 | 1    | `refix/configuracion-fase-1-base`           | Tema, empresa, región, errores y actualización de preferencias usando infraestructura existente | Implementada y verificada localmente |
 | 2    | `refix/configuracion-fase-2-notificaciones` | Preferencias operativas por usuario/empresa sobre notificaciones persistidas y SSE              | Implementada y verificada localmente |
 | 3    | `refix/configuracion-fase-3-datos`          | Exportación de los datos propios del negocio con formato versionado                             | Implementada y verificada localmente |
-| 4    | `refix/configuracion-fase-4-integraciones`  | API Keys, webhooks salientes, Web Push, resumen por correo y traducciones                       | Preparada; implementación pendiente  |
+| 4    | `refix/configuracion-fase-4-integraciones`  | API Keys, webhooks salientes, Web Push, resumen por correo y traducciones de Configuración       | Implementada y verificada localmente |
 
 ## Forma de integración
 

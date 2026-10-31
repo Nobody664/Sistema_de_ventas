@@ -7,8 +7,11 @@ import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
 import { downloadBusinessData } from "@/lib/business-data-export";
 import { sessionScope } from "@/lib/session-contract";
 import { useAuthStore } from "@/stores/auth.store";
+import { useLocale, useT } from "./locale-provider";
 
 export function DataExportSettings() {
+  const t = useT();
+  const locale = useLocale();
   const ready = useSessionQueryReady();
   const user = useAuthStore((state) => state.user);
   const scope = sessionScope(user);
@@ -39,6 +42,8 @@ export function DataExportSettings() {
           if (sessionScope(useAuthStore.getState().user) === scope)
             setStatus(message);
         },
+        undefined,
+        locale,
       );
       if (sessionScope(useAuthStore.getState().user) !== scope) return;
       const url = URL.createObjectURL(blob);
@@ -68,17 +73,17 @@ export function DataExportSettings() {
     <section className="rounded-2xl border bg-card p-6">
       <h2 className="flex items-center gap-3 font-display text-xl font-semibold">
         <Download className="size-5 text-orange-500" />
-        Datos del negocio
+        {t("Datos del negocio")}
       </h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Descarga tus datos operativos en JSON versionado: catálogo, ventas,
-        compras, inventario, contactos y finanzas. No incluye credenciales ni
-        datos de plataforma.
+        {t(
+          "Descarga tus datos operativos en JSON versionado: catálogo, ventas, compras, inventario, contactos y finanzas. No incluye credenciales ni datos de plataforma.",
+        )}
       </p>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Se lee por lotes y puede reflejar cambios durante la descarga. No es un
-        respaldo físico ni un archivo de restauración automática. Límite de
-        descarga: 100 MiB.
+        {t(
+          "Se lee por lotes y puede reflejar cambios durante la descarga. No es un respaldo físico ni un archivo de restauración automática. Límite de descarga: 100 MiB.",
+        )}
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <Button
@@ -86,17 +91,17 @@ export function DataExportSettings() {
           onClick={() => void download()}
           className="rounded-xl"
         >
-          {pending ? "Exportando..." : "Descargar datos JSON"}
+          {t(pending ? "Exportando..." : "Descargar datos JSON")}
         </Button>
         {pending && (
           <Button variant="outline" onClick={() => active.current?.abort()}>
-            Cancelar exportación
+            {t("Cancelar exportación")}
           </Button>
         )}
       </div>
       {status && (
         <p role="status" className="mt-3 text-sm text-muted-foreground">
-          {status}
+          {t(status)}
         </p>
       )}
       {error && (

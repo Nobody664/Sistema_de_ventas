@@ -10,6 +10,7 @@ import { useUiStore } from "@/store/ui-store";
 import type { CompanySettingsData } from "@/types/company-settings";
 import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
 import { useAuthStore } from "@/stores/auth.store";
+import { useT } from "./locale-provider";
 
 const ZONES = [
   { value: "America/Lima", label: "Lima · Perú" },
@@ -18,6 +19,7 @@ const ZONES = [
 ];
 
 export function RegionalSettings() {
+  const t = useT();
   const sessionReady = useSessionQueryReady();
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.isLoading);
@@ -49,7 +51,7 @@ export function RegionalSettings() {
           cache.invalidateQueries({ queryKey: [key] }),
         ),
       );
-      toast("Zona horaria del negocio actualizada", "success");
+      toast(t("Zona horaria del negocio actualizada"), "success");
       router.refresh();
     },
   });
@@ -58,25 +60,25 @@ export function RegionalSettings() {
       <div className="flex items-center gap-3">
         <Globe className="size-5 text-orange-500" />
         <h2 className="font-display text-xl font-semibold">
-          Región del negocio
+          {t("Región del negocio")}
         </h2>
       </div>
       {!user && !authLoading && (
         <div role="alert" className="mt-4 rounded-xl border p-3 text-sm">
-          No se pudo verificar la sesión para editar el negocio.{" "}
+          {t("No se pudo verificar la sesión para editar el negocio.")}{" "}
           <button
             onClick={() => void useAuthStore.getState().checkAuth()}
             className="underline"
           >
-            Reintentar sesión
+            {t("Reintentar sesión")}
           </button>
         </div>
       )}
       {company.error ? (
         <div role="alert" className="mt-4 text-sm">
-          No se pudo cargar la configuración.{" "}
+          {t("No se pudo cargar la configuración.")}{" "}
           <button onClick={() => void company.refetch()} className="underline">
-            Reintentar
+            {t("Reintentar")}
           </button>
         </div>
       ) : company.data?.id ? (
@@ -88,9 +90,9 @@ export function RegionalSettings() {
           className="mt-5 space-y-4"
         >
           <label className="block text-sm font-medium">
-            Zona horaria
+            {t("Zona horaria")}
             <select
-              aria-label="Zona horaria"
+              aria-label={t("Zona horaria")}
               value={zone}
               disabled={!ready || !sessionReady || save.isPending}
               onChange={(event) => setDraftZone(event.target.value)}
@@ -105,31 +107,28 @@ export function RegionalSettings() {
               )}
               {ZONES.map((entry) => (
                 <option key={entry.value} value={entry.value}>
-                  {entry.label}
+                  {t(entry.label)}
                 </option>
               ))}
             </select>
           </label>
           <p className="text-xs leading-5 text-muted-foreground">
-            Define cómo se muestran las fechas y dónde comienzan los días del
-            dashboard y los reportes. Los movimientos mantienen su instante
-            original en UTC.
+            {t(
+              "Define cómo se muestran las fechas y dónde comienzan los días del dashboard y los reportes. Los movimientos mantienen su instante original en UTC.",
+            )}
           </p>
-          <div className="grid grid-cols-2 gap-4 rounded-xl bg-muted/40 p-4 text-sm">
+          <div className="rounded-xl bg-muted/40 p-4 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">
-                Moneda del negocio
+                {t("Moneda del negocio")}
               </p>
               <p className="mt-1 font-medium">{company.data.currency}</p>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Idioma</p>
-              <p className="mt-1 font-medium">Español</p>
-            </div>
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
-            La moneda se conserva para no reinterpretar importes históricos. La
-            interfaz disponible actualmente es español.
+            {t(
+              "La moneda se conserva para no reinterpretar importes históricos.",
+            )}
           </p>
           {save.error && (
             <p role="alert" className="text-sm text-red-600">
@@ -148,12 +147,12 @@ export function RegionalSettings() {
             className="rounded-xl"
           >
             {save.isPending && <Loader2 className="size-4 animate-spin" />}
-            Guardar región
+            {t("Guardar región")}
           </Button>
         </form>
       ) : (
         <p role="status" className="mt-4 text-sm text-muted-foreground">
-          Cargando configuración regional...
+          {t("Cargando configuración regional...")}
         </p>
       )}
     </section>

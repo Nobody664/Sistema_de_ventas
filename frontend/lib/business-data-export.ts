@@ -1,4 +1,5 @@
 import { apiFetch, ApiError } from "@/lib/api";
+import type { Locale } from "@/lib/i18n";
 
 export interface ExportManifest {
   format: "ventas.business-data";
@@ -37,6 +38,7 @@ export async function downloadBusinessData(
   signal: AbortSignal,
   onProgress: (message: string) => void,
   request: typeof apiFetch = apiFetch,
+  locale: Locale = "es",
 ): Promise<Blob> {
   const manifest = await request<ExportManifest>("/data-export/manifest", {
     signal,
@@ -71,7 +73,9 @@ export async function downloadBusinessData(
     do {
       signal.throwIfAborted();
       onProgress(
-        `Colección ${index + 1} de ${manifest.collections.length}: ${collection}. ${count} registros descargados.`,
+        locale === "en"
+          ? `Collection ${index + 1} of ${manifest.collections.length}: ${collection}. ${count} records downloaded.`
+          : `Colección ${index + 1} de ${manifest.collections.length}: ${collection}. ${count} registros descargados.`,
       );
       const query = new URLSearchParams({ startedAt: manifest.startedAt });
       if (after) query.set("after", after);
@@ -90,7 +94,9 @@ export async function downloadBusinessData(
             )
               throw error;
             onProgress(
-              "Límite temporal de solicitudes. La descarga continuará en un minuto; puedes cancelarla.",
+              locale === "en"
+                ? "Temporary request limit. The download will continue in one minute; you can cancel it."
+                : "Límite temporal de solicitudes. La descarga continuará en un minuto; puedes cancelarla.",
             );
             await waitForQuota(signal);
           }

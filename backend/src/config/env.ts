@@ -46,6 +46,11 @@ export const envSchema = z.object({
   SMTP_FROM_EMAIL: z.string().email().optional(),
   SMTP_FROM_NAME: z.string().optional(),
   SMTP_ENABLED: booleanFromEnv(false),
+  INTEGRATION_ENCRYPTION_KEY: z.string().optional(),
+  WEBHOOK_ALLOWED_HOSTS: z.string().default(""),
+  VAPID_SUBJECT: z.string().optional(),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
   CORS_ORIGINS: z
     .string()

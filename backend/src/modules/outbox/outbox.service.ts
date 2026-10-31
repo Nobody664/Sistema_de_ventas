@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, Logger } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  Optional,
+} from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { randomUUID } from "crypto";
 import { OutboxEvent } from "@prisma/client";
@@ -10,6 +15,8 @@ import { EmailService, EmailTemplate } from "@/modules/email/email.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { CacheService } from "@/cache/cache.service";
+import { WebhooksService } from "@/modules/integrations/webhooks.service";
+import { DigestService } from "@/modules/notification-channels/digest.service";
 
 const owners = {
   where: {
@@ -31,6 +38,8 @@ export class OutboxService {
     private readonly capabilities: PlanCapabilitiesService,
     private readonly cache: CacheService,
     private readonly config: ConfigService,
+    @Optional() private readonly webhooks?: WebhooksService,
+    @Optional() private readonly digest?: DigestService,
   ) {}
 
   @Cron("*/10 * * * * *", { waitForCompletion: true })
@@ -160,6 +169,11 @@ export class OutboxService {
   ): Promise<void> {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(event.aggregateId))
       throw new Error("INVALID_EFFECT");
+    if (event.kind === "DAILY_DIGEST") {
+      if (!this.digest) throw new Error("DIGEST_UNAVAILABLE");
+      await this.digest.deliver(event.aggregateId);
+      return;
+    }
     if (event.kind === "SALE_COMMITTED") {
       const sale = await this.prisma.sale.findUnique({
         where: { id: event.aggregateId },
@@ -219,6 +233,11 @@ export class OutboxService {
           baseUnit: item.product.baseUnit,
           force: true,
         });
+      await this.webhooks?.enqueueSale(
+        event.id,
+        event.aggregateId,
+        sale.companyId,
+      );
       return;
     }
     if (event.kind === "PAYMENT_CONFIRMED") {

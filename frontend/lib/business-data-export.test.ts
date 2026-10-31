@@ -31,11 +31,13 @@ test("assembles paginated collections and exact decimal strings into a versioned
       nextCursor: "p1",
     };
   }) as typeof apiFetch;
+  const messages: string[] = [];
   const result = await downloadBusinessData(
     "company-a",
     new AbortController().signal,
-    () => {},
+    (message) => messages.push(message),
     request,
+    "en",
   );
   const data = JSON.parse(await result.text());
   assert.equal(data.manifest.version, 1);
@@ -44,6 +46,7 @@ test("assembles paginated collections and exact decimal strings into a versioned
   assert.deepEqual(data.collections.sales, []);
   assert.equal(data.recordCount, 2);
   assert.equal(requests.length, 4);
+  assert.ok(messages.every((message) => message.startsWith("Collection ")));
 });
 
 test("rejects cross-company manifests and repeated cursors rather than downloading partial or wrong data", async () => {

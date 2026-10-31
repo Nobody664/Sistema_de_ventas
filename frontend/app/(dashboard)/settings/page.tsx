@@ -9,8 +9,14 @@ import { ProfileCompletenessIndicator } from "@/components/settings/profile-comp
 import { DangerZone } from "@/components/settings/danger-zone";
 import { NotificationSettings } from "@/components/settings/notification-settings";
 import { DataExportSettings } from "@/components/settings/data-export-settings";
+import { ApiKeySettings } from "@/components/settings/api-key-settings";
+import { WebhookSettings } from "@/components/settings/webhook-settings";
+import { NotificationChannelsSettings } from "@/components/settings/notification-channels-settings";
+import { LanguageSettings } from "@/components/settings/language-settings";
+import { serverTranslator } from "@/lib/locale-server";
 
 export default async function SettingsPage() {
+  const t = await serverTranslator();
   const session = await getServerSession();
   if (!session?.user) redirect("/sign-in");
   const platform = isPlatformUser(session.user.roles);
@@ -78,15 +84,17 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <header>
         <p className="text-xs font-semibold uppercase tracking-widest text-orange-600">
-          {platform ? "Plataforma" : "Tu espacio de trabajo"}
+          {t(platform ? "Plataforma" : "Tu espacio de trabajo")}
         </p>
         <h1 className="mt-2 font-display text-3xl font-semibold">
-          Configuración
+          {t("Configuración")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {owner
-            ? "Personaliza tu experiencia y administra los datos de tu negocio."
-            : "Personaliza la apariencia y accede a las opciones de tu cuenta."}
+          {t(
+            owner
+              ? "Personaliza tu experiencia y administra los datos de tu negocio."
+              : "Personaliza la apariencia y accede a las opciones de tu cuenta.",
+          )}
         </p>
       </header>
       {owner && <ProfileCompletenessIndicator />}
@@ -94,8 +102,9 @@ export default async function SettingsPage() {
         <ThemeSettings />
         {owner && <RegionalSettings />}
       </div>
+      <LanguageSettings owner={owner} />
       <section
-        aria-label="Opciones de cuenta"
+        aria-label={t("Opciones de cuenta")}
         className="grid gap-4 sm:grid-cols-2"
       >
         {links.map(({ href, title, description, icon: Icon }) => (
@@ -106,9 +115,9 @@ export default async function SettingsPage() {
           >
             <Icon className="mt-1 size-5 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
-              <h2 className="font-semibold">{title}</h2>
+              <h2 className="font-semibold">{t(title)}</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {description}
+                {t(description)}
               </p>
             </div>
             <ArrowUpRight className="size-4 shrink-0 text-muted-foreground group-hover:text-orange-500" />
@@ -116,7 +125,10 @@ export default async function SettingsPage() {
         ))}
       </section>
       {owner && <NotificationSettings />}
+      {owner && <NotificationChannelsSettings />}
       {owner && <DataExportSettings />}
+      {owner && <ApiKeySettings />}
+      {owner && <WebhookSettings />}
       {owner && <DangerZone canCancelSubscription />}
     </div>
   );

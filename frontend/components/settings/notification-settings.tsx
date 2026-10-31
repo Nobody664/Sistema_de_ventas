@@ -7,8 +7,10 @@ import { apiFetch } from "@/lib/api";
 import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
 import { Button } from "@/components/ui/button";
 import type { NotificationPreferences } from "@/types/notification-preferences";
+import { useT } from "./locale-provider";
 
 export function NotificationSettings() {
+  const t = useT();
   const ready = useSessionQueryReady();
   const cache = useQueryClient();
   const prefs = useQuery({
@@ -34,18 +36,18 @@ export function NotificationSettings() {
     <section className="rounded-2xl border bg-card p-6">
       <h2 className="flex items-center gap-3 font-display text-xl font-semibold">
         <Bell className="size-5 text-orange-500" />
-        Alertas dentro del sistema
+        {t("Alertas dentro del sistema")}
       </h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Preferencias de tu usuario en este negocio. Se aplican a las nuevas
-        alertas; el historial se conserva. Los avisos de cuenta y pagos siguen
-        activos.
+        {t(
+          "Preferencias de tu usuario en este negocio. Se aplican a las nuevas alertas; el historial se conserva. Los avisos de cuenta y pagos siguen activos.",
+        )}
       </p>
       {prefs.error ? (
         <p role="alert" className="mt-4 text-sm">
-          No se pudieron cargar las preferencias.{" "}
+          {t("No se pudieron cargar las preferencias.")}{" "}
           <button onClick={() => void prefs.refetch()} className="underline">
-            Reintentar
+            {t("Reintentar")}
           </button>
         </p>
       ) : values && typeof values.salesEnabled === "boolean" ? (
@@ -67,7 +69,7 @@ export function NotificationSettings() {
               key={key}
               className="flex items-center justify-between gap-4 rounded-xl border p-3 text-sm"
             >
-              <span>{label}</span>
+              <span>{t(label)}</span>
               <input
                 type="checkbox"
                 checked={values[key]}
@@ -83,7 +85,7 @@ export function NotificationSettings() {
             disabled={!draft || save.isPending}
             className="rounded-xl"
           >
-            Guardar alertas
+            {t("Guardar alertas")}
           </Button>
           {save.error && (
             <p role="alert" className="text-sm text-red-600">
@@ -92,13 +94,13 @@ export function NotificationSettings() {
           )}
           {save.isSuccess && !draft && (
             <p role="status" className="text-sm text-emerald-600">
-              Preferencias guardadas.
+              {t("Preferencias guardadas.")}
             </p>
           )}
         </form>
       ) : (
         <p role="status" className="mt-4 text-sm text-muted-foreground">
-          Cargando preferencias...
+          {t("Cargando preferencias...")}
         </p>
       )}
     </section>

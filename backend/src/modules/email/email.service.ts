@@ -14,6 +14,7 @@ export interface SendEmailJob {
 }
 
 export enum EmailTemplate {
+  DAILY_SUMMARY = "daily-summary",
   SUBSCRIPTION_PENDING = "subscription-pending",
   SUBSCRIPTION_APPROVED = "subscription-approved",
   SUBSCRIPTION_REJECTED = "subscription-rejected",
@@ -30,6 +31,10 @@ const EMAIL_TEMPLATES: Record<
   EmailTemplate,
   { subject: string; text: string }
 > = {
+  [EmailTemplate.DAILY_SUMMARY]: {
+    subject: "Resumen diario del negocio",
+    text: "{{message}}",
+  },
   [EmailTemplate.SUBSCRIPTION_PENDING]: {
     subject: "Tu cuenta está pendiente de aprobación",
     text: `

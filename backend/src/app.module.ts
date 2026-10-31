@@ -55,6 +55,7 @@ import { SupportModule } from "./modules/support/support.module";
 import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 import { CreditNotesModule } from "./modules/credit-notes/credit-notes.module";
 import { DataExportModule } from "./modules/data-export/data-export.module";
+import { IntegrationsModule } from "./modules/integrations/integrations.module";
 
 @Module({
   imports: [
@@ -150,6 +151,7 @@ import { DataExportModule } from "./modules/data-export/data-export.module";
     SuppliersModule,
     CreditNotesModule,
     DataExportModule,
+    IntegrationsModule,
   ],
   providers: [
     {
