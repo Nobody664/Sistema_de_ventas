@@ -6,6 +6,9 @@ import {
   IsString,
   Min,
   ValidateNested,
+  IsDateString,
+  MaxLength,
+  MinLength,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -28,8 +31,14 @@ export class StockEntryItemDto {
   unitCost!: number;
 
   @IsOptional()
-  @IsString()
+  @IsDateString({ strict: true })
   expiryDate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  batchNumber?: string;
 }
 
 export class CreateStockEntryDto {

@@ -36,6 +36,10 @@ import {
 } from "@/components/ui/barcode-scanner";
 import { barcodeFormatLabel, parseBarcode } from "@/lib/barcode";
 import type { ParsedBarcode } from "@/lib/barcode";
+import type {
+  BarcodeResolution,
+  BarcodeSuggestion,
+} from "@/lib/barcode/resolution";
 import { useUiStore } from "@/store/ui-store";
 import { useAuthStore } from "@/stores/auth.store";
 import {
@@ -95,6 +99,14 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [imageLoading, setImageLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [barcodeValue, setBarcodeValue] = useState(product?.barcode || "");
+  const [nameValue, setNameValue] = useState(product?.name ?? "");
+  const [initialBatchNumber, setInitialBatchNumber] = useState("");
+  const [descriptionValue, setDescriptionValue] = useState(
+    product?.description ?? "",
+  );
+  const [externalSuggestion, setExternalSuggestion] =
+    useState<BarcodeSuggestion | null>(null);
+  const [enrichmentMessage, setEnrichmentMessage] = useState("");
   const [scanResult, setScanResult] = useState<{
     parsed: ParsedBarcode;
     format: string;
@@ -166,16 +178,30 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
       const requestId = ++lookupRequestRef.current;
       setBarcodeLookup({ status: "loading" });
+      setExternalSuggestion(null);
+      setEnrichmentMessage("");
 
       try {
-        const found = await apiFetch<Product | null>(
-          `/products/barcode/${encodeURIComponent(trimmed)}`,
+        const resolution = await apiFetch<BarcodeResolution>(
+          `/products/barcode/${encodeURIComponent(trimmed)}/resolve`,
           { token: getAccessToken() },
         );
         if (requestId !== lookupRequestRef.current) return;
+        const found = resolution.product;
 
         if (!found) {
           setBarcodeLookup({ status: "missing" });
+          setExternalSuggestion(resolution.suggestion);
+          setEnrichmentMessage(
+            resolution.suggestion
+              ? `Sugerencia de Open Food Facts${resolution.source === "cache" ? " (caché)" : ""}. Revisa los datos antes de aplicarlos.`
+              : resolution.reason === "disabled"
+                ? "La consulta externa no está habilitada para este negocio."
+                : resolution.reason === "unavailable" ||
+                    resolution.reason === "busy"
+                  ? "La fuente externa no está disponible ahora. Puedes completar los datos manualmente."
+                  : "No se encontraron datos externos para este código.",
+          );
           return;
         }
         if (found.id === product?.id) {
@@ -202,17 +228,22 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
       const stored = parsed.gtinOriginal ?? parsed.raw;
       setBarcodeValue(stored.length <= 50 ? stored : (parsed.gtin ?? stored));
-      if (parsed.expiry) setExpiryDateValue(parsed.expiry);
+      if (parsed.expiry)
+        setExpiryDateValue((current) => current || parsed.expiry!);
+      if (parsed.lot && !product)
+        setInitialBatchNumber((current) => current || parsed.lot!);
 
       void checkBarcode(stored || parsed.raw);
     },
-    [checkBarcode],
+    [checkBarcode, product],
   );
 
   const dismissScan = () => {
     lookupRequestRef.current++;
     setScanResult(null);
     setBarcodeLookup({ status: "idle" });
+    setExternalSuggestion(null);
+    setEnrichmentMessage("");
   };
 
   const handleBarcodeChange = (value: string) => {
@@ -220,6 +251,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     setBarcodeValue(value);
     setScanResult(null);
     setBarcodeLookup({ status: "idle" });
+    setExternalSuggestion(null);
+    setEnrichmentMessage("");
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -301,7 +334,20 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           ...baseData,
           stockQuantity:
             parseFloat(formData.get("stockQuantity") as string) || 0,
+          initialBatchNumber: initialBatchNumber.trim() || undefined,
         };
+
+    if (
+      !isEdit &&
+      initialBatchNumber.trim() &&
+      Number(formData.get("stockQuantity")) <= 0
+    ) {
+      setError(
+        "Indica stock inicial mayor a cero para registrar el lote detectado.",
+      );
+      setLoading(false);
+      return;
+    }
 
     const result = (
       isEdit ? updateProductSchema : createProductSchema
@@ -594,7 +640,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       <Input
                         id="name"
                         name="name"
-                        defaultValue={product?.name || ""}
+                        value={nameValue}
+                        onChange={(event) => setNameValue(event.target.value)}
                         placeholder="Ej: Café Premium Supremo"
                         className={`h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all ${fieldErrors.name ? "border-red-500" : ""}`}
                       />
@@ -664,7 +711,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       </div>
                     </div>
 
-                    {scanResult && (
+                    {(scanResult || barcodeLookup.status !== "idle") && (
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 space-y-3">
@@ -674,59 +721,60 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                                 Datos detectados
                               </span>
                               <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
-                                {barcodeFormatLabel(scanResult.format)}
+                                {barcodeFormatLabel(scanResult?.format)}
                               </span>
                             </div>
 
                             <div className="flex flex-wrap gap-2 text-xs">
-                              {scanResult.parsed.gtin && (
+                              {scanResult?.parsed.gtin && (
                                 <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
                                   GTIN {scanResult.parsed.gtin}
                                 </span>
                               )}
-                              {scanResult.parsed.lot && (
+                              {scanResult?.parsed.lot && (
                                 <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
                                   Lote {scanResult.parsed.lot}
                                 </span>
                               )}
-                              {scanResult.parsed.expiry && (
+                              {scanResult?.parsed.expiry && (
                                 <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
                                   Vence {scanResult.parsed.expiry}
                                 </span>
                               )}
-                              {scanResult.parsed.productionDate && (
+                              {scanResult?.parsed.productionDate && (
                                 <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
                                   Producido {scanResult.parsed.productionDate}
                                 </span>
                               )}
-                              {scanResult.parsed.netWeightKg != null && (
+                              {scanResult?.parsed.netWeightKg != null && (
                                 <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
                                   Peso {scanResult.parsed.netWeightKg} kg
                                 </span>
                               )}
-                              {scanResult.parsed.price != null && (
+                              {scanResult?.parsed.price != null && (
                                 <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-700 ring-1 ring-slate-200">
                                   Precio {scanResult.parsed.price}
                                 </span>
                               )}
                             </div>
 
-                            {scanResult.parsed.lot && (
+                            {scanResult?.parsed.lot && (
                               <p className="text-xs text-slate-500">
-                                El lote se muestra para que lo uses al registrar
-                                la entrada de inventario.
+                                {isEdit
+                                  ? "Registra este lote desde Inventario → Entradas."
+                                  : "El lote se guardará con el stock inicial. Indica la cantidad recibida."}
                               </p>
                             )}
-                            {scanResult.parsed.expiry && (
+                            {scanResult?.parsed.expiry && (
                               <p className="text-xs text-emerald-700">
                                 La fecha de vencimiento se completó desde el
                                 código.
                               </p>
                             )}
 
-                            {scanResult.parsed.warnings.length > 0 && (
+                            {(scanResult?.parsed.warnings.length ?? 0) > 0 && (
                               <ul className="space-y-1 text-xs text-amber-700">
-                                {scanResult.parsed.warnings.map((warning) => (
+                                {scanResult?.parsed.warnings.map((warning) => (
                                   <li key={warning} className="flex gap-1.5">
                                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                     {warning}
@@ -773,6 +821,60 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                               <p className="text-xs text-slate-500">
                                 No se pudo verificar si el código ya existe.
                               </p>
+                            )}
+                            {enrichmentMessage && (
+                              <p className="text-xs text-slate-600">
+                                {enrichmentMessage}
+                              </p>
+                            )}
+                            {externalSuggestion && (
+                              <div className="space-y-2 rounded-lg bg-white p-3 text-sm text-slate-700 ring-1 ring-emerald-200">
+                                <p className="font-semibold">
+                                  {externalSuggestion.name}
+                                </p>
+                                <p className="text-xs">
+                                  {externalSuggestion.description}
+                                </p>
+                                <a
+                                  href="https://world.openfoodfacts.org"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs underline"
+                                >
+                                  Fuente: Open Food Facts (ODbL)
+                                </a>
+                                <div className="flex gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (!nameValue.trim())
+                                        setNameValue(externalSuggestion.name);
+                                      if (
+                                        !descriptionValue.trim() &&
+                                        externalSuggestion.description
+                                      )
+                                        setDescriptionValue(
+                                          externalSuggestion.description,
+                                        );
+                                      setExternalSuggestion(null);
+                                      setEnrichmentMessage(
+                                        "Sugerencia aplicada únicamente a los campos vacíos.",
+                                      );
+                                    }}
+                                  >
+                                    Aplicar a campos vacíos
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setExternalSuggestion(null)}
+                                  >
+                                    Descartar
+                                  </Button>
+                                </div>
+                              </div>
                             )}
                           </div>
                           <button
@@ -822,7 +924,10 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       <textarea
                         id="description"
                         name="description"
-                        defaultValue={product?.description || ""}
+                        value={descriptionValue}
+                        onChange={(event) =>
+                          setDescriptionValue(event.target.value)
+                        }
                         placeholder="Descripción detallada del producto..."
                         rows={3}
                         className={`w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none ${fieldErrors.description ? "border-red-500" : ""}`}
@@ -965,6 +1070,24 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                         </p>
                       )}
                     </div>
+                    {!isEdit && (
+                      <div className="space-y-2">
+                        <Label htmlFor="initialBatchNumber">Lote inicial</Label>
+                        <Input
+                          id="initialBatchNumber"
+                          value={initialBatchNumber}
+                          maxLength={80}
+                          onChange={(event) =>
+                            setInitialBatchNumber(event.target.value)
+                          }
+                          placeholder="Ej: LOT-2026-01"
+                        />
+                        <p className="text-xs text-slate-400">
+                          Requiere stock inicial mayor a cero. La fecha y el
+                          perfil de vigencia se aplicarán al lote.
+                        </p>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label
                         htmlFor="expiryDate"

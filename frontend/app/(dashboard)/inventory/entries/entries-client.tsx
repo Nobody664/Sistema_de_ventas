@@ -11,6 +11,12 @@ import { Label } from "@/components/ui/label";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { useUiStore } from "@/store/ui-store";
 import {
+  StockEntryScanner,
+  type ScannedStockProduct,
+} from "@/components/products/stock-entry-scanner";
+import type { ParsedBarcode } from "@/lib/barcode";
+import { expiryProfileOption } from "@/lib/product-expiry";
+import {
   ArrowLeft,
   ClipboardList,
   FileText,
@@ -61,6 +67,7 @@ interface EntryItem {
   unitCost: string;
   unitCostPresentation: string;
   expiryDate: string | null;
+  batchNumber?: string | null;
   product: {
     id: string;
     name: string;
@@ -90,6 +97,7 @@ interface Line {
   quantity: string;
   unitCost: string;
   expiryDate: string;
+  batchNumber: string;
   filter: string;
 }
 
@@ -110,6 +118,7 @@ const emptyLine = (): Line => ({
   quantity: "",
   unitCost: "",
   expiryDate: "",
+  batchNumber: "",
   filter: "",
 });
 
@@ -179,6 +188,8 @@ export function StockEntriesClient({
             ...line,
             productId: value,
             presentationId: "",
+            batchNumber: "",
+            expiryDate: "",
             unitCost:
               line.unitCost ||
               (referenceCost && referenceCost > 0 ? String(referenceCost) : ""),
@@ -217,6 +228,7 @@ export function StockEntriesClient({
         quantity: Number(line.quantity),
         unitCost: Number(line.unitCost) || 0,
         expiryDate: line.expiryDate ? `${line.expiryDate}T00:00:00` : undefined,
+        batchNumber: line.batchNumber.trim() || undefined,
       }));
 
     if (items.length === 0) {
@@ -509,6 +521,49 @@ export function StockEntriesClient({
                   key={line.key}
                   className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4"
                 >
+                  <StockEntryScanner
+                    key={`${line.productId}:${line.presentationId}`}
+                    onResolved={(
+                      found: ScannedStockProduct,
+                      parsed: ParsedBarcode,
+                    ) => {
+                      if (!productMap.has(found.id)) {
+                        addToast(
+                          "Este producto no está disponible en la lista de entradas.",
+                          "error",
+                        );
+                        return;
+                      }
+                      if (line.productId && line.productId !== found.id) {
+                        addToast(
+                          "El código pertenece a otro producto. Agrega una nueva línea.",
+                          "error",
+                        );
+                        return;
+                      }
+                      setLines((current) =>
+                        current.map((row) =>
+                          row.key === line.key
+                            ? {
+                                ...row,
+                                productId: found.id,
+                                presentationId:
+                                  found.matchedPresentation?.id ??
+                                  row.presentationId,
+                                batchNumber:
+                                  row.batchNumber || parsed.lot || "",
+                                expiryDate:
+                                  row.expiryDate || parsed.expiry || "",
+                              }
+                            : row,
+                        ),
+                      );
+                      addToast(
+                        "Código reconocido: revisa los datos y la cantidad recibida.",
+                        "success",
+                      );
+                    }}
+                  />
                   <div className="grid grid-cols-2 gap-3 lg:grid-cols-12">
                     <div className="col-span-2 space-y-1 lg:col-span-3">
                       <Label className="text-xs font-semibold text-slate-500">
@@ -655,6 +710,35 @@ export function StockEntriesClient({
                           updateLine(line.key, "expiryDate", event.target.value)
                         }
                         className="h-11 rounded-lg border-slate-200 bg-white"
+                      />
+                      {product && (
+                        <p className="text-xs text-slate-500">
+                          {
+                            expiryProfileOption(
+                              product.expiryProfile ?? "STANDARD",
+                            ).label
+                          }
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="col-span-2 space-y-1 lg:col-span-3">
+                      <Label className="text-xs font-semibold text-slate-500">
+                        Lote
+                      </Label>
+                      <Input
+                        aria-label="Lote de la entrada"
+                        value={line.batchNumber}
+                        maxLength={80}
+                        onChange={(event) =>
+                          updateLine(
+                            line.key,
+                            "batchNumber",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="Ej: LOT-2026-01"
+                        className="h-11 bg-white"
                       />
                     </div>
 
@@ -812,6 +896,11 @@ export function StockEntriesClient({
                       )}
                       <td className="py-3 text-sm font-medium">
                         {item.product.name}
+                        {item.batchNumber && (
+                          <span className="block text-xs font-normal text-emerald-700">
+                            Lote: {item.batchNumber}
+                          </span>
+                        )}
                         {item.presentation ? (
                           <span className="ml-1 text-xs text-slate-400">
                             ({item.presentation.name})

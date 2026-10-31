@@ -1,6 +1,7 @@
 import { serverApiFetch } from "@/lib/server-api";
 import { getServerSession } from "@/lib/session";
 import { StockEntriesClient } from "./entries-client";
+import type { ProductExpiryProfile } from "@/types/generated";
 
 export interface StockEntryProductOption {
   id: string;
@@ -11,6 +12,7 @@ export interface StockEntryProductOption {
   stockQuantity: string;
   costPrice: string | null;
   salePrice: string;
+  expiryProfile?: ProductExpiryProfile;
   presentations: Array<{
     id: string;
     name: string;

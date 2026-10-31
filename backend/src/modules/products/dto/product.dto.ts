@@ -138,6 +138,11 @@ export class UpdatePresentationDto {
 }
 
 export class CreateProductDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  initialBatchNumber?: string;
+
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(ProductExpiryProfile)
   expiryProfile?: ProductExpiryProfile;

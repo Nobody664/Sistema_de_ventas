@@ -10,6 +10,7 @@ import {
   UseGuards,
   Query,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { Roles } from "@/common/decorators/roles.decorator";
 import { Permissions } from "@/common/decorators/permissions.decorator";
 import { Permission } from "@/common/constants/permissions.constant";
@@ -33,12 +34,17 @@ import {
   ExportProductsQueryDto,
 } from "./dto/product.dto";
 import { ProductsService } from "./products.service";
+import { BarcodeResolutionService } from "./barcode-resolution.service";
+import { BarcodeCodeDto } from "./dto/barcode.dto";
 
 @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
 @RequireModule("products")
 @Controller("products")
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly barcodeResolution: BarcodeResolutionService,
+  ) {}
 
   @Roles("COMPANY_ADMIN", "MANAGER")
   @Permissions(Permission.PRODUCT_EXPORT)
@@ -137,6 +143,17 @@ export class ProductsController {
     @Param("code") code: string,
   ) {
     return this.productsService.findByBarcode(request.tenantId, code);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_LIST)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Get("barcode/:code/resolve")
+  resolveBarcode(
+    @Req() request: { tenantId: string },
+    @Param() params: BarcodeCodeDto,
+  ) {
+    return this.barcodeResolution.resolve(request.tenantId, params.code);
   }
 
   @Roles("COMPANY_ADMIN", "MANAGER", "CASHIER")

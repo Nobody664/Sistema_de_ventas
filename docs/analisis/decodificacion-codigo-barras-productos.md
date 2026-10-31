@@ -2,13 +2,13 @@
 
 Fecha: 2026-10-31
 Alcance: módulo de productos (`/products/new`, `/products/[id]/edit`) y lector por cámara.
-Estado: Fases 1 y 2 implementadas; Fase 3 pendiente de validación.
+Estado: Fases 1 a 4 implementadas y verificadas localmente. Activación externa configurable; migración pendiente de despliegue.
 
 ---
 
 ## 1. Resumen ejecutivo
 
-Hoy el escáner **sí decodifica** las barras y espacios del símbolo: `BarcodeDetector` devuelve el texto que contiene el código. Lo que falta es **interpretar ese texto** y **enriquecerlo** con datos de producto.
+Al inicio de este análisis el escáner **sí decodificaba** las barras y espacios del símbolo: `BarcodeDetector` devolvía el texto del código. Las Fases 1 a 4 ahora interpretan ese texto, ofrecen sugerencias externas y registran lote/vencimiento con el inventario. Las secciones de estado inicial y arquitectura propuesta conservan el contexto del análisis; el alcance implementado se detalla en la sección 11.1.
 
 La conclusión técnica más importante es esta:
 
@@ -612,13 +612,52 @@ TTL sugerido: 30–90 días para datos positivos, 7 días para negativos (no enc
 | --- | --- | --- | --- | --- |
 | 1 | Parser puro (GTIN, GS1, fechas, Digital Link) + pruebas + `format` en el escáner | Ninguna | 2–3 días | Implementada |
 | 2 | Precarga en el formulario: GTIN, lote, vencimiento, aviso de duplicado; búsqueda normalizada en catálogo | Fase 1 | 1–2 días | Implementada |
-| 3 | Enriquecimiento externo en backend con caché, timeout y feature flag | Fase 2 | 3–5 días | Pendiente |
-| 4 | Uso de lote/vencimiento GS1 en `ProductBatch` y perfiles de vigencia | Fase 2 | 2–3 días | Pendiente |
+| 3 | Enriquecimiento externo en backend con caché, timeout y feature flag | Fase 2 | 3–5 días | Implementada |
+| 4 | Uso de lote/vencimiento GS1 en `ProductBatch` y perfiles de vigencia | Fase 2 | 2–3 días | Implementada |
 | 5 | Polyfill cross-browser, galería y flash | Fase 1 | 2–4 días | Pendiente |
 
 Implementación actual: parser y pruebas en `frontend/lib/barcode/`; búsqueda normalizada en `backend/src/common/helpers/barcode.helper.ts` y `backend/src/modules/products/products.service.ts`; panel de datos detectados y aviso de duplicado en `frontend/components/products/product-form.tsx`; `format` del detector en `frontend/components/ui/barcode-scanner.tsx`.
 
-Recomendación: implementar **Fases 1 y 2 primero**. Aportan valor inmediato (validación, no duplicados, lote/fecha cuando existan) sin depender de terceros. La Fase 3 solo si se valida cobertura real con una muestra de códigos del negocio.
+Recomendación de activación: medir la cobertura real con una muestra de códigos del negocio antes de habilitar la consulta externa para todas las empresas.
+
+### 11.1 Implementación de Fases 3 y 4
+
+**Resolución externa**
+
+- Endpoint `GET /products/barcode/:code/resolve`, con autenticación, tenant, módulo de productos, permisos y límite de 20 consultas por minuto. El catálogo propio siempre tiene prioridad.
+- `backend/src/modules/products/barcode-resolution.service.ts` consulta únicamente el endpoint HTTPS fijo de Open Food Facts. No sigue redirecciones ni consulta URLs de un QR.
+- Timeout de 2 segundos incluyendo lectura de respuesta; tamaño máximo 64 KiB; deduplicación de consultas concurrentes del mismo GTIN y separación mínima de 1,1 segundos entre solicitudes externas por proceso.
+- Caché pública persistente `BarcodeLookupCache`, por GTIN-14/proveedor: 24 horas para resultados con nombre y 1 hora para ausencia de datos. Las entradas vencidas se reemplazan al consultar. Los errores de transporte/formato no se guardan como resultados negativos.
+- Solo se aceptan nombre, marca y contenido neto. Se conservan procedencia y atribución Open Food Facts/ODbL en la interfaz. Precios, existencias, lote, vencimiento y perfil de vigencia nunca vienen del proveedor.
+- La interfaz muestra la sugerencia y permite aplicarla únicamente a nombre/descripción vacíos o descartarla. Si falla el proveedor, se conserva el flujo manual.
+- No se importan imágenes externas en esta fase. La cobertura en productos específicos del negocio aún debe medirse; las verificaciones automáticas usan respuestas de proveedor controladas.
+
+Activación en el backend:
+
+```dotenv
+BARCODE_ENRICHMENT_ENABLED=true
+BARCODE_ENRICHMENT_COMPANY_IDS=""
+BARCODE_ENRICHMENT_PLAN_CODES=""
+```
+
+El valor por defecto es `false`. Con ambos filtros vacíos se habilita a todas las empresas. Si se especifica alguno, basta que coincida la empresa **o** el código de su plan. No se requieren claves para Open Food Facts. Los filtros se gestionan mediante variables de entorno; no se añadió un interruptor en Configuración.
+
+**Lotes y stock**
+
+- El alta de producto acepta `initialBatchNumber`. Con stock inicial positivo y lote o fecha, crea `ProductBatch` mediante una escritura anidada atómica: cantidad recibida/disponible en unidades base, costo de compra y fecha. No incrementa nuevamente el stock. Sin cantidad positiva no crea lotes; un lote explícito sin stock se rechaza.
+- En Inventario → Entradas cada línea permite escanear por cámara o pegar el contenido GS1. Busca el producto/presentación dentro del tenant, completa lote/fecha vacíos y deja la cantidad y el costo bajo control del usuario. Un código de otro producto no sustituye una línea ya seleccionada.
+- `StockEntryItem` conserva `batchNumber` y `batchId`. La entrada, sus lotes, el incremento de stock, movimientos, kardex y auditoría se ejecutan en la misma transacción. Cada línea con lote o fecha crea su propio lote, sin fusionar recepciones diferentes.
+- Si solo existe fecha, se genera `ENTRY-<entrada>-<línea>`; para el stock inicial con fecha y sin lote, `INITIAL-<SKU>`. Estos identificadores son internos, no un lote inferido del fabricante.
+- La cantidad de cajas se convierte a unidades base y el costo a costo por unidad base antes de crear el lote. El enlace al detalle de entrada se realiza por ID explícito, independientemente del orden devuelto por la base de datos.
+- El perfil de vigencia pertenece al producto y se utiliza en las alertas de todos sus lotes. No se deduce del GTIN ni de Open Food Facts. La recepción conserva el perfil seleccionado previamente.
+- El historial de entradas muestra el lote. Las recepciones sin lote ni fecha conservan el flujo existente. El escaneo GS1 se incorporó al alta de productos y a las entradas directas, no al POS ni al diálogo de recepción de órdenes de compra.
+
+**Migración y verificación**
+
+- Migración: `backend/prisma/migrations/20261110000000_barcode_enrichment_batches/migration.sql` (caché externa, campos e índice de lote y relación de `StockEntryItem` con `ProductBatch`). No modifica datos históricos ni requiere rellenarlos.
+- Antes de ejecutar esta versión contra una base existente: generar el cliente Prisma y aplicar las migraciones con `npx prisma migrate deploy`. El arranque de Render ya utiliza ese comando. La migración no se ha aplicado durante esta implementación.
+- Verificación local: `prisma generate`, `prisma validate`, lint y build de backend/frontend; 406 pruebas backend, 84 frontend; suite `test:browser:purchases` ampliada para sugerencias externas y entradas GS1, incluyendo preservación de datos y pantalla móvil.
+- Casos nuevos backend: caché positiva/negativa/vencida, fallo/timeout/tamaño de proveedor, ausencia de consulta cuando está deshabilitado, catálogo prioritario, deduplicación concurrente, lote inicial, dos lotes por producto, conversión de presentaciones, enlace por ID y rollback de recepción si falla el lote.
 
 ---
 

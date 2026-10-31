@@ -55,9 +55,28 @@ const supplier = {
 };
 const orders = new Map();
 const createdPayloads = [];
+const stockEntryPayloads = [];
 let stockWrites = 0;
 
 function handle(resource, params, method, body) {
+  if (resource === "/products") return products;
+  if (resource === "/products/barcode/7701234567897/resolve")
+    return {
+      source: "openfoodfacts",
+      product: null,
+      suggestion: {
+        name: "Café del catálogo externo",
+        brand: "Marca externa",
+        quantity: "200 g",
+        description: "Marca externa · 200 g",
+      },
+    };
+  if (resource === "/products/barcode/09520123456788") return products[0];
+  if (resource === "/products/barcode/07701234567897") return products[1];
+  if (resource === "/stock-entries" && method === "POST") {
+    stockEntryPayloads.push(body);
+    return { id: "entry-gs1", items: body.items };
+  }
   if (resource === "/notifications/preferences")
     return { salesEnabled: true, stockEnabled: true, soundEnabled: false };
   if (resource === "/companies/current")
@@ -353,6 +372,93 @@ async function main() {
     await page.getByText("Harina a granel", { exact: true }).waitFor();
     console.log(
       "PASS: categoría con productos posteriores a los primeros 50, búsqueda combinada, vacío real y paginación",
+    );
+
+    await page.goto(`${origin}/products/new`);
+    await page
+      .getByLabel("Nombre del producto", { exact: false })
+      .fill("Nombre propio del negocio");
+    await page
+      .getByLabel("Código de barras", { exact: true })
+      .fill("7701234567897");
+    await page.getByLabel("Nombre del producto", { exact: false }).click();
+    await page
+      .getByText("Café del catálogo externo", { exact: true })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Aplicar a campos vacíos", exact: true })
+      .click();
+    assert.equal(
+      await page.locator("#name").inputValue(),
+      "Nombre propio del negocio",
+    );
+    assert.equal(
+      await page.locator("#description").inputValue(),
+      "Marca externa · 200 g",
+    );
+    assert.equal(await page.locator("#salePrice").inputValue(), "0");
+    console.log(
+      "PASS: sugerencias externas muestran procedencia y respetan nombre y precios del negocio",
+    );
+
+    await page.goto(`${origin}/inventory/entries`);
+    await page
+      .getByLabel("Código GS1 de la entrada", { exact: true })
+      .fill("(01)09520123456788(17)271231(10)GS1-LOT-1");
+    await page
+      .getByRole("button", { name: "Leer código", exact: true })
+      .click();
+    await page.waitForFunction(
+      () =>
+        document.querySelector('input[aria-label="Lote de la entrada"]')
+          ?.value === "GS1-LOT-1",
+    );
+    assert.equal(
+      await page.locator('input[type="date"]').last().inputValue(),
+      "2027-12-31",
+    );
+    await page.getByRole("spinbutton").nth(0).fill("3");
+    await page.getByRole("spinbutton").nth(1).fill("2");
+    await page
+      .getByLabel("Código GS1 de la entrada", { exact: true })
+      .fill("(01)07701234567897(17)281231(10)OTRO-LOTE");
+    await page
+      .getByRole("button", { name: "Leer código", exact: true })
+      .click();
+    await page
+      .getByText(
+        "El código pertenece a otro producto. Agrega una nueva línea.",
+        { exact: true },
+      )
+      .waitFor();
+    assert.equal(
+      await page.getByLabel("Lote de la entrada", { exact: true }).inputValue(),
+      "GS1-LOT-1",
+    );
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+      true,
+    );
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page
+      .getByRole("button", { name: "Registrar entrada", exact: true })
+      .click();
+    await page
+      .getByText("Entrada de stock registrada correctamente", { exact: true })
+      .waitFor();
+    assert.equal(stockEntryPayloads.length, 1);
+    assert.equal(stockEntryPayloads[0].items[0].batchNumber, "GS1-LOT-1");
+    assert.equal(
+      stockEntryPayloads[0].items[0].expiryDate,
+      "2027-12-31T00:00:00",
+    );
+    assert.equal(stockEntryPayloads[0].items[0].quantity, 3);
+    assert.equal(stockEntryPayloads[0].items[0].productId, "product-0");
+    console.log(
+      "PASS: entrada GS1 conserva lote/fecha, rechaza otro producto y envía cantidad una sola vez",
     );
 
     await page.goto(`${origin}/purchase-orders`);

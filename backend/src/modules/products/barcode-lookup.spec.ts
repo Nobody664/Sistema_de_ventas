@@ -83,6 +83,7 @@ describe("ProductsService barcode lookup", () => {
         companyId: "company-a",
         isActive: true,
         barcode: { in: ["7701234567897", "07701234567897"] },
+        product: { companyId: "company-a", deletedAt: null },
       },
       include: { product: { include: { category: true } } },
     });

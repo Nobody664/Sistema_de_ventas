@@ -106,6 +106,7 @@ export class ProductsService {
         companyId,
         isActive: true,
         barcode: { in: candidates },
+        product: { companyId, deletedAt: null },
       },
       include: { product: { include: { category: true } } },
     });
@@ -314,6 +315,20 @@ export class ProductsService {
       input.expiryWarningDays,
     );
     const expiryDate = optionalDate(input.expiryDate);
+    const initialBatchNumber = input.initialBatchNumber?.trim();
+    if (
+      input.initialBatchNumber !== undefined &&
+      (!initialBatchNumber || initialBatchNumber.length > 80)
+    ) {
+      throw new BadRequestException(
+        "El lote inicial debe tener entre 1 y 80 caracteres.",
+      );
+    }
+    if (initialBatchNumber && (input.stockQuantity ?? 0) <= 0) {
+      throw new BadRequestException(
+        "Indica stock inicial para registrar un lote.",
+      );
+    }
     await this.limitService.validateLimit(companyId, "products");
 
     let categoryCode: string | undefined;
@@ -342,6 +357,20 @@ export class ProductsService {
         minStock: input.minStock ?? 5,
         expiryDate: expiryDate ?? null,
         ...expiryPolicy,
+        ...((input.stockQuantity ?? 0) > 0 && (initialBatchNumber || expiryDate)
+          ? {
+              batches: {
+                create: {
+                  companyId,
+                  batchNumber: initialBatchNumber ?? `INITIAL-${sku}`,
+                  quantityReceived: input.stockQuantity!,
+                  quantityAvailable: input.stockQuantity!,
+                  purchasePrice: input.costPrice,
+                  expirationDate: expiryDate,
+                },
+              },
+            }
+          : {}),
         ...(input.presentations && input.presentations.length > 0
           ? {
               presentations: {

@@ -4,11 +4,13 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma, AuditAction } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { KardexService } from "@/modules/kardex/kardex.service";
 import { AuditService } from "@/common/services/audit.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
+import { optionalDate } from "@/common/helpers/patch-contract.helper";
 import {
   CreatePurchaseReceiptDto,
   CreateStockEntryDto,
@@ -132,7 +134,12 @@ export class StockEntriesService {
       new Set(input.items.map((item) => item.productId)),
     );
     const products = await tx.product.findMany({
-      where: { companyId, id: { in: productIds } },
+      where: {
+        companyId,
+        id: { in: productIds },
+        deletedAt: null,
+        isActive: true,
+      },
       include: { presentations: true },
     });
     const productMap = new Map(
@@ -166,8 +173,18 @@ export class StockEntriesService {
       const baseUnitCost = baseQuantity.isZero()
         ? unitCost
         : totalCost.div(baseQuantity);
+      const batchNumber = item.batchNumber?.trim();
+      if (
+        item.batchNumber !== undefined &&
+        (!batchNumber || batchNumber.length > 80)
+      ) {
+        throw new BadRequestException(
+          "El lote debe contener entre 1 y 80 caracteres.",
+        );
+      }
 
       return {
+        id: randomUUID(),
         productId: item.productId,
         productName: product.name,
         presentationId: presentation?.id,
@@ -176,7 +193,8 @@ export class StockEntriesService {
         unitCost,
         totalCost,
         baseUnitCost,
-        expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+        expiryDate: optionalDate(item.expiryDate) ?? null,
+        batchNumber: batchNumber ?? null,
       };
     });
 
@@ -191,19 +209,41 @@ export class StockEntriesService {
         entryDate: input.entryDate ? new Date(input.entryDate) : undefined,
         items: {
           create: resolvedItems.map((item) => ({
+            id: item.id,
             productId: item.productId,
             presentationId: item.presentationId,
             quantity: item.quantity,
             baseQuantity: item.baseQuantity,
             unitCost: item.unitCost,
             expiryDate: item.expiryDate,
+            batchNumber: item.batchNumber,
           })),
         },
       },
       include: { items: true },
     });
 
-    for (const item of resolvedItems) {
+    for (const [index, item] of resolvedItems.entries()) {
+      if (item.batchNumber || item.expiryDate) {
+        const batchNumber =
+          item.batchNumber ?? `ENTRY-${entry.id}-${index + 1}`;
+        const batch = await tx.productBatch.create({
+          data: {
+            companyId,
+            productId: item.productId,
+            branchId: input.branchId,
+            batchNumber,
+            quantityReceived: item.baseQuantity,
+            quantityAvailable: item.baseQuantity,
+            purchasePrice: item.baseUnitCost,
+            expirationDate: item.expiryDate,
+          },
+        });
+        await tx.stockEntryItem.update({
+          where: { id: item.id },
+          data: { batchId: batch.id, batchNumber },
+        });
+      }
       const update = await tx.product.updateMany({
         where: { id: item.productId, companyId },
         data: {
@@ -264,6 +304,8 @@ export class StockEntriesService {
             quantity: item.quantity.toString(),
             baseQuantity: item.baseQuantity.toString(),
             unitCost: item.unitCost.toString(),
+            batchNumber: item.batchNumber,
+            expiryDate: item.expiryDate?.toISOString() ?? null,
           })),
         },
       },
