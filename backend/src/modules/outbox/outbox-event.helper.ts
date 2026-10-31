@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 export type DomainEffect =
+  | "PRODUCT_EXPIRY_ALERT"
   | "PAYMENT_CONFIRMED"
   | "UPGRADE_REVIEWED"
   | "CHECKOUT_SUBMITTED"

@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { ExpiryAlertsService } from "@/modules/expiry-alerts/expiry-alerts.service";
 import {
   NotificationsService,
   NotificationType,
@@ -15,8 +16,6 @@ const UNIT_LABELS: Record<string, string> = {
 };
 
 const LOW_STOCK_RECIPIENT_ROLES = ["COMPANY_ADMIN", "MANAGER"] as const;
-
-const EXPIRY_WINDOW_DAYS = 3;
 
 export interface LowStockCheckInput {
   companyId: string;
@@ -46,6 +45,7 @@ export class LowStockService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    @Optional() private readonly expiryAlerts?: ExpiryAlertsService,
   ) {}
 
   async notifyIfLowStock(input: LowStockCheckInput): Promise<boolean> {
@@ -74,79 +74,9 @@ export class LowStockService {
   }
 
   async notifyIfExpiring(input: ExpiringCheckInput): Promise<boolean> {
-    const expiryDate = this.parseDate(input.expiryDate);
-    if (!expiryDate) {
-      return false;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(expiryDate);
-    target.setHours(0, 0, 0, 0);
-
-    const daysLeft = Math.round(
-      (target.getTime() - today.getTime()) / 86_400_000,
-    );
-    if (daysLeft < 0 || daysLeft > EXPIRY_WINDOW_DAYS) {
-      return false;
-    }
-
-    return this.dispatchExpiring(input, expiryDate, daysLeft);
-  }
-
-  @Cron(CronExpression.EVERY_DAY_AT_7AM)
-  async scanExpiringProducts(): Promise<number> {
-    try {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(start.getTime());
-      end.setDate(end.getDate() + EXPIRY_WINDOW_DAYS);
-      end.setHours(23, 59, 59, 999);
-
-      const products = await this.prisma.product.findMany({
-        where: {
-          isActive: true,
-          deletedAt: null,
-          expiryDate: { gte: start, lte: end },
-        },
-        select: {
-          id: true,
-          companyId: true,
-          name: true,
-          expiryDate: true,
-          baseUnit: true,
-        },
-      });
-
-      let notified = 0;
-      for (const product of products) {
-        const sent = await this.notifyIfExpiring({
-          companyId: product.companyId,
-          productId: product.id,
-          productName: product.name,
-          expiryDate: product.expiryDate,
-          baseUnit: product.baseUnit,
-          force: true,
-        });
-        if (sent) {
-          notified++;
-        }
-      }
-
-      if (notified > 0) {
-        this.logger.log(
-          `Alertas de productos por vencer enviadas: ${notified}`,
-        );
-      }
-
-      return notified;
-    } catch (error) {
-      this.logger.error(
-        "Error al escanear productos por vencer",
-        error as Error,
-      );
-      return 0;
-    }
+    return this.expiryAlerts
+      ? this.expiryAlerts.checkProduct(input.companyId, input.productId)
+      : false;
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_7AM)
@@ -243,46 +173,6 @@ export class LowStockService {
     return true;
   }
 
-  private async dispatchExpiring(
-    input: ExpiringCheckInput,
-    expiryDate: Date,
-    daysLeft: number,
-  ): Promise<boolean> {
-    const recipients = await this.getRecipients(input.companyId);
-    if (recipients.length === 0) {
-      return false;
-    }
-
-    const pending = await this.getPendingRecipients(
-      input.companyId,
-      input.productId,
-      recipients,
-      NotificationType.PRODUCT_EXPIRING_SOON,
-    );
-    const targets = recipients.filter((userId) => !pending.has(userId));
-    if (targets.length === 0) {
-      return false;
-    }
-
-    const title = "Producto por vencer";
-    const message = this.buildExpiringMessage(input.productName, daysLeft);
-
-    await this.createForUsers(
-      targets,
-      input.companyId,
-      NotificationType.PRODUCT_EXPIRING_SOON,
-      title,
-      message,
-      {
-        productId: input.productId,
-        expiryDate: expiryDate.toISOString(),
-        daysLeft,
-      },
-    );
-
-    return true;
-  }
-
   private async createForUsers(
     userIds: string[],
     companyId: string,
@@ -299,6 +189,10 @@ export class LowStockService {
         title,
         message,
         data,
+        actionUrl:
+          typeof data.productId === "string"
+            ? `/products/${encodeURIComponent(data.productId)}`
+            : undefined,
       });
     }
   }
@@ -354,32 +248,6 @@ export class LowStockService {
       `El producto "${name}" tiene stock bajo: ` +
       `${this.format(currentStock)} ${unit} disponible(s) (mínimo ${this.format(minStock)} ${unit}).`
     );
-  }
-
-  private buildExpiringMessage(
-    productName: string | null | undefined,
-    daysLeft: number,
-  ): string {
-    const name = productName?.trim() || "Producto";
-
-    if (daysLeft <= 0) {
-      return `El producto "${name}" vence hoy.`;
-    }
-
-    if (daysLeft === 1) {
-      return `El producto "${name}" vence mañana.`;
-    }
-
-    return `El producto "${name}" vence en ${daysLeft} días. Revisa su fecha de vencimiento.`;
-  }
-
-  private parseDate(value: Date | string | null | undefined): Date | null {
-    if (!value) {
-      return null;
-    }
-
-    const date = value instanceof Date ? value : new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
   }
 
   private toNumber(

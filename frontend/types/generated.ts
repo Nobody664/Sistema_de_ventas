@@ -41,6 +41,7 @@ export type PaymentProvider =
   | "PLIN";
 export type GlobalRole = "SUPER_ADMIN" | "ADMIN" | "USER";
 export type MembershipRole = "COMPANY_ADMIN" | "MANAGER" | "CASHIER" | "VIEWER";
+export type ProductExpiryProfile = "PERISHABLE" | "STANDARD" | "LONG_LIFE" | "CUSTOM";
 export type SaleStatus = "COMPLETED" | "CANCELLED" | "REFUNDED" | "PENDING";
 export type NotificationType =
   | "SALE"
@@ -64,6 +65,7 @@ export type NotificationType =
   | "NEW_SALE"
   | "LOW_STOCK"
   | "PRODUCT_EXPIRING_SOON"
+  | "PRODUCT_EXPIRED"
   | "NEW_CUSTOMER"
   | "SALE_COMPLETED"
   | "SALE_RETURNED"
@@ -256,6 +258,8 @@ export interface Product {
   imageUrl?: string | null;
   barcode?: string | null;
   expiryDate?: Date | null;
+  expiryProfile: ProductExpiryProfile;
+  expiryWarningDays?: number | null;
   createdAt: Date;
   updatedAt: Date;
   company?: Company;

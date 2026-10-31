@@ -48,6 +48,7 @@ export enum NotificationType {
   NEW_SALE = "NEW_SALE",
   LOW_STOCK = "LOW_STOCK",
   PRODUCT_EXPIRING_SOON = "PRODUCT_EXPIRING_SOON",
+  PRODUCT_EXPIRED = "PRODUCT_EXPIRED",
   NEW_CUSTOMER = "NEW_CUSTOMER",
   SALE_COMPLETED = "SALE_COMPLETED",
   SALE_RETURNED = "SALE_RETURNED",
@@ -204,9 +205,11 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       "SALE_COMPLETED",
       "SALE_RETURNED",
     ].includes(input.type);
-    const stockEvent = ["LOW_STOCK", "PRODUCT_EXPIRING_SOON"].includes(
-      input.type,
-    );
+    const stockEvent = [
+      "LOW_STOCK",
+      "PRODUCT_EXPIRING_SOON",
+      "PRODUCT_EXPIRED",
+    ].includes(input.type);
     if (
       input.companyId &&
       input.scope !== "PLATFORM" &&

@@ -17,6 +17,7 @@ import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabi
 import { CacheService } from "@/cache/cache.service";
 import { WebhooksService } from "@/modules/integrations/webhooks.service";
 import { DigestService } from "@/modules/notification-channels/digest.service";
+import { ExpiryAlertsService } from "@/modules/expiry-alerts/expiry-alerts.service";
 
 const owners = {
   where: {
@@ -40,6 +41,7 @@ export class OutboxService {
     private readonly config: ConfigService,
     @Optional() private readonly webhooks?: WebhooksService,
     @Optional() private readonly digest?: DigestService,
+    @Optional() private readonly expiryAlerts?: ExpiryAlertsService,
   ) {}
 
   @Cron("*/10 * * * * *", { waitForCompletion: true })
@@ -169,6 +171,11 @@ export class OutboxService {
   ): Promise<void> {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(event.aggregateId))
       throw new Error("INVALID_EFFECT");
+    if (event.kind === "PRODUCT_EXPIRY_ALERT") {
+      if (!this.expiryAlerts) throw new Error("EXPIRY_ALERTS_UNAVAILABLE");
+      await this.expiryAlerts.deliver(event.aggregateId);
+      return;
+    }
     if (event.kind === "DAILY_DIGEST") {
       if (!this.digest) throw new Error("DIGEST_UNAVAILABLE");
       await this.digest.deliver(event.aggregateId);

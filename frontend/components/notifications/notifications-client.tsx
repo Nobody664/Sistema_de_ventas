@@ -24,6 +24,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import type { Notification } from "@/types/api";
+import { notificationDestination } from "@/lib/notification-destination";
 
 interface NotificationsClientProps {
   initialNotifications: Notification[];
@@ -131,6 +132,12 @@ const typeConfig: Record<
     bg: "bg-orange-50",
     border: "border-orange-200",
   },
+  PRODUCT_EXPIRED: {
+    icon: AlertTriangle,
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+  },
   NEW_CUSTOMER: {
     icon: Building2,
     color: "text-blue-600",
@@ -155,30 +162,6 @@ const typeConfig: Record<
     bg: "bg-blue-50",
     border: "border-blue-200",
   },
-};
-
-const notificationRoutes: Record<string, string> = {
-  NEW_COMPANY_REGISTRATION: "/platform/companies",
-  CHECKOUT_REQUEST_PENDING: "/platform/upgrade-requests",
-  PLAN_UPGRADE_REQUEST: "/platform/upgrade-requests",
-  PAYMENT_PROOF_PENDING: "/platform/upgrade-requests",
-  PAYMENT_RECEIVED: "/subscription",
-  PAYMENT_FAILED: "/subscription",
-  ACCOUNT_APPROVED: "/dashboard",
-  ACCOUNT_ACTIVATED: "/dashboard",
-  SUBSCRIPTION_APPROVED: "/subscription",
-  SUBSCRIPTION_REJECTED: "/subscription",
-  SUBSCRIPTION_PENDING: "/subscription",
-  TRIAL_EXPIRING_SOON: "/subscription",
-  TRIAL_EXPIRED: "/subscription",
-  PLAN_UPGRADED: "/subscription",
-  NEW_SALE: "/sales",
-  LOW_STOCK: "/products",
-  PRODUCT_EXPIRING_SOON: "/products",
-  NEW_CUSTOMER: "/customers",
-  SALE_COMPLETED: "/sales",
-  SALE_RETURNED: "/sales",
-  GENERAL: "/notifications",
 };
 
 export function NotificationsClient({
@@ -381,13 +364,7 @@ export function NotificationsClient({
               const config =
                 typeConfig[notification.type] || typeConfig.GENERAL;
               const Icon = config.icon;
-              const route =
-                (notification.actionUrl?.startsWith("/") &&
-                !notification.actionUrl.startsWith("//")
-                  ? notification.actionUrl
-                  : null) ??
-                notificationRoutes[notification.type] ??
-                (isAdmin ? "/platform/notifications" : "/notifications");
+              const route = notificationDestination(notification, isAdmin);
 
               const handleClick = () => {
                 if (!notification.isRead) {

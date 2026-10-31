@@ -5,6 +5,7 @@ import { NotificationsModule } from "@/modules/notifications/notifications.modul
 import { LowStockModule } from "@/modules/low-stock/low-stock.module";
 import { IntegrationsModule } from "@/modules/integrations/integrations.module";
 import { NotificationChannelsModule } from "@/modules/notification-channels/notification-channels.module";
+import { ExpiryAlertsModule } from "@/modules/expiry-alerts/expiry-alerts.module";
 import { OutboxService } from "./outbox.service";
 import { OutboxController } from "./outbox.controller";
 
@@ -16,6 +17,7 @@ import { OutboxController } from "./outbox.controller";
     LowStockModule,
     IntegrationsModule,
     NotificationChannelsModule,
+    ExpiryAlertsModule,
   ],
   controllers: [OutboxController],
   providers: [OutboxService],
