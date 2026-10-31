@@ -75,6 +75,7 @@ describe("LowStockService.notifyIfLowStock", () => {
     assert.match(createCalls[0].title, /stock bajo/i);
     assert.match(createCalls[0].message, /Arroz/);
     assert.equal(createCalls[0].data.productId, "p1");
+    assert.equal(createCalls[0].actionUrl, "/products/p1");
     assert.deepEqual(membershipFindMany[0].where.role.in.slice().sort(), [
       "COMPANY_ADMIN",
       "MANAGER",

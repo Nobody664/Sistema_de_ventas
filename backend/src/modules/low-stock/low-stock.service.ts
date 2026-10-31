@@ -299,6 +299,10 @@ export class LowStockService {
         title,
         message,
         data,
+        actionUrl:
+          typeof data.productId === "string"
+            ? `/products/${encodeURIComponent(data.productId)}`
+            : undefined,
       });
     }
   }
