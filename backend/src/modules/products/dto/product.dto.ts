@@ -17,7 +17,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { UnitOfMeasure } from "@prisma/client";
+import { UnitOfMeasure, ProductExpiryProfile } from "@prisma/client";
 import { ALLOWED_IMAGE_MIME_PATTERN } from "@/common/helpers/image.helper";
 
 export class QueryProductDto {
@@ -138,6 +138,15 @@ export class UpdatePresentationDto {
 }
 
 export class CreateProductDto {
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsEnum(ProductExpiryProfile)
+  expiryProfile?: ProductExpiryProfile;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  expiryWarningDays?: number | null;
   @IsOptional()
   @IsString()
   categoryId?: string;
@@ -200,6 +209,15 @@ export class CreateProductDto {
 }
 
 export class UpdateProductDto {
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsEnum(ProductExpiryProfile)
+  expiryProfile?: ProductExpiryProfile;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  expiryWarningDays?: number | null;
   @IsOptional()
   @IsString()
   categoryId?: string | null;

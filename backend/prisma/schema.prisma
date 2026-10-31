@@ -109,6 +109,7 @@ enum CreditNoteStatus {
 }
 
 enum NotificationType {
+  PRODUCT_EXPIRED
   SALE
   PAYMENT
   INVENTORY
@@ -135,6 +136,13 @@ enum NotificationType {
   SALE_RETURNED
   PRODUCT_EXPIRING_SOON
   GENERAL
+}
+
+enum ProductExpiryProfile {
+  PERISHABLE
+  STANDARD
+  LONG_LIFE
+  CUSTOM
 }
 
 enum FinanceDirection {
@@ -255,6 +263,7 @@ model User {
 }
 
 model Company {
+  productExpiryAlerts ProductExpiryAlert[]
   id                  String              @id @default(cuid())
   name                String
   slug                String              @unique
@@ -382,6 +391,7 @@ model Subscription {
 }
 
 model Membership {
+  productExpiryAlerts ProductExpiryAlert[]
   locale String @default("es")
   dailyDigestEnabled Boolean @default(false) @map("daily_digest_enabled")
   digestDeliveries DigestDelivery[]
@@ -549,6 +559,9 @@ model Category {
 }
 
 model Product {
+  expiryProfile ProductExpiryProfile @default(STANDARD) @map("expiry_profile")
+  expiryWarningDays Int? @map("expiry_warning_days")
+  expiryAlerts ProductExpiryAlert[]
   distributorStocks DistributorStock[]
   id                String             @id @default(cuid())
   companyId         String             @map("company_id")
@@ -586,11 +599,30 @@ model Product {
   creditNoteItems    CreditNoteItem[]
 
   @@unique([companyId, sku])
+  @@index([expiryProfile, expiryDate])
   @@unique([companyId, barcode])
   @@index([companyId, isActive])
   @@index([companyId, deletedAt])
   @@index([categoryId])
   @@map("products")
+}
+
+model ProductExpiryAlert {
+  id String @id
+  eventKey String @unique @map("event_key")
+  companyId String @map("company_id")
+  productId String @map("product_id")
+  membershipId String @map("membership_id")
+  batchId String? @map("batch_id")
+  expiryDateKey String @map("expiry_date_key")
+  stage String
+  reminderKey String @map("reminder_key")
+  createdAt DateTime @default(now()) @map("created_at")
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  @@index([companyId, productId, createdAt])
+  @@map("product_expiry_alerts")
 }
 
 model Sale {

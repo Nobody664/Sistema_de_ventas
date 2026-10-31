@@ -5,7 +5,7 @@ Base: `main` en `095cb99`. Trabajo en subramas encadenadas, con commits en espa�
 | Etapa | Subrama | Entregable | Estado |
 | --- | --- | --- | --- |
 | 1 | `mejora/notificaciones-fase-1-enlaces` | Abrir el producto exacto desde alertas de stock y vencimiento, incluidas las históricas | Implementada y verificada |
-| 2 | `mejora/notificaciones-fase-2-vigencias` | Política de vida útil, revisión periódica y avisos durables de próximos vencimientos y vencidos | Pendiente |
+| 2 | `mejora/notificaciones-fase-2-vigencias` | Política de vida útil, revisión periódica y avisos durables de próximos vencimientos y vencidos | Implementada y verificada |
 | 3 | `mejora/notificaciones-fase-3-interfaz` | Configuración en producto, visibilidad de vigencias/lotes y pruebas funcionales | Pendiente |
 
 ## Diagnóstico inicial
@@ -37,3 +37,12 @@ Base: `main` en `095cb99`. Trabajo en subramas encadenadas, con commits en espa�
 ### Resultado de etapa 1
 
 Las nuevas alertas incluyen `actionUrl` al producto. La interfaz resuelve también el `data.productId` de avisos históricos que apuntaban al listado, conserva los destinos de otros tipos de notificación y rechaza escapes externos. Lint correcto en ambos proyectos, diez pruebas backend dirigidas y 61 pruebas frontend aprobadas.
+
+### Resultado de etapa 2
+
+- `Product.expiryProfile` (`PERISHABLE`, `STANDARD`, `LONG_LIFE`, `CUSTOM`) y `expiryWarningDays`, validados en crear/editar; `ProductExpiryAlert` y `PRODUCT_EXPIRED` nuevos.
+- Revisión al iniciar y cada cinco minutos, sin solapamiento, para productos sin lotes y para cada lote con existencias. Usa la fecha de etiqueta como día calendario en la zona de la empresa, incluye vencidos y avisa tres meses calendario antes en larga duración.
+- Recepciones durables por destinatario, producto/lote, fecha, etapa y período de recordatorio, con evento outbox en la misma transacción. Se revalidan empresa, membresía, preferencia, existencias y vigencia al entregar; la alerta pasa a vencido aunque exista un aviso previo sin leer.
+- Entradas y edición de lotes disparan una comprobación inmediata; el ciclo periódico cubre el resto.
+- Endpoint `GET /products/:id/expiry` para inspección de fuentes y etapas, con alcance por empresa.
+- Verificación: lint y build backend, 389 pruebas backend (incluye historial SQL con la nueva migración), lint y 61 pruebas frontend. Migración escrita y cliente Prisma local; no aplicada a la base compartida.

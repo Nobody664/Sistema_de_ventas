@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { ExpiryAlertsService } from "@/modules/expiry-alerts/expiry-alerts.service";
 import { Prisma, PrismaClient } from "@prisma/client";
 import {
   CreateProductBatchDto,
@@ -19,7 +20,10 @@ type PrismaTx = Omit<
 
 @Injectable()
 export class ProductBatchesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly expiryAlerts: ExpiryAlertsService,
+  ) {}
 
   async create(companyId: string, dto: CreateProductBatchDto) {
     const product = await this.prisma.product.findFirst({
@@ -34,7 +38,7 @@ export class ProductBatchesService {
       if (!branch) throw new NotFoundException("Branch not found");
     }
 
-    return this.prisma.productBatch.create({
+    const batch = await this.prisma.productBatch.create({
       data: {
         companyId,
         productId: dto.productId,
@@ -48,6 +52,10 @@ export class ProductBatchesService {
           : null,
       },
     });
+    await this.expiryAlerts
+      .checkProduct(companyId, batch.productId)
+      .catch(() => undefined);
+    return batch;
   }
 
   async findAll(companyId: string, query: QueryProductBatchDto) {
@@ -92,7 +100,11 @@ export class ProductBatchesService {
     if (result.count === 0)
       throw new NotFoundException("Product batch not found");
 
-    return this.findById(companyId, id);
+    const batch = await this.findById(companyId, id);
+    await this.expiryAlerts
+      .checkProduct(companyId, batch.productId)
+      .catch(() => undefined);
+    return batch;
   }
 
   async remove(companyId: string, id: string) {

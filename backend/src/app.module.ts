@@ -36,6 +36,7 @@ import { ReportsModule } from "./modules/reports/reports.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { ExpiryAlertsModule } from "./modules/expiry-alerts/expiry-alerts.module";
 import { EmailModule } from "./modules/email/email.module";
 import { InvoicesModule } from "./modules/invoices/invoices.module";
 import { DniModule } from "./modules/dni/dni.module";
@@ -131,6 +132,7 @@ import { IntegrationsModule } from "./modules/integrations/integrations.module";
     DashboardModule,
     AuditModule,
     NotificationsModule,
+    ExpiryAlertsModule,
     EmailModule,
     InvoicesModule,
     DniModule,

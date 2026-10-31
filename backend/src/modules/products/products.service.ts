@@ -4,8 +4,10 @@ import {
   ForbiddenException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
+import { validateExpiryPolicy } from "@/modules/expiry-alerts/expiry-policy";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { collectExportRows } from "@/common/helpers/export-batch.helper";
 import {
@@ -51,6 +53,8 @@ const PRODUCT_LIST_SELECT = {
   description: true,
   createdAt: true,
   expiryDate: true,
+  expiryProfile: true,
+  expiryWarningDays: true,
   categoryId: true,
   category: { select: { id: true, name: true } },
   presentations: {
@@ -60,6 +64,7 @@ const PRODUCT_LIST_SELECT = {
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly limitService: SubscriptionLimitService,
@@ -276,6 +281,10 @@ export class ProductsService {
   }
 
   async createProduct(companyId: string, input: CreateProductDto) {
+    const expiryPolicy = validateExpiryPolicy(
+      input.expiryProfile ?? "STANDARD",
+      input.expiryWarningDays,
+    );
     const expiryDate = optionalDate(input.expiryDate);
     await this.limitService.validateLimit(companyId, "products");
 
@@ -304,6 +313,7 @@ export class ProductsService {
         stockQuantity: input.stockQuantity ?? 0,
         minStock: input.minStock ?? 5,
         expiryDate: expiryDate ?? null,
+        ...expiryPolicy,
         ...(input.presentations && input.presentations.length > 0
           ? {
               presentations: {
@@ -333,16 +343,20 @@ export class ProductsService {
       });
     }
 
-    if ((product as any).expiryDate) {
+    if (product.expiryDate) {
       try {
-        await (this.lowStockService as any).notifyIfExpiring?.({
+        await this.lowStockService.notifyIfExpiring({
           companyId,
           productId: product.id,
           productName: product.name,
-          expiryDate: (product as any).expiryDate,
+          expiryDate: product.expiryDate,
           baseUnit: product.baseUnit,
         });
-      } catch {}
+      } catch {
+        this.logger.warn(
+          "La revisión de vigencia del producto se recuperará en el siguiente ciclo",
+        );
+      }
     }
 
     await this.auditService.log({
@@ -371,9 +385,23 @@ export class ProductsService {
       "salePrice",
       "minStock",
       "isActive",
+      "expiryProfile",
     ]);
     const expiryDate = optionalDate(input.expiryDate);
     const existing = await this.ensureProduct(companyId, id);
+    const policyChanged =
+      input.expiryProfile !== undefined ||
+      input.expiryWarningDays !== undefined;
+    const expiryPolicy = policyChanged
+      ? validateExpiryPolicy(
+          input.expiryProfile ?? existing.expiryProfile,
+          input.expiryWarningDays !== undefined
+            ? input.expiryWarningDays
+            : input.expiryProfile && input.expiryProfile !== "CUSTOM"
+              ? null
+              : existing.expiryWarningDays,
+        )
+      : {};
 
     if (input.categoryId) {
       await this.ensureCategory(companyId, input.categoryId);
@@ -388,6 +416,7 @@ export class ProductsService {
         isActive: input.isActive,
         deletedAt: input.isActive === true ? null : undefined,
         expiryDate,
+        ...expiryPolicy,
       },
     });
     if (product.count === 0) {
@@ -401,7 +430,7 @@ export class ProductsService {
       throw new NotFoundException("Product not found.");
     }
 
-    if (input.minStock !== undefined || input.expiryDate !== undefined) {
+    if (input.minStock !== undefined) {
       await this.lowStockService.notifyIfLowStock({
         companyId,
         productId: updatedProduct.id,
@@ -412,16 +441,24 @@ export class ProductsService {
         previousStock: existing.stockQuantity,
         previousMinStock: existing.minStock,
       });
-      if ((updatedProduct as any).expiryDate) {
-        try {
-          await (this.lowStockService as any).notifyIfExpiring?.({
-            companyId,
-            productId: updatedProduct.id,
-            productName: updatedProduct.name,
-            expiryDate: (updatedProduct as any).expiryDate,
-            baseUnit: updatedProduct.baseUnit,
-          });
-        } catch {}
+    }
+    if (
+      input.expiryDate !== undefined ||
+      policyChanged ||
+      input.isActive !== undefined
+    ) {
+      try {
+        await this.lowStockService.notifyIfExpiring({
+          companyId,
+          productId: updatedProduct.id,
+          productName: updatedProduct.name,
+          expiryDate: updatedProduct.expiryDate,
+          baseUnit: updatedProduct.baseUnit,
+        });
+      } catch {
+        this.logger.warn(
+          "La revisión de vigencia del producto se recuperará en el siguiente ciclo",
+        );
       }
     }
 
