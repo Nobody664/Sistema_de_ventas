@@ -5,6 +5,8 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { storeButton, storeInput } from "./store-ui";
 import { StoreAdminCommerce } from "./store-admin-commerce";
+import { StoreAdminOrders } from "./store-admin-orders";
+import { StoreAdminCustomers } from "./store-admin-customers";
 
 export function StoreAdmin() {
   const [settings, setSettings] = useState<{
@@ -177,6 +179,8 @@ export function StoreAdmin() {
         </div>
       </section>
       <StoreAdminCommerce />
+      <StoreAdminOrders />
+      <StoreAdminCustomers />
     </div>
   );
 }

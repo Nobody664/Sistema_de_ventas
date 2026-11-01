@@ -4,6 +4,11 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { chromium, firefox, webkit } = require("playwright");
 const { runScannerChecks } = require("./scanner-checks.cjs");
+const {
+  handleStore,
+  handleStoreAdmin,
+  runStoreChecks,
+} = require("./store-checks.cjs");
 
 const origin = "http://127.0.0.1:3318";
 const apiOrigin = "http://127.0.0.1:4408";
@@ -60,6 +65,10 @@ const stockEntryPayloads = [];
 let stockWrites = 0;
 
 function handle(resource, params, method, body) {
+  if (resource.startsWith("/store/"))
+    return handleStore(resource, params, method, body);
+  if (resource.startsWith("/store-admin/"))
+    return handleStoreAdmin(resource, params, method, body);
   if (resource === "/products") return products;
   if (resource === "/products/barcode/7701234567897/resolve")
     return {
@@ -102,6 +111,7 @@ function handle(resource, params, method, body) {
       planCode: "START",
       planName: "Start",
       modules: [
+        "storefront",
         "products",
         "categories",
         "inventory",
@@ -253,7 +263,7 @@ const backend = http.createServer(async (request, response) => {
       ),
     );
   } catch (error) {
-    response.statusCode = 400;
+    response.statusCode = error.status || 400;
     response.end(JSON.stringify({ message: error.message }));
   }
 });
@@ -358,6 +368,11 @@ async function main() {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    if (process.argv.includes("--store-only")) {
+      await runStoreChecks(page, origin);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes("--scanner-only")) {
       await runScannerChecks(page, origin, {
         galleryOnly:

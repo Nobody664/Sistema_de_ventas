@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { StoreApiError, storeApi } from "@/lib/store-api";
 import { StoreCommerce } from "./store-commerce";
+import { StoreOrders } from "./store-orders";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
 
 export interface StoreProduct {
@@ -48,9 +49,11 @@ interface Profile {
 export function StorePortal({
   slug,
   section,
+  detailId,
 }: {
   slug: string;
   section: string;
+  detailId?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -66,6 +69,10 @@ export function StorePortal({
   const [pages, setPages] = useState(1);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
+    [],
+  );
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const publicSection = [
@@ -74,6 +81,7 @@ export function StorePortal({
     "recuperar",
     "verificar",
     "restablecer",
+    "privacidad",
   ].includes(section);
   const load = useCallback(async () => {
     try {
@@ -81,10 +89,24 @@ export function StorePortal({
         const me = await storeApi<Profile>(slug, "me");
         setProfile(me);
         if (section === "catalogo") {
+          setCategories(await storeApi<typeof categories>(slug, "categories"));
+          if (detailId) {
+            setProducts([
+              await storeApi<StoreProduct>(
+                slug,
+                `catalog/${encodeURIComponent(detailId)}`,
+              ),
+            ]);
+            setPages(1);
+            return;
+          }
           const result = await storeApi<{
             data: StoreProduct[];
             totalPages: number;
-          }>(slug, `catalog?page=${page}&search=${encodeURIComponent(query)}`);
+          }>(
+            slug,
+            `catalog?page=${page}&search=${encodeURIComponent(query)}${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ""}`,
+          );
           setProducts(result.data);
           setPages(result.totalPages);
         }
@@ -99,7 +121,17 @@ export function StorePortal({
             : "No se pudo cargar la tienda",
         );
     }
-  }, [slug, publicSection, section, page, query, router, base]);
+  }, [
+    slug,
+    publicSection,
+    section,
+    page,
+    query,
+    router,
+    base,
+    detailId,
+    categoryId,
+  ]);
   useEffect(() => {
     setMessage("");
     void storeApi<typeof info>(slug, "info")
@@ -234,9 +266,30 @@ export function StorePortal({
                     recuperar: "Recupera tu acceso",
                     verificar: "Verifica tu correo",
                     restablecer: "Nueva contraseña",
+                    privacidad: "Tus datos en esta tienda",
                   }[section]
                 }
               </h2>
+              {section === "privacidad" && (
+                <div className="space-y-4 text-sm text-stone-600">
+                  <p>
+                    Esta empresa utiliza los datos de tu cuenta, contacto,
+                    documento y dirección para atender tus compras, pagos y
+                    entregas.
+                  </p>
+                  <p>
+                    La ficha comercial, las direcciones y los pedidos se
+                    mantienen separados de los de otras empresas. Puedes
+                    consultar y actualizar tu perfil; para resolver un pedido o
+                    solicitar el cierre de la cuenta, contacta al negocio.
+                  </p>
+                  <p>
+                    Conservamos el historial necesario para atender operaciones
+                    y sus devoluciones. No guardamos números completos de
+                    tarjetas ni CVV en el portal.
+                  </p>
+                </div>
+              )}
               {section === "ingresar" && (
                 <form
                   className="space-y-4"
@@ -272,6 +325,12 @@ export function StorePortal({
                     Acepto el registro y tratamiento de mis datos para atender
                     mis compras en esta empresa.
                   </label>
+                  <Link
+                    href={`${base}/privacidad`}
+                    className="block text-xs text-teal-900 underline"
+                  >
+                    Información sobre el uso de tus datos
+                  </Link>
                   <button disabled={busy} className={storeButton}>
                     Crear cuenta
                   </button>
@@ -375,6 +434,35 @@ export function StorePortal({
                     <button className={storeButton}>Buscar</button>
                   </form>
                 </div>
+                {!detailId && (
+                  <label className="mb-5 block max-w-sm text-sm">
+                    Categoría
+                    <select
+                      aria-label="Categoría del catálogo"
+                      value={categoryId}
+                      className={storeInput}
+                      onChange={(event) => {
+                        setCategoryId(event.target.value);
+                        setPage(1);
+                      }}
+                    >
+                      <option value="">Todas las categorías</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {detailId && (
+                  <Link
+                    href={`${base}/catalogo`}
+                    className="mb-5 block text-sm text-teal-900"
+                  >
+                    ← Volver al catálogo
+                  </Link>
+                )}
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {products.map((product) => (
                     <article
@@ -400,9 +488,13 @@ export function StorePortal({
                             : "Agotado"}
                         </p>
                         <h2 className="font-display text-xl font-bold">
-                          {product.name}
+                          <Link href={`${base}/catalogo/${product.id}`}>
+                            {product.name}
+                          </Link>
                         </h2>
-                        <p className="line-clamp-2 min-h-10 text-sm text-stone-500">
+                        <p
+                          className={`${detailId ? "" : "line-clamp-2"} min-h-10 text-sm text-stone-500`}
+                        >
                           {product.description}
                         </p>
                         <p className="text-xl font-semibold">
@@ -542,6 +634,9 @@ export function StorePortal({
               slug={slug}
               onMessage={setMessage}
             />
+            {section === "pedidos" && (
+              <StoreOrders slug={slug} id={detailId} onMessage={setMessage} />
+            )}
           </>
         )}
       </main>

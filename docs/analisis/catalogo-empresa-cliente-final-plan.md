@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-31.
 Base revisada: `main`, commit `fe6abf6`.
-Estado: propuesta de arquitectura e implementación. Este documento no implementa funcionalidades ni modifica el esquema de la aplicación.
+Estado: análisis de referencia. La implementación y sus resultados por fases se documentan en [Implementación del portal comercial](../implementacion-tienda.md). Las propuestas de este documento se conservan para trazabilidad; el documento de implementación identifica el alcance efectivamente entregado y sus requisitos operativos.
 
 ## 1. Objetivo y alcance
 

@@ -50,7 +50,7 @@ test("el DTO de carrito rechaza precios elegidos por el navegador y cantidades i
 test("PostgreSQL aplica las migraciones, aísla cuentas y protege reservas frente a salidas de cualquier canal", async () => {
   const db = new PGlite();
   try {
-    await db.exec(`CREATE TABLE companies(id TEXT PRIMARY KEY); CREATE TABLE users(id TEXT PRIMARY KEY);
+    await db.exec(`CREATE TABLE companies(id TEXT PRIMARY KEY); CREATE TABLE "User"(id TEXT PRIMARY KEY);
       CREATE TABLE customers(id TEXT PRIMARY KEY, company_id TEXT NOT NULL);
       CREATE TABLE products(id TEXT PRIMARY KEY, company_id TEXT NOT NULL, stock_quantity NUMERIC(14,3) NOT NULL, is_active BOOLEAN NOT NULL DEFAULT true);
       CREATE TABLE product_batches(id TEXT PRIMARY KEY, company_id TEXT NOT NULL, product_id TEXT NOT NULL, quantity_available NUMERIC(14,3) NOT NULL);`);
@@ -64,7 +64,7 @@ test("PostgreSQL aplica las migraciones, aísla cuentas y protege reservas frent
           "utf8",
         ),
       );
-    await db.exec(`INSERT INTO companies VALUES ('a'),('b'); INSERT INTO users VALUES ('u'); INSERT INTO customers VALUES ('ca','a');
+    await db.exec(`INSERT INTO companies VALUES ('a'),('b'); INSERT INTO "User" VALUES ('u'); INSERT INTO customers VALUES ('ca','a');
       INSERT INTO customer_accounts(id,company_id,user_id,customer_id) VALUES ('account','a','u','ca');
       INSERT INTO products(id,company_id,stock_quantity) VALUES ('p','a',5);
       INSERT INTO product_batches(id,company_id,product_id,quantity_available) VALUES ('batch','a','p',5);`);

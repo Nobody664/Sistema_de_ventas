@@ -88,6 +88,18 @@ export class StoreAuthService {
     const passwordHash =
       existing?.passwordHash ?? (await argon2.hash(input.password));
     await serializableTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT company_id FROM storefront_settings WHERE company_id = ${company.id} FOR UPDATE`;
+      const settings = await tx.storefrontSettings.findUniqueOrThrow({
+        where: { companyId: company.id },
+      });
+      if (
+        (await tx.customerAccount.count({
+          where: { companyId: company.id },
+        })) >= settings.maxCustomers
+      )
+        throw new ForbiddenException(
+          "La tienda alcanzó su capacidad de cuentas comerciales",
+        );
       const user =
         existing ??
         (await tx.user.create({

@@ -45,10 +45,11 @@ export class StoreService {
       registrationEnabled: company.storefront?.registrationEnabled,
     };
   }
-  async catalog(slug: string, query: StoreCatalogQuery) {
+  async catalog(slug: string, query: StoreCatalogQuery, productId?: string) {
     const company = await this.company(slug);
     const where = {
       companyId: company.id,
+      ...(productId ? { id: productId } : {}),
       storeVisible: true,
       isActive: true,
       deletedAt: null,
@@ -115,6 +116,25 @@ export class StoreService {
       page: query.page,
       totalPages: Math.ceil(total / query.limit),
     };
+  }
+  async detail(slug: string, id: string) {
+    const result = await this.catalog(slug, { page: 1, limit: 1 }, id);
+    if (!result.data[0]) throw new NotFoundException("Producto no publicado");
+    return result.data[0];
+  }
+  async categories(slug: string) {
+    const company = await this.company(slug);
+    return this.prisma.category.findMany({
+      where: {
+        companyId: company.id,
+        deletedAt: null,
+        products: {
+          some: { storeVisible: true, isActive: true, deletedAt: null },
+        },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
   }
   async settings(companyId: string) {
     const [settings, company] = await Promise.all([

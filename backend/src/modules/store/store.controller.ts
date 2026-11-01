@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -10,6 +11,7 @@ import {
   Req,
   Res,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
@@ -40,6 +42,7 @@ import {
 
 import { StoreCartService } from "./store-cart.service";
 import { StoreMethodsService } from "./store-methods.service";
+import { StorePrivateInterceptor } from "./store-private.interceptor";
 import {
   StoreCartItemDto,
   StoreCommerceSettingsDto,
@@ -51,6 +54,7 @@ import {
 type StoreRequest = Request & { user: StoreActor };
 
 @StoreAccess()
+@UseInterceptors(StorePrivateInterceptor)
 @Controller("store/:slug")
 export class StoreController {
   constructor(
@@ -185,6 +189,17 @@ export class StoreController {
     return this.auth.me(req.user);
   }
   @Post("me/close") async close(@Req() req: StoreRequest) {
+    if (
+      await this.prisma.storeOrder.count({
+        where: {
+          accountId: req.user.accountId,
+          status: { notIn: ["CANCELLED", "EXPIRED", "COMPLETED"] },
+        },
+      })
+    )
+      throw new ConflictException(
+        "Resuelve tus pedidos pendientes antes de cerrar la cuenta",
+      );
     await this.prisma.customerAccount.updateMany({
       where: { id: req.user.accountId, companyId: req.user.companyId },
       data: { status: "CLOSED" },
@@ -220,6 +235,15 @@ export class StoreController {
   ) {
     return this.cartService.quote(slug, req.user, input);
   }
+  @Get("categories") categories(@Param("slug") slug: string) {
+    return this.store.categories(slug);
+  }
+  @Get("catalog/:id") detail(
+    @Param("slug") slug: string,
+    @Param("id") id: string,
+  ) {
+    return this.store.detail(slug, id);
+  }
   @Get("catalog") catalog(
     @Param("slug") slug: string,
     @Query() query: StoreCatalogQuery,
@@ -229,6 +253,7 @@ export class StoreController {
 }
 
 @Roles("COMPANY_ADMIN")
+@UseInterceptors(StorePrivateInterceptor)
 @UseGuards(TenantGuard, PermissionsGuard)
 @Permissions(Permission.STORE_MANAGE)
 @Controller("store-admin")

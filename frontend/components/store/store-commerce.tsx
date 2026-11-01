@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { storeApi } from "@/lib/store-api";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
@@ -294,10 +295,42 @@ export function StoreCommerce({
   );
 }
 
-function StoreConfirm(_props: {
+function StoreConfirm({
+  slug,
+  quote,
+  onMessage,
+}: {
   slug: string;
   quote: StoreQuoteView;
   onMessage: (text: string) => void;
 }) {
-  return null;
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const key = useRef<{ quote: string; key: string } | null>(null);
+  return (
+    <button
+      disabled={busy || new Date(quote.expiresAt) <= new Date()}
+      className="w-full rounded-xl bg-white px-5 py-3 font-semibold text-teal-950 disabled:opacity-50"
+      onClick={async () => {
+        setBusy(true);
+        if (key.current?.quote !== quote.id)
+          key.current = { quote: quote.id, key: crypto.randomUUID() };
+        try {
+          const order = await storeApi<{ id: string }>(slug, "orders", {
+            quoteId: quote.id,
+            idempotencyKey: key.current.key,
+          });
+          router.push(`/tienda/${slug}/pedidos/${order.id}`);
+        } catch (error) {
+          onMessage(
+            error instanceof Error ? error.message : "No se pudo confirmar",
+          );
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "Confirmando…" : "Confirmar pedido con este total"}
+    </button>
+  );
 }

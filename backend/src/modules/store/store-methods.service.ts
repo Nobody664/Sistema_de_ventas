@@ -24,7 +24,18 @@ export class StoreMethodsService {
         orderBy: { label: "asc" },
       }),
     ]);
-    return { payment, shipping };
+    const gateway = admin
+      ? true
+      : !!(await this.prisma.storePaymentIntegration.findFirst({
+          where: { companyId, enabled: true },
+          select: { companyId: true },
+        }));
+    return {
+      payment: payment.filter(
+        (method) => admin || method.code !== "MERCADOPAGO" || gateway,
+      ),
+      shipping,
+    };
   }
   async settings(companyId: string, input: StoreCommerceSettingsDto) {
     if (input.checkoutEnabled) {
@@ -75,7 +86,7 @@ export class StoreMethodsService {
         where: { companyId },
         data: { version: { increment: 1 } },
       });
-      return this.list(companyId, true);
+      return { saved: true };
     });
   }
 }

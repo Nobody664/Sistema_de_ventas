@@ -11,6 +11,7 @@
     "test": "tsx --test \"lib/**/*.test.ts\" \"store/**/*.test.ts\" \"stores/**/*.test.ts\"",
     "test:browser:refix": "node scripts/refix-browser-smoke.cjs",
     "test:browser:purchases": "node scripts/products-purchases-smoke.cjs",
+    "test:browser:store": "node scripts/products-purchases-smoke.cjs --store-only",
     "test:browser:scanner": "node scripts/products-purchases-smoke.cjs --scanner-only",
     "test:browser:settings": "node scripts/settings-smoke.cjs",
     "format": "prettier --check \"**/*.{ts,tsx,css}\"",

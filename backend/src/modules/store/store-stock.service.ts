@@ -200,4 +200,57 @@ export class StoreStockService {
       });
     }
   }
+
+  async consume(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    ownerId: string,
+  ): Promise<boolean> {
+    const today = await this.today(companyId, tx);
+    const holds = await tx.stockReservation.findMany({
+      where: { companyId, ownerId },
+      include: { allocations: { include: { batch: true } } },
+      orderBy: { productId: "asc" },
+    });
+    if (
+      !holds.length ||
+      holds.some(
+        (hold) =>
+          hold.state !== "ACTIVE" ||
+          hold.expiresAt <= new Date() ||
+          hold.allocations.some(
+            (a) => a.batch.expirationDate && a.batch.expirationDate < today,
+          ),
+      )
+    )
+      return false;
+    for (const hold of holds)
+      await tx.$queryRaw`SELECT id FROM products WHERE id = ${hold.productId} FOR UPDATE`;
+    for (const hold of holds) {
+      const updated = await tx.stockReservation.updateMany({
+        where: { id: hold.id, state: "ACTIVE", expiresAt: { gt: new Date() } },
+        data: { state: "CONSUMED" },
+      });
+      if (!updated.count)
+        throw new BadRequestException(
+          "La reserva cambió durante la confirmación",
+        );
+      for (const allocation of hold.allocations)
+        await tx.productBatch.update({
+          where: { id: allocation.batchId },
+          data: {
+            quantityAvailable: { decrement: allocation.quantity },
+            reservedQuantity: { decrement: allocation.quantity },
+          },
+        });
+      await tx.product.update({
+        where: { id: hold.productId },
+        data: {
+          stockQuantity: { decrement: hold.quantity },
+          reservedQuantity: { decrement: hold.quantity },
+        },
+      });
+    }
+    return true;
+  }
 }

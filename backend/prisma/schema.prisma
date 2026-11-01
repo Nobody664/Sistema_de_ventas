@@ -235,6 +235,7 @@ enum StoreAccountStatus {
 }
 
 model StorefrontSettings {
+  maxCustomers Int @default(10000) @map("max_customers")
   checkoutEnabled Boolean @default(false) @map("checkout_enabled")
   taxRate Decimal @default(0) @map("tax_rate") @db.Decimal(5,2)
   pricesIncludeTax Boolean @default(true) @map("prices_include_tax")
@@ -251,6 +252,8 @@ model StorefrontSettings {
 }
 
 model CustomerAccount {
+  orders StoreOrder[]
+  storeNotifications StoreNotification[]
   cart StoreCart?
   quotes StoreQuote[]
   id String @id @default(cuid())
@@ -372,6 +375,7 @@ model User {
 }
 
 model Company {
+  storeIntegration StorePaymentIntegration?
   storePaymentMethods StorePaymentMethod[]
   storeShippingMethods StoreShippingMethod[]
   storefront StorefrontSettings?
@@ -747,6 +751,8 @@ model ProductExpiryAlert {
 }
 
 model Sale {
+  shippingAmount Decimal @default(0) @map("shipping_amount") @db.Decimal(12,2)
+  storeOrder StoreOrder?
   id             String          @id @default(cuid())
   companyId      String          @map("company_id")
   customerId     String?         @map("customer_id")
@@ -778,6 +784,7 @@ model Sale {
   creditNotes CreditNote[]
 
   @@unique([companyId, saleNumber])
+  @@unique([companyId, id])
   @@index([companyId, createdAt])
   @@index([companyId, status])
   @@index([companyId, sellerId])
@@ -1087,6 +1094,7 @@ model StoreCartItem {
 }
 
 model StoreQuote {
+  order StoreOrder?
   id String @id @default(cuid())
   companyId String @map("company_id")
   accountId String @map("account_id")
@@ -1097,6 +1105,7 @@ model StoreQuote {
   account CustomerAccount @relation(fields: [companyId, accountId], references: [companyId, id], onDelete: Restrict)
   @@unique([companyId, id])
   @@index([expiresAt])
+  @@unique([companyId, accountId, id])
   @@map("store_quotes")
 }
 
@@ -1108,6 +1117,7 @@ enum StockReservationState {
 }
 
 model StockReservation {
+  owner StoreOrder @relation(fields: [companyId, ownerId], references: [companyId, id], onDelete: Restrict)
   id String @id @default(cuid())
   companyId String @map("company_id")
   productId String @map("product_id")
@@ -1134,6 +1144,150 @@ model StockReservationAllocation {
   batch ProductBatch @relation(fields: [companyId, productId, batchId], references: [companyId, productId, id], onDelete: Restrict)
   @@unique([reservationId, batchId])
   @@map("stock_reservation_allocations")
+}
+
+enum StoreOrderState {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  REVIEW_REQUIRED
+  COMPLETED
+}
+
+model StoreOrder {
+  quote StoreQuote @relation(fields: [companyId, accountId, quoteId], references: [companyId, accountId, id], onDelete: Restrict)
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  accountId String @map("account_id")
+  quoteId String @unique @map("quote_id")
+  number String
+  idempotencyKey String @map("idempotency_key")
+  fingerprint String
+  status StoreOrderState @default(PENDING_PAYMENT)
+  paymentStatus String @default("PENDING") @map("payment_status")
+  fulfillment String @default("UNFULFILLED")
+  paymentReference String? @map("payment_reference")
+  snapshot Json
+  totalAmount Decimal @map("total_amount") @db.Decimal(12,2)
+  version Int @default(1)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  saleId String? @unique @map("sale_id")
+  refundRequestedAt DateTime? @map("refund_requested_at")
+  refundReason String? @map("refund_reason")
+  trackingCode String? @map("tracking_code")
+  account CustomerAccount @relation(fields: [companyId, accountId], references: [companyId, id], onDelete: Restrict)
+  sale Sale? @relation(fields: [companyId, saleId], references: [companyId, id], onDelete: Restrict)
+  reservations StockReservation[]
+  proofs StorePaymentProof[]
+  attempt StorePaymentAttempt?
+  refund StoreRefund?
+  history StoreOrderHistory[]
+  notifications StoreNotification[]
+  @@unique([companyId, id])
+  @@unique([companyId, accountId, id])
+  @@unique([companyId, accountId, quoteId])
+  @@unique([companyId, saleId])
+  @@unique([companyId, number])
+  @@unique([companyId, accountId, idempotencyKey])
+  @@index([companyId, accountId, createdAt])
+  @@index([status, expiresAt])
+  @@map("store_orders")
+}
+
+model StorePaymentProof {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  orderId String @map("order_id")
+  encryptedImage String @map("encrypted_image")
+  createdAt DateTime @default(now()) @map("created_at")
+  order StoreOrder @relation(fields: [companyId, orderId], references: [companyId, id], onDelete: Restrict)
+  @@index([orderId])
+  @@map("store_payment_proofs")
+}
+
+model StoreOrderHistory {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  orderId String @map("order_id")
+  version Int
+  actorId String @map("actor_id")
+  message String
+  createdAt DateTime @default(now()) @map("created_at")
+  order StoreOrder @relation(fields: [companyId, orderId], references: [companyId, id], onDelete: Restrict)
+  @@unique([orderId, version])
+  @@map("store_order_history")
+}
+
+model StoreNotification {
+  order StoreOrder @relation(fields: [companyId, accountId, orderId], references: [companyId, accountId, id], onDelete: Restrict)
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  accountId String @map("account_id")
+  orderId String @map("order_id")
+  version Int
+  message String
+  readAt DateTime? @map("read_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  account CustomerAccount @relation(fields: [companyId, accountId], references: [companyId, id], onDelete: Restrict)
+  @@unique([orderId, version])
+  @@index([accountId, createdAt])
+  @@map("store_notifications")
+}
+
+model StorePaymentIntegration {
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  companyId String @id @map("company_id")
+  publicId String @unique @default(cuid()) @map("public_id")
+  encryptedToken String @map("encrypted_token")
+  encryptedWebhookSecret String @map("encrypted_webhook_secret")
+  merchantId String @map("merchant_id")
+  liveMode Boolean @map("live_mode")
+  enabled Boolean @default(true)
+  attempts StorePaymentAttempt[]
+  @@map("store_payment_integrations")
+}
+
+model StorePaymentAttempt {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  orderId String @unique @map("order_id")
+  status String @default("PENDING")
+  providerPaymentId String? @map("provider_payment_id")
+  redirectUrl String? @map("redirect_url")
+  preferenceId String? @map("preference_id")
+  leaseUntil DateTime? @map("lease_until")
+  order StoreOrder @relation(fields: [companyId, orderId], references: [companyId, id], onDelete: Restrict)
+  integration StorePaymentIntegration @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  @@unique([companyId, providerPaymentId])
+  @@unique([companyId, orderId])
+  @@map("store_payment_attempts")
+}
+
+model StorePaymentEvent {
+  detail Json
+  requiresReview Boolean @default(false) @map("requires_review")
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  providerPaymentId String @map("provider_payment_id")
+  eventKey String @map("event_key")
+  receivedAt DateTime @default(now()) @map("received_at")
+  @@unique([companyId, providerPaymentId, eventKey])
+  @@map("store_payment_events")
+}
+
+model StoreRefund {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  orderId String @unique @map("order_id")
+  status String @default("PENDING")
+  amount Decimal @db.Decimal(12,2)
+  reference String?
+  restockedAt DateTime? @map("restocked_at")
+  order StoreOrder @relation(fields: [companyId, orderId], references: [companyId, id], onDelete: Restrict)
+  @@map("store_refunds")
+  @@unique([companyId, orderId])
 }
 
 model InventoryKardex {

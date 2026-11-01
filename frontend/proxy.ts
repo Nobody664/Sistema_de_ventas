@@ -147,6 +147,11 @@ async function handleRequest(request: NextRequest) {
   }
 
   const companyStatus = readJwtClaim(accessToken, "companyStatus");
+  if (pathname === "/atencion-tienda" && roles.includes("COMPANY_ADMIN"))
+    return applyRefreshedCookies(
+      NextResponse.next({ request }),
+      refreshedSetCookies,
+    );
 
   if (companyStatus === "INACTIVE") {
     return applyRefreshedCookies(

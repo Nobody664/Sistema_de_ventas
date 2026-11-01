@@ -1,0 +1,347 @@
+const assert = require("node:assert/strict");
+const bwip = require("bwip-js");
+
+const methods = {
+  payment: [
+    {
+      id: "pay",
+      code: "YAPE",
+      label: "Yape del negocio",
+      instructions: "Paga a la cuenta del negocio",
+      enabled: true,
+    },
+  ],
+  shipping: [
+    {
+      id: "pickup",
+      kind: "PICKUP",
+      label: "Retiro en local",
+      fee: "0",
+      pickupAddress: "Av. Comercio 123",
+      districts: [],
+      enabled: true,
+    },
+  ],
+};
+const product = {
+  id: "coffee",
+  name: "Café de la casa",
+  description: "Una selección de origen para tu día.",
+  imageUrl: null,
+  price: "11.80",
+  currency: "PEN",
+  availability: "AVAILABLE",
+  baseUnit: "UNIT",
+  presentations: [],
+};
+let authenticated = false;
+let profile = {
+  firstName: "Ana",
+  lastName: "Pérez",
+  email: "ana@example.test",
+  phone: "",
+  documentValue: "",
+  addresses: [],
+};
+let cart = { version: 1, items: [] };
+let order = null;
+const settings = {
+  slug: "negocio-demo",
+  title: "Almacén de origen",
+  description: "Productos seleccionados cerca de ti",
+  enabled: true,
+  registrationEnabled: true,
+  checkoutEnabled: true,
+  taxRate: "18",
+  pricesIncludeTax: true,
+  reservationMinutes: 30,
+};
+const denied = () => {
+  const error = new Error("Inicia sesión comercial");
+  error.status = 401;
+  throw error;
+};
+const snapshot = () => ({
+  currency: "PEN",
+  buyer: {
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    documentValue: profile.documentValue,
+    phone: profile.phone,
+  },
+  payment: methods.payment[0],
+  shipping: methods.shipping[0],
+  address: null,
+  lines: cart.items.map((line) => ({
+    productId: line.productId,
+    name: line.name,
+    quantity: line.quantity,
+    totalPrice: (Number(line.quantity) * 10).toFixed(2),
+  })),
+  subtotal: "20.00",
+  taxAmount: "3.60",
+  shippingAmount: "0.00",
+  totalAmount: "23.60",
+});
+
+function handleStore(resource, params, method, body) {
+  const path = resource.replace(/^\/store\/[^/]+\//, "");
+  if (path === "info")
+    return {
+      name: settings.title,
+      description: settings.description,
+      currency: "PEN",
+    };
+  if (path === "auth/register" || path === "auth/verify")
+    return { message: "Revisa tu correo para completar la verificación" };
+  if (path === "auth/login") {
+    authenticated = true;
+    return { role: "USUARIO_CLIENTE_FINAL" };
+  }
+  if (path === "auth/logout") {
+    authenticated = false;
+    return {};
+  }
+  if (!authenticated) return denied();
+  if (path === "me") {
+    if (method === "PATCH") Object.assign(profile, body);
+    return profile;
+  }
+  if (path === "me/addresses" && method === "POST") {
+    profile.addresses.push({ ...body, id: "address" });
+    return profile;
+  }
+  if (path === "categories") return [{ id: "category", name: "Café" }];
+  if (path === "catalog") return { data: [product], totalPages: 1, total: 1 };
+  if (path === "catalog/coffee") return product;
+  if (path === "methods") return methods;
+  if (path === "cart") return cart;
+  if (path === "cart/items") {
+    assert.equal(body.version, cart.version);
+    assert.equal("unitPrice" in body, false);
+    cart = {
+      version: cart.version + 1,
+      items:
+        body.quantity > 0
+          ? [
+              {
+                productId: product.id,
+                presentationId: null,
+                name: product.name,
+                presentationName: null,
+                unitPrice: product.price,
+                quantity: String(body.quantity),
+                unavailable: false,
+              },
+            ]
+          : [],
+    };
+    return cart;
+  }
+  if (path === "checkout/quote") {
+    assert.equal(body.paymentMethodId, "pay");
+    assert.equal(body.shippingMethodId, "pickup");
+    return {
+      id: "quote",
+      expiresAt: new Date(Date.now() + 300000).toISOString(),
+      snapshot: snapshot(),
+    };
+  }
+  if (path === "orders" && method === "POST") {
+    assert.deepEqual(Object.keys(body).sort(), ["idempotencyKey", "quoteId"]);
+    assert.ok(body.idempotencyKey.length >= 16);
+    if (!order)
+      order = {
+        id: "order",
+        number: "WEB-TEST-001",
+        status: "PENDING_PAYMENT",
+        paymentStatus: "PENDING",
+        fulfillment: "UNFULFILLED",
+        totalAmount: "23.60",
+        snapshot: snapshot(),
+        version: 1,
+        expiresAt: new Date(Date.now() + 1800000).toISOString(),
+        createdAt: new Date().toISOString(),
+        history: [
+          {
+            version: 1,
+            message: "Pedido recibido",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        proofs: [],
+      };
+    return order;
+  }
+  if (path === "orders") return order ? [order] : [];
+  if (path === "orders/order") return order;
+  if (path === "orders/order/payment-proofs") {
+    assert.ok(body.image.startsWith("data:image/"));
+    order.paymentStatus = "UNDER_REVIEW";
+    order.version++;
+    order.proofs.push({ id: "proof", createdAt: new Date().toISOString() });
+    return order;
+  }
+  if (path === "me/notifications") return [];
+  throw new Error(`Ruta comercial no simulada: ${path}`);
+}
+
+function handleStoreAdmin(resource, params, method, body) {
+  if (resource === "/store-admin/customers")
+    return [
+      {
+        id: "account",
+        status: "ACTIVE",
+        customer: {
+          firstName: "Ana",
+          lastName: "Pérez",
+          email: "ana@example.test",
+        },
+      },
+    ];
+  if (resource === "/store-admin/settings") {
+    if (method === "PATCH") Object.assign(settings, body);
+    return settings;
+  }
+  if (resource === "/store-admin/products")
+    return [{ id: product.id, name: product.name, storeVisible: true }];
+  if (resource === "/store-admin/methods") return methods;
+  if (resource === "/store-admin/integration") return { configured: false };
+  if (resource === "/store-admin/payment-events") return [];
+  if (resource === "/store-admin/orders") return order ? [order] : [];
+  if (resource === "/store-admin/orders/order") {
+    if (method === "PATCH") {
+      assert.equal(body.version, order.version);
+      if (body.action === "APPROVE_PAYMENT") {
+        assert.ok(body.reference.length >= 5);
+        order.paymentStatus = "PAID";
+        order.status = "CONFIRMED";
+        order.saleId = "sale";
+      }
+      if (body.action === "PREPARE") order.fulfillment = "PREPARING";
+      if (body.action === "READY") order.fulfillment = "READY_FOR_PICKUP";
+      if (body.action === "DELIVER") {
+        order.fulfillment = "DELIVERED";
+        order.status = "COMPLETED";
+      }
+      order.version++;
+    }
+    return order;
+  }
+  throw new Error(`Ruta administrativa no simulada: ${resource}`);
+}
+
+async function runStoreChecks(page, origin) {
+  const base = `${origin}/tienda/negocio-demo`;
+  await page.goto(`${base}/registro`);
+  await page.getByLabel("Nombres", { exact: true }).fill("Ana");
+  await page.getByLabel("Apellidos", { exact: true }).fill("Pérez");
+  await page.getByLabel("Correo", { exact: true }).fill("ana@example.test");
+  await page
+    .getByLabel("Contraseña (mínimo 8 caracteres)", { exact: true })
+    .fill("Buyer-Password-123");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "verificación" }).waitFor();
+  await page.goto(`${base}/ingresar`);
+  await page.getByLabel("Correo", { exact: true }).fill("ana@example.test");
+  await page
+    .getByLabel("Contraseña", { exact: true })
+    .fill("Buyer-Password-123");
+  await page.getByRole("button", { name: "Ingresar", exact: true }).click();
+  await page.waitForURL("**/catalogo");
+  await page
+    .getByRole("heading", { name: "Café de la casa", exact: true })
+    .waitFor();
+  await page.getByRole("link", { name: "Mi perfil", exact: true }).click();
+  await page.getByLabel("DNI", { exact: true }).fill("00123456");
+  await page.getByLabel("Teléfono", { exact: true }).fill("+51999111222");
+  await page
+    .getByRole("button", { name: "Guardar perfil", exact: true })
+    .click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Datos guardados" })
+    .waitFor();
+  await page.getByRole("link", { name: "Catálogo", exact: true }).click();
+  await page
+    .getByRole("spinbutton", {
+      name: "Cantidad de Café de la casa",
+      exact: true,
+    })
+    .fill("2");
+  await page.getByRole("button", { name: "Agregar", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "agregado" }).waitFor();
+  await page.getByRole("link", { name: "Carrito", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /Forma de pago/ })
+    .selectOption("pay");
+  await page
+    .getByRole("combobox", { name: /Forma de entrega/ })
+    .selectOption("pickup");
+  await page
+    .getByRole("button", { name: "Calcular total", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Confirmar pedido con este total",
+      exact: true,
+    })
+    .click();
+  await page.waitForURL("**/pedidos/order");
+  await page
+    .getByRole("heading", { name: "WEB-TEST-001", exact: true })
+    .waitFor();
+  const buffer = await bwip.toBuffer({
+    bcid: "qrcode",
+    text: "comprobante de prueba",
+    scale: 2,
+  });
+  await page
+    .getByLabel("Comprobante de pago", { exact: true })
+    .setInputFiles({ name: "proof.png", mimeType: "image/png", buffer });
+  await page
+    .getByRole("button", { name: "Enviar comprobante", exact: true })
+    .click();
+  await page.getByText("En revisión", { exact: true }).waitFor();
+  await page.goto(`${origin}/store`);
+  await page.getByRole("button", { name: /WEB-TEST-001/ }).click();
+  await page
+    .getByLabel("Referencia del cobro, devolución o seguimiento", {
+      exact: true,
+    })
+    .fill("YAPE-REAL-001");
+  await page
+    .getByRole("button", { name: "Registrar cobro confirmado", exact: true })
+    .click();
+  await page.getByText("Pagado", { exact: true }).waitFor();
+  for (const name of ["Preparar", "Listo para retirar", "Entregado"]) {
+    await page.getByRole("button", { name, exact: true }).click();
+    await page
+      .getByText(
+        name === "Preparar"
+          ? "En preparación"
+          : name === "Entregado"
+            ? "Entregado"
+            : "Listo para retirar",
+        { exact: true },
+      )
+      .and(page.locator("span"))
+      .waitFor();
+  }
+  await page.goto(`${base}/pedidos/order`);
+  await page.getByText("Completado", { exact: true }).waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+    true,
+  );
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  console.log(
+    "PASS: registro, acceso comercial, perfil, catálogo, carrito, cotización, pedido, comprobante, atención administrativa y entrega; vista móvil sin desbordamiento",
+  );
+}
+
+module.exports = { handleStore, handleStoreAdmin, runStoreChecks };
