@@ -12,6 +12,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { NotificationsService } from "@/modules/notifications/notifications.service";
 import { EmailService, EmailTemplate } from "@/modules/email/email.service";
+import { emailEnabled } from "@/modules/email/email-settings";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { CacheService } from "@/cache/cache.service";
@@ -424,8 +425,7 @@ export class OutboxService {
     data: Record<string, unknown>,
   ): Promise<void> {
     if (!isEmail(to) || /[\r\n]/.test(to)) throw new Error("INVALID_RECIPIENT");
-    if (!this.config.get<boolean>("SMTP_ENABLED"))
-      throw new Error("MAIL_DISABLED");
+    if (!emailEnabled(this.config)) throw new Error("MAIL_DISABLED");
     await this.email.sendEmailDirect({
       to,
       template,

@@ -193,6 +193,55 @@ test(
       );
       const staff = `access_token=${token}`;
       assert.equal(
+        (await request("/platform/email", "GET", undefined, staff)).status,
+        403,
+      );
+      const platformUser = await prisma.user.create({
+        data: {
+          email: "platform@example.test",
+          fullName: "Platform",
+          passwordHash: "unused",
+          globalRole: "SUPER_ADMIN",
+        },
+      });
+      await prisma.refreshToken.create({
+        data: {
+          userId: platformUser.id,
+          familyId: "platform-email",
+          tokenHash: "platform-email-token",
+          expiresAt: new Date(Date.now() + 3600000),
+        },
+      });
+      const platformToken = new JwtService().sign(
+        {
+          sub: platformUser.id,
+          sid: "platform-email",
+          companyId: null,
+          authVersion: 0,
+        },
+        { secret: config.JWT_ACCESS_SECRET, expiresIn: "1h" },
+      );
+      const platformCookie = `access_token=${platformToken}`;
+      const diagnostic = await request(
+        "/platform/email",
+        "GET",
+        undefined,
+        platformCookie,
+      );
+      assert.equal(diagnostic.status, 200);
+      assert.equal(diagnostic.value.enabled, false);
+      assert.equal(
+        (
+          await request(
+            "/platform/email/test",
+            "POST",
+            { to: "not-an-email" },
+            platformCookie,
+          )
+        ).status,
+        400,
+      );
+      assert.equal(
         (await request("/internal", "GET", undefined, staff)).status,
         200,
       );
@@ -250,6 +299,10 @@ test(
         })
       ).cookie;
       assert.ok(client.includes("store_access_token"));
+      assert.equal(
+        (await request("/platform/email", "GET", undefined, client)).status,
+        401,
+      );
       assert.equal(
         (await request("/internal", "GET", undefined, client)).status,
         401,

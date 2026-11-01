@@ -3,6 +3,8 @@ import { BullModule } from "@nestjs/bullmq";
 import { EmailService } from "./email.service";
 import { EmailProcessor } from "./email.processor";
 import { EMAIL_QUEUE } from "./email.constants";
+import { EmailTransportService } from "./email-transport.service";
+import { EmailDiagnosticsController } from "./email-diagnostics.controller";
 
 const queueEnabled = Boolean(process.env.REDIS_URL);
 
@@ -10,7 +12,12 @@ const queueEnabled = Boolean(process.env.REDIS_URL);
   imports: queueEnabled
     ? [BullModule.registerQueue({ name: EMAIL_QUEUE })]
     : [],
-  providers: [EmailService, ...(queueEnabled ? [EmailProcessor] : [])],
+  controllers: [EmailDiagnosticsController],
+  providers: [
+    EmailService,
+    EmailTransportService,
+    ...(queueEnabled ? [EmailProcessor] : []),
+  ],
   exports: [EmailService],
 })
 export class EmailModule {}

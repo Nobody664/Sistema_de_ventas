@@ -2,8 +2,9 @@ import { Injectable, Logger, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
-import nodemailer from "nodemailer";
 import { EMAIL_JOB_SEND, EMAIL_QUEUE } from "./email.constants";
+import { EmailTransportService } from "./email-transport.service";
+import { emailEnabled } from "./email-settings";
 
 export interface SendEmailJob {
   messageId?: string;
@@ -164,42 +165,18 @@ Equipo Huanka-Saas
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly transporter;
-  private readonly fromEmail: string;
-  private readonly smtpEnabled: boolean;
   private readonly frontendUrl: string;
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly transport: EmailTransportService,
     @Optional()
     @InjectQueue(EMAIL_QUEUE)
     private readonly queue?: Queue<SendEmailJob>,
   ) {
-    this.fromEmail =
-      this.configService.get<string>("SMTP_FROM_EMAIL") ||
-      "noreply@ventassaas.com";
-    this.smtpEnabled = this.configService.get<boolean>("SMTP_ENABLED") ?? false;
     this.frontendUrl = (
       this.configService.get<string>("FRONTEND_URL") || "http://localhost:3000"
     ).replace(/\/+$/, "");
-
-    const smtpPort = parseInt(
-      this.configService.get<string>("SMTP_PORT") || "587",
-      10,
-    );
-
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>("SMTP_HOST") || "smtp.gmail.com",
-      port: smtpPort,
-      secure: smtpPort === 465,
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 30000,
-      auth: {
-        user: this.configService.get<string>("SMTP_USER"),
-        pass: this.configService.get<string>("SMTP_PASSWORD"),
-      },
-    });
   }
 
   async sendEmail(job: SendEmailJob): Promise<void> {
@@ -230,38 +207,36 @@ export class EmailService {
     const template = EMAIL_TEMPLATES[job.template];
 
     if (!template) {
-      this.logger.warn(`Unknown email template: ${job.template}`);
-      return;
+      throw new Error("MAIL_TEMPLATE_UNKNOWN");
     }
 
     if (this.hasInvalidRecipient(job.to)) {
       this.logger.warn(
         `Envío rechazado: destinatario inválido (posible inyección de headers)`,
       );
-      return;
+      throw new Error("MAIL_RECIPIENT_INVALID");
     }
 
     const data = this.withCommonData(job.data);
     const text = this.interpolateTemplate(template.text, data);
     const subject = this.subjectOf(job, template, data);
 
-    if (!this.smtpEnabled) {
+    if (!emailEnabled(this.configService)) {
       this.logger.log(
-        `[DEMO] Email omitido (SMTP deshabilitado): ${job.template} to @${this.recipientDomain(job.to)}`,
+        `[DEMO] Email omitido (correo deshabilitado): ${job.template} to @${this.recipientDomain(job.to)}`,
       );
       return;
     }
 
     try {
-      await this.transporter.sendMail({
+      const receipt = await this.transport.send({
         messageId: job.messageId,
-        from: this.fromEmail,
         to: job.to,
         subject,
         text,
       });
       this.logger.log(
-        `Email enviado: ${job.template} to @${this.recipientDomain(job.to)}`,
+        `Email aceptado por ${receipt.provider}: ${job.template} to @${this.recipientDomain(job.to)} (${receipt.messageId})`,
       );
     } catch (error) {
       this.logger.error(

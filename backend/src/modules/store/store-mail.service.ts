@@ -5,6 +5,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { EmailService, EmailTemplate } from "@/modules/email/email.service";
 import { StoreCryptoService } from "./store-crypto.service";
+import { emailEnabled } from "@/modules/email/email-settings";
 
 @Injectable()
 export class StoreMailService {
@@ -31,7 +32,7 @@ export class StoreMailService {
   }
   @Interval(30000)
   async deliver(): Promise<void> {
-    if (!this.config.get<boolean>("SMTP_ENABLED")) return;
+    if (!emailEnabled(this.config)) return;
     try {
       const now = new Date();
       const rows = await this.prisma.storeMail.findMany({

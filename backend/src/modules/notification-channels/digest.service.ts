@@ -15,6 +15,7 @@ import {
   shiftDateKey,
 } from "@/common/helpers/company-timezone.helper";
 import { EmailService, EmailTemplate } from "@/modules/email/email.service";
+import { emailEnabled } from "@/modules/email/email-settings";
 import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
 import { IntegrationOwnerService } from "@/modules/integrations/integration-owner.service";
 import { ChannelPreferencesDto } from "./dto/notification-channels.dto";
@@ -47,7 +48,7 @@ export class DigestService {
     });
     return {
       ...membership,
-      available: this.config.get<boolean>("SMTP_ENABLED") === true,
+      available: emailEnabled(this.config),
       hour: "08:00",
     };
   }
@@ -61,10 +62,7 @@ export class DigestService {
       throw new BadRequestException("Preferencia inválida");
     if (input.locale !== undefined && !["es", "en"].includes(input.locale))
       throw new BadRequestException("Idioma inválido");
-    if (
-      input.dailyDigestEnabled &&
-      this.config.get<boolean>("SMTP_ENABLED") !== true
-    )
+    if (input.dailyDigestEnabled && !emailEnabled(this.config))
       throw new ServiceUnavailableException(
         "El envío de correo aún no está habilitado en el servidor",
       );
@@ -77,7 +75,7 @@ export class DigestService {
 
   @Cron("0 */5 * * * *", { waitForCompletion: true })
   async schedule(): Promise<void> {
-    if (this.config.get<boolean>("SMTP_ENABLED") !== true) return;
+    if (!emailEnabled(this.config)) return;
     let after: string | undefined;
     const now = new Date();
     while (true) {
@@ -171,10 +169,7 @@ export class DigestService {
       !["ACTIVE", "TRIAL"].includes(member.company.status)
     )
       return;
-    if (
-      this.config.get<boolean>("SMTP_ENABLED") !== true ||
-      !isEmail(member.user.email)
-    )
+    if (!emailEnabled(this.config) || !isEmail(member.user.email))
       throw new ServiceUnavailableException(
         "El resumen no se pudo entregar por correo",
       );

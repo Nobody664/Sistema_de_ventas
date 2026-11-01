@@ -13,6 +13,7 @@
     "build": "tsc && tsc-alias",
     "build:prod": "tsc",
     "lint": "tsc --noEmit",
+    "email:diagnose": "node scripts/diagnose-email.cjs",
     "test": "node -r ts-node/register -r tsconfig-paths/register --test \"src/**/*.spec.ts\"",
     "format": "prettier --check \"src/**/*.ts\"",
     "format:fix": "prettier --write \"src/**/*.ts\"",
