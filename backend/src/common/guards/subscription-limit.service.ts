@@ -3,12 +3,7 @@ import { PrismaService } from "@/database/prisma/prisma.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 
 export type ResourceType =
-  | "products"
-  | "users"
-  | "customers"
-  | "employees"
-  | "categories"
-  | "sales";
+  "products" | "users" | "customers" | "employees" | "categories" | "sales";
 
 export interface LimitInfo {
   current: number;
@@ -59,7 +54,7 @@ export class SubscriptionLimitService {
         where: { companyId, isActive: true },
       }),
       this.prisma.product.count({ where: { companyId } }),
-      this.prisma.customer.count({ where: { companyId } }),
+      this.prisma.customer.count({ where: { companyId, storeAccount: null } }),
       this.prisma.employee.count({ where: { companyId } }),
       this.prisma.category.count({ where: { companyId } }),
     ]);

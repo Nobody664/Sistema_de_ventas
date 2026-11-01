@@ -21,6 +21,7 @@ const PLATFORM_DESTINATIONS: ReadonlyArray<readonly [string, string]> = [
   ["/support", "/platform/support"],
   ...[
     "/dashboard",
+    "/store",
     "/inventory",
     "/categories",
     "/products",

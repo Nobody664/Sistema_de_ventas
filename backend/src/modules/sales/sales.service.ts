@@ -605,6 +605,16 @@ export class SalesService {
           throw new NotFoundException("Venta no encontrada.");
         }
         if (sale.status === targetStatus) return sale;
+        if (
+          sale.channel === "ONLINE" &&
+          (await tx.storeOrder.findUnique({
+            where: { saleId: sale.id },
+            select: { id: true },
+          }))
+        )
+          throw new BadRequestException(
+            "Las devoluciones de tienda se gestionan desde el pedido comercial",
+          );
         if (sale.status !== SaleStatus.COMPLETED) {
           throw new BadRequestException(
             `Solo se pueden anular o reembolsar ventas completadas. Estado actual: ${sale.status}.`,

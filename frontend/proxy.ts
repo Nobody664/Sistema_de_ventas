@@ -89,6 +89,7 @@ async function handleRequest(request: NextRequest) {
 
   const isPublicRoute =
     pathname === "/" ||
+    pathname.startsWith("/tienda/") ||
     PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
   if (isPublicRoute) return NextResponse.next({ request });
 
@@ -146,6 +147,11 @@ async function handleRequest(request: NextRequest) {
   }
 
   const companyStatus = readJwtClaim(accessToken, "companyStatus");
+  if (pathname === "/atencion-tienda" && roles.includes("COMPANY_ADMIN"))
+    return applyRefreshedCookies(
+      NextResponse.next({ request }),
+      refreshedSetCookies,
+    );
 
   if (companyStatus === "INACTIVE") {
     return applyRefreshedCookies(

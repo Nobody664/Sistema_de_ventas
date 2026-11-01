@@ -21,6 +21,7 @@ export interface PlanCapabilities {
 }
 
 export const PLAN_MODULE_KEYS = [
+  "storefront",
   "dashboard",
   "notifications",
   "products",
@@ -58,6 +59,7 @@ export const CORE_MODULES: string[] = ["dashboard", "notifications"];
 const CORE_MODULE_SET = new Set(CORE_MODULES);
 
 export const MODULE_LABELS: Record<string, string> = {
+  storefront: "Tienda virtual",
   dashboard: "Dashboard",
   notifications: "Notificaciones",
   products: "Productos",

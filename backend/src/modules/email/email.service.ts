@@ -14,6 +14,7 @@ export interface SendEmailJob {
 }
 
 export enum EmailTemplate {
+  STORE_MESSAGE = "store-message",
   DAILY_SUMMARY = "daily-summary",
   SUBSCRIPTION_PENDING = "subscription-pending",
   SUBSCRIPTION_APPROVED = "subscription-approved",
@@ -31,6 +32,7 @@ const EMAIL_TEMPLATES: Record<
   EmailTemplate,
   { subject: string; text: string }
 > = {
+  [EmailTemplate.STORE_MESSAGE]: { subject: "Tu tienda", text: "{{message}}" },
   [EmailTemplate.DAILY_SUMMARY]: {
     subject: "Resumen diario del negocio",
     text: "{{message}}",

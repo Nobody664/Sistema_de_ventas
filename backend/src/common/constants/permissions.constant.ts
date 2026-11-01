@@ -1,4 +1,5 @@
 export enum Permission {
+  STORE_MANAGE = "store:manage",
   // Products
   PRODUCT_LIST = "product:list",
   PRODUCT_CREATE = "product:create",
@@ -134,6 +135,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: Object.values(Permission),
 
   COMPANY_ADMIN: [
+    Permission.STORE_MANAGE,
     Permission.PRODUCT_LIST,
     Permission.PRODUCT_CREATE,
     Permission.PRODUCT_UPDATE,

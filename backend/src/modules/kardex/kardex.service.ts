@@ -26,8 +26,11 @@ export class KardexService {
     ]);
   }
 
-  private async getStrategy(companyId: string): Promise<CostingStrategy> {
-    const company = await this.prisma.company.findUnique({
+  private async getStrategy(
+    companyId: string,
+    client: PrismaTx = this.prisma,
+  ): Promise<CostingStrategy> {
+    const company = await client.company.findUnique({
       where: { id: companyId },
       select: { inventoryCostMethod: true },
     });
@@ -123,7 +126,7 @@ export class KardexService {
       });
     }
 
-    const strategy = await this.getStrategy(companyId);
+    const strategy = await this.getStrategy(companyId, tx);
     const { unitCost, totalCost } = await strategy.calculateOutCost(
       productId,
       quantity,
