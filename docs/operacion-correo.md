@@ -21,6 +21,8 @@
 6. El dominio comercial tiene TXT DKIM en `resend._domainkey`, SPF en `send` y MX de retorno en `send` publicados. La disponibilidad de DNS no equivale por sí sola a que Resend haya terminado su verificación.
 7. La clave responde como restringida a la consulta de dominios. Al intentar el envío, Resend devuelve HTTP 400: el dominio asociado a la API key no está verificado. No se aceptó ni se entregó el mensaje de prueba en esos intentos.
 8. Después de que el propietario reemplazó `RESEND_API_KEY` en Render, la prueba al correo autorizado fue **aceptada por Resend** desde `notificaciones@qorium-investment.qpon`, con ID `01a19931-b5f8-7b71-8e51-f3b958471aae`. La clave de solo envío no permite consultar el evento posterior de entrega, por lo que Inbox/Spam o el dashboard de Resend deben confirmarlo. La prueba se ejecutó con el transporte nuevo localmente y las variables de Render en memoria; no equivale por sí sola a una prueba ejecutada dentro de la instancia remota.
+9. El destinatario confirmó la recepción en **spam**. Queda validado el envío y la recepción; la ubicación en Inbox requiere mejorar autenticación/reputación, no cambiar nuevamente las credenciales que ya funcionan.
+10. La corrección `af6ee57` alcanzó estado **live** en Render. `/api/health/ready` respondió OK y los logs registraron `Email aceptado por resend: daily-summary` desde la instancia desplegada. No se observaron errores en el intervalo posterior revisado.
 
 ## Configuración recomendada en Render
 
@@ -48,6 +50,24 @@ El endpoint de Resend es fijo (`https://api.resend.com`); `RESEND_API_BASE_URL` 
 La alternativa de prueba `onboarding@resend.dev` solo sirve para destinos permitidos por Resend (normalmente el correo del propietario). No sustituye un dominio verificado para registrar y notificar clientes reales.
 
 No se encontró DMARC en la consulta inicial. Es recomendable configurarlo según la política del dominio; su ausencia no fue el motivo del HTTP 400 de la API key. Evitar crear registros SPF duplicados y usar los valores exactos que indique Resend.
+
+### Si Gmail entrega en spam
+
+1. Marcar el mensaje recibido como **No es spam**; agregar el remitente a contactos si corresponde.
+2. En Gmail → menú del mensaje → **Mostrar original**, comprobar los resultados SPF y DKIM y su dominio. La existencia de registros DNS no demuestra por sí sola el resultado de autenticación de un mensaje concreto.
+3. Publicar un TXT DMARC inicial en el proveedor DNS de `qorium-investment.qpon`, si todavía no existe:
+
+| Campo | Valor |
+| --- | --- |
+| Tipo | TXT |
+| Nombre/Host | `_dmarc` (o `_dmarc.qorium-investment.qpon` si el panel pide el nombre completo) |
+| Valor | `v=DMARC1; p=none; adkim=r; aspf=r` |
+| TTL | 3600, o el valor predeterminado del proveedor |
+
+4. Esperar la propagación y revisar la autenticación en futuros mensajes. No duplicar un registro DMARC existente. Esta política inicial no rechaza correo; endurecerla requiere verificar todos los emisores legítimos del dominio.
+5. Mantener un remitente estable y evitar pruebas a cuentas inventadas/demos que puedan rebotar. Revisar rebotes/quejas en Resend.
+
+DMARC ayuda a autenticar el dominio, pero no garantiza Inbox: Gmail también usa reputación, antigüedad, interacción y contenido. Las notificaciones transaccionales no deben mezclarse con envíos masivos sin consentimiento.
 
 ## Diagnóstico desde la aplicación desplegada
 
