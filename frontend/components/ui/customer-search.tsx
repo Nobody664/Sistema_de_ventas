@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Search,
   Loader2,
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth.store";
+import { dniIdentityFields } from "@/lib/document-identity";
 
 interface CustomerData {
   id?: string;
@@ -48,12 +49,28 @@ export function CustomerSearch({
   customers = [],
 }: CustomerSearchProps) {
   const user = useAuthStore((state) => state.user);
+  const requestRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const pendingRef = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [documentType, setDocumentType] = useState<"DNI" | "RUC">("DNI");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<CustomerData | null>(null);
+  const cancelSearch = useCallback(() => {
+    requestRef.current++;
+    abortRef.current?.abort();
+    pendingRef.current = null;
+    setLoading(false);
+  }, []);
+  useEffect(
+    () => () => {
+      requestRef.current++;
+      abortRef.current?.abort();
+    },
+    [],
+  );
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
     null,
@@ -79,6 +96,13 @@ export function CustomerSearch({
     ) {
       return;
     }
+    const pending = `${documentType}:${searchQuery}`;
+    if (pendingRef.current === pending) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const request = ++requestRef.current;
+    pendingRef.current = pending;
 
     setLoading(true);
     setError(null);
@@ -94,19 +118,19 @@ export function CustomerSearch({
           apellidoPaterno?: string;
           apellidoMaterno?: string;
           nombres?: string;
+          nombreCompleto?: string;
           telefono?: string;
           direccion?: string;
         }>(`/dni/${searchQuery}`, {
           token: getAccessToken(),
+          signal: controller.signal,
         });
 
-        if (data) {
+        if (data && request === requestRef.current) {
+          const identity = dniIdentityFields(data, searchQuery);
           setResult({
-            firstName: data.nombres || data.apellidoPaterno || "",
-            lastName:
-              data.apellidoPaterno && data.apellidoMaterno
-                ? `${data.apellidoPaterno} ${data.apellidoMaterno}`
-                : data.apellidoPaterno || "",
+            firstName: identity.firstName,
+            lastName: identity.lastName,
             documentType: "DNI",
             documentValue: data.dni,
             phone: data.telefono,
@@ -121,9 +145,12 @@ export function CustomerSearch({
           estado?: string;
         }>(`/dni/ruc/${searchQuery}`, {
           token: getAccessToken(),
+          signal: controller.signal,
         });
 
-        if (data) {
+        if (data && request === requestRef.current) {
+          if (!data.nombre?.trim())
+            throw new Error("No se recibió una razón social válida");
           setResult({
             firstName: data.nombre,
             lastName: "",
@@ -135,13 +162,18 @@ export function CustomerSearch({
         }
       }
     } catch (err) {
+      if (request !== requestRef.current || controller.signal.aborted) return;
       setError(err instanceof Error ? err.message : "No se encontraron datos");
     } finally {
-      setLoading(false);
+      if (request === requestRef.current) {
+        pendingRef.current = null;
+        setLoading(false);
+      }
     }
   }, [searchQuery, documentType]);
 
   const handleSelectCustomer = (customer: ApiCustomer) => {
+    cancelSearch();
     const customerData: CustomerData = {
       id: customer.id,
       firstName: customer.firstName,
@@ -167,6 +199,7 @@ export function CustomerSearch({
   };
 
   const handleClear = () => {
+    cancelSearch();
     setSearchQuery("");
     setResult(null);
     setSelectedCustomer(null);
@@ -181,10 +214,10 @@ export function CustomerSearch({
       : searchQuery.length === 11;
 
   useEffect(() => {
-    if (isValidLength && searchQuery) {
-      searchDocument();
+    if (isValidLength && searchQuery && !selectedCustomer) {
+      void searchDocument();
     }
-  }, [searchQuery, documentType]);
+  }, [searchQuery, documentType, selectedCustomer]);
 
   return (
     <div className="space-y-4">
@@ -192,6 +225,7 @@ export function CustomerSearch({
         <button
           type="button"
           onClick={() => {
+            cancelSearch();
             setDocumentType("DNI");
             setResult(null);
             setSelectedCustomer(null);
@@ -208,6 +242,7 @@ export function CustomerSearch({
         <button
           type="button"
           onClick={() => {
+            cancelSearch();
             setDocumentType("RUC");
             setResult(null);
             setSelectedCustomer(null);
@@ -229,6 +264,7 @@ export function CustomerSearch({
             <Input
               value={searchQuery}
               onChange={(e) => {
+                cancelSearch();
                 const value = e.target.value.replace(/\D/g, "");
                 const maxLength = documentType === "DNI" ? 8 : 11;
                 setSearchQuery(value.slice(0, maxLength));

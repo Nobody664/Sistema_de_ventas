@@ -59,7 +59,7 @@ describe("PlanCapabilitiesService", () => {
     assert.deepEqual(caps.modules, ["sales", "products"]);
     assert.deepEqual(caps.features, ["reports:read"]);
     assert.equal(caps.apiQuota, 500);
-    assert.ok(cache.store.has("plan:caps:company-1"));
+    assert.ok(cache.store.has("plan:caps:paid-v1:company-1"));
   });
 
   it("uses the cached value on the second call without querying Prisma", async () => {
@@ -154,12 +154,14 @@ describe("PlanCapabilitiesService", () => {
   });
 
   it("invalidates the cache entry for a company", async () => {
-    const cache = makeCache({ "plan:caps:company-6": { planCode: "pro" } });
+    const cache = makeCache({
+      "plan:caps:paid-v1:company-6": { planCode: "pro" },
+    });
     const prisma = { subscription: {}, plan: {} } as any;
     const svc = new PlanCapabilitiesService(prisma, cache as any);
 
     await svc.invalidate("company-6");
 
-    assert.equal(cache.store.has("plan:caps:company-6"), false);
+    assert.equal(cache.store.has("plan:caps:paid-v1:company-6"), false);
   });
 });

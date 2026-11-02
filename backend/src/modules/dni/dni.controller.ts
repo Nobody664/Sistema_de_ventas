@@ -5,6 +5,7 @@ import { Roles } from "@/common/decorators/roles.decorator";
 import { RequireModule } from "@/modules/plan-capabilities/decorators/require-module.decorator";
 import { RequireFeature } from "@/modules/plan-capabilities/decorators/require-feature.decorator";
 import { ApiQuotaGuard } from "@/modules/plan-capabilities/guards/api-quota.guard";
+import { TenantGuard } from "@/common/guards/tenant.guard";
 import { DniService } from "./dni.service";
 import {
   AuthUser,
@@ -12,7 +13,7 @@ import {
 } from "@/common/decorators/current-user.decorator";
 
 @Controller("dni")
-@UseGuards(JwtAuthGuard, ApiQuotaGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, ApiQuotaGuard)
 @RequireModule("api_search_dni")
 @RequireFeature("api.dni_search")
 @Throttle({ default: { limit: 30, ttl: 60_000 } })

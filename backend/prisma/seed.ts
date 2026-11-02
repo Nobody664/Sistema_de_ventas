@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { paidPlanDefaults } from '../src/modules/plan-capabilities/paid-plan-policy';
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -80,10 +81,12 @@ const PLANS = [
 
 async function main() {
   for (const plan of PLANS) {
+    const current = await prisma.plan.findUnique({ where: { code: plan.code } });
+    const policy = paidPlanDefaults(current ?? plan);
     await prisma.plan.upsert({
       where: { code: plan.code },
-      update: {},
-      create: plan,
+      update: policy,
+      create: { ...plan, ...policy },
     });
   }
 

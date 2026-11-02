@@ -122,6 +122,7 @@ export function CustomerForm({ customer }: CustomerFormProps) {
     lastName: string;
     phone?: string;
     address?: string;
+    documentNumber?: string;
   }) => {
     const firstNameInput = document.getElementById(
       "firstName",
@@ -130,10 +131,15 @@ export function CustomerForm({ customer }: CustomerFormProps) {
       "lastName",
     ) as HTMLInputElement;
     const phoneInput = document.getElementById("phone") as HTMLInputElement;
+    const documentInput = document.getElementById(
+      "documentNumber",
+    ) as HTMLInputElement | null;
 
     if (firstNameInput) firstNameInput.value = data.firstName;
     if (lastNameInput) lastNameInput.value = data.lastName;
     if (phoneInput && data.phone) phoneInput.value = data.phone;
+    if (documentInput && data.documentNumber)
+      documentInput.value = data.documentNumber;
   };
 
   return (

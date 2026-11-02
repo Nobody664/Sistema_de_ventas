@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Min,
+  Max,
 } from "class-validator";
 import { Type } from "class-transformer";
 import {
@@ -26,10 +27,12 @@ export class CreatePlanDto {
   description?: string;
 
   @IsNumber()
+  @Min(0)
   @Type(() => Number)
   priceMonthly!: number;
 
   @IsNumber()
+  @Min(0)
   @Type(() => Number)
   priceYearly!: number;
 
@@ -70,6 +73,7 @@ export class CreatePlanDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(2147483647)
   apiQuota?: number;
 
   @IsOptional()
@@ -88,11 +92,13 @@ export class UpdatePlanDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   @Type(() => Number)
   priceMonthly?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   @Type(() => Number)
   priceYearly?: number;
 
@@ -135,6 +141,7 @@ export class UpdatePlanDto {
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(2147483647)
   apiQuota?: number;
 
   @IsOptional()

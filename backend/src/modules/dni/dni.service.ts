@@ -1,164 +1,119 @@
 import {
+  BadGatewayException,
+  BadRequestException,
+  ForbiddenException,
+  GatewayTimeoutException,
+  HttpException,
   Injectable,
   NotFoundException,
-  BadRequestException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CacheService } from "@/cache/cache.service";
 import { ApiQuotaService } from "@/modules/plan-capabilities/api-quota.service";
+import {
+  documentRequest,
+  DniResponse,
+  normalizeDni,
+  normalizeRuc,
+  RucResponse,
+} from "./document-provider";
 
-export interface DniResponse {
-  dni: string;
-  nombres: string;
-  apellidoPaterno: string;
-  apellidoMaterno: string;
-  direccion?: string;
-  sexo?: string;
-  fechaNacimiento?: string;
-}
-
-export interface RucResponse {
-  ruc: string;
-  nombre: string;
-  estado?: string;
-  direccion?: string;
-  telefono?: string;
-}
+export type { DniResponse, RucResponse } from "./document-provider";
 
 @Injectable()
 export class DniService {
-  private readonly reniecUrl: string;
-  private readonly reniecToken: string;
-  private readonly sunatUrl: string;
-
+  private readonly pending = new Map<string, Promise<unknown>>();
   constructor(
-    private readonly configService: ConfigService,
+    private readonly config: ConfigService,
     private readonly cache: CacheService,
     private readonly quota: ApiQuotaService,
-  ) {
-    this.reniecUrl =
-      this.configService.get<string>("RENIEC_API_URL") ||
-      "https://api.reniec.cloud/dni";
-    this.reniecToken = this.configService.get<string>("RENIEC_API_TOKEN") || "";
-    this.sunatUrl =
-      this.configService.get<string>("SUNAT_API_URL") ||
-      "https://api.sunat.cloud/rucs";
-  }
-
+  ) {}
   async findByDni(dni: string, companyId: string | null): Promise<DniResponse> {
-    if (!dni || dni.length !== 8 || !/^\d{8}$/.test(dni)) {
+    if (!/^\d{8}$/.test(dni))
       throw new BadRequestException("DNI debe tener 8 dígitos");
+    return this.lookup("DNI", dni, companyId, normalizeDni);
+  }
+  async findByRuc(ruc: string, companyId: string | null): Promise<RucResponse> {
+    if (!/^\d{11}$/.test(ruc))
+      throw new BadRequestException("RUC debe tener 11 dígitos");
+    return this.lookup("RUC", ruc, companyId, normalizeRuc);
+  }
+  private async lookup<T>(
+    kind: "DNI" | "RUC",
+    document: string,
+    companyId: string | null,
+    normalize: (value: unknown, document: string) => T,
+  ): Promise<T> {
+    if (!companyId)
+      throw new ForbiddenException(
+        "Se requiere una empresa para consultar documentos",
+      );
+    await this.quota.assertDniAccess(companyId);
+    const key = `document:v2:${kind}:${document}`;
+    const cached = await this.cache.get<unknown>(key);
+    if (cached) {
+      try {
+        return normalize(cached, document);
+      } catch {}
     }
-
-    const cacheKey = `dni:${dni}`;
-    const cached = await this.cache.get<DniResponse>(cacheKey);
-    if (cached) return cached;
-    if (companyId) await this.quota.consume(companyId);
-
+    const pendingKey = `${companyId}:${key}`;
+    const existing = this.pending.get(pendingKey);
+    if (existing) return (await existing) as T;
+    const request = this.query(kind, document, companyId, normalize, key);
+    this.pending.set(pendingKey, request);
     try {
-      const headers: Record<string, string> = {};
-      if (this.reniecToken) {
-        headers["Authorization"] = `Bearer ${this.reniecToken}`;
-      }
-
-      const response = await fetch(`${this.reniecUrl}/${dni}`, {
-        headers,
-        signal: AbortSignal.timeout(10000),
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new NotFoundException("DNI no encontrado en RENIEC");
-        }
-        if (response.status === 401) {
-          throw new BadRequestException("Error de autenticación con RENIEC");
-        }
-        throw new BadRequestException(
-          `Error al consultar DNI: ${response.status}`,
-        );
-      }
-
-      const data = (await response.json()) as DniResponse;
-
-      if (data) {
-        const result: DniResponse = {
-          dni: data.dni || dni,
-          nombres: data.nombres || "",
-          apellidoPaterno: data.apellidoPaterno || "",
-          apellidoMaterno: data.apellidoMaterno || "",
-          direccion: data.direccion,
-          sexo: data.sexo,
-          fechaNacimiento: data.fechaNacimiento,
-        };
-        await this.cache.set(cacheKey, result, 86400);
-        return result;
-      }
-
-      throw new NotFoundException("DNI no encontrado");
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        if (error.name === "AbortError" || error.name === "TimeoutError") {
-          throw new BadRequestException(
-            "Tiempo de conexión agotado con RENIEC",
-          );
-        }
-        if (error.message.includes("DNI no encontrado")) {
-          throw error;
-        }
-      }
-      throw new BadRequestException("Error al consultar DNI");
+      return await request;
+    } finally {
+      if (this.pending.get(pendingKey) === request)
+        this.pending.delete(pendingKey);
     }
   }
-
-  async findByRuc(ruc: string, companyId: string | null): Promise<RucResponse> {
-    if (!ruc || ruc.length !== 11 || !/^\d{11}$/.test(ruc)) {
-      throw new BadRequestException("RUC debe tener 11 dígitos");
-    }
-
-    const cacheKey = `ruc:${ruc}`;
-    const cached = await this.cache.get<RucResponse>(cacheKey);
-    if (cached) return cached;
-    if (companyId) await this.quota.consume(companyId);
-
+  private async query<T>(
+    kind: "DNI" | "RUC",
+    document: string,
+    companyId: string,
+    normalize: (value: unknown, document: string) => T,
+    key: string,
+  ): Promise<T> {
+    const request = documentRequest(this.config, kind, document);
+    await this.quota.consume(companyId);
     try {
-      const response = await fetch(`${this.sunatUrl}/${ruc}`, {
-        signal: AbortSignal.timeout(15000),
+      const response = await fetch(request.url, {
+        headers: request.headers,
+        redirect: "error",
+        signal: AbortSignal.timeout(request.timeout),
       });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new NotFoundException("RUC no encontrado en SUNAT");
-        }
-        throw new BadRequestException(
-          `Error al consultar RUC: ${response.status}`,
+      if (response.status === 404)
+        throw new NotFoundException(`${kind} no encontrado`);
+      if ([401, 403].includes(response.status))
+        throw new ServiceUnavailableException(
+          "El proveedor de documentos rechazó las credenciales del servidor",
         );
-      }
-
-      const data = (await response.json()) as RucResponse;
-
-      if (data) {
-        const result: RucResponse = {
-          ruc: data.ruc || ruc,
-          nombre: data.nombre || "",
-          estado: data.estado,
-          direccion: data.direccion,
-          telefono: data.telefono,
-        };
-        await this.cache.set(cacheKey, result, 86400);
-        return result;
-      }
-
-      throw new NotFoundException("RUC no encontrado");
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        if (error.name === "AbortError" || error.name === "TimeoutError") {
-          throw new BadRequestException("Tiempo de conexión agotado con SUNAT");
-        }
-        if (error.message.includes("RUC no encontrado")) {
-          throw error;
-        }
-      }
-      throw new BadRequestException("Error al consultar RUC");
+      if (response.status === 429)
+        throw new ServiceUnavailableException(
+          "El proveedor de documentos alcanzó su límite. Intenta más tarde.",
+        );
+      if (!response.ok)
+        throw new BadGatewayException(
+          `El proveedor ${kind} no está disponible`,
+        );
+      const data: unknown = await response.json();
+      const result = normalize(data, document);
+      await this.cache.set(key, result, 86400);
+      return result;
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      if (
+        error instanceof Error &&
+        ["AbortError", "TimeoutError"].includes(error.name)
+      )
+        throw new GatewayTimeoutException(
+          `Tiempo de conexión agotado con el proveedor ${kind}`,
+        );
+      throw new BadGatewayException(
+        `No se pudo consultar el proveedor ${kind}`,
+      );
     }
   }
 }

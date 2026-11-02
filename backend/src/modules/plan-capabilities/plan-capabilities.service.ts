@@ -7,6 +7,12 @@ import {
   CORE_MODULES,
   FALLBACK_PLAN_CODE,
 } from "./plan-capabilities.constants";
+import {
+  PAID_FEATURES,
+  PAID_MODULES,
+  paidPlanDefaults,
+  pricedPlan,
+} from "./paid-plan-policy";
 
 export interface PlanCapabilities {
   planId: string | null;
@@ -19,6 +25,8 @@ export interface PlanCapabilities {
   apiQuota: number;
   maxUsers: number;
   maxProducts: number;
+  paidBenefitsActive?: boolean;
+  paidBenefitsUntil?: string;
 }
 
 const ACTIVE_SUBSCRIPTION_STATUSES = ["ACTIVE", "TRIALING"];
@@ -35,9 +43,13 @@ export class PlanCapabilitiesService {
   ) {}
 
   async getCapabilities(companyId: string): Promise<PlanCapabilities> {
-    const cacheKey = `plan:caps:${companyId}`;
+    const cacheKey = `plan:caps:paid-v1:${companyId}`;
     const cached = await this.cache.get<PlanCapabilities>(cacheKey);
-    if (cached) {
+    if (
+      cached &&
+      (!cached.paidBenefitsUntil ||
+        Date.parse(cached.paidBenefitsUntil) > Date.now())
+    ) {
       return cached;
     }
 
@@ -47,7 +59,7 @@ export class PlanCapabilitiesService {
   }
 
   async invalidate(companyId: string): Promise<void> {
-    await this.cache.del(`plan:caps:${companyId}`);
+    await this.cache.del(`plan:caps:paid-v1:${companyId}`);
   }
 
   hasModule(capabilities: PlanCapabilities, module: string): boolean {
@@ -64,7 +76,15 @@ export class PlanCapabilitiesService {
     try {
       const subscription = await this.prisma.subscription.findFirst({
         where: { companyId },
-        include: { plan: true },
+        include: {
+          plan: true,
+          company: { select: { status: true } },
+          payments: {
+            where: { status: "SUCCEEDED", amount: { gt: 0 } },
+            select: { id: true },
+            take: 1,
+          },
+        },
         orderBy: { createdAt: "desc" },
       });
 
@@ -73,7 +93,17 @@ export class PlanCapabilitiesService {
         ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status) &&
         subscription.plan
       ) {
-        return this.fromPlan(subscription.plan);
+        const paid =
+          subscription.status === "ACTIVE" &&
+          subscription.company?.status === "ACTIVE" &&
+          subscription.endDate > new Date() &&
+          subscription.payments?.length > 0 &&
+          pricedPlan(subscription.plan);
+        return this.fromPlan(
+          subscription.plan,
+          paid,
+          paid ? subscription.endDate.toISOString() : undefined,
+        );
       }
 
       const fallbackPlan = await this.prisma.plan.findUnique({
@@ -93,27 +123,46 @@ export class PlanCapabilitiesService {
     return this.fallbackCapabilities();
   }
 
-  private fromPlan(plan: {
-    id: string;
-    code: string;
-    name: string;
-    maxUsers: number;
-    maxProducts: number;
-    modules: Prisma.JsonValue | null;
-    permissions: Prisma.JsonValue | null;
-    apiEnabled: boolean;
-    apiSearchDniEnabled: boolean;
-    apiQuota: number;
-  }): PlanCapabilities {
+  private fromPlan(
+    plan: {
+      id: string;
+      code: string;
+      name: string;
+      maxUsers: number;
+      maxProducts: number;
+      modules: Prisma.JsonValue | null;
+      permissions: Prisma.JsonValue | null;
+      apiEnabled: boolean;
+      apiSearchDniEnabled: boolean;
+      apiQuota: number;
+      priceMonthly?: Prisma.Decimal;
+      priceYearly?: Prisma.Decimal;
+    },
+    paid = false,
+    paidUntil?: string,
+  ): PlanCapabilities {
+    const defaults = paidPlanDefaults(plan);
+    const paidOnlyPlan = pricedPlan(plan);
     return {
       planId: plan.id,
       planCode: plan.code,
       planName: plan.name,
-      modules: this.toStringArray(plan.modules),
-      features: this.toStringArray(plan.permissions),
-      apiEnabled: plan.apiEnabled,
-      apiSearchDniEnabled: plan.apiSearchDniEnabled,
-      apiQuota: plan.apiQuota,
+      modules: paid
+        ? defaults.modules
+        : this.toStringArray(plan.modules).filter(
+            (module) => !(PAID_MODULES as readonly string[]).includes(module),
+          ),
+      features: paid
+        ? defaults.permissions
+        : this.toStringArray(plan.permissions).filter(
+            (feature) =>
+              !(PAID_FEATURES as readonly string[]).includes(feature),
+          ),
+      apiEnabled: paid ? true : paidOnlyPlan ? false : plan.apiEnabled,
+      apiSearchDniEnabled: paid,
+      apiQuota: paid ? defaults.apiQuota : paidOnlyPlan ? 0 : plan.apiQuota,
+      paidBenefitsActive: paid,
+      ...(paidUntil ? { paidBenefitsUntil: paidUntil } : {}),
       maxUsers: plan.maxUsers,
       maxProducts: plan.maxProducts,
     };

@@ -4,10 +4,11 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Search, Loader2, Check, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiFetch, getAccessToken } from "@/lib/api";
+import { dniIdentityFields, type DniIdentity } from "@/lib/document-identity";
 
-interface DniResult {
+interface DniResult extends DniIdentity {
   dni: string;
-  nombre: string;
+  nombre?: string;
   apellidoPaterno?: string;
   apellidoMaterno?: string;
   nombres?: string;
@@ -21,6 +22,7 @@ interface DniSearchProps {
     lastName: string;
     phone?: string;
     address?: string;
+    documentNumber?: string;
   }) => void;
   documentType?: string;
 }
@@ -32,6 +34,24 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<DniResult | null>(null);
   const lastSearched = useRef<string>("");
+  const requestRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const pendingRef = useRef<string | null>(null);
+  useEffect(() => {
+    requestRef.current++;
+    abortRef.current?.abort();
+    pendingRef.current = null;
+    lastSearched.current = "";
+    setLoading(false);
+    setResult(null);
+    setSuccess(false);
+    setError(null);
+    return () => {
+      requestRef.current++;
+      abortRef.current?.abort();
+      pendingRef.current = null;
+    };
+  }, [documentType]);
 
   const isValidLength =
     documentType === "DNI"
@@ -46,6 +66,13 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
       if (!target || !valid) {
         return;
       }
+      const pending = `${documentType}:${target}`;
+      if (pendingRef.current === pending) return;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const request = ++requestRef.current;
+      pendingRef.current = pending;
 
       setLoading(true);
       setError(null);
@@ -56,31 +83,25 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
         if (documentType === "DNI") {
           const data = await apiFetch<DniResult>(`/dni/${target}`, {
             token: getAccessToken(),
+            signal: controller.signal,
           });
 
-          if (data) {
+          if (data && request === requestRef.current) {
+            const identity = dniIdentityFields(data, target);
             setResult(data);
             setSuccess(true);
 
-            const fullName = data.nombres || data.apellidoPaterno || "";
-            const lastName =
-              data.apellidoPaterno && data.apellidoMaterno
-                ? `${data.apellidoPaterno} ${data.apellidoMaterno}`
-                : data.apellidoPaterno || "";
-
-            onResult?.({
-              firstName: fullName,
-              lastName: lastName,
-              phone: data.telefono,
-              address: data.direccion,
-            });
+            onResult?.({ ...identity, documentNumber: target });
           }
         } else {
           const data = await apiFetch<DniResult>(`/dni/ruc/${target}`, {
             token: getAccessToken(),
+            signal: controller.signal,
           });
 
-          if (data) {
+          if (data && request === requestRef.current) {
+            if (!data.nombre?.trim())
+              throw new Error("No se recibió una razón social válida");
             setResult(data);
             setSuccess(true);
 
@@ -89,15 +110,20 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
               lastName: "",
               phone: data.telefono,
               address: data.direccion,
+              documentNumber: target,
             });
           }
         }
       } catch (err) {
+        if (request !== requestRef.current || controller.signal.aborted) return;
         setError(
           err instanceof Error ? err.message : "No se encontraron datos",
         );
       } finally {
-        setLoading(false);
+        if (request === requestRef.current) {
+          pendingRef.current = null;
+          setLoading(false);
+        }
       }
     },
     [documentNumber, documentType, onResult],
@@ -108,6 +134,7 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
     if (lastSearched.current === documentNumber) return;
 
     const timer = setTimeout(() => {
+      if (lastSearched.current === documentNumber) return;
       lastSearched.current = documentNumber;
       void searchDocument(documentNumber);
     }, 350);
@@ -124,6 +151,10 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
   };
 
   const handleChange = (value: string) => {
+    requestRef.current++;
+    abortRef.current?.abort();
+    pendingRef.current = null;
+    setLoading(false);
     const numericValue = value.replace(/\D/g, "");
     const maxLength = documentType === "DNI" ? 8 : 11;
     const next = numericValue.slice(0, maxLength);
@@ -141,6 +172,7 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
       <div className="relative flex gap-2">
         <div className="relative flex-1">
           <Input
+            aria-label={documentType === "DNI" ? "Buscar DNI" : "Buscar RUC"}
             value={documentNumber}
             onChange={(e) => handleChange(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -185,17 +217,24 @@ export function DniSearch({ onResult, documentType = "DNI" }: DniSearchProps) {
       </div>
 
       {error && (
-        <p className="text-sm text-red-500 flex items-center gap-1.5">
+        <p
+          role="alert"
+          className="text-sm text-red-500 flex items-center gap-1.5"
+        >
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
       )}
 
       {result && (
-        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3">
+        <div
+          role="status"
+          className="rounded-xl bg-emerald-50 border border-emerald-200 p-3"
+        >
           <p className="text-sm font-medium text-emerald-800">
             {documentType === "DNI"
-              ? `${result.nombres || ""} ${result.apellidoPaterno || ""} ${result.apellidoMaterno || ""}`.trim()
+              ? result.nombreCompleto ||
+                `${result.nombres || ""} ${result.apellidoPaterno || ""} ${result.apellidoMaterno || ""}`.trim()
               : result.nombre || ""}
           </p>
           {result.direccion && (

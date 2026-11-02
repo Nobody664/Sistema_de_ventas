@@ -22,13 +22,13 @@ export class PlansController {
     return this.plansService.findPublicPlans();
   }
 
-  @Roles("SUPER_ADMIN", "SUPPORT_ADMIN")
+  @Roles("SUPER_ADMIN")
   @Post()
   create(@Body() body: CreatePlanDto) {
     return this.plansService.create(body);
   }
 
-  @Roles("SUPER_ADMIN", "SUPPORT_ADMIN")
+  @Roles("SUPER_ADMIN")
   @Patch(":id")
   update(@Param("id") id: string, @Body() body: UpdatePlanDto) {
     return this.plansService.update(id, body);

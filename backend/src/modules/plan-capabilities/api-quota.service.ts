@@ -63,6 +63,24 @@ export class ApiQuotaService {
       );
   }
 
+  async assertDniAccess(companyId: string): Promise<void> {
+    const capabilities = await this.planCapabilities.getCapabilities(companyId);
+    if (
+      !capabilities.apiEnabled ||
+      !capabilities.apiSearchDniEnabled ||
+      capabilities.apiQuota <= 0
+    )
+      throw new HttpException(
+        {
+          error: "FEATURE_NOT_AVAILABLE",
+          message:
+            "La búsqueda DNI/RUC requiere una suscripción vigente con pago confirmado.",
+          currentPlan: capabilities.planCode,
+        },
+        HttpStatus.FORBIDDEN,
+      );
+  }
+
   async consume(companyId: string, amount = 1): Promise<ApiQuotaResult> {
     if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 2147483647)
       throw new BadRequestException("El consumo debe ser un entero positivo");
