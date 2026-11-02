@@ -54,9 +54,17 @@ export class AuthController {
     @Body() body: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.login(body);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken);
-    return { user: result.user, expiresIn: result.expiresIn };
+    const started = performance.now();
+    try {
+      const result = await this.authService.login(body);
+      this.setAuthCookies(res, result.accessToken, result.refreshToken);
+      return { user: result.user, expiresIn: result.expiresIn };
+    } finally {
+      res.setHeader(
+        "Server-Timing",
+        `auth;dur=${Math.round(performance.now() - started)}`,
+      );
+    }
   }
 
   @Public()

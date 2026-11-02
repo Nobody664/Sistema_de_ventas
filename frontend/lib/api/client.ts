@@ -92,12 +92,15 @@ async function performRefresh(): Promise<boolean> {
     REFRESH_COOLDOWN_MS;
   if (recentlyRefreshed) return true;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   try {
     const response = await fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
       credentials: "include",
+      signal: controller.signal,
     });
 
     if (!response.ok) return false;
@@ -105,6 +108,8 @@ async function performRefresh(): Promise<boolean> {
     return true;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -161,10 +166,11 @@ function buildRequestInit(init?: ApiRequestInit): {
   };
 }
 
-async function executeFetch(
+async function executeFetch<T>(
   path: string,
-  init?: ApiRequestInit,
-): Promise<Response> {
+  init: ApiRequestInit | undefined,
+  handle: (response: Response) => Promise<T>,
+): Promise<T> {
   const { requestInit, timeoutMs } = buildRequestInit(init);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -174,10 +180,13 @@ async function executeFetch(
   externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
 
   try {
-    return await fetch(`${API_URL}${path}`, {
+    if (externalSignal?.aborted)
+      throw new DOMException("Solicitud cancelada", "AbortError");
+    const response = await fetch(`${API_URL}${path}`, {
       ...requestInit,
       signal: controller.signal,
     });
+    return await handle(response);
   } catch (error) {
     if (controller.signal.aborted && !externalSignal?.aborted) {
       throw new ApiError(
@@ -204,25 +213,22 @@ export async function apiFetch<T>(
   init?: ApiRequestInit,
 ): Promise<T> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const response = await executeFetch(normalizedPath, init);
-
-  if (
-    response.status === 401 &&
-    !init?.skipRefresh &&
-    !normalizedPath.startsWith("/auth/")
-  ) {
-    const refreshed = await refreshAccessToken();
-
-    if (refreshed) {
-      const retryResponse = await executeFetch(normalizedPath, init);
-      if (!retryResponse.ok) throw await parseError(retryResponse);
-      return readBody<T>(retryResponse);
-    }
-  }
-
-  if (!response.ok) {
-    throw await parseError(response);
-  }
-
-  return readBody<T>(response);
+  const result = await executeFetch<
+    { kind: "data"; data: T } | { kind: "unauthorized"; error: ApiError }
+  >(normalizedPath, init, async (response) => {
+    if (
+      response.status === 401 &&
+      !init?.skipRefresh &&
+      !normalizedPath.startsWith("/auth/")
+    )
+      return { kind: "unauthorized", error: await parseError(response) };
+    if (!response.ok) throw await parseError(response);
+    return { kind: "data", data: await readBody<T>(response) };
+  });
+  if (result.kind === "data") return result.data;
+  if (!(await refreshAccessToken())) throw result.error;
+  return executeFetch<T>(normalizedPath, init, async (response) => {
+    if (!response.ok) throw await parseError(response);
+    return readBody<T>(response);
+  });
 }

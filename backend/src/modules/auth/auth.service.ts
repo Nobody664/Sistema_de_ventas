@@ -153,6 +153,19 @@ export class AuthService {
   }
 
   async login(input: LoginDto) {
+    const started = performance.now();
+    try {
+      return await this.authenticateLogin(input);
+    } finally {
+      const duration = Math.round(performance.now() - started);
+      if (duration >= 5000)
+        this.logger.warn(
+          `Inicio de sesión lento: ${duration} ms (base de datos y verificación de credenciales)`,
+        );
+    }
+  }
+
+  private async authenticateLogin(input: LoginDto) {
     const user = await this.usersService.findByEmail(input.email);
     if (!user?.isActive) {
       throw new UnauthorizedException("Invalid credentials.");

@@ -63,6 +63,12 @@ const account = {
 };
 
 function data(resource) {
+  if (resource === "/health/ready")
+    return {
+      status: "ok",
+      service: "backend",
+      checks: { database: { status: "ok" } },
+    };
   if (resource === "/notifications/preferences")
     return { salesEnabled: true, stockEnabled: true, soundEnabled: false };
   if (resource === "/companies/current")

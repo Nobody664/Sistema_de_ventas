@@ -4,12 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth.store";
 import { getSignInDestination } from "@/lib/role-navigation";
+import type { AuthStage } from "@/lib/auth-readiness";
 
 const signInSchema = z.object({
   email: z.string().email("Correo electrónico inválido"),
@@ -25,6 +26,10 @@ export function SignInForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stage, setStage] = useState<AuthStage | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const submittingRef = useRef(false);
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   const form = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
@@ -35,11 +40,19 @@ export function SignInForm() {
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    const controller = new AbortController();
+    requestRef.current = controller;
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await login(values.email, values.password);
+      await login(values.email, values.password, {
+        signal: controller.signal,
+        onStage: setStage,
+      });
+      if (controller.signal.aborted) return;
       router.replace(
         getSignInDestination(
           searchParams.get("redirect"),
@@ -48,16 +61,25 @@ export function SignInForm() {
       );
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Credenciales incorrectas");
+      if (!controller.signal.aborted)
+        setError(
+          err instanceof Error ? err.message : "No se pudo iniciar sesión",
+        );
     } finally {
+      submittingRef.current = false;
+      requestRef.current = null;
+      setStage(null);
       setIsSubmitting(false);
     }
   });
 
   return (
-    <form className="space-y-5" onSubmit={onSubmit}>
+    <form className="space-y-5" onSubmit={onSubmit} aria-busy={isSubmitting}>
       {error && (
-        <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
+        <div
+          role="alert"
+          className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400"
+        >
           {error}
         </div>
       )}
@@ -68,6 +90,8 @@ export function SignInForm() {
         </label>
         <input
           id="email"
+          autoComplete="username"
+          disabled={isSubmitting}
           type="email"
           className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:border-violet-500/50 focus:bg-white/10 focus:shadow-lg focus:shadow-violet-500/10"
           placeholder="tu@email.com"
@@ -95,6 +119,8 @@ export function SignInForm() {
         <div className="relative">
           <input
             id="password"
+            autoComplete="current-password"
+            disabled={isSubmitting}
             type={showPassword ? "text" : "password"}
             className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 pr-12 text-white placeholder:text-white/30 outline-none transition-all duration-300 focus:border-violet-500/50 focus:bg-white/10 focus:shadow-lg focus:shadow-violet-500/10"
             placeholder="••••••••"
@@ -129,11 +155,36 @@ export function SignInForm() {
         disabled={isSubmitting}
       >
         {isSubmitting ? (
-          <Loader2 className="size-5 animate-spin" />
+          <>
+            <Loader2 className="mr-2 size-5 animate-spin" />
+            {stage === "connecting"
+              ? "Conectando con el servidor…"
+              : "Verificando acceso…"}
+          </>
         ) : (
           "Iniciar sesión"
         )}
       </Button>
+
+      {stage === "connecting" && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="space-y-2 text-center text-xs leading-relaxed text-white/60"
+        >
+          <p>
+            Si el servidor estaba en reposo, puede tardar hasta un minuto y
+            medio en activarse. No necesitas volver a pulsar.
+          </p>
+          <button
+            type="button"
+            className="text-white underline underline-offset-4"
+            onClick={() => requestRef.current?.abort()}
+          >
+            Cancelar espera
+          </button>
+        </div>
+      )}
 
       <p className="text-center text-sm text-white/50">
         ¿No tienes una cuenta?{" "}

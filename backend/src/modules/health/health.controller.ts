@@ -1,4 +1,4 @@
-import { Controller, Get, Res } from "@nestjs/common";
+import { Controller, Get, Res, Header } from "@nestjs/common";
 import { Response } from "express";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { Public } from "@/common/decorators/public.decorator";
@@ -19,6 +19,7 @@ export class HealthController {
 
   @Public()
   @Get("ready")
+  @Header("Cache-Control", "no-store")
   @ApiOperation({
     summary: "Readiness probe - is the service ready to accept traffic?",
   })

@@ -1,5 +1,9 @@
 import { parseSessionUser, type SessionUser } from "@/lib/session-contract";
 import { ApiError, apiFetch } from "./client";
+import {
+  waitForAuthBackend,
+  type AuthRequestOptions,
+} from "@/lib/auth-readiness";
 
 export interface LoginRequest {
   email: string;
@@ -41,13 +45,21 @@ function parseAuthResponse(response: {
   };
 }
 
-export async function login(data: LoginRequest): Promise<AuthResponse> {
+export async function login(
+  data: LoginRequest,
+  options: AuthRequestOptions = {},
+): Promise<AuthResponse> {
+  options.onStage?.("connecting");
+  await waitForAuthBackend({ signal: options.signal });
+  options.onStage?.("authenticating");
   const response = await apiFetch<{ user: unknown; expiresIn?: string }>(
     "/auth/login",
     {
       method: "POST",
       body: JSON.stringify(data),
       skipRefresh: true,
+      timeoutMs: 30000,
+      signal: options.signal,
     },
   );
 

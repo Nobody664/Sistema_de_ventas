@@ -9,6 +9,7 @@ import {
   type AuthUser,
 } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
+import type { AuthRequestOptions } from "@/lib/auth-readiness";
 
 interface AuthState {
   user: AuthUser | null;
@@ -16,7 +17,11 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
 
-  login: (email: string, password: string) => Promise<void>;
+  login: (
+    email: string,
+    password: string,
+    options?: AuthRequestOptions,
+  ) => Promise<void>;
   register: (
     email: string,
     password: string,
@@ -30,16 +35,30 @@ interface AuthState {
   clearError: () => void;
 }
 
+let authRevision = 0;
+let authCheck = 0;
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
   error: null,
 
-  login: async (email: string, password: string) => {
+  login: async (
+    email: string,
+    password: string,
+    options?: AuthRequestOptions,
+  ) => {
+    const revision = ++authRevision;
     set({ isLoading: true, error: null });
     try {
-      const response = await apiLogin({ email, password });
+      const response = await apiLogin({ email, password }, options);
+      if (revision !== authRevision)
+        throw new ApiError(
+          "La solicitud de acceso fue reemplazada",
+          0,
+          "AUTH_SUPERSEDED",
+        );
       set({
         user: response.user,
         isAuthenticated: true,
@@ -47,6 +66,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         error: null,
       });
     } catch (error) {
+      if (revision !== authRevision) throw error;
       set({
         user: null,
         isAuthenticated: false,
@@ -63,6 +83,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     fullName: string,
     companyName: string,
   ) => {
+    const revision = ++authRevision;
     set({ isLoading: true, error: null });
     try {
       const response = await apiRegister({
@@ -71,6 +92,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         fullName,
         companyName,
       });
+      if (revision !== authRevision)
+        throw new ApiError(
+          "La solicitud de registro fue reemplazada",
+          0,
+          "AUTH_SUPERSEDED",
+        );
       set({
         user: response.user,
         isAuthenticated: true,
@@ -78,6 +105,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         error: null,
       });
     } catch (error) {
+      if (revision !== authRevision) throw error;
       set({
         user: null,
         isAuthenticated: false,
@@ -89,9 +117,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    const revision = ++authRevision;
     set({ isLoading: true, error: null });
     try {
       await apiLogout();
+      if (revision !== authRevision) return false;
       set({
         user: null,
         isAuthenticated: false,
@@ -100,6 +130,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
       return true;
     } catch (error) {
+      if (revision !== authRevision) return false;
       set({
         isLoading: false,
         error:
@@ -112,16 +143,32 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   updateProfile: async (fullName: string) => {
-    const response = await apiUpdateProfile(fullName);
-    set({ user: response.user, isAuthenticated: true, error: null });
+    const revision = ++authRevision;
+    try {
+      const response = await apiUpdateProfile(fullName);
+      if (revision === authRevision)
+        set({
+          user: response.user,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+    } catch (error) {
+      if (revision === authRevision) set({ isLoading: false });
+      throw error;
+    }
   },
 
   checkAuth: async () => {
+    const revision = authRevision;
+    const check = ++authCheck;
     set({ isLoading: true });
     try {
       const user = await getMe();
+      if (revision !== authRevision || check !== authCheck) return;
       set({ user, isAuthenticated: true, isLoading: false, error: null });
     } catch (error) {
+      if (revision !== authRevision || check !== authCheck) return;
       const status = error instanceof ApiError ? error.status : 0;
 
       if (status === 401) {
@@ -145,13 +192,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   refreshSession: async () => {
+    const revision = ++authRevision;
     try {
       await apiRefreshToken();
       const user = await getMe();
-      set({ user, isAuthenticated: true, error: null });
+      if (revision !== authRevision) return false;
+      set({ user, isAuthenticated: true, isLoading: false, error: null });
       return true;
     } catch {
-      set({ user: null, isAuthenticated: false });
+      if (revision !== authRevision) return false;
+      set({ user: null, isAuthenticated: false, isLoading: false });
       return false;
     }
   },

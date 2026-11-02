@@ -4,6 +4,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { chromium, firefox, webkit } = require("playwright");
 const { runScannerChecks } = require("./scanner-checks.cjs");
+const { runAuthChecks } = require("./auth-checks.cjs");
 const {
   handleStore,
   handleStoreAdmin,
@@ -368,6 +369,11 @@ async function main() {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    if (process.argv.includes("--auth-only")) {
+      await runAuthChecks(page, context, origin, user);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes("--store-only")) {
       await runStoreChecks(page, origin);
       assert.deepEqual(errors, []);
