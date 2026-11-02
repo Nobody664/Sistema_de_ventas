@@ -39,6 +39,23 @@ export const envSchema = z.object({
   MERCADOPAGO_WEBHOOK_SECRET: z.string().default(""),
   PAYPAL_CLIENT_ID: z.string().default(""),
   PAYPAL_CLIENT_SECRET: z.string().default(""),
+  RENIEC_API_URL: z.string().url().optional(),
+  RENIEC_API_TOKEN: z.string().optional(),
+  RENIEC_QUERY_PARAM: z.string().optional(),
+  RENIEC_AUTH_HEADER: z.string().optional(),
+  RENIEC_TOKEN_PREFIX: z.string().optional(),
+  RENIEC_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1000)
+    .max(30000)
+    .default(10000),
+  SUNAT_API_URL: z.string().url().optional(),
+  SUNAT_API_TOKEN: z.string().optional(),
+  SUNAT_QUERY_PARAM: z.string().optional(),
+  SUNAT_AUTH_HEADER: z.string().optional(),
+  SUNAT_TOKEN_PREFIX: z.string().optional(),
+  SUNAT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(15000),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),

@@ -66,6 +66,7 @@ describe("Atomic API quota and external-attempt policy", () => {
       { get: () => undefined } as unknown as ConfigService,
       { get: async () => ({ dni: "12345678", nombres: "Persona" }) } as never,
       {
+        assertDniAccess: async () => undefined,
         consume: async () => {
           consumed++;
         },
@@ -84,9 +85,10 @@ describe("Atomic API quota and external-attempt policy", () => {
       async () => new Response("unavailable", { status: 503 }),
     );
     const service = new DniService(
-      { get: () => undefined } as unknown as ConfigService,
+      new ConfigService({ RENIEC_API_TOKEN: "fake-token" }),
       { get: async () => null } as never,
       {
+        assertDniAccess: async () => undefined,
         consume: async () => {
           consumed++;
         },
