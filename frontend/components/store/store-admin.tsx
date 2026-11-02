@@ -108,7 +108,8 @@ export function StoreAdmin() {
               type="checkbox"
               defaultChecked={settings.enabled}
             />
-            Tienda habilitada (requiere módulo storefront en el plan)
+            Tienda habilitada (incluida con suscripción vigente y pago
+            confirmado)
           </label>
           <label className="flex gap-2">
             <input

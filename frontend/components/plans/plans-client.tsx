@@ -70,6 +70,13 @@ const emptyFormData = {
   isActive: true,
 };
 
+const suggestedQuota = (code: string) =>
+  ["SCALE", "PRO", "PROFESIONAL", "PROFESSIONAL"].includes(code.toUpperCase())
+    ? "3000"
+    : ["GROWTH", "MEDIO", "MEDIUM"].includes(code.toUpperCase())
+      ? "1500"
+      : "500";
+
 export function PlansClient({ initialPlans }: PlansClientProps) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -81,6 +88,18 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState(emptyFormData);
+  const canManage = user?.roles.includes("SUPER_ADMIN") ?? false;
+  const paidPlan =
+    Number(formData.priceMonthly) > 0 || Number(formData.priceYearly) > 0;
+  const changePrice = (key: "priceMonthly" | "priceYearly", value: string) =>
+    setFormData((current) => ({
+      ...current,
+      [key]: value,
+      apiQuota:
+        Number(value) > 0 && Number(current.apiQuota) <= 0
+          ? suggestedQuota(current.code)
+          : current.apiQuota,
+    }));
 
   const planColors: Record<string, string> = {
     FREE: "from-gray-500 to-slate-600",
@@ -104,6 +123,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   };
 
   const handleOpenDialog = (plan?: AdminPlan) => {
+    if (!canManage) return;
     setSaveError(null);
     if (plan) {
       setEditingPlan(plan);
@@ -121,7 +141,12 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
         permissions: parseFeatures(plan.permissions),
         apiEnabled: plan.apiEnabled ?? false,
         apiSearchDniEnabled: plan.apiSearchDniEnabled ?? false,
-        apiQuota: plan.apiQuota?.toString() || "0",
+        apiQuota:
+          plan.apiQuota && plan.apiQuota > 0
+            ? plan.apiQuota.toString()
+            : Number(plan.priceMonthly) > 0 || Number(plan.priceYearly) > 0
+              ? suggestedQuota(plan.code)
+              : "0",
         isActive: plan.isActive,
       });
     } else {
@@ -144,9 +169,19 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   };
 
   const handleSave = async () => {
+    if (!canManage) return;
     setSaving(true);
     setSaveError(null);
     try {
+      const quota = Number(formData.apiQuota);
+      if (
+        !Number.isSafeInteger(quota) ||
+        quota < (paidPlan ? 1 : 0) ||
+        quota > 2147483647
+      )
+        throw new Error(
+          "La cuota mensual debe ser un entero válido y mayor a cero en planes de pago.",
+        );
       const planFields = {
         name: formData.name.trim(),
         description: formData.description.trim(),
@@ -160,11 +195,15 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
           ? { maxProducts: parseInt(formData.maxProducts, 10) }
           : {}),
         features: formData.features.split("\n").filter((f) => f.trim()),
-        modules: formData.modules,
-        permissions: formData.permissions,
-        apiEnabled: formData.apiEnabled,
-        apiSearchDniEnabled: formData.apiSearchDniEnabled,
-        apiQuota: formData.apiQuota ? parseInt(formData.apiQuota, 10) : 0,
+        modules: paidPlan
+          ? [...new Set([...formData.modules, "storefront", "api_search_dni"])]
+          : formData.modules,
+        permissions: paidPlan
+          ? [...new Set([...formData.permissions, "api.dni_search"])]
+          : formData.permissions,
+        apiEnabled: paidPlan || formData.apiEnabled,
+        apiSearchDniEnabled: paidPlan || formData.apiSearchDniEnabled,
+        apiQuota: quota,
         isActive: formData.isActive,
       };
       const signal = AbortSignal.timeout(20_000);
@@ -219,6 +258,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   };
 
   const handleDelete = async (planId: string) => {
+    if (!canManage) return;
     if (!confirm("¿Estás seguro de eliminar este plan?")) return;
 
     setLoading(true);
@@ -241,6 +281,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   };
 
   const togglePlanStatus = async (plan: Plan) => {
+    if (!canManage) return;
     setLoading(true);
     try {
       await apiFetch(`/plans/${plan.id}`, {
@@ -282,6 +323,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
           </div>
           <Button
             onClick={() => handleOpenDialog()}
+            disabled={!canManage}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-medium text-violet-600 transition hover:bg-white/90 sm:w-auto"
           >
             <Plus className="size-4" />
@@ -366,6 +408,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => handleOpenDialog(plan)}
+                    disabled={!canManage}
                     className="rounded-lg p-2 hover:bg-foreground/5"
                     title="Editar"
                   >
@@ -374,6 +417,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                   {plan.code !== "FREE" && (
                     <button
                       onClick={() => handleDelete(plan.id)}
+                      disabled={!canManage}
                       className="rounded-lg p-2 hover:bg-red-50"
                       title="Eliminar"
                     >
@@ -472,7 +516,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 size="sm"
                 className="mt-4 w-full"
                 onClick={() => togglePlanStatus(plan)}
-                disabled={loading}
+                disabled={loading || !canManage}
               >
                 {plan.isActive ? "Desactivar" : "Activar"}
               </Button>
@@ -558,9 +602,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                   type="number"
                   step="0.01"
                   value={formData.priceMonthly}
-                  onChange={(e) =>
-                    setFormData({ ...formData, priceMonthly: e.target.value })
-                  }
+                  onChange={(e) => changePrice("priceMonthly", e.target.value)}
                   placeholder="59.00"
                 />
               </div>
@@ -571,9 +613,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                   type="number"
                   step="0.01"
                   value={formData.priceYearly}
-                  onChange={(e) =>
-                    setFormData({ ...formData, priceYearly: e.target.value })
-                  }
+                  onChange={(e) => changePrice("priceYearly", e.target.value)}
                   placeholder="590.00"
                 />
               </div>
@@ -634,7 +674,17 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                     <input
                       type="checkbox"
                       className="size-4 accent-violet-600"
-                      checked={formData.modules.includes(moduleKey)}
+                      checked={
+                        (paidPlan &&
+                          ["storefront", "api_search_dni"].includes(
+                            moduleKey,
+                          )) ||
+                        formData.modules.includes(moduleKey)
+                      }
+                      disabled={
+                        paidPlan &&
+                        ["storefront", "api_search_dni"].includes(moduleKey)
+                      }
                       onChange={() => toggleInArray("modules", moduleKey)}
                     />
                     <span>{MODULE_LABELS[moduleKey] ?? moduleKey}</span>
@@ -654,7 +704,11 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                     <input
                       type="checkbox"
                       className="size-4 accent-violet-600"
-                      checked={formData.permissions.includes(featureKey)}
+                      checked={
+                        (paidPlan && featureKey === "api.dni_search") ||
+                        formData.permissions.includes(featureKey)
+                      }
+                      disabled={paidPlan && featureKey === "api.dni_search"}
                       onChange={() => toggleInArray("permissions", featureKey)}
                     />
                     <span>{FEATURE_LABELS[featureKey] ?? featureKey}</span>
@@ -668,14 +722,16 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 <div>
                   <Label htmlFor="apiEnabled">Acceso a API</Label>
                   <p className="text-xs text-foreground/50">
-                    Habilita el uso de integraciones por API.
+                    Incluido para servicios de consulta de los planes pagados.
+                    Las integraciones externas conservan sus permisos propios.
                   </p>
                 </div>
                 <input
                   id="apiEnabled"
                   type="checkbox"
                   className="size-4 accent-violet-600"
-                  checked={formData.apiEnabled}
+                  checked={paidPlan || formData.apiEnabled}
+                  disabled={paidPlan}
                   onChange={(e) =>
                     setFormData({ ...formData, apiEnabled: e.target.checked })
                   }
@@ -685,15 +741,16 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 <div>
                   <Label htmlFor="apiSearchDni">Búsqueda DNI/RUC</Label>
                   <p className="text-xs text-foreground/50">
-                    Solo disponible en planes altos.
+                    Incluida en todos los planes pagados, con cuota mensual
+                    configurable aquí.
                   </p>
                 </div>
                 <input
                   id="apiSearchDni"
                   type="checkbox"
                   className="size-4 accent-violet-600"
-                  checked={formData.apiSearchDniEnabled}
-                  disabled={!formData.apiEnabled}
+                  checked={paidPlan || formData.apiSearchDniEnabled}
+                  disabled={paidPlan || !formData.apiEnabled}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -703,17 +760,27 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="apiQuota">Cuota de API por mes</Label>
+                <Label htmlFor="apiQuota">
+                  Consultas API por mes (DNI/RUC)
+                </Label>
                 <Input
                   id="apiQuota"
                   type="number"
                   value={formData.apiQuota}
-                  disabled={!formData.apiEnabled}
+                  min={paidPlan ? 1 : 0}
+                  max={2147483647}
+                  step={1}
+                  disabled={!paidPlan && !formData.apiEnabled}
                   onChange={(e) =>
                     setFormData({ ...formData, apiQuota: e.target.value })
                   }
                   placeholder="0"
                 />
+                <p className="text-xs text-foreground/50">
+                  Iniciales: Start 500, Medio/Growth 1500, Profesional/Scale
+                  3000. Los cambios se aplican también a las empresas suscritas,
+                  sin reiniciar su consumo del mes.
+                </p>
               </div>
             </div>
           </div>

@@ -154,7 +154,9 @@ export class StoreService {
     if (input.enabled) {
       const capabilities = await this.plans.getCapabilities(companyId);
       if (!this.plans.hasModule(capabilities, "storefront"))
-        throw new ForbiddenException("El plan no incluye tienda virtual");
+        throw new ForbiddenException(
+          "Se requiere una suscripción vigente con pago confirmado para habilitar la tienda",
+        );
     }
     return this.prisma.storefrontSettings.upsert({
       where: { companyId },
