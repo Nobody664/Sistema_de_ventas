@@ -71,6 +71,7 @@ export default async function ProfilePage() {
       <SuperAdminProfileClient
         userName={session?.user?.fullName ?? ""}
         userEmail={session?.user?.email ?? ""}
+        avatarUrl={session?.user?.avatarUrl}
         stats={stats}
         companies={companies}
       />
@@ -106,6 +107,7 @@ export default async function ProfilePage() {
       userName={userName}
       userEmail={userEmail}
       userRoles={userRoles}
+      avatarUrl={session.user.avatarUrl}
     />
   );
 }

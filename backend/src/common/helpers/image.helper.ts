@@ -193,3 +193,16 @@ export async function parseImageSource(
   if (value === undefined || value === null || value === "") return value;
   return (await parseImageDataUrl(value)).dataUrl;
 }
+
+export async function parseAvatarSource(
+  value: unknown,
+): Promise<string | null> {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = await parseImageDataUrl(value, MAX_IMAGE_DATA_URL_LENGTH);
+  const clean = await sharp(parsed.buffer)
+    .resize(256, 256, { fit: "cover", position: "centre" })
+    .webp({ quality: 85 })
+    .timeout({ seconds: 5 })
+    .toBuffer();
+  return `data:image/webp;base64,${clean.toString("base64")}`;
+}

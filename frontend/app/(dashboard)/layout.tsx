@@ -57,6 +57,7 @@ export default async function DashboardLayout({
                 fullName={session.user.fullName ?? ""}
                 roles={session.user.roles}
                 email={session.user.email ?? ""}
+                avatarUrl={session.user.avatarUrl}
                 nav={<AppMobileNav roles={session.user.roles} />}
               />
               <main className="flex-1 p-5 md:p-8">

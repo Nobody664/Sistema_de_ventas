@@ -79,6 +79,13 @@ export class UpdateProfileDto {
   fullName!: string;
 }
 
+export class UpdateAvatarDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000_000)
+  avatarUrl?: string | null;
+}
+
 export class AuthSessionDto {
   accessToken!: string;
   refreshToken!: string;

@@ -12,6 +12,7 @@ import { randomBytes, createHash, randomUUID } from "crypto";
 import { Prisma, RefreshTokenType } from "@prisma/client";
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
 import { isPlatformRole } from "@/common/helpers/account-scope.helper";
+import { parseAvatarSource } from "@/common/helpers/image.helper";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { UsersService } from "@/modules/users/users.service";
 import { EmailService } from "@/modules/email/email.service";
@@ -28,6 +29,7 @@ interface SessionClaims {
   planCode?: string | null;
   subscriptionStatus?: string;
   fullName?: string | null;
+  avatarUrl?: string | null;
   sid?: string;
   authVersion?: number;
 }
@@ -144,6 +146,7 @@ export class AuthService {
           companyId: company.id,
           roles: ["COMPANY_ADMIN"],
           fullName: user.fullName,
+          avatarUrl: user.avatarUrl,
           planCode,
           subscriptionStatus: subscription.status,
         },
@@ -231,6 +234,7 @@ export class AuthService {
       companyId: membership?.companyId ?? null,
       roles,
       fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
       planCode,
       subscriptionStatus,
     });
@@ -541,6 +545,28 @@ export class AuthService {
     return { message: "Password changed successfully." };
   }
 
+  async getAvatar(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+    return user?.avatarUrl ?? null;
+  }
+
+  async updateAvatar(userId: string, value: unknown) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true },
+    });
+    if (!user?.isActive) throw new UnauthorizedException("User not found.");
+    const avatarUrl = await parseAvatarSource(value);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+    });
+    return { avatarUrl };
+  }
+
   async updateProfile(
     userId: string,
     fullName: string,
@@ -604,6 +630,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         fullName,
+        avatarUrl: user.avatarUrl ?? null,
         companyId: claims.companyId,
         roles: claims.roles,
         companyStatus,
@@ -701,6 +728,7 @@ export class AuthService {
         id: input.sub,
         email: input.email,
         fullName: input.fullName ?? null,
+        avatarUrl: input.avatarUrl ?? null,
         companyId: input.companyId,
         roles: input.roles,
         companyStatus,

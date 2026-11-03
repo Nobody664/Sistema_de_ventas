@@ -345,6 +345,7 @@ model User {
   email        String     @unique
   passwordHash String     @map("password_hash")
   fullName     String     @map("full_name")
+  avatarUrl    String?    @map("avatar_url")
   globalRole   GlobalRole @default(USER)
   isActive     Boolean    @default(true) @map("is_active")
   createdAt    DateTime   @default(now()) @map("created_at")

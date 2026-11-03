@@ -22,6 +22,7 @@ export function PlatformShell({
             fullName={user.fullName ?? ""}
             roles={user.roles}
             email={user.email}
+            avatarUrl={user.avatarUrl}
             nav={<PlatformMobileNav roles={user.roles} />}
           />
           <main className="flex-1 p-5 md:p-8">{children}</main>

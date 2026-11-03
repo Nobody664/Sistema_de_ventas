@@ -11,6 +11,7 @@ const rawSessionUserSchema = z
     sub: z.string().min(1).optional(),
     email: z.string().email(),
     fullName: nullableString,
+    avatarUrl: nullableString,
     roles: z.array(z.string().min(1)),
     companyId: z
       .string()
@@ -31,6 +32,7 @@ export const sessionUserSchema = rawSessionUserSchema.transform((value) => ({
   id: value.id ?? (value.sub as string),
   email: value.email,
   fullName: value.fullName,
+  avatarUrl: value.avatarUrl,
   roles: value.roles,
   companyId: value.companyId,
   companyStatus: value.companyStatus,

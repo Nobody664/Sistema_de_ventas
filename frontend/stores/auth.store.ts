@@ -4,6 +4,7 @@ import {
   register as apiRegister,
   logout as apiLogout,
   getMe,
+  updateAvatar as apiUpdateAvatar,
   updateProfile as apiUpdateProfile,
   refreshToken as apiRefreshToken,
   type AuthUser,
@@ -30,6 +31,7 @@ interface AuthState {
   ) => Promise<void>;
   logout: () => Promise<boolean>;
   updateProfile: (fullName: string) => Promise<void>;
+  updateAvatar: (avatarUrl: string | null) => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
   clearError: () => void;
@@ -157,6 +159,17 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (revision === authRevision) set({ isLoading: false });
       throw error;
     }
+  },
+
+  updateAvatar: async (avatarUrl: string | null) => {
+    const result = await apiUpdateAvatar(avatarUrl);
+    set((state) => ({
+      user: state.user
+        ? { ...state.user, avatarUrl: result.avatarUrl }
+        : state.user,
+      isLoading: false,
+      error: null,
+    }));
   },
 
   checkAuth: async () => {

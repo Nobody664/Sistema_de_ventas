@@ -26,6 +26,7 @@ import {
   RefreshTokenDto,
   RegisterDto,
   ResetPasswordDto,
+  UpdateAvatarDto,
   UpdateProfileDto,
 } from "./dto/auth.dto";
 import { AuthService } from "./auth.service";
@@ -97,11 +98,12 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get("me")
-  me(@CurrentUser() user: AuthUser) {
+  async me(@CurrentUser() user: AuthUser) {
     return {
       id: user.sub,
       email: user.email,
       fullName: user.fullName ?? null,
+      avatarUrl: await this.authService.getAvatar(user.sub),
       roles: user.roles,
       companyId: user.companyId ?? null,
       companyStatus: user.companyStatus ?? null,
@@ -109,6 +111,13 @@ export class AuthController {
       subscriptionStatus: user.subscriptionStatus ?? null,
       trialEndsAt: user.trialEndsAt ?? null,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Patch("me/avatar")
+  updateAvatar(@CurrentUser() user: AuthUser, @Body() body: UpdateAvatarDto) {
+    return this.authService.updateAvatar(user.sub, body.avatarUrl);
   }
 
   @UseGuards(JwtAuthGuard)

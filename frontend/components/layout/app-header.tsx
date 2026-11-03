@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "./notification-bell";
 import { useAuthStore } from "@/stores/auth.store";
 import { useNotificationsStore } from "@/store/notifications-store";
@@ -36,6 +36,7 @@ type AppHeaderProps = {
   companyId: string | null;
   roles: string[];
   email: string;
+  avatarUrl?: string | null;
   nav?: ReactNode;
 };
 
@@ -44,6 +45,7 @@ export function AppHeader({
   companyId,
   roles,
   email,
+  avatarUrl,
   nav,
 }: AppHeaderProps) {
   const router = useRouter();
@@ -104,6 +106,13 @@ export function AppHeader({
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-full border border-foreground/10 bg-card p-1.5 text-sm transition hover:border-foreground/20 hover:bg-muted sm:gap-3 sm:pl-3 sm:pr-4">
                 <Avatar className="h-8 w-8">
+                  {avatarUrl && (
+                    <AvatarImage
+                      src={avatarUrl}
+                      alt={`Avatar de ${fullName || "usuario"}`}
+                      className="object-cover"
+                    />
+                  )}
                   <AvatarFallback className="bg-primary/15 text-primary text-xs font-medium">
                     {initials}
                   </AvatarFallback>

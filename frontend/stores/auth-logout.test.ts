@@ -9,6 +9,7 @@ const testUser: AuthUser = {
   id: "user-1",
   email: "cajero@empresa.test",
   fullName: "Cajero de prueba",
+  avatarUrl: null,
   roles: ["CASHIER"],
   companyId: "company-1",
   companyStatus: "ACTIVE",

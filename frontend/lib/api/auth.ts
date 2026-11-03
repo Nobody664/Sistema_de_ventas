@@ -107,6 +107,15 @@ export async function updateProfile(
   return { user: parseSessionUser(response.user) };
 }
 
+export async function updateAvatar(
+  avatarUrl: string | null,
+): Promise<{ avatarUrl: string | null }> {
+  return apiFetch<{ avatarUrl: string | null }>("/auth/me/avatar", {
+    method: "PATCH",
+    body: JSON.stringify({ avatarUrl }),
+  });
+}
+
 export async function refreshToken(): Promise<RefreshResponse> {
   return apiFetch<RefreshResponse>("/auth/refresh", {
     method: "POST",
