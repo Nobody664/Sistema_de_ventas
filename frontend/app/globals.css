@@ -596,6 +596,40 @@ html:not(.dark) .text-gray-400 {
   transform: scale(1.05);
 }
 
+/* Store portal: force readable contrast outside the dashboard dark scope */
+.dark .store-portal {
+  color-scheme: dark;
+  background-color: #0b1220;
+  color: #f5f5f4;
+}
+.dark .store-portal :is(.bg-white, .bg-white\/90) {
+  background-color: #111827;
+}
+.dark .store-portal .bg-stone-100 {
+  background-color: #1e293b;
+}
+.dark .store-portal :is(.bg-\[\#f6f4ef\]) {
+  background-color: #0b1220;
+}
+.dark .store-portal :is(.text-stone-900, .text-stone-800, .text-stone-700) {
+  color: #f5f5f4;
+}
+.dark .store-portal :is(.text-stone-600, .text-stone-500, .text-stone-400) {
+  color: #cbd5e1;
+}
+.dark .store-portal :is(.border-stone-200, .border-stone-300) {
+  border-color: rgb(148 163 184 / 0.35);
+}
+.dark .store-portal :is(.text-teal-900, .text-teal-800) {
+  color: #5eead4;
+}
+.dark .store-portal :is(.bg-teal-50, .bg-teal-100) {
+  background-color: rgb(19 78 74 / 0.45);
+}
+.dark .store-portal .divide-stone-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(148 163 184 / 0.35);
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,

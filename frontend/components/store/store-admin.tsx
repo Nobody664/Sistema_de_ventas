@@ -55,7 +55,7 @@ export function StoreAdmin() {
         }),
       });
       await load();
-      setMessage("Configuración guardada");
+      setMessage("Datos de la tienda actualizados");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo guardar");
     }
@@ -120,7 +120,11 @@ export function StoreAdmin() {
             Permitir registro de clientes
           </label>
           <div className="flex flex-wrap gap-4">
-            <button className={storeButton}>Guardar configuración</button>
+            <button className={storeButton}>
+              {settings.title?.trim() || settings.description?.trim()
+                ? "Actualizar datos"
+                : "Guardar configuración"}
+            </button>
             <Link
               href={`/tienda/${settings.slug}/catalogo`}
               target="_blank"

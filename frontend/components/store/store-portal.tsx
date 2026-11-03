@@ -189,8 +189,8 @@ export function StorePortal({
   );
 
   return (
-    <div className="min-h-screen bg-[#f6f4ef] text-stone-900">
-      <header className="border-b border-stone-200 bg-white/90">
+    <div className="store-portal min-h-screen bg-[#f6f4ef] text-stone-900 dark:bg-slate-950 dark:text-stone-100">
+      <header className="border-b border-stone-200 bg-white/90 dark:border-slate-800 dark:bg-slate-900/90">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5">
           <Link href={`${base}/catalogo`} className="flex items-center gap-3">
             <span className="rounded-xl bg-teal-900 p-2.5 text-white">
@@ -677,6 +677,23 @@ function ProductPurchase({
           ))}
         </select>
       </label>
+      <div className="flex flex-wrap gap-2">
+        {[1, 2, 3, 5].map((value) => (
+          <button
+            key={value}
+            type="button"
+            aria-label={`Seleccionar cantidad ${value}`}
+            onClick={() => setQuantity(String(value))}
+            className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+              Number(quantity) === value
+                ? "border-teal-800 bg-teal-50 text-teal-900"
+                : "border-stone-300 text-stone-600 hover:border-teal-700"
+            }`}
+          >
+            x{value}
+          </button>
+        ))}
+      </div>
       <div className="flex gap-2">
         <input
           aria-label={`Cantidad de ${product.name}`}
