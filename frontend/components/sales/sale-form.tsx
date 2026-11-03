@@ -469,6 +469,21 @@ export function SaleForm({
     }));
 
     try {
+      const customerIdToSend = selectedCustomer?.id;
+      const customerFirstName = (selectedCustomer?.firstName || "").trim();
+      const customerPayload =
+        !customerIdToSend && customerFirstName
+          ? {
+              firstName: customerFirstName,
+              lastName: (selectedCustomer?.lastName || "").trim() || undefined,
+              documentType:
+                (selectedCustomer?.documentType || "").trim() || undefined,
+              documentValue:
+                (selectedCustomer?.documentValue || "").trim() || undefined,
+              phone: (selectedCustomer?.phone || "").trim() || undefined,
+            }
+          : undefined;
+
       let result: { saleNumber: string; totalAmount?: number | string };
 
       if (channel === "DISTRIBUTOR") {
@@ -479,7 +494,8 @@ export function SaleForm({
           method: "POST",
           token: getAccessToken(),
           body: JSON.stringify({
-            customerId: selectedCustomer?.id || undefined,
+            customerId: customerIdToSend || undefined,
+            customer: customerPayload,
             paymentMethod,
             items: saleItems,
             discountAmount,
@@ -494,7 +510,8 @@ export function SaleForm({
           method: "POST",
           token: getAccessToken(),
           body: JSON.stringify({
-            customerId: selectedCustomer?.id || undefined,
+            customerId: customerIdToSend || undefined,
+            customer: customerPayload,
             paymentMethod,
             channel,
             items: saleItems,

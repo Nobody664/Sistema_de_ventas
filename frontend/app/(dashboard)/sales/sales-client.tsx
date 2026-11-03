@@ -354,9 +354,10 @@ export function SalesPageClient({
                           })()}
                         </div>
                         <p className="text-sm text-foreground/50 truncate">
-                          {sale.customer && sale.customer.firstName
-                            ? `${sale.customer.firstName} ${sale.customer.lastName || ""}`
-                            : "Cliente general"}
+                          {sale.customerName ||
+                            (sale.customer && sale.customer.firstName
+                              ? `${sale.customer.firstName} ${sale.customer.lastName || ""}`
+                              : "Cliente general")}
                           {sale.employee &&
                             sale.employee.firstName &&
                             ` • ${sale.employee.firstName}`}

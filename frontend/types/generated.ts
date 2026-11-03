@@ -289,6 +289,9 @@ export interface Sale {
   id: string;
   companyId: string;
   customerId?: string | null;
+  customerName?: string | null;
+  customerDocumentType?: string | null;
+  customerDocumentValue?: string | null;
   employeeId?: string | null;
   saleNumber: string;
   status: SaleStatus;

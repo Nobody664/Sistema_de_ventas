@@ -29,6 +29,7 @@ import { DiscountsService } from "@/modules/discounts/discounts.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { CreditNotesService } from "@/modules/credit-notes/credit-notes.service";
 import { AuditService } from "@/common/services/audit.service";
+import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
 import {
   SalesActor,
   salesVisibility,
@@ -58,10 +59,18 @@ type PrismaTx = Omit<
   "$on" | "$connect" | "$disconnect" | "$transaction" | "$use" | "$extends"
 >;
 
+type ResolvedSaleCustomer = {
+  customerId?: string;
+  customerName?: string;
+  customerDocumentType?: string;
+  customerDocumentValue?: string;
+};
+
 type SaleExportRow = {
   seller: { fullName: string } | null;
   saleNumber: string;
   status: string;
+  customerName: string | null;
   customer: { firstName: string; lastName: string | null } | null;
   employee: { firstName: string } | null;
   totalAmount: unknown;
@@ -93,7 +102,103 @@ export class SalesService {
     private readonly discountsService: DiscountsService,
     private readonly planCapabilities: PlanCapabilitiesService,
     private readonly creditNotesService: CreditNotesService,
+    private readonly limitService: SubscriptionLimitService,
   ) {}
+
+  private async resolveSaleCustomer(
+    companyId: string,
+    input: CreateSaleDto,
+  ): Promise<ResolvedSaleCustomer> {
+    if (input.customerId) {
+      const customer = await this.prisma.customer.findFirst({
+        where: { id: input.customerId, companyId },
+      });
+      if (!customer) {
+        throw new NotFoundException("Customer not found.");
+      }
+      return {
+        customerId: customer.id,
+        customerName:
+          `${customer.firstName} ${customer.lastName || ""}`.trim() ||
+          undefined,
+        customerDocumentType: customer.documentType ?? undefined,
+        customerDocumentValue: customer.documentValue ?? undefined,
+      };
+    }
+
+    if (!input.customer) {
+      return {};
+    }
+
+    const firstName = input.customer.firstName.trim();
+    if (!firstName) {
+      throw new BadRequestException("El nombre del cliente es obligatorio.");
+    }
+    const lastName = input.customer.lastName?.trim() || undefined;
+    const documentType =
+      input.customer.documentType?.trim().toUpperCase() || undefined;
+    const documentValue = input.customer.documentValue?.trim() || undefined;
+    const snapshot: ResolvedSaleCustomer = {
+      customerName: `${firstName} ${lastName || ""}`.trim(),
+      customerDocumentType: documentType,
+      customerDocumentValue: documentValue,
+    };
+
+    if (documentValue) {
+      const existing = await this.prisma.customer.findFirst({
+        where: { companyId, documentValue },
+      });
+      if (existing) {
+        if (existing.deletedAt) {
+          await this.prisma.customer.update({
+            where: { id: existing.id },
+            data: { deletedAt: null },
+          });
+        }
+        return { customerId: existing.id, ...snapshot };
+      }
+    }
+
+    const limit = await this.limitService.checkLimit(companyId, "customers");
+    if (limit.current >= limit.limit) {
+      return snapshot;
+    }
+
+    try {
+      const customer = await this.prisma.customer.create({
+        data: {
+          companyId,
+          firstName,
+          lastName,
+          documentType,
+          documentValue,
+          phone: input.customer.phone?.trim() || undefined,
+          address: input.customer.address?.trim() || undefined,
+        },
+      });
+      return { customerId: customer.id, ...snapshot };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        documentValue
+      ) {
+        const existing = await this.prisma.customer.findFirst({
+          where: { companyId, documentValue },
+        });
+        if (existing) {
+          if (existing.deletedAt) {
+            await this.prisma.customer.update({
+              where: { id: existing.id },
+              data: { deletedAt: null },
+            });
+          }
+          return { customerId: existing.id, ...snapshot };
+        }
+      }
+      throw error;
+    }
+  }
 
   findRecentSales(
     companyId: string,
@@ -113,6 +218,9 @@ export class SalesService {
         status: true,
         channel: true,
         createdAt: true,
+        customerName: true,
+        customerDocumentType: true,
+        customerDocumentValue: true,
         customer: { select: { firstName: true, lastName: true } },
         employee: { select: { firstName: true } },
         seller: { select: SELLER_SELECT },
@@ -208,9 +316,10 @@ export class SalesService {
       {
         header: "Cliente",
         value: (s) =>
-          s.customer
+          s.customerName ||
+          (s.customer
             ? `${s.customer.firstName} ${s.customer.lastName || ""}`.trim()
-            : "General",
+            : "General"),
         width: 3,
       },
       {
@@ -308,6 +417,7 @@ export class SalesService {
           "Debe seleccionar un distribuidor para el canal Distribuidor.",
         );
       }
+      const resolvedCustomer = await this.resolveSaleCustomer(companyId, input);
       return this.distributorsService.registerSale(
         companyId,
         input.distributorId,
@@ -320,7 +430,7 @@ export class SalesService {
           paymentMethod: input.paymentMethod,
           taxAmount: input.taxAmount,
           discountAmount: input.discountAmount,
-          customerId: input.customerId,
+          customerId: resolvedCustomer.customerId ?? input.customerId,
         },
         actor,
       );
@@ -393,15 +503,7 @@ export class SalesService {
     const manualDiscount = new Prisma.Decimal(input.discountAmount ?? 0);
     saleAmounts(subtotal, input.taxAmount, input.discountAmount);
     const saleNumber = `SALE-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-
-    if (input.customerId) {
-      const customer = await this.prisma.customer.findFirst({
-        where: { id: input.customerId, companyId },
-      });
-      if (!customer) {
-        throw new NotFoundException("Customer not found.");
-      }
-    }
+    const resolvedCustomer = await this.resolveSaleCustomer(companyId, input);
 
     if (input.employeeId) {
       const employee = await this.prisma.employee.findFirst({
@@ -436,7 +538,10 @@ export class SalesService {
         const created = await tx.sale.create({
           data: {
             companyId,
-            customerId: input.customerId,
+            customerId: resolvedCustomer.customerId,
+            customerName: resolvedCustomer.customerName,
+            customerDocumentType: resolvedCustomer.customerDocumentType,
+            customerDocumentValue: resolvedCustomer.customerDocumentValue,
             employeeId: input.employeeId,
             sellerId: actor.userId,
             channel: input.channel ?? "POS",

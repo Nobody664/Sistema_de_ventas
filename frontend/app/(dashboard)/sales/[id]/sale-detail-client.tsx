@@ -61,6 +61,16 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
     TRANSFER: "Transferencia",
   };
 
+  const customerName =
+    initialSale.customerName ||
+    (initialSale.customer
+      ? `${initialSale.customer.firstName} ${initialSale.customer.lastName || ""}`.trim()
+      : "Cliente general");
+  const customerDocumentValue =
+    initialSale.customerDocumentValue || initialSale.customer?.documentValue;
+  const customerDocumentType =
+    initialSale.customerDocumentType || initialSale.customer?.documentType;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-5 py-8 md:px-8">
@@ -114,11 +124,12 @@ export function SaleDetailClient({ sale: initialSale }: SaleDetailClientProps) {
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <p className="text-sm text-slate-500">Cliente</p>
-                <p className="font-medium">
-                  {initialSale.customer
-                    ? `${initialSale.customer.firstName} ${initialSale.customer.lastName || ""}`
-                    : "Cliente general"}
-                </p>
+                <p className="font-medium">{customerName}</p>
+                {customerDocumentValue && (
+                  <p className="text-sm text-slate-500">
+                    {customerDocumentType || "DNI"} {customerDocumentValue}
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-sm text-foreground/60">Vendido por</p>

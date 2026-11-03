@@ -377,13 +377,18 @@ export class InvoicesService {
       : "";
 
     const customerName = escapeHtml(
-      sale.customer
-        ? `${sale.customer.firstName} ${sale.customer.lastName || ""}`.trim()
-        : "Cliente General",
+      sale.customerName ||
+        (sale.customer
+          ? `${sale.customer.firstName} ${sale.customer.lastName || ""}`.trim()
+          : "Cliente General"),
     );
+    const customerDocumentValue =
+      sale.customerDocumentValue || sale.customer?.documentValue;
+    const customerDocumentType =
+      sale.customerDocumentType || sale.customer?.documentType;
     const customerDoc = escapeHtml(
-      sale.customer?.documentValue
-        ? `${sale.customer.documentType || "DNI"} ${sale.customer.documentValue}`
+      customerDocumentValue
+        ? `${customerDocumentType || "DNI"} ${customerDocumentValue}`
         : "",
     );
 

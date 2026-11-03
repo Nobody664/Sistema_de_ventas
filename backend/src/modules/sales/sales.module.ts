@@ -9,6 +9,7 @@ import { DistributorsModule } from "@/modules/distributors/distributors.module";
 import { DiscountsModule } from "@/modules/discounts/discounts.module";
 import { CreditNotesModule } from "@/modules/credit-notes/credit-notes.module";
 import { PrismaModule } from "@/database/prisma/prisma.module";
+import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { PrismaModule } from "@/database/prisma/prisma.module";
     PrismaModule,
   ],
   controllers: [SalesController],
-  providers: [SalesService],
+  providers: [SalesService, SubscriptionLimitService],
   exports: [SalesService],
 })
 export class SalesModule {}

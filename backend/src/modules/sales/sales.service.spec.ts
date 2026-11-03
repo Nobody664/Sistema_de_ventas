@@ -8,7 +8,20 @@ function makeSaleService(
   lookups: {
     findMany?: (args: Prisma.SaleFindManyArgs) => Promise<unknown[]>;
     findFirst?: (args: Prisma.SaleFindFirstArgs) => Promise<unknown>;
-    onCreate?: (data: { sellerId?: string | null }) => void;
+    onCreate?: (data: {
+      sellerId?: string | null;
+      customerId?: string | null;
+      customerName?: string | null;
+      customerDocumentType?: string | null;
+      customerDocumentValue?: string | null;
+    }) => void;
+    customerFindFirst?: (
+      args: Prisma.CustomerFindFirstArgs,
+    ) => Promise<unknown>;
+    customerCreate?: (
+      args: Prisma.CustomerCreateArgs,
+    ) => Promise<{ id: string }>;
+    customerLimit?: { current: number; limit: number };
   } = {},
 ) {
   const saleCreated = {
@@ -23,7 +36,17 @@ function makeSaleService(
   const tx = {
     outboxEvent: { upsert: async () => ({}) },
     sale: {
-      create: async ({ data }: { data: { sellerId?: string | null } }) => {
+      create: async ({
+        data,
+      }: {
+        data: {
+          sellerId?: string | null;
+          customerId?: string | null;
+          customerName?: string | null;
+          customerDocumentType?: string | null;
+          customerDocumentValue?: string | null;
+        };
+      }) => {
         lookups.onCreate?.(data);
         return saleCreated;
       },
@@ -43,6 +66,10 @@ function makeSaleService(
         },
       ],
     },
+    customer: {
+      findFirst: lookups.customerFindFirst,
+      create: lookups.customerCreate,
+    },
     $transaction: async (cb: any) => cb(tx),
   } as any;
   const notificationsService = {} as any;
@@ -52,6 +79,9 @@ function makeSaleService(
     reserveFromBatch: async () => undefined,
   } as any;
   const auditService = { log: async () => undefined } as any;
+  const limitService = {
+    checkLimit: async () => lookups.customerLimit ?? { current: 0, limit: 10 },
+  } as any;
 
   const svc = new SalesService(
     prisma,
@@ -60,6 +90,11 @@ function makeSaleService(
     kardexService,
     productBatchesService,
     auditService,
+    undefined as any,
+    undefined as any,
+    undefined as any,
+    undefined as any,
+    limitService,
   );
   return svc;
 }
@@ -92,6 +127,112 @@ describe("SalesService.createSale", () => {
 
     assert.equal(sale.id, "s1");
     assert.equal(sale.saleNumber, "SALE-1");
+  });
+
+  it("creates a customer from inline DNI data and stores its snapshot", async () => {
+    let customerData: any;
+    let saleData: any;
+    const svc = makeSaleService({
+      onCreate: (data) => {
+        saleData = data;
+      },
+      customerFindFirst: async () => null,
+      customerCreate: async ({ data }) => {
+        customerData = data;
+        return { id: "c-dni" };
+      },
+    });
+
+    await svc.createSale(
+      "com-a",
+      {
+        customer: {
+          firstName: " Ana ",
+          lastName: " Perez ",
+          documentType: "dni",
+          documentValue: " 12345678 ",
+        },
+        items: [{ productId: "p1", quantity: 1 }],
+        paymentMethod: "CASH",
+      },
+      { userId: "cashier", roles: ["CASHIER"] },
+    );
+
+    assert.equal(customerData.firstName, "Ana");
+    assert.equal(customerData.documentType, "DNI");
+    assert.equal(customerData.documentValue, "12345678");
+    assert.equal(saleData.customerId, "c-dni");
+    assert.equal(saleData.customerName, "Ana Perez");
+    assert.equal(saleData.customerDocumentType, "DNI");
+    assert.equal(saleData.customerDocumentValue, "12345678");
+  });
+
+  it("reuses an existing customer with the same document", async () => {
+    let customerCreated = false;
+    let saleData: any;
+    const svc = makeSaleService({
+      onCreate: (data) => {
+        saleData = data;
+      },
+      customerFindFirst: async () => ({ id: "c-existing" }),
+      customerCreate: async () => {
+        customerCreated = true;
+        return { id: "c-new" };
+      },
+    });
+
+    await svc.createSale(
+      "com-a",
+      {
+        customer: {
+          firstName: "Ana",
+          documentType: "DNI",
+          documentValue: "12345678",
+        },
+        items: [{ productId: "p1", quantity: 1 }],
+        paymentMethod: "CASH",
+      },
+      { userId: "cashier", roles: ["CASHIER"] },
+    );
+
+    assert.equal(customerCreated, false);
+    assert.equal(saleData.customerId, "c-existing");
+  });
+
+  it("keeps the customer snapshot when the customer limit is reached", async () => {
+    let customerCreated = false;
+    let saleData: any;
+    const svc = makeSaleService({
+      onCreate: (data) => {
+        saleData = data;
+      },
+      customerFindFirst: async () => null,
+      customerCreate: async () => {
+        customerCreated = true;
+        return { id: "c-new" };
+      },
+      customerLimit: { current: 5, limit: 5 },
+    });
+
+    await svc.createSale(
+      "com-a",
+      {
+        customer: {
+          firstName: "Ana",
+          lastName: "Perez",
+          documentType: "DNI",
+          documentValue: "12345678",
+        },
+        items: [{ productId: "p1", quantity: 1 }],
+        paymentMethod: "CASH",
+      },
+      { userId: "cashier", roles: ["CASHIER"] },
+    );
+
+    assert.equal(customerCreated, false);
+    assert.equal(saleData.customerId, undefined);
+    assert.equal(saleData.customerName, "Ana Perez");
+    assert.equal(saleData.customerDocumentValue, "12345678");
   });
 
   it("rejects items from another tenant (product lookup is scoped)", async () => {

@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsIn,
   IsInt,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -28,10 +29,41 @@ class CreateSaleItemDto {
   quantity!: number;
 }
 
+export class SaleCustomerDto {
+  @IsString()
+  @IsNotEmpty()
+  firstName!: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  documentType?: string;
+
+  @IsOptional()
+  @IsString()
+  documentValue?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+}
+
 export class CreateSaleDto {
   @IsOptional()
   @IsString()
   customerId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SaleCustomerDto)
+  customer?: SaleCustomerDto;
 
   @IsOptional()
   @IsString()
