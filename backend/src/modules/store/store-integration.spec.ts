@@ -258,40 +258,7 @@ test(
       );
       assert.equal(registration.status, 201);
       assert.equal(await prisma.membership.count(), 1);
-      assert.equal(
-        (
-          await request("/store/tienda-a/auth/login", "POST", {
-            email: "buyer@example.test",
-            password: "Buyer-Password-123",
-          })
-        ).status,
-        401,
-      );
       const crypto = module.get(StoreCryptoService);
-      const mail = await prisma.storeMail.findFirstOrThrow();
-      const verification = crypto
-        .decrypt(mail.encryptedBody)
-        .match(/token=([a-f0-9]{64})/)![1];
-      assert.equal(
-        JSON.stringify(registration.value).includes(verification),
-        false,
-      );
-      assert.equal(
-        (
-          await request("/store/tienda-a/auth/verify", "POST", {
-            token: verification,
-          })
-        ).status,
-        201,
-      );
-      assert.equal(
-        (
-          await request("/store/tienda-a/auth/verify", "POST", {
-            token: verification,
-          })
-        ).status,
-        400,
-      );
       let client = (
         await request("/store/tienda-a/auth/login", "POST", {
           email: "buyer@example.test",

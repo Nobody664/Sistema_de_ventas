@@ -134,14 +134,22 @@ export class StoreAuthService {
             companyId: company.id,
             userId: user.id,
             customerId: customer.id,
+            status: "ACTIVE",
+            verifiedAt: new Date(),
           },
           include: { user: true },
         });
       }
       if (account.status === "PENDING_VERIFICATION")
-        await this.action(tx, account, slug, "VERIFY");
+        await tx.customerAccount.update({
+          where: { id: account.id },
+          data: { status: "ACTIVE", verifiedAt: new Date() },
+        });
     });
-    return GENERIC;
+    return {
+      message:
+        "Cuenta creada y activada. Ya puedes ingresar con tu correo y contraseña.",
+    };
   }
   async sendAction(slug: string, email: string, purpose: "VERIFY" | "RESET") {
     const company = await this.store.company(slug, false);
