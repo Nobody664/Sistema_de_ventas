@@ -84,6 +84,7 @@ describe("Payment and identity HTTP security", () => {
           useValue: {
             changePassword: async () => ({ message: "changed" }),
             resetPassword: async () => ({ message: "reset" }),
+            getAvatar: async () => null,
           },
         },
         {
