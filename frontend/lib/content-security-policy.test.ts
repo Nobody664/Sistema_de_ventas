@@ -10,6 +10,9 @@ test("la política de producción exige nonce en scripts y limita recursos y for
   assert.ok(script?.includes("'nonce-test-nonce'"));
   assert.ok(!script?.includes("unsafe-inline"));
   assert.ok(!script?.includes("unsafe-eval"));
+  assert.ok(script?.includes("https://accounts.google.com"));
+  assert.ok(policy.includes("connect-src 'self' https://accounts.google.com"));
+  assert.ok(policy.includes("frame-src 'self' blob: https://accounts.google.com"));
   assert.ok(policy.includes("object-src 'none'"));
   assert.ok(policy.includes("frame-ancestors 'none'"));
   assert.ok(policy.includes("form-action 'self'"));

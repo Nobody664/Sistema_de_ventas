@@ -4,6 +4,8 @@ import { PassportModule } from "@nestjs/passport";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { GoogleAuthService } from "./google-auth.service";
+import { GoogleTokenVerifier } from "./google-token.verifier";
 import { JwtStrategy } from "./jwt.strategy";
 import { UsersModule } from "@/modules/users/users.module";
 import { NotificationsModule } from "@/modules/notifications/notifications.module";
@@ -26,7 +28,7 @@ import { PrismaModule } from "@/database/prisma/prisma.module";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, GoogleAuthService, GoogleTokenVerifier, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

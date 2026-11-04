@@ -66,6 +66,27 @@ export async function login(
   return parseAuthResponse(response);
 }
 
+export async function loginWithGoogle(
+  credential: string,
+  options: AuthRequestOptions = {},
+): Promise<AuthResponse> {
+  options.onStage?.("connecting");
+  await waitForAuthBackend({ signal: options.signal });
+  options.onStage?.("authenticating");
+  const response = await apiFetch<{ user: unknown; expiresIn?: string }>(
+    "/auth/google",
+    {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+      skipRefresh: true,
+      timeoutMs: 30000,
+      signal: options.signal,
+    },
+  );
+
+  return parseAuthResponse(response);
+}
+
 export async function register(data: RegisterRequest): Promise<AuthResponse> {
   const response = await apiFetch<{ user: unknown; expiresIn?: string }>(
     "/auth/register",

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   login as apiLogin,
+  loginWithGoogle as apiLoginWithGoogle,
   register as apiRegister,
   logout as apiLogout,
   getMe,
@@ -21,6 +22,10 @@ interface AuthState {
   login: (
     email: string,
     password: string,
+    options?: AuthRequestOptions,
+  ) => Promise<void>;
+  loginWithGoogle: (
+    credential: string,
     options?: AuthRequestOptions,
   ) => Promise<void>;
   register: (
@@ -55,6 +60,38 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await apiLogin({ email, password }, options);
+      if (revision !== authRevision)
+        throw new ApiError(
+          "La solicitud de acceso fue reemplazada",
+          0,
+          "AUTH_SUPERSEDED",
+        );
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      if (revision !== authRevision) throw error;
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: error instanceof Error ? error.message : "Error de login",
+      });
+      throw error;
+    }
+  },
+
+  loginWithGoogle: async (
+    credential: string,
+    options?: AuthRequestOptions,
+  ) => {
+    const revision = ++authRevision;
+    set({ isLoading: true, error: null });
+    try {
+      const response = await apiLoginWithGoogle(credential, options);
       if (revision !== authRevision)
         throw new ApiError(
           "La solicitud de acceso fue reemplazada",

@@ -168,6 +168,16 @@ export class AuthService {
     }
   }
 
+  async loginWithVerifiedEmail(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user?.isActive) {
+      throw new UnauthorizedException(
+        "No existe una cuenta activa con este correo. Regístrate primero.",
+      );
+    }
+    return this.authenticateUser(user);
+  }
+
   private async authenticateLogin(input: LoginDto) {
     const user = await this.usersService.findByEmail(input.email);
     if (!user?.isActive) {
@@ -182,6 +192,12 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials.");
     }
 
+    return this.authenticateUser(user);
+  }
+
+  private async authenticateUser(
+    user: NonNullable<Awaited<ReturnType<UsersService["findByEmail"]>>>,
+  ) {
     const membership = isPlatformRole(user.globalRole)
       ? null
       : await this.prisma.membership.findFirst({

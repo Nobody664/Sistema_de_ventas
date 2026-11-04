@@ -49,6 +49,13 @@ export class RefreshTokenDto {
   refreshToken?: string;
 }
 
+export class GoogleLoginDto {
+  @IsString()
+  @MinLength(20)
+  @MaxLength(10_000)
+  credential!: string;
+}
+
 export class ForgotPasswordDto {
   @IsEmail()
   email!: string;

@@ -70,6 +70,7 @@ export const envSchema = z.object({
   EMAIL_FROM_NAME: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
+  GOOGLE_CLIENT_ID: z.string().default(""),
   BARCODE_ENRICHMENT_ENABLED: booleanFromEnv(false),
   BARCODE_ENRICHMENT_COMPANY_IDS: z.string().default(""),
   BARCODE_ENRICHMENT_PLAN_CODES: z.string().default(""),

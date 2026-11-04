@@ -51,6 +51,7 @@
     "dotenv": "^17.0.0",
     "exceljs": "^4.4.0",
     "express": "5.2.1",
+    "google-auth-library": "^11.3.3",
     "helmet": "^8.0.0",
     "ioredis": "^5.10.1",
     "mercadopago": "^3.6.1",

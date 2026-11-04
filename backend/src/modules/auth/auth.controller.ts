@@ -22,6 +22,7 @@ import { OptionalJwtAuthGuard } from "@/common/guards/optional-jwt-auth.guard";
 import {
   ChangePasswordDto,
   ForgotPasswordDto,
+  GoogleLoginDto,
   LoginDto,
   RefreshTokenDto,
   RegisterDto,
@@ -30,10 +31,14 @@ import {
   UpdateProfileDto,
 } from "./dto/auth.dto";
 import { AuthService } from "./auth.service";
+import { GoogleAuthService } from "./google-auth.service";
 
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly googleAuthService: GoogleAuthService,
+  ) {}
 
   @Public()
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
@@ -66,6 +71,19 @@ export class AuthController {
         `auth;dur=${Math.round(performance.now() - started)}`,
       );
     }
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post("google")
+  async google(
+    @Body() body: GoogleLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.googleAuthService.login(body.credential);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    return { user: result.user, expiresIn: result.expiresIn };
   }
 
   @Public()

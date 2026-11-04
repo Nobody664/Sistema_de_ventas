@@ -13,6 +13,7 @@ import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { RolesGuard } from "@/common/guards/roles.guard";
 import { AuthController } from "@/modules/auth/auth.controller";
 import { AuthService } from "@/modules/auth/auth.service";
+import { GoogleAuthService } from "@/modules/auth/google-auth.service";
 import { JwtStrategy } from "@/modules/auth/jwt.strategy";
 import { PaymentsController } from "./payments.controller";
 import { PaymentsService } from "./payments.service";
@@ -85,6 +86,14 @@ describe("Payment and identity HTTP security", () => {
             changePassword: async () => ({ message: "changed" }),
             resetPassword: async () => ({ message: "reset" }),
             getAvatar: async () => null,
+          },
+        },
+        {
+          provide: GoogleAuthService,
+          useValue: {
+            login: async () => {
+              throw new Error("Google login not used in this test");
+            },
           },
         },
         {

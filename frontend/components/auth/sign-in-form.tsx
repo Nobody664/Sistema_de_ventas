@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { useAuthStore } from "@/stores/auth.store";
 import { getSignInDestination } from "@/lib/role-navigation";
 import type { AuthStage } from "@/lib/auth-readiness";
@@ -75,6 +76,8 @@ export function SignInForm() {
 
   return (
     <form className="space-y-5" onSubmit={onSubmit} aria-busy={isSubmitting}>
+      <GoogleSignInButton />
+
       {error && (
         <div
           role="alert"
