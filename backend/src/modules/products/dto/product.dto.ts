@@ -36,6 +36,10 @@ export class QueryProductDto {
   isActive?: string;
 
   @IsOptional()
+  @IsIn(["EXPIRED", "VALID"])
+  expiryStatus?: "EXPIRED" | "VALID";
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

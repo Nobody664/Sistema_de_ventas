@@ -35,6 +35,7 @@ function fixture() {
     prisma as unknown as PrismaService,
     {} as SubscriptionLimitService,
     {} as LowStockService,
+    {} as never,
     {} as AuditService,
   );
   return { service, calls, counts, row };
@@ -73,9 +74,13 @@ describe("Product catalog filtering", () => {
       deletedAt: null,
       categoryId: "foreign-category",
       isActive: true,
-      OR: ["name", "sku", "barcode", "description"].map((field) => ({
-        [field]: { contains: "SKU-99", mode: "insensitive" },
-      })),
+      AND: [
+        {
+          OR: ["name", "sku", "barcode", "description"].map((field) => ({
+            [field]: { contains: "SKU-99", mode: "insensitive" },
+          })),
+        },
+      ],
     });
   });
   it("preserves the legacy array response for existing product selectors", async () => {

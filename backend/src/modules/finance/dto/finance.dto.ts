@@ -21,6 +21,7 @@ export const FINANCE_CATEGORIES = [
   "ELECTRICITY",
   "WATER",
   "MAINTENANCE",
+  "EXPIRY_LOSS",
   "OTHER",
 ] as const;
 

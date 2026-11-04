@@ -74,6 +74,9 @@ export function ProductsPageClient({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [expiryStatus, setExpiryStatus] = useState<"" | "VALID" | "EXPIRED">(
+    "",
+  );
   useEffect(() => {
     const timeout = setTimeout(() => setSearch(searchQuery.trim()), 300);
     return () => clearTimeout(timeout);
@@ -88,19 +91,28 @@ export function ProductsPageClient({
     queryKey: [
       "products",
       "catalog",
-      { page, categoryId: selectedCategory, search, limit: 50 },
+      {
+        page,
+        categoryId: selectedCategory,
+        search,
+        expiryStatus,
+        limit: 50,
+      },
     ],
     queryFn: ({ signal }) => {
       const params = new URLSearchParams({ page: String(page), limit: "50" });
       if (selectedCategory) params.set("categoryId", selectedCategory);
       if (search) params.set("search", search);
+      if (expiryStatus) params.set("expiryStatus", expiryStatus);
       return apiFetch<ProductCatalog>(`/products/catalog?${params}`, {
         token: getAccessToken(),
         signal,
       });
     },
     initialData:
-      page === 1 && !selectedCategory && !search ? initialCatalog : undefined,
+      page === 1 && !selectedCategory && !search && !expiryStatus
+        ? initialCatalog
+        : undefined,
   });
   useEffect(() => {
     if (catalog && page > Math.max(1, catalog.totalPages))
@@ -264,6 +276,36 @@ export function ProductsPageClient({
                   </option>
                 ))}
               </select>
+              <div
+                role="group"
+                aria-label="Filtrar por vencimiento"
+                className="inline-flex rounded-xl border border-foreground/10 bg-white p-1"
+              >
+                {[
+                  { value: "", label: "Todos" },
+                  { value: "VALID", label: "Vigentes" },
+                  { value: "EXPIRED", label: "Vencidos" },
+                ].map((option) => (
+                  <button
+                    key={option.value || "all"}
+                    type="button"
+                    aria-pressed={expiryStatus === option.value}
+                    onClick={() => {
+                      setExpiryStatus(option.value as "" | "VALID" | "EXPIRED");
+                      setPage(1);
+                    }}
+                    className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                      expiryStatus === option.value
+                        ? option.value === "EXPIRED"
+                          ? "bg-red-500/15 font-medium text-red-700"
+                          : "bg-emerald-500/15 font-medium text-emerald-700"
+                        : "text-foreground/60 hover:bg-foreground/5"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
               <PermissionGuard permission="product:export">
                 <details className="relative">
                   <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-2 text-sm transition hover:bg-foreground/5 [&::-webkit-details-marker]:hidden">

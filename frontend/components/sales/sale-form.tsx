@@ -21,12 +21,21 @@ import {
   Globe,
   Truck,
   TicketPercent,
+  AlertTriangle,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiFetch, getAccessToken } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { apiFetch, ApiError, getAccessToken } from "@/lib/api";
 import { useUiStore } from "@/store/ui-store";
 import { useAuthStore } from "@/stores/auth.store";
 import { CustomerSearch } from "@/components/ui/customer-search";
@@ -90,6 +99,20 @@ interface AppliedCoupon {
   value: number;
 }
 
+interface ExpiredStockItem {
+  productId: string;
+  productName: string;
+  batchId: string | null;
+  batchNumber: string | null;
+  expiryDate: string;
+  quantity: number;
+}
+
+interface ExpiredStockBlock {
+  message: string;
+  items: ExpiredStockItem[];
+}
+
 interface SaleFormProps {
   products: Product[];
   customers: Customer[];
@@ -127,6 +150,10 @@ export function SaleForm({
   );
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
+  const [expiredBlock, setExpiredBlock] = useState<ExpiredStockBlock | null>(
+    null,
+  );
+  const [blockingExpired, setBlockingExpired] = useState(false);
 
   const centralStockByProduct = useMemo(
     () =>
@@ -541,12 +568,62 @@ export function SaleForm({
       setSaleCompleted(true);
       addToast("Venta registrada correctamente", "success");
     } catch (err) {
+      const details =
+        err instanceof ApiError && err.code === "SALE_EXPIRED_STOCK"
+          ? (err.details as {
+              message?: string;
+              items?: ExpiredStockItem[];
+            } | null)
+          : null;
+      if (details?.items?.length) {
+        setExpiredBlock({
+          message: details.message ?? "La venta contiene productos vencidos",
+          items: details.items,
+        });
+        return;
+      }
       addToast(
         err instanceof Error ? err.message : "Error al registrar venta",
         "error",
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBlockExpiredProducts = async () => {
+    if (!expiredBlock) return;
+    const productIds = [
+      ...new Set(expiredBlock.items.map((item) => item.productId)),
+    ];
+    setBlockingExpired(true);
+    try {
+      for (const productId of productIds) {
+        await apiFetch(`/products/${productId}/expired-write-off`, {
+          method: "POST",
+          token: getAccessToken(),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["finance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setItems((current) =>
+        current.filter((item) => !productIds.includes(item.productId)),
+      );
+      setExpiredBlock(null);
+      addToast(
+        "Productos vencidos bloqueados y pérdida registrada en finanzas",
+        "success",
+      );
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron bloquear los productos vencidos",
+        "error",
+      );
+    } finally {
+      setBlockingExpired(false);
     }
   };
 
@@ -1197,6 +1274,74 @@ export function SaleForm({
           </div>
         </div>
       </div>
+
+      <Dialog
+        open={!!expiredBlock}
+        onOpenChange={(open) => {
+          if (!open && !blockingExpired) setExpiredBlock(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <div className="mb-1 flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              <DialogTitle>Venta bloqueada por vencimiento</DialogTitle>
+            </div>
+            <DialogDescription>{expiredBlock?.message}</DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+            {expiredBlock?.items.map((item, index) => (
+              <div
+                key={`${item.productId}-${item.batchId ?? "product"}-${index}`}
+                className="flex items-start justify-between gap-3 text-sm"
+              >
+                <div>
+                  <p className="font-medium text-foreground">
+                    {item.productName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.batchNumber
+                      ? `Lote ${item.batchNumber}`
+                      : "Sin lote registrado"}{" "}
+                    · venció el {item.expiryDate}
+                  </p>
+                </div>
+                <span className="shrink-0 font-semibold text-amber-700 dark:text-amber-400">
+                  {item.quantity}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Al confirmar, se dará de baja el stock vencido, el producto quedará
+            bloqueado y se registrará la pérdida en finanzas.
+          </p>
+
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setExpiredBlock(null)}
+              disabled={blockingExpired}
+            >
+              Revisar manualmente
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleBlockExpiredProducts()}
+              disabled={blockingExpired}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {blockingExpired ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Bloquear y registrar pérdida
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

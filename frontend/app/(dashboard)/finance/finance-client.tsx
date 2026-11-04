@@ -27,6 +27,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   ELECTRICITY: "Luz",
   WATER: "Agua",
   MAINTENANCE: "Mantenimiento",
+  EXPIRY_LOSS: "Pérdida por vencimiento",
   OTHER: "Otro",
 };
 

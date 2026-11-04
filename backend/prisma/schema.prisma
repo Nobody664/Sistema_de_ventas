@@ -157,6 +157,7 @@ enum FinanceCategory {
   ELECTRICITY
   WATER
   MAINTENANCE
+  EXPIRY_LOSS
   OTHER
 }
 

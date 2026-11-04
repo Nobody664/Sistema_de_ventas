@@ -137,6 +137,7 @@ export type FinanceCategory =
   | "ELECTRICITY"
   | "WATER"
   | "MAINTENANCE"
+  | "EXPIRY_LOSS"
   | "OTHER";
 
 export type FinanceSource = "MANUAL" | "SALE";

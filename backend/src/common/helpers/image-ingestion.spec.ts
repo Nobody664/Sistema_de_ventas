@@ -68,6 +68,7 @@ describe("image ingestion boundaries", () => {
         validateLimit: async () => undefined,
       } as unknown as SubscriptionLimitService,
       {} as LowStockService,
+      {} as never,
       {} as AuditService,
     );
     const settings = new PaymentSettingsService(prisma);

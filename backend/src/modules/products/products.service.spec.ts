@@ -6,7 +6,13 @@ import { ProductsService } from "./products.service";
 
 function makeService(categoryFinder: (args: any) => any) {
   const prisma = { category: { findFirst: categoryFinder } } as any;
-  return new ProductsService(prisma, {} as any, {} as any, {} as any);
+  return new ProductsService(
+    prisma,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
 }
 
 describe("ProductsService tenant scoping", () => {

@@ -94,6 +94,7 @@ describe("Phase four public contracts", () => {
       prisma,
       {} as never,
       {} as never,
+      {} as never,
       { log: async () => undefined } as never,
     ).updateProduct("company", "product", {
       name: "Updated",

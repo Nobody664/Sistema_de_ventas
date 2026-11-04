@@ -12,6 +12,10 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Roles } from "@/common/decorators/roles.decorator";
+import {
+  CurrentUser,
+  AuthUser,
+} from "@/common/decorators/current-user.decorator";
 import { Permissions } from "@/common/decorators/permissions.decorator";
 import { Permission } from "@/common/constants/permissions.constant";
 import { TenantGuard } from "@/common/guards/tenant.guard";
@@ -239,6 +243,21 @@ export class ProductsController {
     @Body() body: UpdateProductDto,
   ) {
     return this.productsService.updateProduct(request.tenantId, id, body);
+  }
+
+  @Roles("COMPANY_ADMIN", "MANAGER")
+  @Permissions(Permission.PRODUCT_UPDATE)
+  @Post(":id/expired-write-off")
+  writeOffExpiredStock(
+    @Req() request: { tenantId: string },
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.productsService.writeOffExpiredStock(
+      request.tenantId,
+      id,
+      user.sub,
+    );
   }
 
   @Roles("COMPANY_ADMIN")

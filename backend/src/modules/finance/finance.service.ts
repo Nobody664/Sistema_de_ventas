@@ -68,6 +68,7 @@ const EXPENSE_CATEGORIES: readonly string[] = [
   "ELECTRICITY",
   "WATER",
   "MAINTENANCE",
+  "EXPIRY_LOSS",
   "OTHER",
 ];
 

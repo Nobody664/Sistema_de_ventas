@@ -1,0 +1,1 @@
+ALTER TYPE "FinanceCategory" ADD VALUE 'EXPIRY_LOSS';

@@ -29,6 +29,7 @@ function fixture() {
       notifyIfLowStock: async () => undefined,
       notifyIfExpiring: async () => undefined,
     } as never,
+    {} as never,
     { log: async () => undefined } as never,
   );
   return { service, writes };

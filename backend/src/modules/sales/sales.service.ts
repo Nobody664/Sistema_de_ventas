@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from "@nestjs/common";
 import {
   Prisma,
@@ -43,6 +44,10 @@ import { serializableTransaction } from "@/common/helpers/serializable-transacti
 import { collectExportRows } from "@/common/helpers/export-batch.helper";
 import { dateRange } from "@/common/helpers/query-bounds.helper";
 import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
+import {
+  expiredStockItems,
+  ExpiredStockItem,
+} from "@/modules/expiry-alerts/expired-stock";
 import {
   creditDistributorStock,
   requireDistributorStock,
@@ -91,6 +96,8 @@ const SELLER_SELECT = { id: true, fullName: true } as const;
 
 @Injectable()
 export class SalesService {
+  private readonly logger = new Logger(SalesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
@@ -443,7 +450,22 @@ export class SalesService {
           in: Array.from(new Set(input.items.map((item) => item.productId))),
         },
       },
-      include: { presentations: true },
+      include: {
+        presentations: true,
+        company: { select: { timezone: true } },
+        batches: {
+          where: {
+            quantityAvailable: { gt: 0 },
+            expirationDate: { not: null },
+          },
+          select: {
+            id: true,
+            batchNumber: true,
+            quantityAvailable: true,
+            expirationDate: true,
+          },
+        },
+      },
     });
 
     const productMap = new Map(
@@ -451,6 +473,21 @@ export class SalesService {
     );
 
     const resolvedItems = resolveSaleLines(products, input.items);
+
+    const expiredStock = products.flatMap((product) =>
+      expiredStockItems(product, product.batches, product.company?.timezone),
+    );
+    if (expiredStock.length > 0) {
+      await this.notifyExpiredSaleBlock(companyId, actor, expiredStock);
+      const names = [
+        ...new Set(expiredStock.map((item) => item.productName)),
+      ].join(", ");
+      throw new BadRequestException({
+        code: "SALE_EXPIRED_STOCK",
+        message: `No se puede completar la venta: ${names} tiene stock vencido. Revisa los lotes y bloquea los productos vencidos para registrar la pérdida.`,
+        items: expiredStock,
+      });
+    }
 
     const baseQuantityByProduct = new Map<string, Prisma.Decimal>();
     for (const item of resolvedItems) {
@@ -652,6 +689,44 @@ export class SalesService {
     });
 
     return sale;
+  }
+
+  private async notifyExpiredSaleBlock(
+    companyId: string,
+    actor: SalesActor,
+    items: ExpiredStockItem[],
+  ) {
+    const products = [...new Set(items.map((item) => item.productName))];
+    const detail = items
+      .map(
+        (item) =>
+          `${item.productName}${item.batchNumber ? ` (lote ${item.batchNumber})` : ""}: ${item.quantity} vencido(s) desde ${item.expiryDate}`,
+      )
+      .join("; ");
+    const dedupeKey = `sale-expired:${companyId}:${actor.userId}:${items
+      .map((item) => item.productId)
+      .sort()
+      .join(",")}:${items[0]?.expiryDate ?? "unknown"}`;
+    try {
+      await this.notificationsService.create({
+        userId: actor.userId,
+        companyId,
+        type: NotificationType.PRODUCT_EXPIRED,
+        title: "Venta bloqueada por productos vencidos",
+        message: `Se bloqueó una venta con stock vencido de ${products.join(", ")}. ${detail}. Bloquea los productos vencidos para registrar la pérdida.`,
+        actionUrl: "/products",
+        dedupeKey,
+        data: {
+          reason: "SALE_EXPIRED_STOCK",
+          items,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        "No se pudo notificar el bloqueo de venta por vencimiento",
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
   }
 
   private async assertDiscountsEnabled(companyId: string) {
