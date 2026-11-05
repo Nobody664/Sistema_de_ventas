@@ -7,6 +7,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { json, urlencoded } from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import { createCorsOptions } from "./config/cors";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -61,37 +62,11 @@ async function bootstrap() {
   // =========================
   // CORS - Allow frontend origins
   // =========================
-  const corsOrigins = (
-    config.get<string>("CORS_ORIGINS") ||
-    "http://localhost:3000,http://localhost:3001"
-  )
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const allowedOrigins = [
-    ...corsOrigins,
-    "https://sistema-de-ventas-frontend-seven.vercel.app",
-  ];
-
-  app.enableCors({
-    origin: (
-      origin: string | undefined,
-      callback: (err: Error | null, allow: boolean) => void,
-    ) => {
-      const isAllowed = !origin || allowedOrigins.includes(origin);
-
-      if (isAllowed) {
-        return callback(null, true);
-      }
-
-      logger.warn(`Blocked CORS: ${origin}`);
-      return callback(new Error("Not allowed by CORS"), false);
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-  });
+  app.enableCors(
+    createCorsOptions(config.get<string>("CORS_ORIGINS"), (origin) =>
+      logger.warn(`Blocked CORS: ${origin}`),
+    ),
+  );
 
   // =========================
   // PREFIX
