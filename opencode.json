@@ -10,6 +10,11 @@
       "oauth": false,
       "enabled": true
     },
+    "vercel": {
+      "type": "remote",
+      "url": "https://mcp.vercel.com",
+      "enabled": true
+    },
     "render": {
       "type": "remote",
       "url": "https://mcp.render.com/mcp",

@@ -5,7 +5,7 @@ export function contentSecurityPolicy(
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://accounts.google.com https://ssl.gstatic.com${development ? " 'unsafe-eval'" : ""}`,
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src 'self' https://accounts.google.com${development ? " ws: wss:" : ""}`,
