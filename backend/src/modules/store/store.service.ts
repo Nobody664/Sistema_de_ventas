@@ -43,6 +43,7 @@ export class StoreService {
       phone: company.phone,
       currency: company.currency,
       registrationEnabled: company.storefront?.registrationEnabled,
+      checkoutEnabled: company.storefront?.checkoutEnabled,
     };
   }
   async catalog(slug: string, query: StoreCatalogQuery, productId?: string) {

@@ -10,6 +10,20 @@ const methods = {
       instructions: "Paga a la cuenta del negocio",
       enabled: true,
     },
+    {
+      id: "cash",
+      code: "CASH_ON_PICKUP",
+      label: "Efectivo al retirar",
+      instructions: "Paga en caja",
+      enabled: true,
+    },
+    {
+      id: "disabled-pay",
+      code: "PLIN",
+      label: "Pago deshabilitado",
+      instructions: "No disponible",
+      enabled: false,
+    },
   ],
   shipping: [
     {
@@ -20,6 +34,24 @@ const methods = {
       pickupAddress: "Av. Comercio 123",
       districts: [],
       enabled: true,
+    },
+    {
+      id: "delivery",
+      kind: "DELIVERY",
+      label: "Entrega del negocio",
+      fee: "5.00",
+      districts: ["150101"],
+      pickupAddress: "",
+      enabled: true,
+    },
+    {
+      id: "disabled-delivery",
+      kind: "DELIVERY",
+      label: "Entrega deshabilitada",
+      fee: "8.00",
+      districts: ["150102"],
+      pickupAddress: "",
+      enabled: false,
     },
   ],
 };
@@ -44,6 +76,7 @@ let profile = {
   addresses: [],
 };
 let cart = { version: 1, items: [] };
+let quoteShipping = methods.shipping[0];
 let order = null;
 const settings = {
   slug: "negocio-demo",
@@ -70,7 +103,7 @@ const snapshot = () => ({
     phone: profile.phone,
   },
   payment: methods.payment[0],
-  shipping: methods.shipping[0],
+  shipping: quoteShipping,
   address: null,
   lines: cart.items.map((line) => ({
     productId: line.productId,
@@ -91,6 +124,7 @@ function handleStore(resource, params, method, body) {
       name: settings.title,
       description: settings.description,
       currency: "PEN",
+      checkoutEnabled: true,
     };
   if (path === "auth/register" || path === "auth/verify")
     return { message: "Revisa tu correo para completar la verificación" };
@@ -128,6 +162,8 @@ function handleStore(resource, params, method, body) {
                 productId: product.id,
                 presentationId: null,
                 name: product.name,
+                imageUrl: product.imageUrl,
+                baseUnit: product.baseUnit,
                 presentationName: null,
                 unitPrice: product.price,
                 quantity: String(body.quantity),
@@ -140,7 +176,13 @@ function handleStore(resource, params, method, body) {
   }
   if (path === "checkout/quote") {
     assert.equal(body.paymentMethodId, "pay");
-    assert.equal(body.shippingMethodId, "pickup");
+    assert.ok(["pickup", "delivery"].includes(body.shippingMethodId));
+    if (body.shippingMethodId === "delivery")
+      assert.equal(body.addressId, "address");
+    else assert.equal("addressId" in body, false);
+    quoteShipping = methods.shipping.find(
+      (method) => method.id === body.shippingMethodId,
+    );
     return {
       id: "quote",
       expiresAt: new Date(Date.now() + 300000).toISOString(),
@@ -233,6 +275,7 @@ function handleStoreAdmin(resource, params, method, body) {
 
 async function runStoreChecks(page, origin) {
   const base = `${origin}/tienda/negocio-demo`;
+  product.imageUrl = `data:image/png;base64,${(await bwip.toBuffer({ bcid: "qrcode", text: "producto", scale: 2 })).toString("base64")}`;
   await page.goto(`${base}/registro`);
   await page.getByLabel("Nombres", { exact: true }).fill("Ana");
   await page.getByLabel("Apellidos", { exact: true }).fill("Pérez");
@@ -272,7 +315,130 @@ async function runStoreChecks(page, origin) {
     .fill("2");
   await page.getByRole("button", { name: "Agregar", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "agregado" }).waitFor();
+  assert.equal(await page.getByTestId("cart-count").textContent(), "2");
+  const productImage = page.getByRole("img", {
+    name: product.name,
+    exact: true,
+  });
+  await productImage.waitFor();
+  await page.waitForFunction(() =>
+    Array.from(document.images).some(
+      (image) =>
+        image.alt === "Café de la casa" &&
+        image.complete &&
+        image.naturalWidth > 0,
+    ),
+  );
   await page.getByRole("link", { name: "Carrito", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Aumentar Café de la casa", exact: true })
+    .click();
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[data-testid="cart-count"]')?.textContent === "3",
+  );
+  await page
+    .getByRole("button", { name: "Disminuir Café de la casa", exact: true })
+    .click();
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[data-testid="cart-count"]')?.textContent === "2",
+  );
+  await page
+    .getByRole("spinbutton", {
+      name: "Cantidad en carrito de Café de la casa",
+      exact: true,
+    })
+    .fill("4");
+  await page
+    .getByRole("spinbutton", {
+      name: "Cantidad en carrito de Café de la casa",
+      exact: true,
+    })
+    .press("Enter");
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[data-testid="cart-count"]')?.textContent === "4",
+  );
+  await page.getByText("Av. Comercio 123", { exact: true }).waitFor();
+  const shippingSelect = page.getByRole("combobox", {
+    name: /Forma de entrega/,
+  });
+  assert.equal(
+    await shippingSelect.locator('option[value="disabled-delivery"]').count(),
+    0,
+  );
+  await shippingSelect.selectOption("delivery");
+  await page
+    .getByText("Agrega una dirección para recibir tu compra.", { exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Calcular total", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByRole("combobox", { name: /Forma de pago/ })
+      .locator('option[value="cash"]')
+      .count(),
+    0,
+  );
+  await page
+    .getByRole("link", { name: "Administrar direcciones", exact: true })
+    .click();
+  await page.getByLabel("Nombre de dirección", { exact: true }).fill("Casa");
+  await page.getByLabel("Destinatario", { exact: true }).fill("Ana Pérez");
+  await page.getByLabel("Teléfono", { exact: true }).fill("999111222");
+  await page.getByLabel("Dirección", { exact: true }).fill("Jr. Lima 100");
+  await page
+    .getByLabel("Ubigeo del distrito (6 dígitos)", { exact: true })
+    .fill("150101");
+  await page
+    .getByRole("button", { name: "Agregar dirección", exact: true })
+    .click();
+  await page.getByText("Jr. Lima 100 · 150101", { exact: true }).waitFor();
+  await page.getByRole("link", { name: "Carrito", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /Forma de entrega/ })
+    .selectOption("delivery");
+  await page
+    .getByRole("combobox", { name: "Dirección de entrega", exact: true })
+    .selectOption("address");
+  await page
+    .getByRole("combobox", { name: /Forma de pago/ })
+    .selectOption("pay");
+  await page
+    .getByText("Paga a la cuenta del negocio", { exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Calcular total", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Confirmar pedido con este total",
+      exact: true,
+    })
+    .waitFor();
+  await page
+    .getByRole("combobox", { name: /Forma de entrega/ })
+    .selectOption("pickup");
+  assert.equal(
+    await page
+      .getByRole("button", {
+        name: "Confirmar pedido con este total",
+        exact: true,
+      })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await page
+      .getByRole("combobox", { name: "Dirección de entrega", exact: true })
+      .count(),
+    0,
+  );
   await page
     .getByRole("combobox", { name: /Forma de pago/ })
     .selectOption("pay");

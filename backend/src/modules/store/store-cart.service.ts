@@ -40,6 +40,7 @@ export class StoreCartService {
         product: {
           select: {
             name: true,
+            imageUrl: true,
             salePrice: true,
             baseUnit: true,
             storeVisible: true,
@@ -69,6 +70,8 @@ export class StoreCartService {
           productId: item.productId,
           presentationId: item.presentationId,
           name: item.product.name,
+          imageUrl: item.product.imageUrl,
+          baseUnit: item.product.baseUnit,
           presentationName: p?.name ?? null,
           quantity: item.quantity.toString(),
           unitPrice: (

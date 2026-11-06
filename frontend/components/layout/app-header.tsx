@@ -51,6 +51,9 @@ export function AppHeader({
   const router = useRouter();
   const queryClient = useQueryClient();
   const logout = useAuthStore((state) => state.logout);
+  const currentUser = useAuthStore((state) => state.user);
+  const displayedAvatar =
+    currentUser?.email === email ? currentUser.avatarUrl : avatarUrl;
   const resetNotifications = useNotificationsStore((state) => state.reset);
   const addToast = useUiStore((state) => state.addToast);
   const initials = (fullName ?? "")
@@ -106,9 +109,9 @@ export function AppHeader({
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-full border border-foreground/10 bg-card p-1.5 text-sm transition hover:border-foreground/20 hover:bg-muted sm:gap-3 sm:pl-3 sm:pr-4">
                 <Avatar className="h-8 w-8">
-                  {avatarUrl && (
+                  {displayedAvatar && (
                     <AvatarImage
-                      src={avatarUrl}
+                      src={displayedAvatar}
                       alt={`Avatar de ${fullName || "usuario"}`}
                       className="object-cover"
                     />

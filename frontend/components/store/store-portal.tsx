@@ -5,14 +5,25 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
-  Package,
   ShoppingBag,
   UserRound,
   MapPin,
   LogOut,
+  Minus,
+  Plus,
+  Check,
+  Loader2,
+  ShoppingCart,
 } from "lucide-react";
 import { StoreApiError, storeApi } from "@/lib/store-api";
+import {
+  addStoreQuantity,
+  cartQuantity,
+  storeQuantity,
+  type StoreCart,
+} from "@/lib/store-cart";
 import { StoreCommerce } from "./store-commerce";
+import { StoreProductImage } from "./store-product-image";
 import { StoreOrders } from "./store-orders";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
 
@@ -62,9 +73,12 @@ export function StorePortal({
     name: string;
     description?: string;
     currency: string;
+    checkoutEnabled?: boolean;
   } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [cart, setCart] = useState<StoreCart | null>(null);
+  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [search, setSearch] = useState("");
@@ -84,10 +98,15 @@ export function StorePortal({
     "privacidad",
   ].includes(section);
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       if (!publicSection) {
-        const me = await storeApi<Profile>(slug, "me");
+        const [me, currentCart] = await Promise.all([
+          storeApi<Profile>(slug, "me"),
+          storeApi<StoreCart>(slug, "cart"),
+        ]);
         setProfile(me);
+        setCart(currentCart);
         if (section === "catalogo") {
           setCategories(await storeApi<typeof categories>(slug, "categories"));
           if (detailId) {
@@ -120,6 +139,8 @@ export function StorePortal({
             ? error.message
             : "No se pudo cargar la tienda",
         );
+    } finally {
+      setLoading(false);
     }
   }, [
     slug,
@@ -190,7 +211,7 @@ export function StorePortal({
 
   return (
     <div className="store-portal min-h-screen bg-[#f6f4ef] text-stone-900 dark:bg-slate-950 dark:text-stone-100">
-      <header className="border-b border-stone-200 bg-white/90 dark:border-slate-800 dark:bg-slate-900/90">
+      <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5">
           <Link href={`${base}/catalogo`} className="flex items-center gap-3">
             <span className="rounded-xl bg-teal-900 p-2.5 text-white">
@@ -201,8 +222,31 @@ export function StorePortal({
             </span>
           </Link>
           <nav className="flex flex-wrap items-center gap-4 text-sm">
-            <Link href={`${base}/catalogo`}>Catálogo</Link>
-            <Link href={`${base}/carrito`}>Carrito</Link>
+            <Link
+              href={`${base}/catalogo`}
+              aria-current={section === "catalogo" ? "page" : undefined}
+              className={
+                section === "catalogo" ? "font-semibold text-teal-800" : ""
+              }
+            >
+              Catálogo
+            </Link>
+            <Link
+              href={`${base}/carrito`}
+              aria-label="Carrito"
+              aria-current={section === "carrito" ? "page" : undefined}
+              className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-2 font-semibold text-teal-900"
+            >
+              <ShoppingCart className="size-4" />
+              Carrito
+              <span
+                data-testid="cart-count"
+                aria-hidden="true"
+                className="min-w-6 rounded-full bg-teal-900 px-1.5 py-0.5 text-center text-xs text-white"
+              >
+                {storeQuantity(cartQuantity(cart))}
+              </span>
+            </Link>
             <Link href={`${base}/pedidos`}>Mis pedidos</Link>
             <Link href={`${base}/pago`}>Pago</Link>
             <Link href={`${base}/envio`}>Envío</Link>
@@ -216,6 +260,7 @@ export function StorePortal({
                   void storeApi(slug, "auth/logout", {})
                     .then(() => {
                       setProfile(null);
+                      setCart(null);
                       router.replace(`${base}/ingresar`);
                     })
                     .catch((error: Error) => setMessage(error.message))
@@ -463,24 +508,28 @@ export function StorePortal({
                     ← Volver al catálogo
                   </Link>
                 )}
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {loading && (
+                  <p
+                    role="status"
+                    className="mb-5 flex items-center gap-2 text-sm text-stone-500"
+                  >
+                    <Loader2 className="size-4 animate-spin" />
+                    Actualizando catálogo…
+                  </p>
+                )}
+                <div
+                  className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+                  aria-busy={loading}
+                >
                   {products.map((product) => (
                     <article
                       key={product.id}
-                      className="overflow-hidden rounded-2xl border border-stone-200 bg-white"
+                      className="group overflow-hidden rounded-2xl border border-stone-200 bg-white transition duration-300 motion-safe:hover:-translate-y-1 hover:border-teal-800/30 hover:shadow-xl hover:shadow-teal-950/5"
                     >
-                      <div className="flex aspect-[4/3] items-center justify-center bg-stone-100">
-                        {product.imageUrl ? (
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="h-full w-full object-contain p-5"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <Package className="size-16 text-stone-300" />
-                        )}
-                      </div>
+                      <StoreProductImage
+                        src={product.imageUrl}
+                        name={product.name}
+                      />
                       <div className="space-y-3 p-5">
                         <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">
                           {product.availability === "AVAILABLE"
@@ -507,12 +556,14 @@ export function StorePortal({
                           product={product}
                           slug={slug}
                           onMessage={setMessage}
+                          cart={cart}
+                          onCartChange={setCart}
                         />
                       </div>
                     </article>
                   ))}
                 </div>
-                {!products.length && profile && (
+                {!loading && !products.length && profile && (
                   <p className="py-12 text-center text-stone-500">
                     No hay productos publicados con esta búsqueda.
                   </p>
@@ -534,6 +585,26 @@ export function StorePortal({
                     Siguiente
                   </button>
                 </div>
+                {!!cart?.items.length && (
+                  <div className="sticky bottom-4 z-10 mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-teal-950 px-5 py-4 text-white shadow-xl">
+                    <div>
+                      <p className="font-semibold">
+                        {storeQuantity(cartQuantity(cart))} en tu carrito
+                      </p>
+                      <p className="text-sm text-teal-200">
+                        {cart.items.length} productos · Continúa cuando estés
+                        listo
+                      </p>
+                    </div>
+                    <Link
+                      href={`${base}/carrito`}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 font-semibold text-teal-950"
+                    >
+                      Revisar carrito
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </div>
+                )}
               </>
             )}
             {section === "perfil" && profile && (
@@ -633,6 +704,10 @@ export function StorePortal({
               section={section}
               slug={slug}
               onMessage={setMessage}
+              cart={cart}
+              onCartChange={setCart}
+              currency={info?.currency ?? "PEN"}
+              checkoutEnabled={info?.checkoutEnabled !== false}
             />
             {section === "pedidos" && (
               <StoreOrders slug={slug} id={detailId} onMessage={setMessage} />
@@ -651,14 +726,32 @@ function ProductPurchase({
   product,
   slug,
   onMessage,
+  cart,
+  onCartChange,
 }: {
   product: StoreProduct;
   slug: string;
   onMessage: (text: string) => void;
+  cart: StoreCart | null;
+  onCartChange: (cart: StoreCart) => void;
 }) {
   const [presentationId, setPresentation] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [busy, setBusy] = useState(false);
+  const [added, setAdded] = useState(false);
+  const currentLine = cart?.items.find((line) => line.productId === product.id);
+  const selectedPrice =
+    product.presentations.find((p) => p.id === presentationId)?.price ??
+    product.price;
+  const step = presentationId || product.baseUnit === "UNIT" ? 1 : 0.001;
+  const validQuantity =
+    Number(quantity) >= step &&
+    Number.isFinite(Number(quantity)) &&
+    Math.abs(Math.round(Number(quantity) * 1000) - Number(quantity) * 1000) <
+      0.000001 &&
+    (step !== 1 || Number.isInteger(Number(quantity)));
+  const differentPresentation =
+    !!currentLine && (currentLine.presentationId ?? "") !== presentationId;
   return (
     <div className="space-y-3">
       <label className="block text-xs text-stone-500">
@@ -667,12 +760,18 @@ function ProductPurchase({
           aria-label={`Presentación de ${product.name}`}
           className={storeInput}
           value={presentationId}
-          onChange={(event) => setPresentation(event.target.value)}
+          onChange={(event) => {
+            setPresentation(event.target.value);
+            setQuantity("1");
+            setAdded(false);
+          }}
         >
-          <option value="">Unidad base · {storeMoney(product.price)}</option>
+          <option value="">
+            Unidad base · {storeMoney(product.price, product.currency)}
+          </option>
           {product.presentations.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} · {storeMoney(p.price)}
+              {p.name} · {storeMoney(p.price, product.currency)}
             </option>
           ))}
         </select>
@@ -695,47 +794,120 @@ function ProductPurchase({
         ))}
       </div>
       <div className="flex gap-2">
+        <button
+          type="button"
+          aria-label={`Disminuir cantidad de ${product.name}`}
+          disabled={Number(quantity) <= step || busy}
+          onClick={() => {
+            setQuantity(
+              String(Math.max(step, addStoreQuantity(quantity, -step))),
+            );
+            setAdded(false);
+          }}
+          className="rounded-xl border border-stone-300 px-2 disabled:opacity-40"
+        >
+          <Minus className="size-4" />
+        </button>
         <input
           aria-label={`Cantidad de ${product.name}`}
-          className={`${storeInput} max-w-24`}
+          className={`${storeInput} min-w-0 max-w-24 text-center tabular-nums`}
           type="number"
           min={presentationId || product.baseUnit === "UNIT" ? 1 : 0.001}
           step={presentationId || product.baseUnit === "UNIT" ? 1 : 0.001}
           value={quantity}
-          onChange={(event) => setQuantity(event.target.value)}
+          onChange={(event) => {
+            setQuantity(event.target.value);
+            setAdded(false);
+          }}
         />
         <button
-          disabled={busy || product.availability !== "AVAILABLE"}
-          className={storeButton}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              const cart = await storeApi<{
-                version: number;
-                items: { productId: string; quantity: string }[];
-              }>(slug, "cart");
-              const old = cart.items.find(
-                (line) => line.productId === product.id,
-              );
-              await storeApi(slug, "cart/items", {
-                version: cart.version,
-                productId: product.id,
-                ...(presentationId ? { presentationId } : {}),
-                quantity: Number(quantity) + Number(old?.quantity ?? 0),
-              });
-              onMessage("Producto agregado al carrito");
-            } catch (error) {
-              onMessage(
-                error instanceof Error ? error.message : "No se pudo agregar",
-              );
-            } finally {
-              setBusy(false);
-            }
+          type="button"
+          aria-label={`Aumentar cantidad de ${product.name}`}
+          disabled={busy}
+          onClick={() => {
+            setQuantity(String(addStoreQuantity(quantity, step)));
+            setAdded(false);
           }}
+          className="rounded-xl border border-stone-300 px-2"
         >
-          Agregar
+          <Plus className="size-4" />
         </button>
       </div>
+      <p className="flex items-center justify-between text-sm">
+        <span className="text-stone-500">Importe seleccionado</span>
+        <strong className="tabular-nums">
+          {storeMoney(
+            validQuantity ? Number(quantity) * Number(selectedPrice) : 0,
+            product.currency,
+          )}
+        </strong>
+      </p>
+      {currentLine && (
+        <p className="text-xs font-medium text-teal-800">
+          En tu carrito: {storeQuantity(currentLine.quantity)}{" "}
+          {currentLine.presentationName ?? product.baseUnit}
+        </p>
+      )}
+      {differentPresentation && (
+        <p className="text-xs text-amber-700">
+          Retira la presentación actual del carrito antes de cambiarla.
+        </p>
+      )}
+      <button
+        type="button"
+        disabled={
+          busy ||
+          !validQuantity ||
+          differentPresentation ||
+          product.availability !== "AVAILABLE"
+        }
+        className={`${storeButton} w-full`}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            const cart = await storeApi<StoreCart>(slug, "cart");
+            const old = cart.items.find(
+              (line) => line.productId === product.id,
+            );
+            if (old && (old.presentationId ?? "") !== presentationId)
+              throw new Error(
+                "Retira la presentación actual del carrito antes de cambiarla.",
+              );
+            const updated = await storeApi<StoreCart>(slug, "cart/items", {
+              version: cart.version,
+              productId: product.id,
+              ...(presentationId ? { presentationId } : {}),
+              quantity: addStoreQuantity(old?.quantity ?? 0, Number(quantity)),
+            });
+            onCartChange(updated);
+            setAdded(true);
+            onMessage("Producto agregado al carrito");
+          } catch (error) {
+            onMessage(
+              error instanceof Error ? error.message : "No se pudo agregar",
+            );
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            Agregando…
+          </>
+        ) : added ? (
+          <>
+            <Check className="size-4" />
+            Agregado
+          </>
+        ) : (
+          <>
+            <Plus className="size-4" />
+            Agregar
+          </>
+        )}
+      </button>
     </div>
   );
 }

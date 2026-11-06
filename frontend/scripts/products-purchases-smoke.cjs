@@ -5,6 +5,7 @@ const { spawn } = require("node:child_process");
 const { chromium, firefox, webkit } = require("playwright");
 const { runScannerChecks } = require("./scanner-checks.cjs");
 const { runAuthChecks } = require("./auth-checks.cjs");
+const { runAvatarChecks } = require("./avatar-checks.cjs");
 const {
   handleStore,
   handleStoreAdmin,
@@ -102,9 +103,23 @@ function handle(resource, params, method, body) {
       email: null,
       phone: null,
       timezone: "America/Lima",
+      slug: "negocio-demo",
+      status: "ACTIVE",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      trialEndsAt: null,
       currency: "PEN",
     };
   if (resource === "/auth/me") return { ...user, roles };
+  if (resource === "/auth/me/avatar" && method === "PATCH") {
+    assert.ok(
+      body.avatarUrl === null ||
+        (body.avatarUrl.startsWith("data:image/webp;base64,") &&
+          body.avatarUrl.length < 2_000_000),
+    );
+    user.avatarUrl = body.avatarUrl;
+    return { avatarUrl: user.avatarUrl };
+  }
+  if (resource === "/subscriptions/current") return null;
   if (resource === "/notifications/unread-count") return { count: 0 };
   if (resource === "/plan-capabilities/me")
     return {
@@ -369,6 +384,11 @@ async function main() {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    if (process.argv.includes("--avatar-only")) {
+      await runAvatarChecks(page, origin);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes("--auth-only")) {
       await runAuthChecks(page, context, origin, user);
       assert.deepEqual(errors, []);

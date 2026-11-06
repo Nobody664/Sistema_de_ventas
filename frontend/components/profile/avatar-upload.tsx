@@ -6,6 +6,7 @@ import { Camera, Loader2, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUiStore } from "@/store/ui-store";
+import { compressImage } from "@/lib/image-compression";
 
 export function AvatarUpload({
   avatarUrl,
@@ -40,7 +41,7 @@ export function AvatarUpload({
     setBusy(true);
     try {
       await updateAvatar(value);
-      setPreview(value ?? "");
+      setPreview(useAuthStore.getState().user?.avatarUrl ?? "");
       addToast(
         value ? "Foto de perfil actualizada" : "Foto de perfil eliminada",
         "success",
@@ -59,7 +60,7 @@ export function AvatarUpload({
     }
   };
 
-  const handleFile = (file?: File) => {
+  const handleFile = async (file?: File) => {
     if (!file) return;
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       addToast("Selecciona una imagen PNG, JPEG o WebP", "error");
@@ -69,15 +70,25 @@ export function AvatarUpload({
       addToast("La imagen no debe superar los 5 MB", "error");
       return;
     }
-    const reader = new FileReader();
-    reader.onerror = () => addToast("No se pudo leer la imagen", "error");
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setPreview(reader.result);
-        void save(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    setBusy(true);
+    try {
+      const image = await compressImage(file, {
+        maxWidth: 512,
+        maxHeight: 512,
+        format: "image/webp",
+        quality: 0.85,
+      });
+      setPreview(image);
+      await save(image);
+    } catch (error) {
+      setPreview(avatarUrl ?? "");
+      addToast(
+        error instanceof Error ? error.message : "No se pudo leer la imagen",
+        "error",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -100,7 +111,7 @@ export function AvatarUpload({
         accept="image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(event) => {
-          handleFile(event.target.files?.[0]);
+          void handleFile(event.target.files?.[0]);
           event.target.value = "";
         }}
       />
