@@ -18,7 +18,10 @@ export default async function NewSalePage() {
   );
 
   const [products, customers, distributors] = await Promise.all([
-    serverApiFetch<Product[]>("/products", accessToken),
+    serverApiFetch<Product[]>(
+      "/products?expiryStatus=VALID&limit=100",
+      accessToken,
+    ),
     serverApiFetch<Customer[]>("/customers", accessToken),
     canUseDistributors
       ? serverApiFetch<Distributor[]>("/distributors", accessToken)

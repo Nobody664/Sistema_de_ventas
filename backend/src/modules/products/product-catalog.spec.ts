@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { PrismaService } from "@/database/prisma/prisma.service";
+import { companyDateKey } from "@/common/helpers/company-timezone.helper";
 import { AuditService } from "@/common/services/audit.service";
 import { SubscriptionLimitService } from "@/common/guards/subscription-limit.service";
 import { LowStockService } from "@/modules/low-stock/low-stock.service";
@@ -20,6 +21,9 @@ function fixture() {
     category: { id: "category-b", name: "B" },
   };
   const prisma = {
+    company: {
+      findUnique: async () => ({ timezone: "America/Lima" }),
+    },
     product: {
       findMany: async (args: Prisma.ProductFindManyArgs) => {
         calls.push(args);
@@ -82,6 +86,66 @@ describe("Product catalog filtering", () => {
         },
       ],
     });
+  });
+  it("classifies products as expired when a batch or its own expiry date is due", async () => {
+    const { service, calls } = fixture();
+    await service.findCatalog("company-a", { expiryStatus: "EXPIRED" });
+    const cutoff = new Date(
+      `${companyDateKey(new Date(), "America/Lima")}T00:00:00Z`,
+    );
+    const expired = {
+      OR: [
+        {
+          batches: {
+            some: {
+              quantityAvailable: { gt: 0 },
+              expirationDate: { lt: cutoff },
+            },
+          },
+        },
+        {
+          AND: [
+            { expiryDate: { lt: cutoff } },
+            {
+              batches: {
+                some: { quantityAvailable: { gt: 0 }, expirationDate: null },
+              },
+            },
+          ],
+        },
+        {
+          AND: [
+            { batches: { none: { quantityAvailable: { gt: 0 } } } },
+            { expiryDate: { lt: cutoff } },
+          ],
+        },
+      ],
+    };
+    assert.deepEqual(calls[0].where, {
+      companyId: "company-a",
+      deletedAt: null,
+      AND: [expired],
+    });
+  });
+  it("keeps valid products visible when their stock has no batch expiry", async () => {
+    const { service, calls } = fixture();
+    await service.findCatalog("company-a", { expiryStatus: "VALID" });
+    assert.ok(
+      JSON.stringify(calls[0].where).includes('"expirationDate":null'),
+      "the expired filter must consider batches without expiration date",
+    );
+    assert.equal(
+      (calls[0].where?.AND as Prisma.ProductWhereInput[])[0] !== undefined,
+      true,
+    );
+    assert.equal(
+      (
+        (calls[0].where?.AND as Prisma.ProductWhereInput[])[0] as {
+          NOT?: unknown;
+        }
+      ).NOT !== undefined,
+      true,
+    );
   });
   it("preserves the legacy array response for existing product selectors", async () => {
     const { service, calls, row } = fixture();

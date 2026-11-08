@@ -27,7 +27,6 @@ export class BatchExpiryService {
     const base: Prisma.ProductBatchWhereInput = {
       companyId,
       quantityAvailable: { gt: 0 },
-      product: { deletedAt: null },
       ...(query.productId ? { productId: query.productId } : {}),
       ...(query.search
         ? {
@@ -47,20 +46,26 @@ export class BatchExpiryService {
           }
         : {}),
     };
+    const effectiveExpiry = (
+      range: Prisma.DateTimeFilter,
+    ): Prisma.ProductBatchWhereInput => ({
+      OR: [
+        { expirationDate: range },
+        { expirationDate: null, product: { expiryDate: range } },
+      ],
+    });
     const expired: Prisma.ProductBatchWhereInput = {
-      ...base,
-      expirationDate: { lt: window.start },
+      AND: [base, effectiveExpiry({ lt: window.start })],
     };
     const expiring: Prisma.ProductBatchWhereInput = {
-      ...base,
-      expirationDate: { gte: window.start, lt: window.end },
+      AND: [base, effectiveExpiry({ gte: window.start, lt: window.end })],
     };
     const where =
       query.status === "EXPIRED"
         ? expired
         : query.status === "EXPIRING"
           ? expiring
-          : { ...base, expirationDate: { lt: window.end } };
+          : { AND: [base, effectiveExpiry({ lt: window.end })] };
     const [rows, total, expiredCount, expiringCount] = await Promise.all([
       this.prisma.productBatch.findMany({
         where,
@@ -72,6 +77,7 @@ export class BatchExpiryService {
               sku: true,
               baseUnit: true,
               isActive: true,
+              expiryDate: true,
             },
           },
           branch: { select: { name: true } },
@@ -93,24 +99,28 @@ export class BatchExpiryService {
       total,
       totalPages: Math.ceil(total / query.limit),
       counts: { expired: expiredCount, expiring: expiringCount },
-      data: rows.map((batch) => ({
-        id: batch.id,
-        productId: batch.productId,
-        product: batch.product,
-        branchName: batch.branch?.name ?? null,
-        batchNumber: batch.batchNumber,
-        expirationDate: batch.expirationDate!.toISOString().slice(0, 10),
-        daysLeft: batchExpiryDays(batch.expirationDate, window.today)!,
-        quantityReceived: batch.quantityReceived.toString(),
-        quantityAvailable: batch.quantityAvailable.toString(),
-        reservedQuantity: batch.reservedQuantity.toString(),
-        purchasePrice: batch.purchasePrice.toString(),
-        lossAmount: batch.quantityAvailable
-          .mul(batch.purchasePrice)
-          .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
-          .toFixed(2),
-        updatedAt: batch.updatedAt.toISOString(),
-      })),
+      data: rows.map((batch) => {
+        const expiryDate = batch.expirationDate ?? batch.product.expiryDate;
+        return {
+          id: batch.id,
+          productId: batch.productId,
+          product: batch.product,
+          branchName: batch.branch?.name ?? null,
+          batchNumber: batch.batchNumber,
+          expirationDate: expiryDate!.toISOString().slice(0, 10),
+          expiryInherited: batch.expirationDate === null,
+          daysLeft: batchExpiryDays(expiryDate, window.today)!,
+          quantityReceived: batch.quantityReceived.toString(),
+          quantityAvailable: batch.quantityAvailable.toString(),
+          reservedQuantity: batch.reservedQuantity.toString(),
+          purchasePrice: batch.purchasePrice.toString(),
+          lossAmount: batch.quantityAvailable
+            .mul(batch.purchasePrice)
+            .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+            .toFixed(2),
+          updatedAt: batch.updatedAt.toISOString(),
+        };
+      }),
     };
   }
 
@@ -136,15 +146,15 @@ export class BatchExpiryService {
           where: { id, companyId, productId: target.productId },
           include: { product: true },
         });
-        if (!batch || batch.product.deletedAt)
-          throw new NotFoundException("Lote no encontrado");
+        if (!batch) throw new NotFoundException("Lote no encontrado");
         const company = await tx.company.findUniqueOrThrow({
           where: { id: companyId },
           select: { timezone: true, currency: true },
         });
         const now = new Date();
         const window = batchExpiryWindow(company.timezone, now);
-        const daysLeft = batchExpiryDays(batch.expirationDate, window.today);
+        const expiryDate = batch.expirationDate ?? batch.product.expiryDate;
+        const daysLeft = batchExpiryDays(expiryDate, window.today);
         if (daysLeft === null || daysLeft > 3)
           throw new BadRequestException(
             "Solo se permite la baja de lotes vencidos o que vencen en los próximos 3 días",
@@ -240,7 +250,7 @@ export class BatchExpiryService {
             "El kardex no está conciliado para retirar este lote a su costo de compra. Revisa la valorización antes de continuar",
           );
         const reference = `EXPIRY-BATCH:${batch.id}`;
-        const notes = `Lote ${batch.batchNumber} (${batch.id}); vencimiento ${batch.expirationDate!.toISOString().slice(0, 10)}; cantidad ${quantity}; costo base ${batch.purchasePrice}. ${input.reason}`;
+        const notes = `Lote ${batch.batchNumber} (${batch.id}); vencimiento ${expiryDate!.toISOString().slice(0, 10)}; cantidad ${quantity}; costo base ${batch.purchasePrice}. ${input.reason}`;
         const changed = await tx.productBatch.updateMany({
           where: {
             id,
@@ -321,7 +331,8 @@ export class BatchExpiryService {
               lossAmount: lossAmount.toFixed(2),
               financeRecordId: finance.id,
               movementId: movement.id,
-              originalExpirationDate: batch.expirationDate,
+              originalExpirationDate: expiryDate,
+              expiryInherited: batch.expirationDate === null,
               declaredEarly: daysLeft >= 0,
               note: input.reason,
             },

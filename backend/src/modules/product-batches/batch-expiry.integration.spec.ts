@@ -137,6 +137,48 @@ test(
       const reserved = await lot("VENCIDO-RESERVADO", 2, 3, -1, 1);
       const soon = await lot("TERCER-DIA", 4, 4, 3);
       const fresh = await lot("NUEVO-INGRESO", 5, 5, 4);
+      const inheritedProduct = await prisma.product.create({
+        data: {
+          companyId: company.id,
+          name: "Lote heredado",
+          stockQuantity: 4,
+          costPrice: 2,
+          salePrice: 3,
+          expiryDate: new Date(`${shiftDateKey(today, -2)}T00:00:00Z`),
+        },
+      });
+      const inherited = await prisma.productBatch.create({
+        data: {
+          companyId: company.id,
+          productId: inheritedProduct.id,
+          batchNumber: "HEREDADO-VENCIDO",
+          quantityReceived: 4,
+          quantityAvailable: 4,
+          purchasePrice: 2,
+          expirationDate: null,
+        },
+      });
+      const inheritedFreshProduct = await prisma.product.create({
+        data: {
+          companyId: company.id,
+          name: "Lote heredado vigente",
+          stockQuantity: 2,
+          costPrice: 2,
+          salePrice: 3,
+          expiryDate: new Date(`${shiftDateKey(today, 10)}T00:00:00Z`),
+        },
+      });
+      const inheritedFresh = await prisma.productBatch.create({
+        data: {
+          companyId: company.id,
+          productId: inheritedFreshProduct.id,
+          batchNumber: "HEREDADO-VIGENTE",
+          quantityReceived: 2,
+          quantityAvailable: 2,
+          purchasePrice: 2,
+          expirationDate: null,
+        },
+      });
       await prisma.inventoryKardex.create({
         data: {
           companyId: company.id,
@@ -223,11 +265,19 @@ test(
       assert.equal(response.status, 200);
       const list = (await response.json()) as {
         counts: { expired: number; expiring: number };
-        data: { id: string }[];
+        data: { id: string; expiryInherited?: boolean }[];
       };
-      assert.deepEqual(list.counts, { expired: 2, expiring: 1 });
+      assert.deepEqual(list.counts, { expired: 3, expiring: 1 });
       assert.equal(
         list.data.some((row) => row.id === fresh.id),
+        false,
+      );
+      assert.equal(
+        list.data.find((row) => row.id === inherited.id)?.expiryInherited,
+        true,
+      );
+      assert.equal(
+        list.data.some((row) => row.id === inheritedFresh.id),
         false,
       );
       const tampered = await post(expired.id, {
@@ -414,9 +464,20 @@ test(
         ).isActive,
         true,
       );
+      const inheritedWrite = await post(inherited.id, input(inherited));
+      assert.equal(inheritedWrite.status, 201);
+      await inheritedWrite.arrayBuffer();
+      assert.equal(
+        (
+          await prisma.product.findUniqueOrThrow({
+            where: { id: inheritedProduct.id },
+          })
+        ).stockQuantity.toString(),
+        "0",
+      );
       assert.equal(
         await prisma.auditLog.count({ where: { entity: "ProductBatch" } }),
-        3,
+        4,
       );
     } finally {
       if (app) await app.close();

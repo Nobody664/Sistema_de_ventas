@@ -11,6 +11,7 @@ export interface ExpiryBatch {
   branchName: string | null;
   batchNumber: string;
   expirationDate: string;
+  expiryInherited?: boolean;
   daysLeft: number;
   quantityReceived: string;
   quantityAvailable: string;

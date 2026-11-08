@@ -76,6 +76,63 @@ test("usa la fecha del producto solo cuando no hay lotes disponibles", () => {
   );
 });
 
+test("usa la fecha del producto cuando el lote disponible no tiene vencimiento", () => {
+  const expiredProduct = {
+    ...product,
+    expiryDate: new Date("2026-10-30T00:00:00.000Z"),
+  };
+
+  assert.deepEqual(
+    expiredStockItems(
+      expiredProduct,
+      [
+        {
+          id: "batch-1",
+          batchNumber: "L-1",
+          quantityAvailable: new Prisma.Decimal(4),
+          expirationDate: null,
+        },
+      ],
+      "America/Lima",
+      new Date("2026-11-02T15:00:00.000Z"),
+    ),
+    [
+      {
+        productId: "product-1",
+        productName: "Leche",
+        batchId: "batch-1",
+        batchNumber: "L-1",
+        expiryDate: "2026-10-30",
+        quantity: 4,
+      },
+    ],
+  );
+});
+
+test("no marca vencido un lote sin fecha si el producto sigue vigente", () => {
+  const freshProduct = {
+    ...product,
+    expiryDate: new Date("2026-12-31T00:00:00.000Z"),
+  };
+
+  assert.deepEqual(
+    expiredStockItems(
+      freshProduct,
+      [
+        {
+          id: "batch-1",
+          batchNumber: "L-1",
+          quantityAvailable: new Prisma.Decimal(4),
+          expirationDate: null,
+        },
+      ],
+      "America/Lima",
+      new Date("2026-11-02T15:00:00.000Z"),
+    ),
+    [],
+  );
+});
+
 test("no marca la fecha del producto si existe un lote vigente con stock", () => {
   const expiringProduct = {
     ...product,

@@ -203,6 +203,19 @@ export class ProductsService {
           },
           {
             AND: [
+              { expiryDate: { lt: expiryCutoff } },
+              {
+                batches: {
+                  some: {
+                    quantityAvailable: { gt: 0 },
+                    expirationDate: null,
+                  },
+                },
+              },
+            ],
+          },
+          {
+            AND: [
               { batches: { none: { quantityAvailable: { gt: 0 } } } },
               { expiryDate: { lt: expiryCutoff } },
             ],

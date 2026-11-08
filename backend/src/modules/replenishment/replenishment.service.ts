@@ -13,8 +13,9 @@ export class ReplenishmentService {
     const products = await this.prisma.product.findMany({
       where: {
         companyId,
-        reorderPoint: { not: null },
+        deletedAt: null,
         isActive: true,
+        OR: [{ stockQuantity: { lte: 0 } }, { reorderPoint: { not: null } }],
       },
       select: {
         id: true,
@@ -42,7 +43,7 @@ export class ReplenishmentService {
       const reorderPoint =
         product.reorderPoint === null ? 0 : Number(product.reorderPoint);
 
-      if (stock >= reorderPoint) continue;
+      if (stock > 0 && stock >= reorderPoint) continue;
 
       const demand = await this.forecastService.getDemandAverage(
         companyId,

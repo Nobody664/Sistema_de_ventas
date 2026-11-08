@@ -371,6 +371,11 @@ export function ExpiredBatchesClient({
                   </td>
                   <td className="whitespace-nowrap px-3 py-4">
                     {batchDateLabel(batch.expirationDate)}
+                    {batch.expiryInherited && (
+                      <p className="mt-1 text-[10px] text-foreground/45">
+                        Fecha del producto
+                      </p>
+                    )}
                   </td>
                   <td className="px-3 py-4">
                     <span
@@ -472,6 +477,7 @@ export function ExpiredBatchesClient({
                 </p>
                 <p className="mt-2">
                   Vencimiento: {batchDateLabel(selected.expirationDate)}
+                  {selected.expiryInherited && " (fecha del producto)"}
                 </p>
                 <p className="mt-1">
                   Cantidad a retirar: {selected.quantityAvailable}{" "}

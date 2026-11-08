@@ -65,6 +65,28 @@ const batches = [
     updatedAt: "2026-11-07T10:00:00.000Z",
   },
   {
+    id: "inherited-a",
+    productId: "juice",
+    product: {
+      id: "juice",
+      name: "Jugo de ejemplo",
+      sku: "JUGO",
+      baseUnit: "UNIT",
+      isActive: true,
+    },
+    batchNumber: "LOTE-FECHA-PRODUCTO",
+    expirationDate: "2026-11-05",
+    expiryInherited: true,
+    daysLeft: -3,
+    quantityReceived: "4",
+    quantityAvailable: "4",
+    reservedQuantity: "0",
+    purchasePrice: "3",
+    lossAmount: "12.00",
+    branchName: null,
+    updatedAt: "2026-11-07T10:00:00.000Z",
+  },
+  {
     id: "reserved-a",
     productId: "bread",
     product: {
@@ -159,6 +181,11 @@ async function runBatchExpiryChecks(page, origin) {
     name: "Lotes vencidos o por vencer con saldo pendiente de baja",
   });
   await table.getByText("LOTE-VENCIDO", { exact: true }).waitFor();
+  await table.getByText("LOTE-FECHA-PRODUCTO", { exact: true }).waitFor();
+  assert.equal(
+    await table.getByText("Fecha del producto", { exact: true }).count(),
+    1,
+  );
   assert.equal(
     await table.getByText("LOTE-NUEVO-VIGENTE", { exact: true }).count(),
     0,

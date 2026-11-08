@@ -39,7 +39,9 @@ export function expiredStockItems(
     batch.quantityAvailable.gt(0),
   );
   const expired = available.flatMap((batch) => {
-    const expiryDate = expiryDateKey(batch.expirationDate);
+    const expiryDate = expiryDateKey(
+      batch.expirationDate ?? product.expiryDate,
+    );
     if (!expiryDate || expiryDate >= today) return [];
     return [
       {

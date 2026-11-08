@@ -283,7 +283,9 @@ export class SuppliersService {
     });
 
     const lowStock = products.filter(
-      (product) => Number(product.stockQuantity) <= Number(product.minStock),
+      (product) =>
+        Number(product.stockQuantity) <= 0 ||
+        Number(product.stockQuantity) <= Number(product.minStock),
     );
     if (lowStock.length === 0) {
       return { groups: [], unassigned: [] };

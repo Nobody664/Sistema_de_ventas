@@ -99,6 +99,42 @@ describe("SuppliersService.getAutoOrdersPreview", () => {
     assert.equal(preview.unassigned.length, 0);
   });
 
+  it("includes sold-out products even when their minimum stock is zero", async () => {
+    const prisma = {
+      product: {
+        findMany: async () => [
+          {
+            id: "p1",
+            name: "Agotado",
+            sku: "A1",
+            baseUnit: "UNIT",
+            stockQuantity: 0,
+            minStock: 0,
+            costPrice: 2,
+          },
+        ],
+      },
+      supplierProduct: {
+        findMany: async () => [
+          {
+            productId: "p1",
+            supplierId: "s1",
+            isPreferred: true,
+            minOrderQuantity: 1,
+            supplier: { id: "s1", name: "Prov 1", code: "P1", isActive: true },
+          },
+        ],
+      },
+    };
+    const { svc } = makeService(prisma);
+
+    const preview = await svc.getAutoOrdersPreview("c1");
+
+    assert.equal(preview.groups.length, 1);
+    assert.equal(preview.groups[0].items[0].productId, "p1");
+    assert.equal(preview.groups[0].items[0].suggestedQuantity, 1);
+  });
+
   it("reports products without any preferred supplier as unassigned", async () => {
     const prisma = {
       product: {
