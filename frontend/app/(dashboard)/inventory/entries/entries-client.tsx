@@ -2,7 +2,7 @@
 
 import { printHtml } from "@/lib/print-html";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,24 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { useUiStore } from "@/store/ui-store";
+import { StockEntryProducts } from "@/components/products/stock-entry-products";
 import {
-  StockEntryScanner,
-  type ScannedStockProduct,
-} from "@/components/products/stock-entry-scanner";
-import type { ParsedBarcode } from "@/lib/barcode";
-import { expiryProfileOption } from "@/lib/product-expiry";
+  stockEntryLineError,
+  type StockEntryLine as Line,
+} from "@/lib/stock-entry-reception";
 import {
   ArrowLeft,
-  ClipboardList,
   FileText,
   Loader2,
   PackagePlus,
-  Plus,
   Printer,
   Receipt,
-  Search,
   Store,
-  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import type {
@@ -45,18 +40,6 @@ const UNIT_SHORT: Record<string, string> = {
   LT: "lt",
   MT: "mt",
 };
-
-function productLabel(product: {
-  name: string;
-  description: string | null;
-  sku: string | null;
-}): string {
-  const parts = [product.name];
-  if (product.description?.trim())
-    parts.push(`— ${product.description.trim()}`);
-  if (product.sku) parts.push(`(${product.sku})`);
-  return parts.join(" ");
-}
 
 interface EntryItem {
   id: string;
@@ -90,17 +73,6 @@ interface EntryRecord {
   items: EntryItem[];
 }
 
-interface Line {
-  key: string;
-  productId: string;
-  presentationId: string;
-  quantity: string;
-  unitCost: string;
-  expiryDate: string;
-  batchNumber: string;
-  filter: string;
-}
-
 interface StockEntriesClientProps {
   initialEntries: Array<Record<string, unknown>>;
   products: StockEntryProductOption[];
@@ -110,17 +82,6 @@ interface StockEntriesClientProps {
   purchases: DistributorPurchaseSummary[];
   receipts: PurchaseReceiptRecord[];
 }
-
-const emptyLine = (): Line => ({
-  key: Math.random().toString(36).slice(2),
-  productId: "",
-  presentationId: "",
-  quantity: "",
-  unitCost: "",
-  expiryDate: "",
-  batchNumber: "",
-  filter: "",
-});
 
 export function StockEntriesClient({
   initialEntries,
@@ -140,7 +101,10 @@ export function StockEntriesClient({
     [products],
   );
 
-  const [lines, setLines] = useState<Line[]>([emptyLine()]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [editorVersion, setEditorVersion] = useState(0);
+  const [hasPendingProduct, setHasPendingProduct] = useState(false);
+  const submittingRef = useRef(false);
   const [branchId, setBranchId] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [issuingKey, setIssuingKey] = useState<string | null>(null);
@@ -152,58 +116,14 @@ export function StockEntriesClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const presentationFactor = (line: Line) => {
-    const product = productMap.get(line.productId);
-    const presentation = product?.presentations.find(
-      (p) => p.id === line.presentationId,
-    );
-    return presentation ? Number(presentation.factor) : 1;
-  };
-
-  const filterProducts = (filter: string) => {
-    const query = filter.trim().toLowerCase();
-    if (!query) return products;
-    return products.filter((product) => {
-      const name = product.name?.toLowerCase() ?? "";
-      const description = product.description?.toLowerCase() ?? "";
-      const sku = product.sku?.toLowerCase() ?? "";
-      return (
-        name.includes(query) ||
-        description.includes(query) ||
-        sku.includes(query)
-      );
-    });
-  };
-
-  const updateLine = (key: string, field: keyof Line, value: string) => {
-    setLines((prev) =>
-      prev.map((line) => {
-        if (line.key !== key) return line;
-        if (field === "productId") {
-          const product = productMap.get(value);
-          const referenceCost = product?.costPrice
-            ? Number(product.costPrice)
-            : null;
-          return {
-            ...line,
-            productId: value,
-            presentationId: "",
-            batchNumber: "",
-            expiryDate: "",
-            unitCost:
-              line.unitCost ||
-              (referenceCost && referenceCost > 0 ? String(referenceCost) : ""),
-          };
-        }
-        return { ...line, [field]: value };
-      }),
-    );
-  };
-
   const totalInvestment = lines.reduce((sum, line) => {
     const quantity = Number(line.quantity) || 0;
     const unitCost = Number(line.unitCost) || 0;
-    return sum + quantity * unitCost;
+    const amount = quantity * unitCost;
+    return (
+      sum +
+      (Number.isFinite(amount) && quantity > 0 && unitCost >= 0 ? amount : 0)
+    );
   }, 0);
 
   const historyInvestment = entries.reduce(
@@ -218,24 +138,37 @@ export function StockEntriesClient({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submittingRef.current) return;
     setError(null);
-
-    const items = lines
-      .filter((line) => line.productId && Number(line.quantity) > 0)
-      .map((line) => ({
-        productId: line.productId,
-        presentationId: line.presentationId || undefined,
-        quantity: Number(line.quantity),
-        unitCost: Number(line.unitCost) || 0,
-        expiryDate: line.expiryDate ? `${line.expiryDate}T00:00:00` : undefined,
-        batchNumber: line.batchNumber.trim() || undefined,
-      }));
-
-    if (items.length === 0) {
-      setError("Agrega al menos un producto con cantidad mayor a 0.");
+    if (hasPendingProduct) {
+      setError(
+        "Agrega el producto seleccionado a la tabla o limpia la selección antes de registrar.",
+      );
       return;
     }
+    if (!lines.length) {
+      setError("Agrega al menos un producto a la recepción.");
+      return;
+    }
+    const invalidIndex = lines.findIndex((line) =>
+      stockEntryLineError(line, productMap.get(line.productId)),
+    );
+    if (invalidIndex >= 0) {
+      setError(
+        `Revisa la fila ${invalidIndex + 1}: ${stockEntryLineError(lines[invalidIndex], productMap.get(lines[invalidIndex].productId))}`,
+      );
+      return;
+    }
+    const items = lines.map((line) => ({
+      productId: line.productId,
+      presentationId: line.presentationId || undefined,
+      quantity: Number(line.quantity),
+      unitCost: Number(line.unitCost),
+      expiryDate: line.expiryDate ? `${line.expiryDate}T00:00:00` : undefined,
+      batchNumber: line.batchNumber.trim() || undefined,
+    }));
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       await apiFetch("/stock-entries", {
@@ -254,7 +187,9 @@ export function StockEntriesClient({
       });
 
       addToast("Entrada de stock registrada correctamente", "success");
-      setLines([emptyLine()]);
+      setLines([]);
+      setHasPendingProduct(false);
+      setEditorVersion((current) => current + 1);
       setReference("");
       setNotes("");
       router.refresh();
@@ -264,6 +199,7 @@ export function StockEntriesClient({
       setError(message);
       addToast(message, "error");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -404,421 +340,153 @@ export function StockEntriesClient({
       </Card>
 
       <Card className="rounded-[34px] bg-white/85 p-6 animate-fade-in-up delay-100">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">
-                Fecha de ingreso
-              </Label>
-              <Input
-                type="date"
-                value={entryDate}
-                onChange={(event) => setEntryDate(event.target.value)}
-                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-              />
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="space-y-6"
+          aria-busy={submitting}
+          onChange={() => setError(null)}
+        >
+          <fieldset disabled={submitting} className="min-w-0 space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="stock-entry-date"
+                  className="text-sm font-semibold text-slate-700"
+                >
+                  Fecha de ingreso
+                </Label>
+                <Input
+                  id="stock-entry-date"
+                  type="date"
+                  value={entryDate}
+                  onChange={(event) => setEntryDate(event.target.value)}
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="stock-entry-branch"
+                  className="text-sm font-semibold text-slate-700"
+                >
+                  Sucursal
+                </Label>
+                <select
+                  id="stock-entry-branch"
+                  value={branchId}
+                  onChange={(event) => setBranchId(event.target.value)}
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                >
+                  <option value="">Sin sucursal</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="stock-entry-supplier"
+                  className="text-sm font-semibold text-slate-700"
+                >
+                  Proveedor
+                </Label>
+                <select
+                  id="stock-entry-supplier"
+                  value={supplierId}
+                  onChange={(event) => setSupplierId(event.target.value)}
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                >
+                  <option value="">General (sin proveedor)</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="stock-entry-reference"
+                  className="text-sm font-semibold text-slate-700"
+                >
+                  Referencia
+                </Label>
+                <Input
+                  id="stock-entry-reference"
+                  value={reference}
+                  onChange={(event) => setReference(event.target.value)}
+                  placeholder="Factura, guía, proveedor..."
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="stock-entry-notes"
+                  className="text-sm font-semibold text-slate-700"
+                >
+                  Notas
+                </Label>
+                <Input
+                  id="stock-entry-notes"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  placeholder="Observaciones"
+                  className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">
-                Sucursal
-              </Label>
-              <select
-                value={branchId}
-                onChange={(event) => setBranchId(event.target.value)}
-                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-              >
-                <option value="">Sin sucursal</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">
-                Proveedor
-              </Label>
-              <select
-                value={supplierId}
-                onChange={(event) => setSupplierId(event.target.value)}
-                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-              >
-                <option value="">General (sin proveedor)</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">
-                Referencia
-              </Label>
-              <Input
-                value={reference}
-                onChange={(event) => setReference(event.target.value)}
-                placeholder="Factura, guía, proveedor..."
-                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">
-                Notas
-              </Label>
-              <Input
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="Observaciones"
-                className="h-12 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-              />
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <ClipboardList className="h-4 w-4" />
-                Productos
+            <StockEntryProducts
+              key={editorVersion}
+              products={products}
+              lines={lines}
+              onChange={setLines}
+              onPendingChange={setHasPendingProduct}
+              disabled={submitting}
+            />
+
+            {hasPendingProduct && (
+              <p className="text-sm text-foreground/60">
+                Hay un producto seleccionado pendiente de agregar. Agrégalo a la
+                tabla o limpia la selección para registrar.
               </p>
+            )}
+            {error && (
+              <p role="alert" className="text-sm text-red-500">
+                {error}
+              </p>
+            )}
+
+            <div className="flex flex-col items-stretch justify-between gap-4 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
+              <div>
+                <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                  Inversión total
+                </p>
+                <p className="font-display text-2xl text-slate-900">
+                  S/ {totalInvestment.toFixed(2)}
+                </p>
+              </div>
               <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setLines((prev) => [...prev, emptyLine()])}
-                className="h-9 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-emerald-300"
+                type="submit"
+                disabled={submitting || !lines.length || hasPendingProduct}
+                className="h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-8 font-semibold text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-teal-700"
               >
-                <Plus className="mr-1.5 h-4 w-4" />
-                Agregar línea
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Registrando...
+                  </>
+                ) : (
+                  <>
+                    <PackagePlus className="mr-2 h-4 w-4" />
+                    Registrar entrada
+                  </>
+                )}
               </Button>
             </div>
-
-            {lines.map((line) => {
-              const product = productMap.get(line.productId);
-              const factor = presentationFactor(line);
-              const baseQuantity = (Number(line.quantity) || 0) * factor;
-              const baseUnitShort = product
-                ? (UNIT_SHORT[product.baseUnit] ?? product.baseUnit)
-                : "";
-              const referenceCost =
-                product?.costPrice && Number(product.costPrice) > 0
-                  ? Number(product.costPrice)
-                  : null;
-              const referenceCostForUnit =
-                referenceCost === null ? null : referenceCost * factor;
-              const enteredCost = Number(line.unitCost) || 0;
-              const costTrend: "up" | "down" | "same" | null =
-                referenceCostForUnit === null || enteredCost <= 0
-                  ? null
-                  : enteredCost > referenceCostForUnit
-                    ? "up"
-                    : enteredCost < referenceCostForUnit
-                      ? "down"
-                      : "same";
-
-              return (
-                <div
-                  key={line.key}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4"
-                >
-                  <StockEntryScanner
-                    key={`${line.productId}:${line.presentationId}`}
-                    onResolved={(
-                      found: ScannedStockProduct,
-                      parsed: ParsedBarcode,
-                    ) => {
-                      if (!productMap.has(found.id)) {
-                        addToast(
-                          "Este producto no está disponible en la lista de entradas.",
-                          "error",
-                        );
-                        return;
-                      }
-                      if (line.productId && line.productId !== found.id) {
-                        addToast(
-                          "El código pertenece a otro producto. Agrega una nueva línea.",
-                          "error",
-                        );
-                        return;
-                      }
-                      setLines((current) =>
-                        current.map((row) =>
-                          row.key === line.key
-                            ? {
-                                ...row,
-                                productId: found.id,
-                                presentationId:
-                                  found.matchedPresentation?.id ??
-                                  row.presentationId,
-                                batchNumber:
-                                  row.batchNumber || parsed.lot || "",
-                                expiryDate:
-                                  row.expiryDate || parsed.expiry || "",
-                              }
-                            : row,
-                        ),
-                      );
-                      addToast(
-                        "Código reconocido: revisa los datos y la cantidad recibida.",
-                        "success",
-                      );
-                    }}
-                  />
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-12">
-                    <div className="col-span-2 space-y-1 lg:col-span-3">
-                      <Label className="text-xs font-semibold text-slate-500">
-                        Producto
-                      </Label>
-                      <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          value={line.filter}
-                          onChange={(event) =>
-                            updateLine(line.key, "filter", event.target.value)
-                          }
-                          placeholder="Filtrar por nombre, descripción o SKU…"
-                          className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-xs focus:border-emerald-500 focus:outline-none"
-                        />
-                      </div>
-                      <select
-                        value={line.productId}
-                        onChange={(event) =>
-                          updateLine(line.key, "productId", event.target.value)
-                        }
-                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:outline-none"
-                      >
-                        <option value="">Selecciona un producto</option>
-                        {filterProducts(line.filter).map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {productLabel(option)}
-                          </option>
-                        ))}
-                      </select>
-                      {product?.description && (
-                        <p className="text-xs text-slate-500">
-                          {product.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="col-span-2 space-y-1 lg:col-span-3">
-                      <Label className="text-xs font-semibold text-slate-500">
-                        Presentación
-                      </Label>
-                      <select
-                        value={line.presentationId}
-                        onChange={(event) =>
-                          updateLine(
-                            line.key,
-                            "presentationId",
-                            event.target.value,
-                          )
-                        }
-                        disabled={!product}
-                        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:outline-none disabled:bg-slate-100"
-                      >
-                        <option value="">
-                          Unidad base
-                          {product
-                            ? ` (${UNIT_SHORT[product.baseUnit] ?? product.baseUnit})`
-                            : ""}
-                        </option>
-                        {product?.presentations.map((presentation) => (
-                          <option key={presentation.id} value={presentation.id}>
-                            {presentation.name} ×{Number(presentation.factor)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="col-span-1 space-y-1 lg:col-span-2">
-                      <Label className="text-xs font-semibold text-slate-500">
-                        Cantidad
-                      </Label>
-                      <Input
-                        type="number"
-                        step="0.001"
-                        min="0"
-                        value={line.quantity}
-                        onChange={(event) =>
-                          updateLine(line.key, "quantity", event.target.value)
-                        }
-                        placeholder="0"
-                        className="h-11 rounded-lg border-slate-200 bg-white"
-                      />
-                    </div>
-
-                    <div className="col-span-1 space-y-1 lg:col-span-2">
-                      <Label className="text-xs font-semibold text-slate-500">
-                        Costo unit.
-                      </Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-                          S/
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.0001"
-                          min="0"
-                          value={line.unitCost}
-                          onChange={(event) =>
-                            updateLine(line.key, "unitCost", event.target.value)
-                          }
-                          placeholder="0.00"
-                          className="h-11 rounded-lg border-slate-200 bg-white pl-9"
-                        />
-                      </div>
-                      {product && referenceCost !== null && (
-                        <p className="text-xs text-slate-400">
-                          Último costo: S/ {referenceCost.toFixed(2)}
-                          {line.presentationId && factor !== 1
-                            ? ` × ${factor} = S/ ${referenceCostForUnit!.toFixed(2)}`
-                            : ""}
-                          {costTrend === "up" && (
-                            <span className="ml-1 font-semibold text-red-500">
-                              ▲ subió
-                            </span>
-                          )}
-                          {costTrend === "down" && (
-                            <span className="ml-1 font-semibold text-emerald-600">
-                              ▼ bajó
-                            </span>
-                          )}
-                          {costTrend === "same" && (
-                            <span className="ml-1 font-semibold text-slate-500">
-                              = se mantiene
-                            </span>
-                          )}
-                        </p>
-                      )}
-                      {product && referenceCost === null && (
-                        <p className="text-xs text-slate-400">
-                          Sin costo previo registrado
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="col-span-2 space-y-1 lg:col-span-2">
-                      <Label className="text-xs font-semibold text-slate-500">
-                        Vencimiento
-                      </Label>
-                      <Input
-                        type="date"
-                        value={line.expiryDate}
-                        onChange={(event) =>
-                          updateLine(line.key, "expiryDate", event.target.value)
-                        }
-                        className="h-11 rounded-lg border-slate-200 bg-white"
-                      />
-                      {product && (
-                        <p className="text-xs text-slate-500">
-                          {
-                            expiryProfileOption(
-                              product.expiryProfile ?? "STANDARD",
-                            ).label
-                          }
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="col-span-2 space-y-1 lg:col-span-3">
-                      <Label className="text-xs font-semibold text-slate-500">
-                        Lote
-                      </Label>
-                      <Input
-                        aria-label="Lote de la entrada"
-                        value={line.batchNumber}
-                        maxLength={80}
-                        onChange={(event) =>
-                          updateLine(
-                            line.key,
-                            "batchNumber",
-                            event.target.value,
-                          )
-                        }
-                        placeholder="Ej: LOT-2026-01"
-                        className="h-11 bg-white"
-                      />
-                    </div>
-
-                    <div className="col-span-2 flex items-end justify-between gap-2 lg:col-span-1 lg:justify-end">
-                      <p className="text-xs text-slate-500 lg:hidden">
-                        Base: {baseQuantity.toFixed(3)} {baseUnitShort}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setLines((prev) =>
-                            prev.length > 1
-                              ? prev.filter((l) => l.key !== line.key)
-                              : prev,
-                          )
-                        }
-                        disabled={lines.length === 1}
-                        className="h-11 w-11 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
-                        aria-label="Eliminar línea"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {product && (
-                    <p className="mt-2 text-xs text-slate-400">
-                      {line.quantity || 0}{" "}
-                      {line.presentationId
-                        ? product.presentations.find(
-                            (p) => p.id === line.presentationId,
-                          )?.name
-                        : (UNIT_SHORT[product.baseUnit] ?? product.baseUnit)}
-                      {line.presentationId ? ` × ${factor} = ` : " = "}
-                      <span className="font-semibold text-slate-600">
-                        {baseQuantity.toFixed(3)}{" "}
-                        {UNIT_SHORT[product.baseUnit] ?? product.baseUnit}
-                      </span>
-                      {" · Costo unitario base: S/ "}
-                      {baseQuantity > 0
-                        ? ((Number(line.unitCost) || 0) / factor).toFixed(4)
-                        : "0.0000"}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {error && <p className="text-sm text-red-500">{error}</p>}
-
-          <div className="flex flex-col items-stretch justify-between gap-4 border-t border-slate-100 pt-5 sm:flex-row sm:items-center">
-            <div>
-              <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                Inversión total
-              </p>
-              <p className="font-display text-2xl text-slate-900">
-                S/ {totalInvestment.toFixed(2)}
-              </p>
-            </div>
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-8 font-semibold text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-teal-700"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Registrando...
-                </>
-              ) : (
-                <>
-                  <PackagePlus className="mr-2 h-4 w-4" />
-                  Registrar entrada
-                </>
-              )}
-            </Button>
-          </div>
+          </fieldset>
         </form>
       </Card>
 

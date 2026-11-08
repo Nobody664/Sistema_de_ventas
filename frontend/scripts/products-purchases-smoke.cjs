@@ -475,6 +475,40 @@ async function main() {
     );
 
     await page.goto(`${origin}/inventory/entries`);
+    const receiveSearch = page.getByRole("textbox", {
+      name: "Buscar producto a recibir",
+      exact: true,
+    });
+    const receiveTable = page.getByRole("table", {
+      name: "Productos seleccionados para registrar una entrada de stock",
+    });
+    assert.equal(await receiveSearch.count(), 1);
+    assert.equal(
+      await page
+        .getByLabel("Código GS1 de la entrada", { exact: true })
+        .count(),
+      1,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Registrar entrada", exact: true })
+        .isDisabled(),
+      true,
+    );
+    await receiveSearch.fill("SKU-000");
+    await page
+      .getByLabel("Producto a recibir", { exact: true })
+      .selectOption("product-0");
+    await page.getByLabel("Cantidad", { exact: true }).fill("0");
+    await page.getByLabel("Costo unitario (S/)", { exact: true }).fill("2");
+    await page
+      .getByRole("button", { name: "Agregar producto", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "cantidad mayor a 0" })
+      .waitFor();
+    assert.equal(stockEntryPayloads.length, 0);
     await page
       .getByLabel("Código GS1 de la entrada", { exact: true })
       .fill("(01)09520123456788(17)271231(10)GS1-LOT-1");
@@ -490,24 +524,83 @@ async function main() {
       await page.locator('input[type="date"]').last().inputValue(),
       "2027-12-31",
     );
-    await page.getByRole("spinbutton").nth(0).fill("3");
-    await page.getByRole("spinbutton").nth(1).fill("2");
+    await page.getByLabel("Cantidad", { exact: true }).fill("3");
+    await page
+      .getByRole("button", { name: "Agregar producto", exact: true })
+      .click();
+    await receiveTable.waitFor();
+    assert.equal(await receiveSearch.inputValue(), "SKU-000");
+    assert.equal(await receiveTable.locator("tbody tr").count(), 1);
     await page
       .getByLabel("Código GS1 de la entrada", { exact: true })
       .fill("(01)07701234567897(17)281231(10)OTRO-LOTE");
     await page
       .getByRole("button", { name: "Leer código", exact: true })
       .click();
-    await page
-      .getByText(
-        "El código pertenece a otro producto. Agrega una nueva línea.",
-        { exact: true },
-      )
-      .waitFor();
+    await page.waitForFunction(
+      () =>
+        document.querySelector('input[aria-label="Lote de la entrada"]')
+          ?.value === "OTRO-LOTE",
+    );
     assert.equal(
-      await page.getByLabel("Lote de la entrada", { exact: true }).inputValue(),
+      await receiveTable
+        .getByLabel("Lote de Galletas integrales, fila 1", { exact: true })
+        .inputValue(),
       "GS1-LOT-1",
     );
+    await page.getByLabel("Cantidad", { exact: true }).fill("2");
+    await page.getByLabel("Costo unitario (S/)", { exact: true }).fill("3");
+    await page
+      .getByRole("button", { name: "Agregar producto", exact: true })
+      .click();
+    assert.equal(await receiveTable.locator("tbody tr").count(), 2);
+    assert.equal(await receiveSearch.count(), 1);
+    assert.equal(
+      await page
+        .getByLabel("Código GS1 de la entrada", { exact: true })
+        .count(),
+      1,
+    );
+    await receiveSearch.fill("SKU-000");
+    await page
+      .getByLabel("Producto a recibir", { exact: true })
+      .selectOption("product-0");
+    await page.getByLabel("Cantidad", { exact: true }).fill("1");
+    await page.getByLabel("Costo unitario (S/)", { exact: true }).fill("2");
+    await page
+      .getByLabel("Lote de la entrada", { exact: true })
+      .fill("OTRO-LOTE-MISMO-PRODUCTO");
+    await page
+      .getByRole("button", { name: "Agregar producto", exact: true })
+      .click();
+    assert.equal(await receiveTable.locator("tbody tr").count(), 3);
+    await receiveTable
+      .getByRole("button", {
+        name: "Retirar Galletas integrales, fila 3",
+        exact: true,
+      })
+      .click();
+    assert.equal(await receiveTable.locator("tbody tr").count(), 2);
+    const firstQuantity = receiveTable.getByRole("spinbutton", {
+      name: "Cantidad recibida de Galletas integrales, fila 1",
+      exact: true,
+    });
+    await firstQuantity.fill("0");
+    await page
+      .getByRole("button", { name: "Registrar entrada", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Revisa la fila 1" })
+      .waitFor();
+    assert.equal(stockEntryPayloads.length, 0);
+    await firstQuantity.fill("4");
+    assert.equal(await firstQuantity.inputValue(), "4");
+    await receiveSearch.fill("SKU-055");
+    await receiveSearch.press("Enter");
+    assert.equal(await firstQuantity.inputValue(), "4");
+    assert.equal(stockEntryPayloads.length, 0);
+    assert.equal(await receiveTable.locator("tbody tr").count(), 2);
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(
       await page.evaluate(
@@ -523,15 +616,28 @@ async function main() {
       .getByText("Entrada de stock registrada correctamente", { exact: true })
       .waitFor();
     assert.equal(stockEntryPayloads.length, 1);
+    assert.equal(stockEntryPayloads[0].items.length, 2);
     assert.equal(stockEntryPayloads[0].items[0].batchNumber, "GS1-LOT-1");
     assert.equal(
       stockEntryPayloads[0].items[0].expiryDate,
       "2027-12-31T00:00:00",
     );
-    assert.equal(stockEntryPayloads[0].items[0].quantity, 3);
+    assert.equal(stockEntryPayloads[0].items[0].quantity, 4);
     assert.equal(stockEntryPayloads[0].items[0].productId, "product-0");
+    assert.equal(stockEntryPayloads[0].items[1].productId, "product-1");
+    assert.equal(stockEntryPayloads[0].items[1].batchNumber, "OTRO-LOTE");
+    assert.equal(stockEntryPayloads[0].items[1].quantity, 2);
+    await page
+      .getByText("Todavía no agregaste productos", { exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Registrar entrada", exact: true })
+        .isDisabled(),
+      true,
+    );
     console.log(
-      "PASS: entrada GS1 conserva lote/fecha, rechaza otro producto y envía cantidad una sola vez",
+      "PASS: buscador y escáner únicos; Agregar producto prepara la tabla, conserva lotes, permite editar/retirar y registra todos los productos en un único POST",
     );
 
     await page.goto(`${origin}/purchase-orders`);
