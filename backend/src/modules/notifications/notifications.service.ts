@@ -198,6 +198,25 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     this.emitNotification(userId, notification);
   }
 
+  async publishStoreOrderNotice(id: string): Promise<void> {
+    const notification = await this.prisma.notification.findUnique({
+      where: { id },
+    });
+    if (!notification?.companyId || !notification.userId) return;
+    const owner = await this.prisma.membership.findFirst({
+      where: {
+        companyId: notification.companyId,
+        userId: notification.userId,
+        role: "COMPANY_ADMIN",
+        isActive: true,
+        user: { isActive: true },
+      },
+      select: { id: true },
+    });
+    if (owner)
+      await this.publishNotification(notification.userId, notification);
+  }
+
   async create(input: CreateNotificationInput) {
     const salesEvent = [
       "SALE",

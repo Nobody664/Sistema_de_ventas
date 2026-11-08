@@ -53,6 +53,42 @@ describe("NotificationsService markAsRead ownership", () => {
 });
 
 describe("NotificationsService SSE fan-out", () => {
+  it("publica el aviso persistido del pedido solo al dueño activo de su compañía", async () => {
+    let active = true;
+    let filter: unknown;
+    const notice = {
+      id: "notice",
+      companyId: "company-a",
+      userId: "owner-a",
+      message: "Pedido recibido",
+    };
+    const service = new NotificationsService({
+      notification: { findUnique: async () => notice },
+      membership: {
+        findFirst: async ({ where }: { where: unknown }) => {
+          filter = where;
+          return active ? { id: "owner-membership" } : null;
+        },
+      },
+    } as never);
+    const received: unknown[] = [];
+    const foreign: unknown[] = [];
+    service.subscribe("owner-a", (value) => received.push(value));
+    service.subscribe("owner-b", (value) => foreign.push(value));
+    await service.publishStoreOrderNotice("notice");
+    assert.deepEqual(received, [notice]);
+    assert.deepEqual(foreign, []);
+    assert.deepEqual(filter, {
+      companyId: "company-a",
+      userId: "owner-a",
+      role: "COMPANY_ADMIN",
+      isActive: true,
+      user: { isActive: true },
+    });
+    active = false;
+    await service.publishStoreOrderNotice("notice");
+    assert.equal(received.length, 1);
+  });
   const input = {
     userId: "user-a",
     type: NotificationType.GENERAL,

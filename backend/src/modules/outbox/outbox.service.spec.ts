@@ -119,6 +119,9 @@ function fixture() {
         notifySuperAdmins: async (input: { dedupeKey: string }) => {
           notifications.add(input.dedupeKey);
         },
+        publishStoreOrderNotice: async (id: string) => {
+          notifications.add(`store:${id}`);
+        },
       } as never,
       {
         sendEmailDirect: async (input: { messageId: string }) => {
@@ -157,6 +160,16 @@ function fixture() {
 }
 
 describe("Transactional outbox delivery", () => {
+  it("publica avisos de pedidos confirmados aunque el transporte de correo esté deshabilitado", async () => {
+    const value = fixture();
+    value.state.kind = "STORE_ORDER_NOTIFICATION";
+    value.state.aggregateId = "notice-a";
+    value.setEnabled(false);
+    await value.worker().processPending();
+    assert.ok(value.notifications.has("store:notice-a"));
+    assert.ok(value.state.processedAt);
+    assert.equal(value.sent, 0);
+  });
   for (const kind of [
     "CHECKOUT_SUBMITTED",
     "CHECKOUT_REVIEWED",

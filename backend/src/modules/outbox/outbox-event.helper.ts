@@ -7,7 +7,8 @@ export type DomainEffect =
   | "CHECKOUT_SUBMITTED"
   | "CHECKOUT_REVIEWED"
   | "DAILY_DIGEST"
-  | "SALE_COMMITTED";
+  | "SALE_COMMITTED"
+  | "STORE_ORDER_NOTIFICATION";
 
 export async function enqueueDomainEffect(
   tx: Prisma.TransactionClient,

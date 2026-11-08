@@ -84,10 +84,10 @@ export class StoreOrdersService {
         isActive: true,
         user: { isActive: true },
       },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, user: { select: { email: true } } },
     });
-    if (owners.length)
-      await tx.notification.createMany({
+    if (owners.length) {
+      const notices = await tx.notification.createManyAndReturn({
         data: owners.map((owner) => ({
           companyId: order.companyId,
           userId: owner.userId,
@@ -99,7 +99,25 @@ export class StoreOrdersService {
           dedupeKey: `STORE:${order.id}:${updated.version}:${owner.id}`,
         })),
         skipDuplicates: true,
+        select: { id: true },
       });
+      await tx.outboxEvent.createMany({
+        data: notices.map((notice) => ({
+          dedupeKey: `STORE_ORDER_NOTIFICATION:${notice.id}`,
+          kind: "STORE_ORDER_NOTIFICATION",
+          aggregateId: notice.id,
+        })),
+        skipDuplicates: true,
+      });
+      for (const owner of owners) {
+        await this.mail.enqueue(
+          tx,
+          owner.user.email,
+          `Pedido ${order.number}`,
+          `${message}\nPedido: ${order.number}\nAbre la sección Tienda para revisar la compra y su forma de entrega.`,
+        );
+      }
+    }
     const account = await tx.customerAccount.findUniqueOrThrow({
       where: { id: order.accountId },
       select: { user: { select: { email: true } } },
@@ -131,142 +149,157 @@ export class StoreOrdersService {
   async create(slug: string, actor: StoreActor, input: StoreCreateOrderDto) {
     const company = await this.store.company(slug);
     const fingerprint = storeHash(input.quoteId);
-    const id = await serializableTransaction(this.prisma, async (tx) => {
-      await tx.$queryRaw`SELECT id FROM customer_accounts WHERE id = ${actor.accountId} FOR UPDATE`;
-      const old = await tx.storeOrder.findUnique({
-        where: {
-          companyId_accountId_idempotencyKey: {
+    const id = await serializableTransaction(
+      this.prisma,
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM customer_accounts WHERE id = ${actor.accountId} FOR UPDATE`;
+        const old = await tx.storeOrder.findUnique({
+          where: {
+            companyId_accountId_idempotencyKey: {
+              companyId: actor.companyId,
+              accountId: actor.accountId,
+              idempotencyKey: input.idempotencyKey,
+            },
+          },
+        });
+        if (old) {
+          if (old.fingerprint !== fingerprint)
+            throw new ConflictException("La clave ya pertenece a otro pedido");
+          return old.id;
+        }
+        const recovered = await tx.storeOrder.findFirst({
+          where: {
             companyId: actor.companyId,
             accountId: actor.accountId,
-            idempotencyKey: input.idempotencyKey,
+            quoteId: input.quoteId,
           },
-        },
-      });
-      if (old) {
-        if (old.fingerprint !== fingerprint)
-          throw new ConflictException("La clave ya pertenece a otro pedido");
-        return old.id;
-      }
-      await tx.$queryRaw`SELECT company_id FROM storefront_settings WHERE company_id = ${actor.companyId} FOR UPDATE`;
-      const settings = await tx.storefrontSettings.findUniqueOrThrow({
-        where: { companyId: actor.companyId },
-      });
-      const quote = await tx.storeQuote.findFirst({
-        where: {
-          id: input.quoteId,
-          companyId: actor.companyId,
-          accountId: actor.accountId,
-          expiresAt: { gt: new Date() },
-        },
-      });
-      if (
-        !settings.enabled ||
-        !settings.checkoutEnabled ||
-        !quote ||
-        quote.settingsVersion !== settings.version
-      )
-        throw new ConflictException(
-          "Cotización vencida o tienda modificada. Calcula nuevamente.",
-        );
-      if (
-        (await tx.storeOrder.count({
+          select: { id: true },
+        });
+        if (recovered) return recovered.id;
+        await tx.$queryRaw`SELECT company_id FROM storefront_settings WHERE company_id = ${actor.companyId} FOR UPDATE`;
+        const settings = await tx.storefrontSettings.findUniqueOrThrow({
+          where: { companyId: actor.companyId },
+        });
+        const quote = await tx.storeQuote.findFirst({
           where: {
+            id: input.quoteId,
+            companyId: actor.companyId,
             accountId: actor.accountId,
-            saleId: null,
-            status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
+            expiresAt: { gt: new Date() },
           },
-        })) >= 3
-      )
-        throw new BadRequestException(
-          "Resuelve tus pedidos pendientes antes de reservar más productos",
-        );
-      const snapshot = storeSnapshotSchema.parse(quote.snapshot);
-      if (
-        snapshot.payment.code === "MERCADOPAGO" &&
-        !(await tx.storePaymentIntegration.findFirst({
-          where: { companyId: actor.companyId, enabled: true },
-        }))
-      )
-        throw new BadRequestException("La pasarela no está configurada");
-      const products = await tx.product.findMany({
-        where: {
-          companyId: actor.companyId,
-          id: { in: snapshot.lines.map((line) => line.productId) },
-          storeVisible: true,
-          deletedAt: null,
-          isActive: true,
-        },
-        include: { presentations: true },
-      });
-      for (const line of snapshot.lines) {
-        const product = products.find((p) => p.id === line.productId);
-        const presentation = line.presentationId
-          ? product?.presentations.find(
-              (p) => p.id === line.presentationId && p.isActive,
-            )
-          : null;
-        if (!product || (line.presentationId && !presentation))
-          throw new ConflictException("Un producto cambió. Revisa el carrito.");
-        const factor = presentation?.factor ?? new Prisma.Decimal(1);
-        const gross = presentation?.price ?? product.salePrice.mul(factor);
-        const net = settings.pricesIncludeTax
-          ? gross.div(settings.taxRate.div(100).plus(1))
-          : gross;
+        });
         if (
-          !factor.eq(line.factor) ||
-          !net.toDecimalPlaces(4).eq(line.unitPrice)
+          !settings.enabled ||
+          !settings.checkoutEnabled ||
+          !quote ||
+          quote.settingsVersion !== settings.version
         )
           throw new ConflictException(
-            "El precio o presentación cambió. Calcula nuevamente.",
+            "Cotización vencida o tienda modificada. Calcula nuevamente.",
           );
-      }
-      const cart = await tx.storeCart.updateMany({
-        where: {
-          companyId: actor.companyId,
-          accountId: actor.accountId,
-          version: quote.cartVersion,
-        },
-        data: { version: { increment: 1 } },
-      });
-      if (!cart.count) throw new ConflictException("El carrito cambió");
-      const orderId = randomUUID();
-      const expiresAt = new Date(
-        Date.now() + settings.reservationMinutes * 60000,
-      );
-      const order = await tx.storeOrder.create({
-        data: {
-          id: orderId,
-          companyId: actor.companyId,
-          accountId: actor.accountId,
-          quoteId: quote.id,
-          idempotencyKey: input.idempotencyKey,
-          fingerprint,
-          number: `WEB-${Date.now().toString(36).toUpperCase()}-${orderId.slice(0, 8).toUpperCase()}`,
+        if (
+          (await tx.storeOrder.count({
+            where: {
+              accountId: actor.accountId,
+              saleId: null,
+              status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
+            },
+          })) >= 3
+        )
+          throw new BadRequestException(
+            "Resuelve tus pedidos pendientes antes de reservar más productos",
+          );
+        const snapshot = storeSnapshotSchema.parse(quote.snapshot);
+        if (
+          snapshot.payment.code === "MERCADOPAGO" &&
+          !(await tx.storePaymentIntegration.findFirst({
+            where: { companyId: actor.companyId, enabled: true },
+          }))
+        )
+          throw new BadRequestException("La pasarela no está configurada");
+        const products = await tx.product.findMany({
+          where: {
+            companyId: actor.companyId,
+            id: { in: snapshot.lines.map((line) => line.productId) },
+            storeVisible: true,
+            deletedAt: null,
+            isActive: true,
+          },
+          include: { presentations: true },
+        });
+        for (const line of snapshot.lines) {
+          const product = products.find((p) => p.id === line.productId);
+          const presentation = line.presentationId
+            ? product?.presentations.find(
+                (p) => p.id === line.presentationId && p.isActive,
+              )
+            : null;
+          if (!product || (line.presentationId && !presentation))
+            throw new ConflictException(
+              "Un producto cambió. Revisa el carrito.",
+            );
+          const factor = presentation?.factor ?? new Prisma.Decimal(1);
+          const gross = presentation?.price ?? product.salePrice.mul(factor);
+          const net = settings.pricesIncludeTax
+            ? gross.div(settings.taxRate.div(100).plus(1))
+            : gross;
+          if (
+            !factor.eq(line.factor) ||
+            !net.toDecimalPlaces(4).eq(line.unitPrice)
+          )
+            throw new ConflictException(
+              "El precio o presentación cambió. Calcula nuevamente.",
+            );
+        }
+        const cart = await tx.storeCart.updateMany({
+          where: {
+            companyId: actor.companyId,
+            accountId: actor.accountId,
+            version: quote.cartVersion,
+          },
+          data: { version: { increment: 1 } },
+        });
+        if (!cart.count) throw new ConflictException("El carrito cambió");
+        const orderId = randomUUID();
+        const expiresAt = new Date(
+          Date.now() + settings.reservationMinutes * 60000,
+        );
+        const order = await tx.storeOrder.create({
+          data: {
+            id: orderId,
+            companyId: actor.companyId,
+            accountId: actor.accountId,
+            quoteId: quote.id,
+            idempotencyKey: input.idempotencyKey,
+            fingerprint,
+            number: `WEB-${Date.now().toString(36).toUpperCase()}-${orderId.slice(0, 8).toUpperCase()}`,
+            expiresAt,
+            snapshot,
+            totalAmount: snapshot.totalAmount,
+          },
+        });
+        await this.stock.hold(
+          tx,
+          company.id,
+          order.id,
+          snapshot.lines,
           expiresAt,
-          snapshot,
-          totalAmount: snapshot.totalAmount,
-        },
-      });
-      await this.stock.hold(
-        tx,
-        company.id,
-        order.id,
-        snapshot.lines,
-        expiresAt,
-      );
-      await tx.storeCartItem.deleteMany({
-        where: {
-          cart: { companyId: actor.companyId, accountId: actor.accountId },
-        },
-      });
-      await this.note(
-        tx,
-        order,
-        "Pedido recibido. Completa el pago o coordina tu retiro dentro del plazo.",
-        actor.sub,
-      );
-      return order.id;
-    });
+        );
+        await tx.storeCartItem.deleteMany({
+          where: {
+            cart: { companyId: actor.companyId, accountId: actor.accountId },
+          },
+        });
+        await this.note(
+          tx,
+          order,
+          "Pedido recibido. Completa el pago o coordina tu retiro dentro del plazo.",
+          actor.sub,
+        );
+        return order.id;
+      },
+      { timeout: 30000 },
+    );
     return this.get(actor.companyId, id, actor.accountId);
   }
   async get(companyId: string, id: string, accountId?: string) {

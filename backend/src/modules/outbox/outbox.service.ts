@@ -172,6 +172,10 @@ export class OutboxService {
   ): Promise<void> {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(event.aggregateId))
       throw new Error("INVALID_EFFECT");
+    if (event.kind === "STORE_ORDER_NOTIFICATION") {
+      await this.notifications.publishStoreOrderNotice(event.aggregateId);
+      return;
+    }
     if (event.kind === "PRODUCT_EXPIRY_ALERT") {
       if (!this.expiryAlerts) throw new Error("EXPIRY_ALERTS_UNAVAILABLE");
       await this.expiryAlerts.deliver(event.aggregateId);

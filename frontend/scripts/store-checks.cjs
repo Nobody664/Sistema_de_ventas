@@ -69,6 +69,7 @@ const product = {
 };
 let authenticated = false;
 let registrationRequests = 0;
+const confirmationKeys = [];
 let profile = {
   firstName: "Ana",
   lastName: "Pérez",
@@ -206,6 +207,14 @@ function handleStore(resource, params, method, body) {
   if (path === "orders" && method === "POST") {
     assert.deepEqual(Object.keys(body).sort(), ["idempotencyKey", "quoteId"]);
     assert.ok(body.idempotencyKey.length >= 16);
+    confirmationKeys.push(body.idempotencyKey);
+    if (confirmationKeys.length === 1) {
+      const error = new Error(
+        "No se pudo registrar el pedido. Vuelve a intentar.",
+      );
+      error.status = 503;
+      throw error;
+    }
     if (!order)
       order = {
         id: "order",
@@ -227,6 +236,7 @@ function handleStore(resource, params, method, body) {
         ],
         proofs: [],
       };
+    cart = { version: cart.version + 1, items: [] };
     return order;
   }
   if (path === "orders") return order ? [order] : [];
@@ -532,7 +542,24 @@ async function runStoreChecks(page, origin) {
       exact: true,
     })
     .click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "No se pudo registrar el pedido. Vuelve a intentar." })
+    .waitFor();
+  assert.equal(await page.getByTestId("cart-count").textContent(), "4");
+  await page
+    .getByRole("button", {
+      name: "Confirmar pedido con este total",
+      exact: true,
+    })
+    .click();
+  assert.equal(confirmationKeys.length, 2);
+  assert.equal(confirmationKeys[0], confirmationKeys[1]);
   await page.waitForURL("**/pedidos/order");
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[data-testid="cart-count"]')?.textContent === "0",
+  );
   await page
     .getByRole("heading", { name: "WEB-TEST-001", exact: true })
     .waitFor();

@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -23,6 +22,7 @@ import {
 } from "@/lib/store-cart";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
 import { StoreProductImage } from "./store-product-image";
+import { StoreConfirm } from "./store-confirm";
 
 export interface StoreQuoteView {
   id: string;
@@ -611,7 +611,14 @@ export function StoreCommerce({
                   continuar.
                 </p>
               ) : (
-                <StoreConfirm slug={slug} quote={quote} onMessage={onMessage} />
+                <StoreConfirm
+                  key={quote.id}
+                  slug={slug}
+                  quote={quote}
+                  onMessage={onMessage}
+                  onCartChange={onCartChange}
+                  onBusyChange={setBusy}
+                />
               )}
             </div>
           )}
@@ -690,45 +697,5 @@ function CartQuantity({
         <Plus className="size-4" />
       </button>
     </div>
-  );
-}
-
-function StoreConfirm({
-  slug,
-  quote,
-  onMessage,
-}: {
-  slug: string;
-  quote: StoreQuoteView;
-  onMessage: (text: string) => void;
-}) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const key = useRef<{ quote: string; key: string } | null>(null);
-  return (
-    <button
-      disabled={busy || new Date(quote.expiresAt) <= new Date()}
-      className="w-full rounded-xl bg-white px-5 py-3 font-semibold text-teal-950 disabled:opacity-50"
-      onClick={async () => {
-        setBusy(true);
-        if (key.current?.quote !== quote.id)
-          key.current = { quote: quote.id, key: crypto.randomUUID() };
-        try {
-          const order = await storeApi<{ id: string }>(slug, "orders", {
-            quoteId: quote.id,
-            idempotencyKey: key.current.key,
-          });
-          router.push(`/tienda/${slug}/pedidos/${order.id}`);
-        } catch (error) {
-          onMessage(
-            error instanceof Error ? error.message : "No se pudo confirmar",
-          );
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      {busy ? "Confirmando…" : "Confirmar pedido con este total"}
-    </button>
   );
 }

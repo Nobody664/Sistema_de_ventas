@@ -14,43 +14,62 @@ export async function storeApi<T>(
   path: string,
   body?: unknown,
   method?: string,
+  options: { timeoutMs?: number } = {},
 ): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? 30000,
+  );
   const url = `/api/store/${encodeURIComponent(slug)}/${path}`;
   const init: RequestInit = {
     method: method ?? (body === undefined ? "GET" : "POST"),
     credentials: "include",
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
+    signal: controller.signal,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   };
-  let response = await fetch(url, init);
-  if (response.status === 401 && !path.startsWith("auth/")) {
-    if (!refreshing.has(slug))
-      refreshing.set(
-        slug,
-        fetch(`/api/store/${encodeURIComponent(slug)}/auth/refresh`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: "{}",
-        })
-          .then((res) => res.ok)
-          .catch(() => false)
-          .finally(() => {
-            refreshing.delete(slug);
-          }),
+  try {
+    let response = await fetch(url, init);
+    if (response.status === 401 && !path.startsWith("auth/")) {
+      if (!refreshing.has(slug))
+        refreshing.set(
+          slug,
+          fetch(`/api/store/${encodeURIComponent(slug)}/auth/refresh`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+            signal: AbortSignal.timeout(15000),
+          })
+            .then((res) => res.ok)
+            .catch(() => false)
+            .finally(() => {
+              refreshing.delete(slug);
+            }),
+        );
+      if (await refreshing.get(slug)) response = await fetch(url, init);
+    }
+    const data = (await response.json().catch(() => null)) as {
+      message?: string | string[];
+    } | null;
+    if (!response.ok)
+      throw new StoreApiError(
+        Array.isArray(data?.message)
+          ? data.message.join(". ")
+          : (data?.message ?? "No se pudo completar la solicitud"),
+        response.status,
       );
-    if (await refreshing.get(slug)) response = await fetch(url, init);
+    return data as T;
+  } catch (error) {
+    if (controller.signal.aborted)
+      throw new StoreApiError(
+        "La tienda tardó demasiado en responder. Vuelve a intentar la misma operación.",
+        0,
+      );
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  const data = (await response.json().catch(() => null)) as {
-    message?: string | string[];
-  } | null;
-  if (!response.ok)
-    throw new StoreApiError(
-      Array.isArray(data?.message)
-        ? data.message.join(". ")
-        : (data?.message ?? "No se pudo completar la solicitud"),
-      response.status,
-    );
-  return data as T;
 }

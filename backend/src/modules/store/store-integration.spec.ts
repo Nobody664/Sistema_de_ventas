@@ -9,6 +9,7 @@ import {
   Get,
   ValidationPipe,
   INestApplication,
+  BadRequestException,
 } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { APP_GUARD } from "@nestjs/core";
@@ -30,6 +31,9 @@ import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabi
 import { StoreModule } from "./store.module";
 import { StoreCryptoService } from "./store-crypto.service";
 import { StoreOrdersService } from "./store-orders.service";
+import { StoreStockService } from "./store-stock.service";
+import { NotificationsService } from "@/modules/notifications/notifications.service";
+import { OutboxService } from "@/modules/outbox/outbox.service";
 
 @Controller("internal")
 class InternalController {
@@ -415,6 +419,7 @@ test(
         "Av. Principal 123",
       );
       assert.equal(JSON.stringify(methods.value).includes("companyId"), false);
+      let verifyFailureAndLatency = true;
       const makeOrder = async (methodId = payment.id) => {
         const cart = await request(
           "/store/tienda-a/cart",
@@ -460,13 +465,64 @@ test(
           quoteId: quote.value.id,
           idempotencyKey: crypto.signingKey().slice(0, 16) + String(Date.now()),
         };
+        const ordersService = app!.get(StoreOrdersService);
+        if (verifyFailureAndLatency) {
+          const originalNote = ordersService.note.bind(ordersService);
+          const failure = t.mock.method(
+            ordersService,
+            "note",
+            async (...args: Parameters<StoreOrdersService["note"]>) => {
+              await originalNote(...args);
+              throw new BadRequestException("Prueba de reversión del pedido");
+            },
+          );
+          try {
+            const rejected = await request(
+              "/store/tienda-a/orders",
+              "POST",
+              body,
+              client,
+            );
+            assert.equal(rejected.status, 400);
+            assert.equal(await prisma!.storeOrder.count(), 0);
+            assert.equal(await prisma!.stockReservation.count(), 0);
+            assert.equal(await prisma!.storeMail.count(), 0);
+            assert.equal(await prisma!.outboxEvent.count(), 0);
+            assert.equal(
+              (await request("/store/tienda-a/cart", "GET", undefined, client))
+                .value.items.length,
+              1,
+            );
+          } finally {
+            failure.mock.restore();
+          }
+        }
+        const stock = app!.get(StoreStockService);
+        const originalHold = stock.hold.bind(stock);
+        const slow = verifyFailureAndLatency
+          ? t.mock.method(
+              stock,
+              "hold",
+              async (...args: Parameters<StoreStockService["hold"]>) => {
+                await new Promise((done) => setTimeout(done, 11000));
+                return originalHold(...args);
+              },
+            )
+          : null;
         const result = await request(
           "/store/tienda-a/orders",
           "POST",
           body,
           client,
         );
+        slow?.mock.restore();
+        verifyFailureAndLatency = false;
         assert.equal(result.status, 201, JSON.stringify(result.value));
+        assert.equal(
+          (await request("/store/tienda-a/cart", "GET", undefined, client))
+            .value.items.length,
+          0,
+        );
         const duplicate = await request(
           "/store/tienda-a/orders",
           "POST",
@@ -474,9 +530,66 @@ test(
           client,
         );
         assert.equal(duplicate.value.id, result.value.id);
+        const recovered = await request(
+          "/store/tienda-a/orders",
+          "POST",
+          {
+            ...body,
+            idempotencyKey: `recovery-${Date.now()}-${result.value.id}`,
+          },
+          client,
+        );
+        assert.equal(recovered.status, 201);
+        assert.equal(recovered.value.id, result.value.id);
+        assert.equal(
+          await prisma!.storeOrder.count({ where: { quoteId: body.quoteId } }),
+          1,
+        );
         return result.value;
       };
       let order = await makeOrder();
+      const notifications = new NotificationsService(prisma as never);
+      const received: unknown[] = [];
+      const unsubscribe = notifications.subscribe(admin.id, (notice) =>
+        received.push(notice),
+      );
+      const worker = new OutboxService(
+        prisma as never,
+        notifications,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        new ConfigService(config),
+      );
+      await worker.processPending();
+      assert.equal(received.length, 1);
+      await worker.processPending();
+      assert.equal(received.length, 1);
+      unsubscribe();
+      const mailRows = await prisma.storeMail.findMany();
+      const encryptedMail = app.get(StoreCryptoService);
+      const recipients = mailRows
+        .map(
+          (row) =>
+            JSON.parse(encryptedMail.decrypt(row.encryptedBody)) as {
+              to: string;
+              subject: string;
+            },
+        )
+        .filter((mail) => mail.subject === `Pedido ${order.number}`)
+        .map((mail) => mail.to)
+        .sort();
+      assert.deepEqual(recipients, [
+        "admin@example.test",
+        "buyer@example.test",
+      ]);
+      assert.equal(
+        await prisma.notification.count({
+          where: { userId: admin.id, title: `Pedido ${order.number}` },
+        }),
+        1,
+      );
       assert.equal(order.totalAmount, "23.6");
       assert.equal(
         (
