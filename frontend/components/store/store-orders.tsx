@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { storeApi } from "@/lib/store-api";
+import { storeReasonSchema } from "@/lib/store-validation";
 import { compressImage } from "@/lib/image-compression";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
 
@@ -320,7 +321,8 @@ export function StoreOrders({
           ) : (
             order.snapshot.payment.code !== "CASH_ON_PICKUP" && (
               <form
-                className="space-y-4"
+                className="store-form"
+                aria-busy={busy}
                 onSubmit={(event: FormEvent) => {
                   event.preventDefault();
                   if (image)
@@ -333,6 +335,7 @@ export function StoreOrders({
                     className={`${storeInput} mt-2`}
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
+                    disabled={busy}
                     onChange={async (event) => {
                       const file = event.target.files?.[0];
                       if (!file) return;
@@ -370,12 +373,20 @@ export function StoreOrders({
       )}
       {order.paymentStatus === "PAID" && !order.refundRequestedAt && (
         <form
-          className="mt-6 space-y-3 rounded-2xl border bg-white p-6"
+          className="store-form store-form-panel mt-6"
+          aria-busy={busy}
           onSubmit={(event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
-            void operation(`orders/${id}/refund-request`, {
+            const validated = storeReasonSchema.safeParse({
               reason: data.get("reason"),
+            });
+            if (!validated.success) {
+              onMessage(validated.error.issues[0].message);
+              return;
+            }
+            void operation(`orders/${id}/refund-request`, {
+              reason: validated.data.reason,
             });
           }}
         >

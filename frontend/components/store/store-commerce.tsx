@@ -95,6 +95,7 @@ export function StoreCommerce({
   const [shippingId, setShippingId] = useState("");
   const [paymentId, setPaymentId] = useState("");
   const [addressId, setAddressId] = useState("");
+  const [profileReady, setProfileReady] = useState(true);
   const [now, setNow] = useState(Date.now());
   const selectedShipping = methods.shipping.find(
     (method) => method.id === shippingId,
@@ -135,10 +136,18 @@ export function StoreCommerce({
       if (section === "carrito") {
         const [c, me] = await Promise.all([
           storeApi<StoreCart>(slug, "cart"),
-          storeApi<{ addresses: typeof addresses }>(slug, "me"),
+          storeApi<{
+            addresses: typeof addresses;
+            documentValue?: string;
+            phone?: string;
+            lastName?: string;
+          }>(slug, "me"),
         ]);
         onCartChange(c);
         setAddresses(me.addresses);
+        setProfileReady(
+          !!me.lastName && !!me.phone && /^\d{8}$/.test(me.documentValue ?? ""),
+        );
       }
     } catch (error) {
       setLoadError(
@@ -277,6 +286,17 @@ export function StoreCommerce({
   if (section !== "carrito") return null;
   return (
     <section>
+      <ol className="store-checkout-steps" aria-label="Pasos de la compra">
+        <li data-active="true">
+          01 <span>Tu carrito</span>
+        </li>
+        <li data-active={!!selectedShipping}>
+          02 <span>Entrega y pago</span>
+        </li>
+        <li data-active={!!quote}>
+          03 <span>Confirmación</span>
+        </li>
+      </ol>
       <Link
         href={`/tienda/${slug}/catalogo`}
         className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-teal-800"
@@ -355,7 +375,7 @@ export function StoreCommerce({
           <form
             onSubmit={(event) => void calculate(event)}
             onChange={() => setQuote(null)}
-            className="space-y-4 rounded-2xl border bg-white p-6"
+            className="store-form store-form-panel"
           >
             <div className="flex items-center justify-between border-b border-stone-200 pb-4 text-sm">
               <span>Productos · {cart?.items.length ?? 0}</span>
@@ -374,54 +394,52 @@ export function StoreCommerce({
                 La compañía ha pausado la recepción de pedidos.
               </p>
             )}
-            <label className="block text-sm">
-              Forma de entrega
-              <select
-                required
-                disabled={busy}
-                name="shippingMethodId"
-                className={storeInput}
-                value={shippingId}
-                onChange={(event) => {
-                  const id = event.target.value;
-                  setShippingId(id);
-                  setAddressId("");
-                  if (
-                    methods.shipping.find((method) => method.id === id)
-                      ?.kind === "DELIVERY" &&
-                    selectedPayment?.code === "CASH_ON_PICKUP"
-                  )
-                    setPaymentId("");
-                }}
-              >
-                <option value="">Seleccionar</option>
-                {methods.shipping.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label} ·{" "}
-                    {Number(m.fee) === 0
-                      ? "Sin costo"
-                      : storeMoney(m.fee, currency)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selectedShipping && (
-              <div className="flex gap-3 rounded-xl bg-teal-50 p-4 text-sm text-teal-900">
-                {delivery ? (
-                  <Truck className="mt-0.5 size-5 shrink-0" />
-                ) : (
-                  <Store className="mt-0.5 size-5 shrink-0" />
-                )}
-                <div>
-                  <p className="font-semibold">{selectedShipping.label}</p>
-                  <p className="mt-1">
-                    {delivery
-                      ? `Entrega en los distritos: ${selectedShipping.districts.join(", ")}`
-                      : selectedShipping.pickupAddress}
-                  </p>
-                </div>
-              </div>
-            )}
+            <fieldset className="store-option-group">
+              <legend>¿Cómo quieres recibirlo?</legend>
+              {methods.shipping.map((method) => (
+                <label
+                  key={method.id}
+                  className="store-option"
+                  data-selected={method.id === shippingId}
+                >
+                  <input
+                    type="radio"
+                    name="shippingMethodId"
+                    value={method.id}
+                    checked={method.id === shippingId}
+                    disabled={busy}
+                    aria-label={method.label}
+                    onChange={() => {
+                      setShippingId(method.id);
+                      setAddressId("");
+                      if (
+                        method.kind === "DELIVERY" &&
+                        selectedPayment?.code === "CASH_ON_PICKUP"
+                      )
+                        setPaymentId("");
+                    }}
+                  />
+                  {method.kind === "PICKUP" ? (
+                    <Store className="size-5 shrink-0" />
+                  ) : (
+                    <Truck className="size-5 shrink-0" />
+                  )}
+                  <span>
+                    <strong>{method.label}</strong>
+                    <small>
+                      {method.kind === "PICKUP"
+                        ? method.pickupAddress
+                        : `Cobertura: ${method.districts.join(", ")}`}
+                    </small>
+                  </span>
+                  <b>
+                    {Number(method.fee) === 0
+                      ? "Gratis"
+                      : storeMoney(method.fee, currency)}
+                  </b>
+                </label>
+              ))}
+            </fieldset>
             {!methods.shipping.length && (
               <p className="text-sm text-amber-700">
                 La compañía no tiene formas de entrega habilitadas.
@@ -464,24 +482,35 @@ export function StoreCommerce({
                 Administrar direcciones
               </Link>
             )}
-            <label className="block text-sm">
-              Forma de pago
-              <select
-                required
-                disabled={busy}
-                name="paymentMethodId"
-                className={storeInput}
-                value={paymentId}
-                onChange={(event) => setPaymentId(event.target.value)}
-              >
-                <option value="">Seleccionar</option>
-                {paymentOptions.map((method) => (
-                  <option key={method.id} value={method.id}>
-                    {method.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <fieldset className="store-option-group">
+              <legend>¿Cómo prefieres pagar?</legend>
+              {paymentOptions.map((method) => (
+                <label
+                  key={method.id}
+                  className="store-option"
+                  data-selected={method.id === paymentId}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethodId"
+                    value={method.id}
+                    checked={method.id === paymentId}
+                    disabled={busy}
+                    aria-label={method.label}
+                    onChange={() => setPaymentId(method.id)}
+                  />
+                  <CreditCard className="size-5 shrink-0" />
+                  <span>
+                    <strong>{method.label}</strong>
+                    <small>
+                      {method.code === "MERCADOPAGO"
+                        ? "Pago en la plataforma del proveedor"
+                        : "Sigue las instrucciones de la tienda"}
+                    </small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             {delivery &&
               methods.payment.some(
                 (method) => method.code === "CASH_ON_PICKUP",
@@ -508,10 +537,22 @@ export function StoreCommerce({
               El total final, los impuestos y el envío se validan con la
               compañía al calcular tu compra.
             </p>
+            {!profileReady && (
+              <div className="store-inline-notice">
+                <p>
+                  Completa tu DNI, apellidos y teléfono antes de confirmar una
+                  compra.
+                </p>
+                <Link href={`/tienda/${slug}/perfil`}>
+                  Completar mi perfil →
+                </Link>
+              </div>
+            )}
             <button
               disabled={
                 busy ||
                 !checkoutEnabled ||
+                !profileReady ||
                 !cart?.items.length ||
                 cart.items.some((line) => line.unavailable) ||
                 !selectedPayment ||
@@ -548,6 +589,9 @@ export function StoreCommerce({
                     ` · ${quote.snapshot.shipping.pickupAddress ?? ""}`}
                 </p>
               )}
+              <p className="text-sm text-teal-100">
+                Pago: {quote.snapshot.payment.label ?? selectedPayment?.label}
+              </p>
               <p>Productos: {storeMoney(quote.snapshot.subtotal, currency)}</p>
               <p>
                 Envío sin impuestos:{" "}

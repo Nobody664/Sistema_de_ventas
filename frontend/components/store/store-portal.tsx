@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -16,6 +16,8 @@ import { cartQuantity, storeQuantity, type StoreCart } from "@/lib/store-cart";
 import { StoreCommerce } from "./store-commerce";
 import { StoreCatalog, type StoreProduct } from "./store-catalog";
 import { storePageTitle } from "@/lib/store-navigation";
+import { validateStoreForm } from "@/lib/store-validation";
+import { StoreField } from "./store-field";
 import { StoreOrders } from "./store-orders";
 import { storeButton, storeInput } from "./store-ui";
 
@@ -70,6 +72,8 @@ export function StorePortal({
   );
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     if (info?.name) document.title = storePageTitle(info.name, section);
   }, [info?.name, section]);
@@ -152,24 +156,42 @@ export function StorePortal({
     method?: string,
   ) => {
     event.preventDefault();
+    if (submitting.current) return;
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form));
+    const validated = validateStoreForm(
+      path,
+      transform ? transform(values) : values,
+    );
+    setFieldErrors(validated.errors);
+    if (Object.keys(validated.errors).length) {
+      const first = form.elements.namedItem(Object.keys(validated.errors)[0]);
+      if (first instanceof HTMLElement) first.focus();
+      setMessage(
+        validated.errors.token ?? "Revisa los campos señalados para continuar.",
+      );
+      return;
+    }
+    submitting.current = true;
     setBusy(true);
     setMessage("");
-    const data = Object.fromEntries(new FormData(event.currentTarget));
     try {
       const result = await storeApi<{ message?: string }>(
         slug,
         path,
-        transform ? transform(data) : data,
+        validated.data,
         method,
       );
       if (path === "auth/login") router.replace(`${base}/catalogo`);
       else {
+        if (path === "me/addresses") form.reset();
         setMessage(result.message ?? "Datos guardados");
         await load();
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo guardar");
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -178,19 +200,18 @@ export function StorePortal({
     label: string,
     type = "text",
     value?: string,
+    required = true,
   ) => (
-    <label className="block space-y-1.5 text-sm font-medium text-stone-700">
-      {label}
-      <input
-        className={storeInput}
-        name={name}
-        type={type}
-        defaultValue={value}
-        required
-        maxLength={type === "password" ? 256 : 240}
-        autoComplete={name === "password" ? "current-password" : undefined}
-      />
-    </label>
+    <StoreField
+      name={name}
+      label={label}
+      type={type}
+      value={value}
+      error={fieldErrors[name]}
+      disabled={busy}
+      required={required}
+      newPassword={section === "registro" || section === "restablecer"}
+    />
   );
 
   return (
@@ -260,7 +281,18 @@ export function StorePortal({
           </nav>
         </div>
       </header>
-      <main className="store-main">
+      <main
+        className="store-main"
+        onInputCapture={(event) => {
+          const target = event.target;
+          if (target instanceof HTMLInputElement && fieldErrors[target.name])
+            setFieldErrors((current) => {
+              const next = { ...current };
+              delete next[target.name];
+              return next;
+            });
+        }}
+      >
         {message && (
           <p
             role="status"
@@ -270,7 +302,7 @@ export function StorePortal({
           </p>
         )}
         {publicSection ? (
-          <section className="mx-auto grid max-w-4xl gap-10 md:grid-cols-2">
+          <section className="store-account-layout">
             <div className="pt-4">
               <p className="text-xs font-bold uppercase tracking-[.2em] text-teal-800">
                 Compra cerca. Compra bien.
@@ -290,7 +322,7 @@ export function StorePortal({
                 <Link href={`${base}/recuperar`}>Recuperar acceso</Link>
               </div>
             </div>
-            <div className="rounded-3xl border border-stone-200 bg-white p-7 shadow-sm">
+            <div className="store-form-panel">
               <h2 className="mb-6 font-display text-2xl font-bold">
                 {
                   {
@@ -325,19 +357,24 @@ export function StorePortal({
               )}
               {section === "ingresar" && (
                 <form
-                  className="space-y-4"
+                  noValidate
+                  aria-busy={busy}
+                  className="store-form"
                   onSubmit={(event) => void submit(event, "auth/login")}
                 >
                   {field("email", "Correo", "email")}
                   {field("password", "Contraseña", "password")}
                   <button disabled={busy} className={storeButton}>
-                    Ingresar <ArrowRight className="size-4" />
+                    {busy ? "Ingresando…" : "Ingresar"}{" "}
+                    <ArrowRight className="size-4" />
                   </button>
                 </form>
               )}
               {section === "registro" && (
                 <form
-                  className="space-y-4"
+                  noValidate
+                  aria-busy={busy}
+                  className="store-form"
                   onSubmit={(event) =>
                     void submit(event, "auth/register", (data) => ({
                       ...data,
@@ -353,11 +390,21 @@ export function StorePortal({
                     "Contraseña (mínimo 8 caracteres)",
                     "password",
                   )}
+                  {field(
+                    "passwordConfirmation",
+                    "Repite tu contraseña",
+                    "password",
+                  )}
                   <label className="flex gap-2 text-sm">
                     <input type="checkbox" name="acceptTerms" required />
                     Acepto el registro y tratamiento de mis datos para atender
                     mis compras en esta empresa.
                   </label>
+                  {fieldErrors.acceptTerms && (
+                    <p role="alert" className="store-field-error">
+                      {fieldErrors.acceptTerms}
+                    </p>
+                  )}
                   <Link
                     href={`${base}/privacidad`}
                     className="block text-xs text-teal-900 underline"
@@ -371,7 +418,9 @@ export function StorePortal({
               )}
               {section === "recuperar" && (
                 <form
-                  className="space-y-4"
+                  noValidate
+                  aria-busy={busy}
+                  className="store-form"
                   onSubmit={(event) =>
                     void submit(event, "auth/forgot-password")
                   }
@@ -385,7 +434,9 @@ export function StorePortal({
               {section === "verificar" && (
                 <>
                   <form
-                    className="space-y-4"
+                    noValidate
+                    aria-busy={busy}
+                    className="store-form"
                     onSubmit={(event) =>
                       void submit(event, "auth/verify", () => ({
                         token: searchParams.get("token") ?? "",
@@ -400,7 +451,9 @@ export function StorePortal({
                     </button>
                   </form>
                   <form
-                    className="mt-6 space-y-4"
+                    noValidate
+                    aria-busy={busy}
+                    className="store-form mt-6"
                     onSubmit={(event) => void submit(event, "auth/resend")}
                   >
                     {field("email", "Correo", "email")}
@@ -415,7 +468,9 @@ export function StorePortal({
               )}
               {section === "restablecer" && (
                 <form
-                  className="space-y-4"
+                  noValidate
+                  aria-busy={busy}
+                  className="store-form"
                   onSubmit={(event) =>
                     void submit(event, "auth/reset-password", (data) => ({
                       ...data,
@@ -424,6 +479,11 @@ export function StorePortal({
                   }
                 >
                   {field("password", "Nueva contraseña", "password")}
+                  {field(
+                    "passwordConfirmation",
+                    "Repite tu contraseña",
+                    "password",
+                  )}
                   <button disabled={busy} className={storeButton}>
                     Guardar contraseña
                   </button>
@@ -463,14 +523,20 @@ export function StorePortal({
               />
             )}
             {section === "perfil" && profile && (
-              <section className="max-w-xl rounded-3xl border border-stone-200 bg-white p-7">
+              <section className="store-form-panel max-w-2xl">
                 <h1 className="mb-6 font-display text-3xl font-bold">
                   Mi perfil
                 </h1>
                 <p className="mb-5 text-stone-500">{profile.email}</p>
+                <p className="store-form-intro">
+                  Completa tus datos de contacto para que la tienda pueda
+                  preparar y entregar tu pedido.
+                </p>
                 <form
                   key={JSON.stringify(profile)}
-                  className="space-y-4"
+                  noValidate
+                  aria-busy={busy}
+                  className="store-form store-form-grid"
                   onSubmit={(event) =>
                     void submit(event, "me", undefined, "PATCH")
                   }
@@ -493,46 +559,58 @@ export function StorePortal({
               </section>
             )}
             {section === "direcciones" && profile && (
-              <section className="max-w-2xl">
-                <h1 className="mb-6 font-display text-3xl font-bold">
-                  Mis direcciones
-                </h1>
-                <div className="mb-6 space-y-3">
-                  {profile.addresses.map((address) => (
-                    <article
-                      key={address.id}
-                      className="rounded-2xl border border-stone-200 bg-white p-5"
-                    >
-                      <h2 className="font-semibold">
-                        {address.label}{" "}
-                        {address.isDefault && "· Predeterminada"}
-                      </h2>
-                      <p>
-                        {address.street} · {address.district}
-                      </p>
-                      <p className="text-sm text-stone-500">
-                        {address.recipient} · {address.phone}
-                      </p>
-                      <button
-                        className="mt-3 text-sm text-red-700"
-                        onClick={() =>
-                          void storeApi(
-                            slug,
-                            `me/addresses/${address.id}`,
-                            {},
-                            "DELETE",
-                          )
-                            .then(() => load())
-                            .catch((error: Error) => setMessage(error.message))
-                        }
-                      >
-                        Eliminar
-                      </button>
-                    </article>
-                  ))}
+              <section className="store-address-layout">
+                <div>
+                  <h1 className="mb-6 font-display text-3xl font-bold">
+                    Mis direcciones
+                  </h1>
+                  <div className="mb-6 space-y-3">
+                    {!profile.addresses.length && (
+                      <div className="store-empty-state">
+                        <MapPin className="size-8" />
+                        <h2>¿Dónde recibirás tu compra?</h2>
+                        <p>
+                          Guarda tu primera dirección. Podrás elegirla al pagar.
+                        </p>
+                      </div>
+                    )}
+                    {profile.addresses.map((address) => (
+                      <article key={address.id} className="store-address-card">
+                        <h2 className="font-semibold">
+                          {address.label}{" "}
+                          {address.isDefault && "· Predeterminada"}
+                        </h2>
+                        <p>
+                          {address.street} · {address.district}
+                        </p>
+                        <p className="text-sm text-stone-500">
+                          {address.recipient} · {address.phone}
+                        </p>
+                        <button
+                          className="mt-3 text-sm text-red-700"
+                          onClick={() =>
+                            void storeApi(
+                              slug,
+                              `me/addresses/${address.id}`,
+                              {},
+                              "DELETE",
+                            )
+                              .then(() => load())
+                              .catch((error: Error) =>
+                                setMessage(error.message),
+                              )
+                          }
+                        >
+                          Eliminar
+                        </button>
+                      </article>
+                    ))}
+                  </div>
                 </div>
                 <form
-                  className="space-y-4 rounded-3xl bg-white p-6"
+                  noValidate
+                  aria-busy={busy}
+                  className="store-form store-form-panel"
                   onSubmit={(event) =>
                     void submit(event, "me/addresses", (data) => ({
                       ...data,
@@ -540,11 +618,13 @@ export function StorePortal({
                     }))
                   }
                 >
+                  <h2 className="store-form-title">Agregar dirección</h2>
                   {field("label", "Nombre de dirección")}
                   {field("recipient", "Destinatario")}
                   {field("phone", "Teléfono", "tel")}
                   {field("street", "Dirección")}
                   {field("district", "Ubigeo del distrito (6 dígitos)")}
+                  {field("reference", "Referencia", "text", undefined, false)}
                   <label className="flex gap-2 text-sm">
                     <input type="checkbox" name="isDefault" />
                     Dirección predeterminada

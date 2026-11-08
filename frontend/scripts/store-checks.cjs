@@ -283,6 +283,9 @@ async function runStoreChecks(page, origin) {
   await page
     .getByLabel("Contraseña (mínimo 8 caracteres)", { exact: true })
     .fill("Buyer-Password-123");
+  await page
+    .getByLabel("Repite tu contraseña", { exact: true })
+    .fill("Buyer-Password-123");
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "verificación" }).waitFor();
@@ -361,14 +364,15 @@ async function runStoreChecks(page, origin) {
       document.querySelector('[data-testid="cart-count"]')?.textContent === "4",
   );
   await page.getByText("Av. Comercio 123", { exact: true }).waitFor();
-  const shippingSelect = page.getByRole("combobox", {
-    name: /Forma de entrega/,
-  });
   assert.equal(
-    await shippingSelect.locator('option[value="disabled-delivery"]').count(),
+    await page
+      .getByRole("radio", { name: "Entrega deshabilitada", exact: true })
+      .count(),
     0,
   );
-  await shippingSelect.selectOption("delivery");
+  await page
+    .getByRole("radio", { name: "Entrega del negocio", exact: true })
+    .check();
   await page
     .getByText("Agrega una dirección para recibir tu compra.", { exact: true })
     .waitFor();
@@ -380,8 +384,7 @@ async function runStoreChecks(page, origin) {
   );
   assert.equal(
     await page
-      .getByRole("combobox", { name: /Forma de pago/ })
-      .locator('option[value="cash"]')
+      .getByRole("radio", { name: "Efectivo al retirar", exact: true })
       .count(),
     0,
   );
@@ -401,14 +404,14 @@ async function runStoreChecks(page, origin) {
   await page.getByText("Jr. Lima 100 · 150101", { exact: true }).waitFor();
   await page.getByRole("link", { name: "Carrito", exact: true }).click();
   await page
-    .getByRole("combobox", { name: /Forma de entrega/ })
-    .selectOption("delivery");
+    .getByRole("radio", { name: "Entrega del negocio", exact: true })
+    .check();
   await page
     .getByRole("combobox", { name: "Dirección de entrega", exact: true })
     .selectOption("address");
   await page
-    .getByRole("combobox", { name: /Forma de pago/ })
-    .selectOption("pay");
+    .getByRole("radio", { name: "Yape del negocio", exact: true })
+    .check();
   await page
     .getByText("Paga a la cuenta del negocio", { exact: true })
     .waitFor();
@@ -422,8 +425,8 @@ async function runStoreChecks(page, origin) {
     })
     .waitFor();
   await page
-    .getByRole("combobox", { name: /Forma de entrega/ })
-    .selectOption("pickup");
+    .getByRole("radio", { name: "Retiro en local", exact: true })
+    .check();
   assert.equal(
     await page
       .getByRole("button", {
@@ -440,11 +443,11 @@ async function runStoreChecks(page, origin) {
     0,
   );
   await page
-    .getByRole("combobox", { name: /Forma de pago/ })
-    .selectOption("pay");
+    .getByRole("radio", { name: "Yape del negocio", exact: true })
+    .check();
   await page
-    .getByRole("combobox", { name: /Forma de entrega/ })
-    .selectOption("pickup");
+    .getByRole("radio", { name: "Retiro en local", exact: true })
+    .check();
   await page
     .getByRole("button", { name: "Calcular total", exact: true })
     .click();

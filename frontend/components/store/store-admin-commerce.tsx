@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { Methods } from "./store-commerce";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
+import { validateStoreAdminForm } from "@/lib/store-validation";
 
 export function StoreAdminCommerce() {
   const [methods, setMethods] = useState<Methods>({
@@ -16,6 +17,8 @@ export function StoreAdminCommerce() {
     reservationMinutes: number;
   } | null>(null);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [shippingKind, setShippingKind] = useState("PICKUP");
   const load = async () => {
     try {
       setMethods(await apiFetch<Methods>("/store-admin/methods"));
@@ -34,16 +37,29 @@ export function StoreAdminCommerce() {
     method = "POST",
   ) => {
     event.preventDefault();
+    if (busy) return;
     const data = Object.fromEntries(new FormData(event.currentTarget));
+    const validated = validateStoreAdminForm(path, transform(data));
+    if (Object.keys(validated.errors).length) {
+      setMessage(Object.values(validated.errors).join(". "));
+      const first = event.currentTarget.elements.namedItem(
+        Object.keys(validated.errors)[0],
+      );
+      if (first instanceof HTMLElement) first.focus();
+      return;
+    }
+    setBusy(true);
     try {
       await apiFetch(`/store-admin/${path}`, {
         method,
-        body: JSON.stringify(transform(data)),
+        body: JSON.stringify(validated.data),
       });
       setMessage("Cambios guardados");
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo guardar");
+    } finally {
+      setBusy(false);
     }
   };
   return (
@@ -55,7 +71,8 @@ export function StoreAdminCommerce() {
       {settings && (
         <form
           key={JSON.stringify(settings)}
-          className="space-y-3 rounded-2xl border bg-white p-6"
+          className="store-form store-form-panel"
+          aria-busy={busy}
           onSubmit={(event) =>
             void save(
               event,
@@ -111,12 +128,15 @@ export function StoreAdminCommerce() {
               required
             />
           </label>
-          <button className={storeButton}>Guardar reglas</button>
+          <button disabled={busy} className={storeButton}>
+            Guardar reglas
+          </button>
         </form>
       )}
       <div className="grid gap-5 xl:grid-cols-2">
         <form
-          className="space-y-3 rounded-2xl border bg-white p-6"
+          className="store-form store-form-panel"
+          aria-busy={busy}
           onSubmit={(event) =>
             void save(event, "payment-methods", (d) => ({
               ...d,
@@ -137,6 +157,8 @@ export function StoreAdminCommerce() {
             name="label"
             className={storeInput}
             placeholder="Nombre del método"
+            minLength={2}
+            maxLength={80}
             required
           />
           <textarea
@@ -144,26 +166,30 @@ export function StoreAdminCommerce() {
             name="instructions"
             className={storeInput}
             placeholder="Cuenta, teléfono o instrucciones públicas"
+            maxLength={2000}
             required
           />
           <label className="flex gap-2">
             <input type="checkbox" name="enabled" defaultChecked />
             Habilitado
           </label>
-          <button className={storeButton}>Guardar método</button>
+          <button disabled={busy} className={storeButton}>
+            Guardar método
+          </button>
           <p className="text-xs text-stone-500">
             Guardar el mismo tipo actualiza sus instrucciones. Mercado Pago
             además requiere configurar la integración.
           </p>
         </form>
         <form
-          className="space-y-3 rounded-2xl border bg-white p-6"
+          className="store-form store-form-panel"
+          aria-busy={busy}
           onSubmit={(event) =>
             void save(event, "shipping-methods", (d) => ({
               kind: d.kind,
               label: d.label,
               fee: Number(d.fee),
-              districts: String(d.districts)
+              districts: String(d.districts ?? "")
                 .split(",")
                 .map((x) => x.trim())
                 .filter(Boolean),
@@ -177,6 +203,8 @@ export function StoreAdminCommerce() {
             name="kind"
             aria-label="Tipo de entrega"
             className={storeInput}
+            value={shippingKind}
+            onChange={(event) => setShippingKind(event.target.value)}
           >
             <option value="PICKUP">Retiro</option>
             <option value="DELIVERY">Entrega local</option>
@@ -186,6 +214,8 @@ export function StoreAdminCommerce() {
             name="label"
             className={storeInput}
             placeholder="Nombre"
+            minLength={2}
+            maxLength={80}
             required
           />
           <input
@@ -194,6 +224,7 @@ export function StoreAdminCommerce() {
             className={storeInput}
             type="number"
             min={0}
+            max={100000}
             step="0.01"
             defaultValue={0}
             required
@@ -203,18 +234,26 @@ export function StoreAdminCommerce() {
             name="districts"
             className={storeInput}
             placeholder="Ubigeos separados por coma"
+            disabled={shippingKind !== "DELIVERY"}
+            required={shippingKind === "DELIVERY"}
+            maxLength={1399}
           />
           <input
             aria-label="Dirección de retiro"
             name="pickupAddress"
             className={storeInput}
             placeholder="Dirección de retiro"
+            disabled={shippingKind !== "PICKUP"}
+            required={shippingKind === "PICKUP"}
+            maxLength={240}
           />
           <label className="flex gap-2">
             <input type="checkbox" name="enabled" defaultChecked />
             Habilitado
           </label>
-          <button className={storeButton}>Agregar entrega</button>
+          <button disabled={busy} className={storeButton}>
+            Agregar entrega
+          </button>
         </form>
       </div>
       <div className="grid gap-4 md:grid-cols-2">

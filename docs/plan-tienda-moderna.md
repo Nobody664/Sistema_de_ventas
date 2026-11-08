@@ -12,7 +12,7 @@ Las ramas son encadenadas: cada fase nace del commit final de la anterior. Antes
 | --- | --- | --- | --- |
 | 1 | `fase/01-tienda-moderna-plan` | Diagnóstico y este documento | Completada |
 | 2 | `fase/02-tienda-moderna-catalogo` | Identidad, metadatos, tarjetas, distribución y cantidades | Completada; smoke integrado en fase 4 |
-| 3 | `fase/03-tienda-moderna-formularios` | Formularios, navegación, carrito, entrega y pago | Pendiente |
+| 3 | `fase/03-tienda-moderna-formularios` | Formularios, navegación, carrito, entrega y pago | Completada; smoke integrado en fase 4 |
 | 4 | `fase/04-tienda-moderna-validacion` | Validación del servidor, pruebas de límites y aislamiento; verificación final | Pendiente |
 
 ## Fase 2: catálogo e identidad
@@ -56,3 +56,4 @@ Las ramas son encadenadas: cada fase nace del commit final de la anterior. Antes
 - Diagnóstico: catálogo con controles repetidos; título genérico; formularios con límites HTML genéricos que no coinciden con los DTOs; el servidor ya usa Prisma, validación global, sesiones comerciales y filtros por compañía.
 - Skills utilizadas: `frontend-design`, `next-best-practices`, `nestjs-best-practices`, `ui-ux-pro-max`.
 - Fase 2: catálogo extraído a componente dedicado; tokens visuales claros/oscuros; tarjetas con imágenes y un solo selector compacto; límites de cantidad y bloqueo de doble envío; título dinámico por tienda/sección y metadatos sin datos privados. `npm run lint` de frontend aprobado.
+- Fase 3: campos accesibles con ayudas, límites y errores por campo; confirmación de contraseña y payloads de campos conocidos; selector visual de entrega/pago con radio buttons y resumen coherente; perfil requerido antes de cotizar; validación de configuración de tienda, pagos, entregas y motivos de devolución. `npm run lint` aprobado; pruebas de validación frontend añadidas.

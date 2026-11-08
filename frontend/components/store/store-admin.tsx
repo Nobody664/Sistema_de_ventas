@@ -7,6 +7,7 @@ import { storeButton, storeInput } from "./store-ui";
 import { StoreAdminCommerce } from "./store-admin-commerce";
 import { StoreAdminOrders } from "./store-admin-orders";
 import { StoreAdminCustomers } from "./store-admin-customers";
+import { validateStoreAdminForm } from "@/lib/store-validation";
 
 export function StoreAdmin() {
   const [settings, setSettings] = useState<{
@@ -22,6 +23,7 @@ export function StoreAdmin() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
     try {
       const [s, p] = await Promise.all([
@@ -44,24 +46,33 @@ export function StoreAdmin() {
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    if (busy) return;
+    const validated = validateStoreAdminForm("settings", {
+      title: data.get("title"),
+      description: data.get("description"),
+      enabled: data.get("enabled") === "on",
+      registrationEnabled: data.get("registrationEnabled") === "on",
+    });
+    if (Object.keys(validated.errors).length) {
+      setMessage(Object.values(validated.errors).join(". "));
+      return;
+    }
+    setBusy(true);
     try {
       await apiFetch("/store-admin/settings", {
         method: "PATCH",
-        body: JSON.stringify({
-          title: data.get("title"),
-          description: data.get("description"),
-          enabled: data.get("enabled") === "on",
-          registrationEnabled: data.get("registrationEnabled") === "on",
-        }),
+        body: JSON.stringify(validated.data),
       });
       await load();
       setMessage("Datos de la tienda actualizados");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo guardar");
+    } finally {
+      setBusy(false);
     }
   };
   return (
-    <div className="space-y-7">
+    <div className="store-portal store-admin space-y-7">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[.2em] text-teal-800">
           Canal comercial
@@ -82,7 +93,8 @@ export function StoreAdmin() {
         <form
           key={JSON.stringify(settings)}
           onSubmit={(event) => void save(event)}
-          className="space-y-4 rounded-2xl border bg-white p-6"
+          className="store-form store-form-panel"
+          aria-busy={busy}
         >
           <label className="block text-sm">
             Nombre comercial
@@ -120,7 +132,7 @@ export function StoreAdmin() {
             Permitir registro de clientes
           </label>
           <div className="flex flex-wrap gap-4">
-            <button className={storeButton}>
+            <button disabled={busy} className={storeButton}>
               {settings.title?.trim() || settings.description?.trim()
                 ? "Actualizar datos"
                 : "Guardar configuración"}

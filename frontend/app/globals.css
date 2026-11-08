@@ -1181,6 +1181,236 @@ html:not(.dark) .text-gray-400 {
   }
 }
 
+.store-account-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 72px;
+  align-items: start;
+  max-width: 1000px;
+  margin: 28px auto;
+}
+.store-form-panel {
+  border: 1px solid var(--store-line);
+  background: var(--store-surface);
+  border-radius: var(--store-radius);
+  padding: 28px;
+  min-width: 0;
+}
+.store-form {
+  display: grid;
+  gap: 20px;
+}
+.store-form-intro {
+  color: var(--store-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+.store-form-title {
+  color: var(--store-ink);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.store-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.store-field > label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--store-ink);
+}
+.store-field > label > span {
+  color: var(--store-muted);
+  font-weight: 400;
+}
+.store-field-input {
+  position: relative;
+}
+.store-field-input input {
+  width: 100%;
+}
+.store-field-input:has(button) input {
+  padding-right: 48px;
+}
+.store-field-input > button {
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  color: var(--store-muted);
+}
+.store-field-error {
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.dark .store-field-error {
+  color: #fda29b;
+}
+.store-field-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--store-muted);
+}
+.store-input[aria-invalid="true"] {
+  border-color: #c43228;
+}
+.store-form input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.store-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.store-form-grid > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.store-address-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+.store-address-card {
+  border: 1px solid var(--store-line);
+  border-radius: 16px;
+  padding: 22px;
+  background: var(--store-surface);
+  font-size: 14px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.store-checkout-steps {
+  display: flex;
+  gap: 32px;
+  border-bottom: 1px solid var(--store-line);
+  padding-bottom: 22px;
+  margin-bottom: 32px;
+}
+.store-checkout-steps li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--store-muted);
+}
+.store-checkout-steps span {
+  font-size: 12px;
+  font-weight: 500;
+}
+.store-checkout-steps li[data-active="true"] {
+  color: var(--store-accent);
+}
+.store-option-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.store-option-group legend {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.store-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--store-line);
+  padding: 16px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--store-ink);
+}
+.store-option[data-selected="true"] {
+  border-color: var(--store-accent);
+  background: var(--store-tint);
+}
+.store-option input {
+  accent-color: #134e4a;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.store-option > span {
+  min-width: 0;
+  flex: 1;
+}
+.store-option strong {
+  font-size: 12px;
+  font-weight: 600;
+  display: block;
+}
+.store-option small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--store-muted);
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+.store-option > b {
+  font-size: 11px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.store-inline-notice {
+  border: 1px solid var(--store-line);
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--store-muted);
+}
+.store-inline-notice > a {
+  color: var(--store-accent);
+  font-weight: 600;
+}
+.store-admin {
+  padding: 20px;
+  border-radius: var(--store-radius);
+}
+@media (max-width: 768px) {
+  .store-account-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    margin-top: 0;
+  }
+  .store-address-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+@media (max-width: 420px) {
+  .store-form-panel {
+    padding: 20px;
+  }
+  .store-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .store-checkout-steps {
+    gap: 16px;
+  }
+  .store-checkout-steps li {
+    flex-direction: column;
+    align-items: start;
+    gap: 4px;
+  }
+  .store-option {
+    padding: 14px 10px;
+    gap: 8px;
+  }
+  .store-option > svg {
+    display: none;
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
