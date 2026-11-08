@@ -33,7 +33,6 @@ import {
   companyDateKey,
   companyTimeZone,
 } from "@/common/helpers/company-timezone.helper";
-import { expiredStockItems } from "@/modules/expiry-alerts/expired-stock";
 import {
   parseImageDataUrl,
   parseImageSource,
@@ -654,130 +653,10 @@ export class ProductsService {
   }
 
   async writeOffExpiredStock(companyId: string, id: string, userId?: string) {
-    const product = await this.prisma.product.findFirst({
-      where: { id, companyId },
-      include: {
-        company: { select: { timezone: true } },
-        batches: {
-          where: { quantityAvailable: { gt: 0 } },
-          select: {
-            id: true,
-            batchNumber: true,
-            quantityAvailable: true,
-            expirationDate: true,
-            purchasePrice: true,
-          },
-        },
-      },
-    });
-    if (!product || product.deletedAt) {
-      throw new NotFoundException("Product not found.");
-    }
-
-    const expired = expiredStockItems(
-      product,
-      product.batches,
-      product.company?.timezone,
+    await this.ensureProduct(companyId, id);
+    throw new ConflictException(
+      "Selecciona el lote en Operaciones → Lotes de productos vencidos. La baja global por producto ya no está disponible.",
     );
-    if (expired.length === 0) {
-      throw new BadRequestException(
-        "El producto no tiene stock vencido pendiente de baja.",
-      );
-    }
-
-    const quantity = expired.reduce(
-      (total, item) => total.plus(item.quantity),
-      new Prisma.Decimal(0),
-    );
-    const remaining = product.stockQuantity.minus(quantity);
-    const nextStock = remaining.lt(0) ? new Prisma.Decimal(0) : remaining;
-    const batchSummary = expired
-      .map(
-        (item) =>
-          `${item.batchNumber ?? "sin lote"}: ${item.quantity} (${item.expiryDate})`,
-      )
-      .join("; ");
-
-    const result = await this.prisma.$transaction(async (tx) => {
-      for (const item of expired) {
-        if (!item.batchId) continue;
-        await tx.productBatch.updateMany({
-          where: { id: item.batchId, companyId, productId: id },
-          data: { quantityAvailable: 0 },
-        });
-      }
-
-      await tx.product.updateMany({
-        where: { id, companyId },
-        data: { stockQuantity: nextStock, isActive: false },
-      });
-
-      const movement = await tx.inventoryMovement.create({
-        data: {
-          companyId,
-          productId: id,
-          type: "LOSS",
-          quantity: quantity.neg(),
-          reference: `EXPIRY-${id}`,
-          reason: "EXPIRED_STOCK_WRITE_OFF",
-          notes: batchSummary,
-        },
-      });
-
-      const cost = await this.kardexService.recordOutMovement(
-        companyId,
-        id,
-        quantity,
-        movement.id,
-        tx,
-      );
-
-      const lossAmount = (
-        cost?.totalCost ?? new Prisma.Decimal(0)
-      ).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-
-      const financeRecord = await tx.financeRecord.create({
-        data: {
-          companyId,
-          direction: "EXIT",
-          category: "EXPIRY_LOSS",
-          description: `Pérdida por vencimiento: ${product.name}`,
-          amount: lossAmount,
-          recordDate: new Date(),
-          reference: `EXPIRY-${id}`,
-          notes: `${batchSummary}. Movimiento ${movement.id}.`,
-          createdById: userId ?? null,
-        },
-      });
-
-      return {
-        productId: product.id,
-        productName: product.name,
-        quantity: quantity.toNumber(),
-        remainingStock: nextStock.toNumber(),
-        lossAmount: lossAmount.toNumber(),
-        financeRecordId: financeRecord.id,
-        batches: expired,
-      };
-    });
-
-    await this.auditService.log({
-      companyId,
-      userId,
-      action: AuditAction.UPDATE,
-      entity: "Product",
-      entityId: id,
-      changes: {
-        reason: "EXPIRED_STOCK_WRITE_OFF",
-        quantity: result.quantity,
-        lossAmount: result.lossAmount,
-        financeRecordId: result.financeRecordId,
-        batches: expired,
-        isActive: false,
-      },
-    });
-
-    return result;
   }
 
   async listPresentations(companyId: string, productId: string) {

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Loader2,
   Plus,
@@ -153,7 +154,6 @@ export function SaleForm({
   const [expiredBlock, setExpiredBlock] = useState<ExpiredStockBlock | null>(
     null,
   );
-  const [blockingExpired, setBlockingExpired] = useState(false);
 
   const centralStockByProduct = useMemo(
     () =>
@@ -588,42 +588,6 @@ export function SaleForm({
       );
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleBlockExpiredProducts = async () => {
-    if (!expiredBlock) return;
-    const productIds = [
-      ...new Set(expiredBlock.items.map((item) => item.productId)),
-    ];
-    setBlockingExpired(true);
-    try {
-      for (const productId of productIds) {
-        await apiFetch(`/products/${productId}/expired-write-off`, {
-          method: "POST",
-          token: getAccessToken(),
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["finance"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      setItems((current) =>
-        current.filter((item) => !productIds.includes(item.productId)),
-      );
-      setExpiredBlock(null);
-      addToast(
-        "Productos vencidos bloqueados y pérdida registrada en finanzas",
-        "success",
-      );
-    } catch (err) {
-      addToast(
-        err instanceof Error
-          ? err.message
-          : "No se pudieron bloquear los productos vencidos",
-        "error",
-      );
-    } finally {
-      setBlockingExpired(false);
     }
   };
 
@@ -1278,7 +1242,7 @@ export function SaleForm({
       <Dialog
         open={!!expiredBlock}
         onOpenChange={(open) => {
-          if (!open && !blockingExpired) setExpiredBlock(null);
+          if (!open) setExpiredBlock(null);
         }}
       >
         <DialogContent>
@@ -1315,8 +1279,8 @@ export function SaleForm({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Al confirmar, se dará de baja el stock vencido, el producto quedará
-            bloqueado y se registrará la pérdida en finanzas.
+            Gestiona la baja por lote desde Operaciones. Los lotes vigentes del
+            mismo producto no se dan de baja ni se desactiva la ficha completa.
           </p>
 
           <DialogFooter className="gap-2">
@@ -1324,21 +1288,23 @@ export function SaleForm({
               type="button"
               variant="outline"
               onClick={() => setExpiredBlock(null)}
-              disabled={blockingExpired}
             >
               Revisar manualmente
             </Button>
-            <Button
-              type="button"
-              onClick={() => void handleBlockExpiredProducts()}
-              disabled={blockingExpired}
-              className="bg-amber-600 text-white hover:bg-amber-700"
-            >
-              {blockingExpired ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Bloquear y registrar pérdida
-            </Button>
+            <PermissionGuard permission="inventory:adjust">
+              <Button
+                asChild
+                className="bg-amber-600 text-white hover:bg-amber-700"
+              >
+                <Link
+                  href="/expired-batches"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Administrar lotes vencidos
+                </Link>
+              </Button>
+            </PermissionGuard>
           </DialogFooter>
         </DialogContent>
       </Dialog>

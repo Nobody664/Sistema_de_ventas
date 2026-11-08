@@ -23,6 +23,7 @@ const PLATFORM_DESTINATIONS: ReadonlyArray<readonly [string, string]> = [
     "/dashboard",
     "/store",
     "/inventory",
+    "/expired-batches",
     "/categories",
     "/products",
     "/customers",

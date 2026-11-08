@@ -63,6 +63,9 @@ const DEFAULT_CATEGORY_BY_DIRECTION: Record<string, FinanceCategory> = {
   EXIT: "OTHER",
 };
 
+const isBatchLossReference = (reference?: string | null): boolean =>
+  reference?.startsWith("EXPIRY-BATCH:") ?? false;
+
 const EXPENSE_CATEGORIES: readonly string[] = [
   "PAYROLL",
   "ELECTRICITY",
@@ -143,7 +146,8 @@ export class FinanceService {
             recordDate: row.recordDate.toISOString(),
             dueDate: row.dueDate?.toISOString() ?? null,
             createdAt: row.createdAt.toISOString(),
-            editable: row.source === "MANUAL",
+            editable:
+              row.source === "MANUAL" && !isBatchLossReference(row.reference),
           })),
           total: Number(counts[0]?.total ?? 0),
           page,
@@ -268,6 +272,10 @@ export class FinanceService {
     input: CreateFinanceRecordDto,
   ) {
     const category = this.resolveCategory(input.direction, input.category);
+    if (isBatchLossReference(input.reference))
+      throw new BadRequestException(
+        "La referencia está reservada para bajas por lote.",
+      );
 
     if (input.employeeId) {
       await this.ensureEmployee(companyId, input.employeeId);
@@ -320,6 +328,13 @@ export class FinanceService {
       throw new NotFoundException("Registro financiero no encontrado.");
     }
 
+    if (
+      isBatchLossReference(existing.reference) ||
+      isBatchLossReference(input.reference)
+    )
+      throw new BadRequestException(
+        "Las pérdidas de lotes no se editan desde registros financieros manuales.",
+      );
     if (input.employeeId) {
       await this.ensureEmployee(companyId, input.employeeId);
     }
@@ -390,6 +405,10 @@ export class FinanceService {
     if (!existing) {
       throw new NotFoundException("Registro financiero no encontrado.");
     }
+    if (isBatchLossReference(existing.reference))
+      throw new BadRequestException(
+        "La pérdida está vinculada a una baja de lote y no puede eliminarse manualmente.",
+      );
 
     await this.prisma.financeRecord.delete({ where: { id } });
 
@@ -485,7 +504,7 @@ export class FinanceService {
       notes: row.notes,
       employeeId: row.employeeId,
       employeeName,
-      editable: true,
+      editable: !isBatchLossReference(row.reference),
       createdAt: row.createdAt.toISOString(),
     };
   }

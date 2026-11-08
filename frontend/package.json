@@ -13,6 +13,7 @@
     "test:browser:purchases": "node scripts/products-purchases-smoke.cjs",
     "test:browser:store": "node scripts/products-purchases-smoke.cjs --store-only",
     "test:browser:avatar": "node scripts/products-purchases-smoke.cjs --avatar-only",
+    "test:browser:batch-expiry": "node scripts/products-purchases-smoke.cjs --batch-expiry-only",
     "test:browser:auth": "node scripts/products-purchases-smoke.cjs --auth-only",
     "test:browser:scanner": "node scripts/products-purchases-smoke.cjs --scanner-only",
     "test:browser:settings": "node scripts/settings-smoke.cjs",

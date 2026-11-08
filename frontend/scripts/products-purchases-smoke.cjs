@@ -7,6 +7,10 @@ const { runScannerChecks } = require("./scanner-checks.cjs");
 const { runAuthChecks } = require("./auth-checks.cjs");
 const { runAvatarChecks } = require("./avatar-checks.cjs");
 const {
+  handleBatchExpiry,
+  runBatchExpiryChecks,
+} = require("./batch-expiry-checks.cjs");
+const {
   handleStore,
   handleStoreAdmin,
   runStoreChecks,
@@ -67,6 +71,8 @@ const stockEntryPayloads = [];
 let stockWrites = 0;
 
 function handle(resource, params, method, body) {
+  if (resource.startsWith("/batch-expiry"))
+    return handleBatchExpiry(resource, params, method, body);
   if (resource.startsWith("/store/"))
     return handleStore(resource, params, method, body);
   if (resource.startsWith("/store-admin/"))
@@ -384,6 +390,11 @@ async function main() {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    if (process.argv.includes("--batch-expiry-only")) {
+      await runBatchExpiryChecks(page, origin);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.argv.includes("--avatar-only")) {
       await runAvatarChecks(page, origin);
       assert.deepEqual(errors, []);

@@ -20,6 +20,7 @@ import {
   TicketPercent,
   Truck,
   Warehouse,
+  PackageX,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -57,7 +58,12 @@ const mainItems: NavItem[] = [
   },
 ];
 const companyItems: NavItem[] = [
-  { label: "Tienda virtual", href: "/store", icon: ShoppingCart, roles: ["COMPANY_ADMIN"] },
+  {
+    label: "Tienda virtual",
+    href: "/store",
+    icon: ShoppingCart,
+    roles: ["COMPANY_ADMIN"],
+  },
   {
     label: "Inventario",
     href: "/inventory",
@@ -88,6 +94,13 @@ const companyItems: NavItem[] = [
   },
 ];
 const operationItems: NavItem[] = [
+  {
+    label: "Lotes de productos vencidos",
+    href: "/expired-batches",
+    icon: PackageX,
+    module: "inventory",
+    roles: ["COMPANY_ADMIN", "MANAGER"],
+  },
   {
     label: "Cupones",
     href: "/discounts",

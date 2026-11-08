@@ -98,6 +98,7 @@ const ROUTE_REQUIREMENTS: Array<{
   prefix: string;
   requirement: RouteRequirement;
 }> = [
+  { prefix: "/expired-batches", requirement: { module: "inventory" } },
   {
     prefix: "/inventory/kardex",
     requirement: { module: "inventory", feature: "inventory.kardex" },
