@@ -9,35 +9,16 @@ import {
   UserRound,
   MapPin,
   LogOut,
-  Minus,
-  Plus,
-  Check,
-  Loader2,
   ShoppingCart,
 } from "lucide-react";
 import { StoreApiError, storeApi } from "@/lib/store-api";
-import {
-  addStoreQuantity,
-  cartQuantity,
-  storeQuantity,
-  type StoreCart,
-} from "@/lib/store-cart";
+import { cartQuantity, storeQuantity, type StoreCart } from "@/lib/store-cart";
 import { StoreCommerce } from "./store-commerce";
-import { StoreProductImage } from "./store-product-image";
+import { StoreCatalog, type StoreProduct } from "./store-catalog";
+import { storePageTitle } from "@/lib/store-navigation";
 import { StoreOrders } from "./store-orders";
-import { storeButton, storeInput, storeMoney } from "./store-ui";
+import { storeButton, storeInput } from "./store-ui";
 
-export interface StoreProduct {
-  id: string;
-  name: string;
-  description: string | null;
-  imageUrl: string | null;
-  price: string;
-  currency: string;
-  availability: string;
-  baseUnit: string;
-  presentations: { id: string; name: string; price: string; factor: string }[];
-}
 interface Address {
   id: string;
   label: string;
@@ -89,6 +70,9 @@ export function StorePortal({
   );
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (info?.name) document.title = storePageTitle(info.name, section);
+  }, [info?.name, section]);
   const publicSection = [
     "ingresar",
     "registro",
@@ -211,17 +195,21 @@ export function StorePortal({
 
   return (
     <div className="store-portal min-h-screen bg-[#f6f4ef] text-stone-900 dark:bg-slate-950 dark:text-stone-100">
-      <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5">
-          <Link href={`${base}/catalogo`} className="flex items-center gap-3">
+      <header className="store-header">
+        <div className="store-header-inner">
+          <Link href={`${base}/catalogo`} className="store-brand">
             <span className="rounded-xl bg-teal-900 p-2.5 text-white">
               <ShoppingBag className="size-5" />
             </span>
-            <span className="font-display text-xl font-bold">
-              {info?.name ?? "Tu tienda"}
+            <span>
+              <span className="store-brand-caption">Tu tienda en línea</span>
+              <strong>{info?.name ?? "Tu tienda"}</strong>
             </span>
           </Link>
-          <nav className="flex flex-wrap items-center gap-4 text-sm">
+          <nav
+            className="store-navigation"
+            aria-label="Navegación de la tienda"
+          >
             <Link
               href={`${base}/catalogo`}
               aria-current={section === "catalogo" ? "page" : undefined}
@@ -272,7 +260,7 @@ export function StorePortal({
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
+      <main className="store-main">
         {message && (
           <p
             role="status"
@@ -446,166 +434,33 @@ export function StorePortal({
         ) : (
           <>
             {section === "catalogo" && (
-              <>
-                <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[.2em] text-teal-800">
-                      Selección de la tienda
-                    </p>
-                    <h1 className="mt-3 font-display text-4xl font-bold sm:text-5xl">
-                      Lo que buscas,
-                      <br />a tu alcance.
-                    </h1>
-                    <p className="mt-4 max-w-lg text-stone-600">
-                      {info?.description ??
-                        "Descubre los productos que este negocio ha preparado para ti."}
-                    </p>
-                  </div>
-                  <form
-                    className="flex w-full gap-2 sm:w-auto"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      setPage(1);
-                      setQuery(search);
-                    }}
-                  >
-                    <input
-                      aria-label="Buscar en catálogo"
-                      className={storeInput}
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Busca un producto"
-                    />
-                    <button className={storeButton}>Buscar</button>
-                  </form>
-                </div>
-                {!detailId && (
-                  <label className="mb-5 block max-w-sm text-sm">
-                    Categoría
-                    <select
-                      aria-label="Categoría del catálogo"
-                      value={categoryId}
-                      className={storeInput}
-                      onChange={(event) => {
-                        setCategoryId(event.target.value);
-                        setPage(1);
-                      }}
-                    >
-                      <option value="">Todas las categorías</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                {detailId && (
-                  <Link
-                    href={`${base}/catalogo`}
-                    className="mb-5 block text-sm text-teal-900"
-                  >
-                    ← Volver al catálogo
-                  </Link>
-                )}
-                {loading && (
-                  <p
-                    role="status"
-                    className="mb-5 flex items-center gap-2 text-sm text-stone-500"
-                  >
-                    <Loader2 className="size-4 animate-spin" />
-                    Actualizando catálogo…
-                  </p>
-                )}
-                <div
-                  className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
-                  aria-busy={loading}
-                >
-                  {products.map((product) => (
-                    <article
-                      key={product.id}
-                      className="group overflow-hidden rounded-2xl border border-stone-200 bg-white transition duration-300 motion-safe:hover:-translate-y-1 hover:border-teal-800/30 hover:shadow-xl hover:shadow-teal-950/5"
-                    >
-                      <StoreProductImage
-                        src={product.imageUrl}
-                        name={product.name}
-                      />
-                      <div className="space-y-3 p-5">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-teal-800">
-                          {product.availability === "AVAILABLE"
-                            ? "Disponible"
-                            : "Agotado"}
-                        </p>
-                        <h2 className="font-display text-xl font-bold">
-                          <Link href={`${base}/catalogo/${product.id}`}>
-                            {product.name}
-                          </Link>
-                        </h2>
-                        <p
-                          className={`${detailId ? "" : "line-clamp-2"} min-h-10 text-sm text-stone-500`}
-                        >
-                          {product.description}
-                        </p>
-                        <p className="text-xl font-semibold">
-                          {storeMoney(product.price, product.currency)}{" "}
-                          <span className="text-xs font-normal text-stone-500">
-                            / {product.baseUnit}
-                          </span>
-                        </p>
-                        <ProductPurchase
-                          product={product}
-                          slug={slug}
-                          onMessage={setMessage}
-                          cart={cart}
-                          onCartChange={setCart}
-                        />
-                      </div>
-                    </article>
-                  ))}
-                </div>
-                {!loading && !products.length && profile && (
-                  <p className="py-12 text-center text-stone-500">
-                    No hay productos publicados con esta búsqueda.
-                  </p>
-                )}
-                <div className="mt-8 flex justify-center gap-4">
-                  <button
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    Anterior
-                  </button>
-                  <span>
-                    {page} / {Math.max(1, pages)}
-                  </span>
-                  <button
-                    disabled={page >= pages}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    Siguiente
-                  </button>
-                </div>
-                {!!cart?.items.length && (
-                  <div className="sticky bottom-4 z-10 mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-teal-950 px-5 py-4 text-white shadow-xl">
-                    <div>
-                      <p className="font-semibold">
-                        {storeQuantity(cartQuantity(cart))} en tu carrito
-                      </p>
-                      <p className="text-sm text-teal-200">
-                        {cart.items.length} productos · Continúa cuando estés
-                        listo
-                      </p>
-                    </div>
-                    <Link
-                      href={`${base}/carrito`}
-                      className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 font-semibold text-teal-950"
-                    >
-                      Revisar carrito
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </div>
-                )}
-              </>
+              <StoreCatalog
+                slug={slug}
+                name={info?.name ?? "Tu tienda"}
+                description={info?.description}
+                products={products}
+                categories={categories}
+                categoryId={categoryId}
+                search={search}
+                query={query}
+                page={page}
+                pages={pages}
+                loading={loading}
+                detailId={detailId}
+                cart={cart}
+                onCartChange={setCart}
+                onMessage={setMessage}
+                onSearchChange={setSearch}
+                onSearch={() => {
+                  setPage(1);
+                  setQuery(search.trim());
+                }}
+                onCategoryChange={(id) => {
+                  setCategoryId(id);
+                  setPage(1);
+                }}
+                onPageChange={setPage}
+              />
             )}
             {section === "perfil" && profile && (
               <section className="max-w-xl rounded-3xl border border-stone-200 bg-white p-7">
@@ -718,196 +573,6 @@ export function StorePortal({
       <footer className="mx-auto max-w-6xl border-t border-stone-200 px-5 py-7 text-sm text-stone-500">
         Una cuenta de cliente para esta empresa. Tus compras, siempre a mano.
       </footer>
-    </div>
-  );
-}
-
-function ProductPurchase({
-  product,
-  slug,
-  onMessage,
-  cart,
-  onCartChange,
-}: {
-  product: StoreProduct;
-  slug: string;
-  onMessage: (text: string) => void;
-  cart: StoreCart | null;
-  onCartChange: (cart: StoreCart) => void;
-}) {
-  const [presentationId, setPresentation] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [busy, setBusy] = useState(false);
-  const [added, setAdded] = useState(false);
-  const currentLine = cart?.items.find((line) => line.productId === product.id);
-  const selectedPrice =
-    product.presentations.find((p) => p.id === presentationId)?.price ??
-    product.price;
-  const step = presentationId || product.baseUnit === "UNIT" ? 1 : 0.001;
-  const validQuantity =
-    Number(quantity) >= step &&
-    Number.isFinite(Number(quantity)) &&
-    Math.abs(Math.round(Number(quantity) * 1000) - Number(quantity) * 1000) <
-      0.000001 &&
-    (step !== 1 || Number.isInteger(Number(quantity)));
-  const differentPresentation =
-    !!currentLine && (currentLine.presentationId ?? "") !== presentationId;
-  return (
-    <div className="space-y-3">
-      <label className="block text-xs text-stone-500">
-        Presentación
-        <select
-          aria-label={`Presentación de ${product.name}`}
-          className={storeInput}
-          value={presentationId}
-          onChange={(event) => {
-            setPresentation(event.target.value);
-            setQuantity("1");
-            setAdded(false);
-          }}
-        >
-          <option value="">
-            Unidad base · {storeMoney(product.price, product.currency)}
-          </option>
-          {product.presentations.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} · {storeMoney(p.price, product.currency)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="flex flex-wrap gap-2">
-        {[1, 2, 3, 5].map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-label={`Seleccionar cantidad ${value}`}
-            onClick={() => setQuantity(String(value))}
-            className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-              Number(quantity) === value
-                ? "border-teal-800 bg-teal-50 text-teal-900"
-                : "border-stone-300 text-stone-600 hover:border-teal-700"
-            }`}
-          >
-            x{value}
-          </button>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          aria-label={`Disminuir cantidad de ${product.name}`}
-          disabled={Number(quantity) <= step || busy}
-          onClick={() => {
-            setQuantity(
-              String(Math.max(step, addStoreQuantity(quantity, -step))),
-            );
-            setAdded(false);
-          }}
-          className="rounded-xl border border-stone-300 px-2 disabled:opacity-40"
-        >
-          <Minus className="size-4" />
-        </button>
-        <input
-          aria-label={`Cantidad de ${product.name}`}
-          className={`${storeInput} min-w-0 max-w-24 text-center tabular-nums`}
-          type="number"
-          min={presentationId || product.baseUnit === "UNIT" ? 1 : 0.001}
-          step={presentationId || product.baseUnit === "UNIT" ? 1 : 0.001}
-          value={quantity}
-          onChange={(event) => {
-            setQuantity(event.target.value);
-            setAdded(false);
-          }}
-        />
-        <button
-          type="button"
-          aria-label={`Aumentar cantidad de ${product.name}`}
-          disabled={busy}
-          onClick={() => {
-            setQuantity(String(addStoreQuantity(quantity, step)));
-            setAdded(false);
-          }}
-          className="rounded-xl border border-stone-300 px-2"
-        >
-          <Plus className="size-4" />
-        </button>
-      </div>
-      <p className="flex items-center justify-between text-sm">
-        <span className="text-stone-500">Importe seleccionado</span>
-        <strong className="tabular-nums">
-          {storeMoney(
-            validQuantity ? Number(quantity) * Number(selectedPrice) : 0,
-            product.currency,
-          )}
-        </strong>
-      </p>
-      {currentLine && (
-        <p className="text-xs font-medium text-teal-800">
-          En tu carrito: {storeQuantity(currentLine.quantity)}{" "}
-          {currentLine.presentationName ?? product.baseUnit}
-        </p>
-      )}
-      {differentPresentation && (
-        <p className="text-xs text-amber-700">
-          Retira la presentación actual del carrito antes de cambiarla.
-        </p>
-      )}
-      <button
-        type="button"
-        disabled={
-          busy ||
-          !validQuantity ||
-          differentPresentation ||
-          product.availability !== "AVAILABLE"
-        }
-        className={`${storeButton} w-full`}
-        onClick={async () => {
-          setBusy(true);
-          try {
-            const cart = await storeApi<StoreCart>(slug, "cart");
-            const old = cart.items.find(
-              (line) => line.productId === product.id,
-            );
-            if (old && (old.presentationId ?? "") !== presentationId)
-              throw new Error(
-                "Retira la presentación actual del carrito antes de cambiarla.",
-              );
-            const updated = await storeApi<StoreCart>(slug, "cart/items", {
-              version: cart.version,
-              productId: product.id,
-              ...(presentationId ? { presentationId } : {}),
-              quantity: addStoreQuantity(old?.quantity ?? 0, Number(quantity)),
-            });
-            onCartChange(updated);
-            setAdded(true);
-            onMessage("Producto agregado al carrito");
-          } catch (error) {
-            onMessage(
-              error instanceof Error ? error.message : "No se pudo agregar",
-            );
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {busy ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            Agregando…
-          </>
-        ) : added ? (
-          <>
-            <Check className="size-4" />
-            Agregado
-          </>
-        ) : (
-          <>
-            <Plus className="size-4" />
-            Agregar
-          </>
-        )}
-      </button>
     </div>
   );
 }

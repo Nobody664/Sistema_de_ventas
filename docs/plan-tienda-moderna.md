@@ -11,7 +11,7 @@ Las ramas son encadenadas: cada fase nace del commit final de la anterior. Antes
 | Fase | Rama | Alcance | Estado |
 | --- | --- | --- | --- |
 | 1 | `fase/01-tienda-moderna-plan` | Diagnóstico y este documento | Completada |
-| 2 | `fase/02-tienda-moderna-catalogo` | Identidad, metadatos, tarjetas, distribución y cantidades | Pendiente |
+| 2 | `fase/02-tienda-moderna-catalogo` | Identidad, metadatos, tarjetas, distribución y cantidades | Completada; smoke integrado en fase 4 |
 | 3 | `fase/03-tienda-moderna-formularios` | Formularios, navegación, carrito, entrega y pago | Pendiente |
 | 4 | `fase/04-tienda-moderna-validacion` | Validación del servidor, pruebas de límites y aislamiento; verificación final | Pendiente |
 
@@ -55,3 +55,4 @@ Las ramas son encadenadas: cada fase nace del commit final de la anterior. Antes
 - Base: `main`, commit `0f67e00`, árbol limpio.
 - Diagnóstico: catálogo con controles repetidos; título genérico; formularios con límites HTML genéricos que no coinciden con los DTOs; el servidor ya usa Prisma, validación global, sesiones comerciales y filtros por compañía.
 - Skills utilizadas: `frontend-design`, `next-best-practices`, `nestjs-best-practices`, `ui-ux-pro-max`.
+- Fase 2: catálogo extraído a componente dedicado; tokens visuales claros/oscuros; tarjetas con imágenes y un solo selector compacto; límites de cantidad y bloqueo de doble envío; título dinámico por tienda/sección y metadatos sin datos privados. `npm run lint` de frontend aprobado.
