@@ -11,9 +11,9 @@ Las ramas son encadenadas: cada fase nace del commit final de la anterior. Antes
 | Fase | Rama | Alcance | Estado |
 | --- | --- | --- | --- |
 | 1 | `fase/01-tienda-moderna-plan` | Diagnóstico y este documento | Completada |
-| 2 | `fase/02-tienda-moderna-catalogo` | Identidad, metadatos, tarjetas, distribución y cantidades | Completada; smoke integrado en fase 4 |
-| 3 | `fase/03-tienda-moderna-formularios` | Formularios, navegación, carrito, entrega y pago | Completada; smoke integrado en fase 4 |
-| 4 | `fase/04-tienda-moderna-validacion` | Validación del servidor, pruebas de límites y aislamiento; verificación final | Pendiente |
+| 2 | `fase/02-tienda-moderna-catalogo` | Identidad, metadatos, tarjetas, distribución y cantidades | Completada |
+| 3 | `fase/03-tienda-moderna-formularios` | Formularios, navegación, carrito, entrega y pago | Completada |
+| 4 | `fase/04-tienda-moderna-validacion` | Validación del servidor, pruebas de límites y aislamiento; verificación final | Completada |
 
 ## Fase 2: catálogo e identidad
 
@@ -57,3 +57,23 @@ Las ramas son encadenadas: cada fase nace del commit final de la anterior. Antes
 - Skills utilizadas: `frontend-design`, `next-best-practices`, `nestjs-best-practices`, `ui-ux-pro-max`.
 - Fase 2: catálogo extraído a componente dedicado; tokens visuales claros/oscuros; tarjetas con imágenes y un solo selector compacto; límites de cantidad y bloqueo de doble envío; título dinámico por tienda/sección y metadatos sin datos privados. `npm run lint` de frontend aprobado.
 - Fase 3: campos accesibles con ayudas, límites y errores por campo; confirmación de contraseña y payloads de campos conocidos; selector visual de entrega/pago con radio buttons y resumen coherente; perfil requerido antes de cotizar; validación de configuración de tienda, pagos, entregas y motivos de devolución. `npm run lint` aprobado; pruebas de validación frontend añadidas.
+- Fase 4: DTOs con normalización de texto/correo, identificadores de recursos acotados, slugs compatibles con nombres largos, teléfono con al menos 7 dígitos, cantidades estrictamente numéricas y rechazo de campos adicionales. Proyección pública de métodos y direcciones; perfil filtrado por compañía, cuenta y usuario; máximo de 50 direcciones por cuenta. Prisma y SQL con parámetros vinculados, sin concatenar entradas.
+- La prueba con Prisma/PostgreSQL detectó una ordenación por un campo inexistente de direcciones; se corrigió a una ordenación estable por `isDefault` e `id` y se repitió con éxito el flujo real.
+
+## Resultado y verificaciones
+
+- Frontend: **103 pruebas aprobadas**, incluyendo confirmación de contraseña, formatos, normalización, marcado no permitido y reglas de entrega.
+- Backend: **10 pruebas comerciales aprobadas**, incluyendo HTTP real, Prisma/PostgreSQL, migraciones, reservas, identidad, pagos, retornos, webhooks y aislamiento.
+- Smoke de navegador: registro inválido bloqueado antes del POST, registro/acceso, perfil, nombre de tienda en pestaña, catálogo, cantidades, entrega con cobertura, retiro, cotización, pedido, comprobante y atención administrativa.
+- Catálogo y carrito comprobados a **320, 390, 768 y 1440 px**; revisión visual de tema claro/oscuro. Se corrigió el fondo de imágenes transparentes para conservar su legibilidad en oscuro.
+- Smoke de avatar aprobado: compresión, ruta de actualización, cabecera/perfil, recarga y eliminación.
+- Builds de producción de frontend y backend aprobados. `git diff --check` forma parte del cierre de cada fase.
+
+### Historial por fase
+
+- `aec21b6`: `docs(tienda): definir fases de modernizacion y validacion`.
+- `159cafc`: `feat(tienda): modernizar catalogo, tarjetas e identidad del negocio`.
+- `083951a`: `feat(tienda): mejorar formularios y seleccion de entrega y pago`.
+- Cierre en `fase/04-tienda-moderna-validacion`: `fix(tienda): reforzar validacion y aislamiento de datos`.
+
+Estas verificaciones cubren los casos descritos y no constituyen una auditoría de seguridad exhaustiva. Los textos legítimos con apóstrofes/Unicode se conservan; una búsqueda con caracteres SQL se trata como texto literal y no como una instrucción ejecutable.

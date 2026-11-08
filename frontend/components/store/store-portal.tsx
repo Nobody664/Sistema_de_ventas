@@ -19,7 +19,7 @@ import { storePageTitle } from "@/lib/store-navigation";
 import { validateStoreForm } from "@/lib/store-validation";
 import { StoreField } from "./store-field";
 import { StoreOrders } from "./store-orders";
-import { storeButton, storeInput } from "./store-ui";
+import { storeButton } from "./store-ui";
 
 interface Address {
   id: string;

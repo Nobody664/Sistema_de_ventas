@@ -854,6 +854,9 @@ html:not(.dark) .text-gray-400 {
   position: relative;
   background: var(--store-soft);
 }
+.store-portal .store-product-visual .bg-stone-100 {
+  background-color: #f1f2ed;
+}
 .store-product-visual > a {
   display: block;
 }

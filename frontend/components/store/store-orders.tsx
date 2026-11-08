@@ -339,6 +339,7 @@ export function StoreOrders({
                     onChange={async (event) => {
                       const file = event.target.files?.[0];
                       if (!file) return;
+                      setImage("");
                       setBusy(true);
                       try {
                         setImage(

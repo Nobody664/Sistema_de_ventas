@@ -350,6 +350,42 @@ test(
         JSON.stringify(catalog.value).includes("stockQuantity"),
         false,
       );
+      const literalSearch = await request(
+        `/store/tienda-a/catalog?search=${encodeURIComponent("' OR 1=1; --")}`,
+        "GET",
+        undefined,
+        client,
+      );
+      assert.equal(literalSearch.status, 200);
+      assert.equal(literalSearch.value.total, 0);
+      const address = await request(
+        "/store/tienda-a/me/addresses",
+        "POST",
+        {
+          label: "Casa",
+          recipient: "Ana O'Connor",
+          street: "Av. Los Álamos 123",
+          district: "150101",
+          phone: "999111222",
+          isDefault: true,
+        },
+        client,
+      );
+      assert.equal(address.status, 201);
+      assert.deepEqual(Object.keys(address.value.addresses[0]).sort(), [
+        "district",
+        "id",
+        "isDefault",
+        "label",
+        "phone",
+        "recipient",
+        "reference",
+        "street",
+      ]);
+      assert.equal(
+        JSON.stringify(address.value).includes("passwordHash"),
+        false,
+      );
       const payment = await prisma.storePaymentMethod.create({
         data: {
           companyId: company.id,
@@ -367,6 +403,18 @@ test(
           pickupAddress: "Av. Principal 123",
         },
       });
+      const methods = await request(
+        "/store/tienda-a/methods",
+        "GET",
+        undefined,
+        client,
+      );
+      assert.equal(methods.status, 200);
+      assert.equal(
+        methods.value.shipping[0].pickupAddress,
+        "Av. Principal 123",
+      );
+      assert.equal(JSON.stringify(methods.value).includes("companyId"), false);
       const makeOrder = async (methodId = payment.id) => {
         const cart = await request(
           "/store/tienda-a/cart",

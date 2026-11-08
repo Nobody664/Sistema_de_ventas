@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const bwip = require("bwip-js");
+const path = require("node:path");
 
 const methods = {
   payment: [
@@ -67,6 +68,7 @@ const product = {
   presentations: [],
 };
 let authenticated = false;
+let registrationRequests = 0;
 let profile = {
   firstName: "Ana",
   lastName: "Pérez",
@@ -126,7 +128,19 @@ function handleStore(resource, params, method, body) {
       currency: "PEN",
       checkoutEnabled: true,
     };
-  if (path === "auth/register" || path === "auth/verify")
+  if (path === "auth/register") {
+    registrationRequests++;
+    assert.equal("passwordConfirmation" in body, false);
+    assert.deepEqual(Object.keys(body).sort(), [
+      "acceptTerms",
+      "email",
+      "firstName",
+      "lastName",
+      "password",
+    ]);
+    return { message: "Revisa tu correo para completar la verificación" };
+  }
+  if (path === "auth/verify")
     return { message: "Revisa tu correo para completar la verificación" };
   if (path === "auth/login") {
     authenticated = true;
@@ -285,8 +299,17 @@ async function runStoreChecks(page, origin) {
     .fill("Buyer-Password-123");
   await page
     .getByLabel("Repite tu contraseña", { exact: true })
-    .fill("Buyer-Password-123");
+    .fill("No-coincide-123");
   await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Las contraseñas no coinciden" })
+    .waitFor();
+  assert.equal(registrationRequests, 0);
+  await page
+    .getByLabel("Repite tu contraseña", { exact: true })
+    .fill("Buyer-Password-123");
   await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "verificación" }).waitFor();
   await page.goto(`${base}/ingresar`);
@@ -299,6 +322,40 @@ async function runStoreChecks(page, origin) {
   await page
     .getByRole("heading", { name: "Café de la casa", exact: true })
     .waitFor();
+  await page.waitForFunction(
+    () => document.title === "Catálogo · Almacén de origen",
+  );
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      true,
+      `catálogo ${width}px`,
+    );
+    if (process.env.STORE_SCREENSHOT_DIR && [390, 1440].includes(width))
+      await page.screenshot({
+        path: path.join(
+          process.env.STORE_SCREENSHOT_DIR,
+          `tienda-catalogo-${width}.png`,
+        ),
+        fullPage: true,
+      });
+  }
+  if (process.env.STORE_SCREENSHOT_DIR) {
+    await page.evaluate(() => document.documentElement.classList.add("dark"));
+    await page.screenshot({
+      path: path.join(
+        process.env.STORE_SCREENSHOT_DIR,
+        "tienda-catalogo-oscuro.png",
+      ),
+      fullPage: true,
+    });
+    await page.evaluate(() =>
+      document.documentElement.classList.remove("dark"),
+    );
+  }
   await page.getByRole("link", { name: "Mi perfil", exact: true }).click();
   await page.getByLabel("DNI", { exact: true }).fill("00123456");
   await page.getByLabel("Teléfono", { exact: true }).fill("+51999111222");
@@ -364,6 +421,24 @@ async function runStoreChecks(page, origin) {
       document.querySelector('[data-testid="cart-count"]')?.textContent === "4",
   );
   await page.getByText("Av. Comercio 123", { exact: true }).waitFor();
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      true,
+      `carrito ${width}px`,
+    );
+    if (process.env.STORE_SCREENSHOT_DIR && width === 390)
+      await page.screenshot({
+        path: path.join(
+          process.env.STORE_SCREENSHOT_DIR,
+          "tienda-carrito-390.png",
+        ),
+        fullPage: true,
+      });
+  }
   assert.equal(
     await page
       .getByRole("radio", { name: "Entrega deshabilitada", exact: true })

@@ -37,6 +37,7 @@ import {
 import { StoreCatalogQuery } from "./dto/store.dto";
 import { StoreCloseoutGuard } from "./store-closeout.guard";
 import { StorePrivateInterceptor } from "./store-private.interceptor";
+import { StoreIdentifierPipe } from "./store-identifier.pipe";
 
 type ClientRequest = Request & { user: StoreActor };
 type StaffRequest = Request & { tenantId: string; user: { sub: string } };
@@ -56,7 +57,10 @@ export class StoreOrdersController {
   ) {
     return this.orders.list(req.user.companyId, query.page, req.user.accountId);
   }
-  @Get("orders/:id") get(@Req() req: ClientRequest, @Param("id") id: string) {
+  @Get("orders/:id") get(
+    @Req() req: ClientRequest,
+    @Param("id", StoreIdentifierPipe) id: string,
+  ) {
     return this.orders.get(req.user.companyId, id, req.user.accountId);
   }
   @Throttle({ default: { limit: 8, ttl: 60000 } }) @Post("orders") create(
@@ -68,7 +72,7 @@ export class StoreOrdersController {
   }
   @Post("orders/:id/cancel") cancel(
     @Req() req: ClientRequest,
-    @Param("id") id: string,
+    @Param("id", StoreIdentifierPipe) id: string,
   ) {
     return this.orders.cancel(
       req.user.companyId,
@@ -81,19 +85,22 @@ export class StoreOrdersController {
   @Post("orders/:id/payment-proofs")
   proof(
     @Req() req: ClientRequest,
-    @Param("id") id: string,
+    @Param("id", StoreIdentifierPipe) id: string,
     @Body() input: StoreProofDto,
   ) {
     return this.orders.proof(req.user, id, input.image);
   }
   @Throttle({ default: { limit: 8, ttl: 60000 } })
   @Post("orders/:id/payments")
-  payment(@Req() req: ClientRequest, @Param("id") id: string) {
+  payment(
+    @Req() req: ClientRequest,
+    @Param("id", StoreIdentifierPipe) id: string,
+  ) {
     return this.payments.start(req.user, id);
   }
   @Post("orders/:id/refund-request") refund(
     @Req() req: ClientRequest,
-    @Param("id") id: string,
+    @Param("id", StoreIdentifierPipe) id: string,
     @Body() input: StoreReasonDto,
   ) {
     return this.orders.requestRefund(req.user, id, input.reason);

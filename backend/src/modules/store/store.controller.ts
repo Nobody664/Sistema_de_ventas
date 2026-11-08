@@ -43,6 +43,7 @@ import {
 import { StoreCartService } from "./store-cart.service";
 import { StoreMethodsService } from "./store-methods.service";
 import { StorePrivateInterceptor } from "./store-private.interceptor";
+import { StoreIdentifierPipe } from "./store-identifier.pipe";
 import {
   StoreCartItemDto,
   StoreCommerceSettingsDto,
@@ -170,14 +171,14 @@ export class StoreController {
   }
   @Patch("me/addresses/:id") updateAddress(
     @Req() req: StoreRequest,
-    @Param("id") id: string,
+    @Param("id", StoreIdentifierPipe) id: string,
     @Body() input: StoreAddressDto,
   ) {
     return this.auth.address(req.user, input, id);
   }
   @Delete("me/addresses/:id") async deleteAddress(
     @Req() req: StoreRequest,
-    @Param("id") id: string,
+    @Param("id", StoreIdentifierPipe) id: string,
   ) {
     await this.prisma.customerAddress.deleteMany({
       where: {
@@ -240,7 +241,7 @@ export class StoreController {
   }
   @Get("catalog/:id") detail(
     @Param("slug") slug: string,
-    @Param("id") id: string,
+    @Param("id", StoreIdentifierPipe) id: string,
   ) {
     return this.store.detail(slug, id);
   }

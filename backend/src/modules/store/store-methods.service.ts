@@ -31,10 +31,24 @@ export class StoreMethodsService {
           select: { companyId: true },
         }));
     return {
-      payment: payment.filter(
-        (method) => admin || method.code !== "MERCADOPAGO" || gateway,
-      ),
-      shipping,
+      payment: payment
+        .filter((method) => admin || method.code !== "MERCADOPAGO" || gateway)
+        .map((method) => ({
+          id: method.id,
+          code: method.code,
+          label: method.label,
+          instructions: method.instructions,
+          enabled: method.enabled,
+        })),
+      shipping: shipping.map((method) => ({
+        id: method.id,
+        kind: method.kind,
+        label: method.label,
+        fee: method.fee,
+        districts: method.districts,
+        pickupAddress: method.pickupAddress,
+        enabled: method.enabled,
+      })),
     };
   }
   async settings(companyId: string, input: StoreCommerceSettingsDto) {

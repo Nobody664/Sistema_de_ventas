@@ -1,5 +1,6 @@
 import {
   ForbiddenException,
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -7,6 +8,7 @@ import { PrismaService } from "@/database/prisma/prisma.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import { StoreCatalogQuery, StoreSettingsDto } from "./dto/store.dto";
 import { StoreStockService } from "./store-stock.service";
+import { STORE_SLUG_PATTERN } from "./dto/store-validation";
 
 @Injectable()
 export class StoreService {
@@ -16,6 +18,8 @@ export class StoreService {
     private readonly stock: StoreStockService,
   ) {}
   async company(slug: string, commerce = true) {
+    if (!STORE_SLUG_PATTERN.test(slug))
+      throw new BadRequestException("Identificador de tienda inválido");
     const company = await this.prisma.company.findUnique({
       where: { slug },
       include: { storefront: true },

@@ -332,7 +332,11 @@ export class StoreAuthService {
   }
   async me(actor: StoreActor) {
     const account = await this.prisma.customerAccount.findUniqueOrThrow({
-      where: { id: actor.accountId },
+      where: {
+        id: actor.accountId,
+        companyId: actor.companyId,
+        userId: actor.sub,
+      },
       select: {
         status: true,
         customer: {
@@ -344,7 +348,20 @@ export class StoreAuthService {
           },
         },
         user: { select: { email: true } },
-        addresses: true,
+        addresses: {
+          select: {
+            id: true,
+            label: true,
+            recipient: true,
+            phone: true,
+            street: true,
+            district: true,
+            reference: true,
+            isDefault: true,
+          },
+          orderBy: [{ isDefault: "desc" }, { id: "desc" }],
+          take: 50,
+        },
       },
     });
     return {
@@ -378,7 +395,15 @@ export class StoreAuthService {
         });
         if (!updated.count)
           throw new BadRequestException("Dirección no encontrada");
-      } else
+      } else {
+        if (
+          (await tx.customerAddress.count({
+            where: { companyId: actor.companyId, accountId: actor.accountId },
+          })) >= 50
+        )
+          throw new BadRequestException(
+            "La cuenta admite hasta 50 direcciones. Elimina una antes de agregar otra.",
+          );
         await tx.customerAddress.create({
           data: {
             ...input,
@@ -386,6 +411,7 @@ export class StoreAuthService {
             accountId: actor.accountId,
           },
         });
+      }
     });
     return this.me(actor);
   }

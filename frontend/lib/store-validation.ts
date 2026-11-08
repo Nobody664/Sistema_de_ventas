@@ -24,8 +24,8 @@ const phone = z
   .string()
   .trim()
   .regex(
-    /^\+?[0-9 ()-]{7,20}$/,
-    "Escribe un teléfono válido de 7 a 20 caracteres",
+    /^(?=(?:\D*\d){7,})\+?[0-9 ()-]{7,20}$/,
+    "Escribe un teléfono válido con al menos 7 dígitos",
   );
 const token = z
   .string()
@@ -81,9 +81,24 @@ export const storeFormSchemas = {
 };
 
 export const storeReasonSchema = z.object({ reason: plain(5, 500, "Motivo") });
+export const storeReferenceSchema = plain(0, 240, "Referencia");
 const boundedNumber = (min: number, max: number) =>
   z.number().finite().min(min).max(max);
 export const storeAdminSchemas = {
+  integration: z.object({
+    accessToken: z
+      .string()
+      .min(10)
+      .max(1000)
+      .regex(/^[^\s\u0000-\u001f\u007f]+$/, "Token de acceso inválido"),
+    webhookSecret: z
+      .string()
+      .min(10)
+      .max(500)
+      .regex(/^[^\s\u0000-\u001f\u007f]+$/, "Secreto de webhook inválido"),
+    liveMode: z.boolean(),
+    enabled: z.boolean(),
+  }),
   settings: z.object({
     title: plain(0, 100, "Nombre comercial"),
     description: z

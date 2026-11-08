@@ -1,6 +1,10 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import {
+  storeReferenceSchema,
+  validateStoreAdminForm,
+} from "@/lib/store-validation";
 import { OrderSummary, OrderView, orderLabels } from "./store-orders";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
 
@@ -51,7 +55,17 @@ export function StoreAdminOrders() {
     }
   };
   const action = async (value: string) => {
-    if (!selected) return;
+    if (!selected || busy) return;
+    const validated = storeReferenceSchema.safeParse(reference);
+    if (
+      !validated.success ||
+      (value === "REFUND" && reference.trim().length < 5)
+    ) {
+      setMessage(
+        "Indica una referencia válida; las devoluciones requieren al menos 5 caracteres.",
+      );
+      return;
+    }
     setBusy(true);
     try {
       const result = await apiFetch<OrderView>(
@@ -60,11 +74,11 @@ export function StoreAdminOrders() {
           method: value === "REFUND" ? "POST" : "PATCH",
           body: JSON.stringify(
             value === "REFUND"
-              ? { reference }
+              ? { reference: validated.data }
               : {
                   action: value,
                   version: selected.version,
-                  ...(reference ? { reference } : {}),
+                  ...(validated.data ? { reference: validated.data } : {}),
                 },
           ),
         },
@@ -218,21 +232,30 @@ export function StoreAdminOrders() {
           </p>
         )}
         <form
-          className="mt-5 space-y-3"
+          className="store-form mt-5"
+          aria-busy={busy}
           onSubmit={async (event) => {
             event.preventDefault();
             const form = event.currentTarget;
             const data = new FormData(form);
+            if (busy) return;
+            const validated = validateStoreAdminForm("integration", {
+              accessToken: data.get("accessToken"),
+              webhookSecret: data.get("webhookSecret"),
+              liveMode: data.get("liveMode") === "on",
+              enabled: data.get("enabled") === "on",
+            });
+            if (Object.keys(validated.errors).length) {
+              setMessage(
+                "Revisa el token de acceso y el secreto de webhook. No incluyas espacios ni caracteres de control.",
+              );
+              return;
+            }
             setBusy(true);
             try {
               await apiFetch("/store-admin/integration", {
                 method: "POST",
-                body: JSON.stringify({
-                  accessToken: data.get("accessToken"),
-                  webhookSecret: data.get("webhookSecret"),
-                  liveMode: data.get("liveMode") === "on",
-                  enabled: data.get("enabled") === "on",
-                }),
+                body: JSON.stringify(validated.data),
               });
               form.reset();
               await load();
@@ -255,6 +278,9 @@ export function StoreAdminOrders() {
             name="accessToken"
             placeholder="Access token del comercio"
             autoComplete="new-password"
+            minLength={10}
+            maxLength={1000}
+            disabled={busy}
             required
           />
           <input
@@ -264,6 +290,9 @@ export function StoreAdminOrders() {
             name="webhookSecret"
             placeholder="Secreto del webhook"
             autoComplete="new-password"
+            minLength={10}
+            maxLength={500}
+            disabled={busy}
             required
           />
           <label className="flex gap-2">
