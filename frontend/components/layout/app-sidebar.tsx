@@ -60,7 +60,7 @@ const mainItems: NavItem[] = [
 const companyItems: NavItem[] = [
   {
     label: "Tienda virtual",
-    href: "/store",
+    href: "/comercio",
     icon: ShoppingCart,
     roles: ["COMPANY_ADMIN"],
   },

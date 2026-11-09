@@ -24,6 +24,7 @@ import { StoreService } from "./store.service";
 import { StoreStockService } from "./store-stock.service";
 import { StoreCryptoService, storeHash } from "./store-crypto.service";
 import { StoreMailService } from "./store-mail.service";
+import { StoreAdminPolicyService } from "./admin/store-admin-policy.service";
 import { storeSnapshotSchema } from "./store-pricing";
 import {
   StoreCreateOrderDto,
@@ -41,6 +42,7 @@ export class StoreOrdersService {
     private readonly mail: StoreMailService,
     private readonly kardex: KardexService,
     private readonly audit: AuditService,
+    private readonly policy: StoreAdminPolicyService,
   ) {}
 
   async lock(tx: Prisma.TransactionClient, companyId: string, id: string) {
@@ -335,7 +337,12 @@ export class StoreOrdersService {
       payment: order.attempt,
       refund: order.refund,
       refundRequestedAt: order.refundRequestedAt,
-      ...(accountId ? {} : { refundReason: order.refundReason }),
+      ...(accountId
+        ? {}
+        : {
+            refundReason: order.refundReason,
+            allowedActions: this.policy.allowedActions(order),
+          }),
     };
   }
   async list(companyId: string, page = 1, accountId?: string) {

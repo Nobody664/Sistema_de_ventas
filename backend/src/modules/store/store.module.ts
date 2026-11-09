@@ -22,6 +22,11 @@ import {
 } from "./store-orders.controller";
 import { KardexModule } from "@/modules/kardex/kardex.module";
 import { StorePrivateInterceptor } from "./store-private.interceptor";
+import { StoreAdminWorkspaceController } from "./admin/store-admin.controller";
+import { StoreAdminContextService } from "./admin/store-admin-context.service";
+import { StoreAdminDashboardService } from "./admin/store-admin-dashboard.service";
+import { StoreAdminPolicyService } from "./admin/store-admin-policy.service";
+import { StoreAdminQueriesService } from "./admin/store-admin-queries.service";
 
 @Global()
 @Module({
@@ -38,6 +43,7 @@ import { StorePrivateInterceptor } from "./store-private.interceptor";
     StoreOrdersController,
     StoreOrdersAdminController,
     StoreWebhookController,
+    StoreAdminWorkspaceController,
   ],
   providers: [
     StorePrivateInterceptor,
@@ -52,6 +58,10 @@ import { StorePrivateInterceptor } from "./store-private.interceptor";
     StoreCryptoService,
     StoreAuthService,
     StoreMailService,
+    StoreAdminPolicyService,
+    StoreAdminContextService,
+    StoreAdminDashboardService,
+    StoreAdminQueriesService,
   ],
   exports: [StoreAuthGuard],
 })

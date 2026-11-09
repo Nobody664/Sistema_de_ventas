@@ -2,7 +2,7 @@
 
 Complementa la [arquitectura](README.md), el [modelo de datos](modelo-datos.md) y el [diseño UI/UX](diseno-ui-ux.md).
 
-**Esta entrega es documental.** Fase 0 completada; las demás fases son trabajo propuesto. No se han creado las rutas `/comercio`, las tablas nuevas ni las ramas de implementación.
+La fase 0 contiene el diseño original. La base de las fases 1 y 2 está implementada; ver [alcance y evidencia](implementacion-fases-1-2.md). Las fases posteriores y la medición de consultas en un dataset representativo siguen propuestas.
 
 ## 1. Secuencia y alcance
 
@@ -22,8 +22,8 @@ El MVP se puede validar al terminar las fases 1–4. Las extensiones de la fase 
 | Fase | Rama sugerida para implementación                  | Entrega                                              | Estado      |
 | ---- | -------------------------------------------------- | ---------------------------------------------------- | ----------- |
 | 0    | No requiere rama de producto                       | Diagnóstico, arquitectura, datos, UX y prototipo     | Documentada |
-| 1    | `arquitectura/01-contexto-consultas-tienda`        | Contratos, contexto autorizado y lecturas operativas | Propuesta   |
-| 2    | `arquitectura/02-espacio-administrativo-tienda`    | Layout propio, rutas y compatibilidad                | Propuesta   |
+| 1    | `arquitectura/01-contexto-consultas-tienda`        | Contratos, contexto autorizado y lecturas operativas | Base implementada; medición pendiente |
+| 2    | `arquitectura/02-espacio-administrativo-tienda`    | Layout propio, rutas y compatibilidad                | Implementada |
 | 3    | `arquitectura/03-operacion-pedidos-pagos-entregas` | Bandejas, detalle, comandos y actualización en vivo  | Propuesta   |
 | 4    | `arquitectura/04-catalogo-clientes-configuracion`  | Pantallas de gestión separadas y formularios         | Propuesta   |
 | 5    | `arquitectura/05-apariencia-notas-vistas`          | Datos aditivos, editor y colaboración                | Propuesta   |

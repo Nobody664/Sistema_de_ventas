@@ -959,6 +959,200 @@ test(
         ).status,
         404,
       );
+      await t.test(
+        "contexto administrativo, métricas completas y cursor conservan identidad y fechas reales",
+        async () => {
+          const context = await request(
+            "/store-admin/context?companyId=otra-empresa",
+            "GET",
+            undefined,
+            staff,
+          );
+          assert.equal(context.status, 200);
+          assert.equal(
+            (context.value.company as { id: string }).id,
+            company.id,
+          );
+          assert.equal(context.value.mode, "MANAGE");
+          assert.equal(
+            (await request("/store-admin/context", "GET", undefined, client))
+              .status,
+            401,
+          );
+          assert.equal(
+            (
+              await request(
+                "/store-admin/context",
+                "GET",
+                undefined,
+                platformCookie,
+              )
+            ).status,
+            403,
+          );
+
+          await db.query(
+            `
+          INSERT INTO store_quotes(id, company_id, account_id, cart_version, settings_version, snapshot, expires_at)
+          SELECT 'admin-quote-' || n, company_id, account_id, 1, 1, snapshot, '2026-01-04'
+          FROM store_orders CROSS JOIN generate_series(1,35) n WHERE id = $1;
+          `,
+            [review.id],
+          );
+          await db.query(
+            `
+          INSERT INTO store_orders(id, company_id, account_id, quote_id, number, idempotency_key, fingerprint, status, payment_status, snapshot, total_amount, expires_at, created_at)
+          SELECT 'admin-order-' || n, company_id, account_id, 'admin-quote-' || n, 'ADMIN-FIXTURE-' || n,
+            'admin-key-' || n, 'fixture', 'REVIEW_REQUIRED', 'UNDER_REVIEW', snapshot, 10, '2026-01-04',
+            CASE WHEN n = 1 THEN timestamp '2026-01-01 04:59:00'
+                 WHEN n = 34 THEN timestamp '2026-01-02 04:59:00'
+                 WHEN n = 35 THEN timestamp '2026-01-03 04:59:00'
+                 ELSE timestamp '2026-01-02 05:00:00' END
+          FROM store_orders CROSS JOIN generate_series(1,35) n WHERE id = $1;
+          `,
+            [review.id],
+          );
+          const fixtureSale = await prisma!.sale.create({
+            data: {
+              companyId: company.id,
+              channel: "ONLINE",
+              status: "COMPLETED",
+              saleNumber: "ADMIN-FIXTURE-SALE",
+              subtotal: 10,
+              taxAmount: 0,
+              totalAmount: 10,
+              paidAmount: 10,
+              changeAmount: 0,
+              createdAt: new Date("2026-01-02T05:00:00Z"),
+            },
+          });
+          await prisma!.storeOrder.update({
+            where: { id: "admin-order-1" },
+            data: { saleId: fixtureSale.id },
+          });
+          const refundedSale = await prisma!.sale.create({
+            data: {
+              companyId: company.id,
+              channel: "ONLINE",
+              status: "REFUNDED",
+              saleNumber: "ADMIN-FIXTURE-REFUND",
+              subtotal: 99,
+              taxAmount: 0,
+              totalAmount: 99,
+              paidAmount: 99,
+              changeAmount: 0,
+              createdAt: new Date("2026-01-02T05:00:00Z"),
+            },
+          });
+          await prisma!.storeOrder.update({
+            where: { id: "admin-order-2" },
+            data: { saleId: refundedSale.id },
+          });
+          const dashboard = await request(
+            "/store-admin/dashboard?from=2026-01-02&to=2026-01-03",
+            "GET",
+            undefined,
+            staff,
+          );
+          assert.equal(dashboard.status, 200, JSON.stringify(dashboard.value));
+          const metrics = dashboard.value.metrics as {
+            ordersCreated: { value: number };
+            onlineSales: { count: number; amount: string };
+          };
+          assert.equal(metrics.ordersCreated.value, 33);
+          assert.equal(metrics.onlineSales.count, 1);
+          assert.equal(Number(metrics.onlineSales.amount), 10);
+          assert.deepEqual(dashboard.value.trend, [
+            {
+              date: "2026-01-02",
+              ordersCreated: 33,
+              onlineSalesCount: 1,
+              onlineSalesAmount: "10.00",
+            },
+          ]);
+
+          const first = await request(
+            "/store-admin/orders?q=ADMIN-FIXTURE&limit=30",
+            "GET",
+            undefined,
+            staff,
+          );
+          assert.equal(first.status, 200);
+          assert.equal((first.value.data as unknown[]).length, 30);
+          assert.equal((first.value.totals as { matched: number }).matched, 35);
+          const cursor = (first.value.pageInfo as { nextCursor: string })
+            .nextCursor;
+          const next = await request(
+            `/store-admin/orders?q=ADMIN-FIXTURE&limit=30&cursor=${cursor}`,
+            "GET",
+            undefined,
+            staff,
+          );
+          assert.equal((next.value.data as unknown[]).length, 5);
+          assert.equal((next.value.totals as { matched: number }).matched, 35);
+          assert.ok(
+            Array.isArray(
+              (
+                await request(
+                  "/store-admin/orders?page=1",
+                  "GET",
+                  undefined,
+                  staff,
+                )
+              ).value,
+            ),
+          );
+          assert.equal(
+            (
+              await request(
+                "/store-admin/orders?limit=101",
+                "GET",
+                undefined,
+                staff,
+              )
+            ).status,
+            400,
+          );
+
+          await prisma!.company.update({
+            where: { id: company.id },
+            data: { status: "SUSPENDED" },
+          });
+          assert.equal(
+            (await request("/store-admin/context", "GET", undefined, staff))
+              .value.mode,
+            "CLOSEOUT",
+          );
+          assert.equal(
+            (await request("/store-admin/dashboard", "GET", undefined, staff))
+              .status,
+            403,
+          );
+          assert.equal(
+            (
+              await request(
+                "/store-admin/orders?page=1",
+                "GET",
+                undefined,
+                staff,
+              )
+            ).status,
+            200,
+          );
+          await prisma!.membership.update({
+            where: {
+              userId_companyId: { userId: admin.id, companyId: company.id },
+            },
+            data: { isActive: false },
+          });
+          assert.ok(
+            [401, 403].includes(
+              (await request("/store-admin/context", "GET", undefined, staff))
+                .status,
+            ),
+          );
+        },
+      );
     } finally {
       if (app) await app.close();
       if (prisma) await prisma.$disconnect();

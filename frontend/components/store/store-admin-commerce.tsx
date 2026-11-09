@@ -4,8 +4,14 @@ import { apiFetch } from "@/lib/api";
 import { Methods } from "./store-commerce";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
 import { validateStoreAdminForm } from "@/lib/store-validation";
+import { useQueryClient } from "@tanstack/react-query";
 
-export function StoreAdminCommerce() {
+export function StoreAdminCommerce({
+  section,
+}: {
+  section?: "pagos" | "entregas" | "reglas";
+}) {
+  const queryClient = useQueryClient();
   const [methods, setMethods] = useState<Methods>({
     payment: [],
     shipping: [],
@@ -21,15 +27,17 @@ export function StoreAdminCommerce() {
   const [shippingKind, setShippingKind] = useState("PICKUP");
   const load = async () => {
     try {
-      setMethods(await apiFetch<Methods>("/store-admin/methods"));
-      setSettings(await apiFetch<typeof settings>("/store-admin/settings"));
+      if (section !== "reglas")
+        setMethods(await apiFetch<Methods>("/store-admin/methods"));
+      if (!section || section === "reglas")
+        setSettings(await apiFetch<typeof settings>("/store-admin/settings"));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo cargar");
     }
   };
   useEffect(() => {
     void load();
-  }, []);
+  }, [section]);
   const save = async (
     event: FormEvent<HTMLFormElement>,
     path: string,
@@ -56,6 +64,7 @@ export function StoreAdminCommerce() {
       });
       setMessage("Cambios guardados");
       await load();
+      await queryClient.invalidateQueries({ queryKey: ["store-admin"] });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo guardar");
     } finally {
@@ -64,11 +73,13 @@ export function StoreAdminCommerce() {
   };
   return (
     <section className="space-y-6">
-      <h2 className="font-display text-2xl font-bold">
-        Compra, pago y entrega
-      </h2>
+      {!section && (
+        <h2 className="font-display text-2xl font-bold">
+          Compra, pago y entrega
+        </h2>
+      )}
       {message && <p role="status">{message}</p>}
-      {settings && (
+      {settings && (!section || section === "reglas") && (
         <form
           key={JSON.stringify(settings)}
           className="store-form store-form-panel"
@@ -133,182 +144,196 @@ export function StoreAdminCommerce() {
           </button>
         </form>
       )}
-      <div className="grid gap-5 xl:grid-cols-2">
-        <form
-          className="store-form store-form-panel"
-          aria-busy={busy}
-          onSubmit={(event) =>
-            void save(event, "payment-methods", (d) => ({
-              ...d,
-              enabled: d.enabled === "on",
-            }))
-          }
-        >
-          <h3 className="font-semibold">Método de pago</h3>
-          <select aria-label="Tipo de pago" className={storeInput} name="code">
-            {["TRANSFER", "YAPE", "PLIN", "CASH_ON_PICKUP", "MERCADOPAGO"].map(
-              (code) => (
-                <option key={code}>{code}</option>
-              ),
-            )}
-          </select>
-          <input
-            aria-label="Nombre del pago"
-            name="label"
-            className={storeInput}
-            placeholder="Nombre del método"
-            minLength={2}
-            maxLength={80}
-            required
-          />
-          <textarea
-            aria-label="Instrucciones de pago"
-            name="instructions"
-            className={storeInput}
-            placeholder="Cuenta, teléfono o instrucciones públicas"
-            maxLength={2000}
-            required
-          />
-          <label className="flex gap-2">
-            <input type="checkbox" name="enabled" defaultChecked />
-            Habilitado
-          </label>
-          <button disabled={busy} className={storeButton}>
-            Guardar método
-          </button>
-          <p className="text-xs text-stone-500">
-            Guardar el mismo tipo actualiza sus instrucciones. Mercado Pago
-            además requiere configurar la integración.
-          </p>
-        </form>
-        <form
-          className="store-form store-form-panel"
-          aria-busy={busy}
-          onSubmit={(event) =>
-            void save(event, "shipping-methods", (d) => ({
-              kind: d.kind,
-              label: d.label,
-              fee: Number(d.fee),
-              districts: String(d.districts ?? "")
-                .split(",")
-                .map((x) => x.trim())
-                .filter(Boolean),
-              pickupAddress: d.pickupAddress || undefined,
-              enabled: d.enabled === "on",
-            }))
-          }
-        >
-          <h3 className="font-semibold">Método de entrega</h3>
-          <select
-            name="kind"
-            aria-label="Tipo de entrega"
-            className={storeInput}
-            value={shippingKind}
-            onChange={(event) => setShippingKind(event.target.value)}
+      <div className={section ? "grid gap-5" : "grid gap-5 xl:grid-cols-2"}>
+        {(!section || section === "pagos") && (
+          <form
+            className="store-form store-form-panel"
+            aria-busy={busy}
+            onSubmit={(event) =>
+              void save(event, "payment-methods", (d) => ({
+                ...d,
+                enabled: d.enabled === "on",
+              }))
+            }
           >
-            <option value="PICKUP">Retiro</option>
-            <option value="DELIVERY">Entrega local</option>
-          </select>
-          <input
-            aria-label="Nombre del envío"
-            name="label"
-            className={storeInput}
-            placeholder="Nombre"
-            minLength={2}
-            maxLength={80}
-            required
-          />
-          <input
-            aria-label="Tarifa de envío"
-            name="fee"
-            className={storeInput}
-            type="number"
-            min={0}
-            max={100000}
-            step="0.01"
-            defaultValue={0}
-            required
-          />
-          <input
-            aria-label="Distritos de cobertura"
-            name="districts"
-            className={storeInput}
-            placeholder="Ubigeos separados por coma"
-            disabled={shippingKind !== "DELIVERY"}
-            required={shippingKind === "DELIVERY"}
-            maxLength={1399}
-          />
-          <input
-            aria-label="Dirección de retiro"
-            name="pickupAddress"
-            className={storeInput}
-            placeholder="Dirección de retiro"
-            disabled={shippingKind !== "PICKUP"}
-            required={shippingKind === "PICKUP"}
-            maxLength={240}
-          />
-          <label className="flex gap-2">
-            <input type="checkbox" name="enabled" defaultChecked />
-            Habilitado
-          </label>
-          <button disabled={busy} className={storeButton}>
-            Agregar entrega
-          </button>
-        </form>
+            <h3 className="font-semibold">Método de pago</h3>
+            <select
+              aria-label="Tipo de pago"
+              className={storeInput}
+              name="code"
+            >
+              {[
+                "TRANSFER",
+                "YAPE",
+                "PLIN",
+                "CASH_ON_PICKUP",
+                "MERCADOPAGO",
+              ].map((code) => (
+                <option key={code}>{code}</option>
+              ))}
+            </select>
+            <input
+              aria-label="Nombre del pago"
+              name="label"
+              className={storeInput}
+              placeholder="Nombre del método"
+              minLength={2}
+              maxLength={80}
+              required
+            />
+            <textarea
+              aria-label="Instrucciones de pago"
+              name="instructions"
+              className={storeInput}
+              placeholder="Cuenta, teléfono o instrucciones públicas"
+              maxLength={2000}
+              required
+            />
+            <label className="flex gap-2">
+              <input type="checkbox" name="enabled" defaultChecked />
+              Habilitado
+            </label>
+            <button disabled={busy} className={storeButton}>
+              Guardar método
+            </button>
+            <p className="text-xs text-stone-500">
+              Guardar el mismo tipo actualiza sus instrucciones. Mercado Pago
+              además requiere configurar la integración.
+            </p>
+          </form>
+        )}
+        {(!section || section === "entregas") && (
+          <form
+            className="store-form store-form-panel"
+            aria-busy={busy}
+            onSubmit={(event) =>
+              void save(event, "shipping-methods", (d) => ({
+                kind: d.kind,
+                label: d.label,
+                fee: Number(d.fee),
+                districts: String(d.districts ?? "")
+                  .split(",")
+                  .map((x) => x.trim())
+                  .filter(Boolean),
+                pickupAddress: d.pickupAddress || undefined,
+                enabled: d.enabled === "on",
+              }))
+            }
+          >
+            <h3 className="font-semibold">Método de entrega</h3>
+            <select
+              name="kind"
+              aria-label="Tipo de entrega"
+              className={storeInput}
+              value={shippingKind}
+              onChange={(event) => setShippingKind(event.target.value)}
+            >
+              <option value="PICKUP">Retiro</option>
+              <option value="DELIVERY">Entrega local</option>
+            </select>
+            <input
+              aria-label="Nombre del envío"
+              name="label"
+              className={storeInput}
+              placeholder="Nombre"
+              minLength={2}
+              maxLength={80}
+              required
+            />
+            <input
+              aria-label="Tarifa de envío"
+              name="fee"
+              className={storeInput}
+              type="number"
+              min={0}
+              max={100000}
+              step="0.01"
+              defaultValue={0}
+              required
+            />
+            <input
+              aria-label="Distritos de cobertura"
+              name="districts"
+              className={storeInput}
+              placeholder="Ubigeos separados por coma"
+              disabled={shippingKind !== "DELIVERY"}
+              required={shippingKind === "DELIVERY"}
+              maxLength={1399}
+            />
+            <input
+              aria-label="Dirección de retiro"
+              name="pickupAddress"
+              className={storeInput}
+              placeholder="Dirección de retiro"
+              disabled={shippingKind !== "PICKUP"}
+              required={shippingKind === "PICKUP"}
+              maxLength={240}
+            />
+            <label className="flex gap-2">
+              <input type="checkbox" name="enabled" defaultChecked />
+              Habilitado
+            </label>
+            <button disabled={busy} className={storeButton}>
+              Agregar entrega
+            </button>
+          </form>
+        )}
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        {methods.payment.map((m) => (
-          <article key={m.id} className="rounded-xl border bg-white p-4">
-            <strong>{m.label}</strong>
-            <p className="text-sm">{m.instructions}</p>
-            <button
-              className="mt-2 text-sm text-teal-900"
-              onClick={() =>
-                void apiFetch("/store-admin/payment-methods", {
-                  method: "POST",
-                  body: JSON.stringify({
-                    code: m.code,
-                    label: m.label,
-                    instructions: m.instructions,
-                    enabled: !m.enabled,
-                  }),
-                })
-                  .then(load)
-                  .catch((e: Error) => setMessage(e.message))
-              }
-            >
-              {m.enabled ? "Deshabilitar" : "Habilitar"}
-            </button>
-          </article>
-        ))}
-        {methods.shipping.map((m) => (
-          <article key={m.id} className="rounded-xl border bg-white p-4">
-            <strong>{m.label}</strong>
-            <p>
-              {storeMoney(m.fee)} · {m.kind}
-            </p>
-            <button
-              className="mt-2 text-sm text-teal-900"
-              onClick={() =>
-                void apiFetch(`/store-admin/shipping-methods/${m.id}`, {
-                  method: "PATCH",
-                  body: JSON.stringify({
-                    kind: m.kind,
-                    label: m.label,
-                    fee: Number(m.fee),
-                    districts: m.districts,
-                    pickupAddress: m.pickupAddress ?? undefined,
-                    enabled: !m.enabled,
-                  }),
-                })
-                  .then(load)
-                  .catch((e: Error) => setMessage(e.message))
-              }
-            >
-              {m.enabled ? "Deshabilitar" : "Habilitar"}
-            </button>
-          </article>
-        ))}
+        {(!section || section === "pagos") &&
+          methods.payment.map((m) => (
+            <article key={m.id} className="rounded-xl border bg-white p-4">
+              <strong>{m.label}</strong>
+              <p className="text-sm">{m.instructions}</p>
+              <button
+                className="mt-2 text-sm text-teal-900"
+                onClick={() =>
+                  void apiFetch("/store-admin/payment-methods", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      code: m.code,
+                      label: m.label,
+                      instructions: m.instructions,
+                      enabled: !m.enabled,
+                    }),
+                  })
+                    .then(load)
+                    .catch((e: Error) => setMessage(e.message))
+                }
+              >
+                {m.enabled ? "Deshabilitar" : "Habilitar"}
+              </button>
+            </article>
+          ))}
+        {(!section || section === "entregas") &&
+          methods.shipping.map((m) => (
+            <article key={m.id} className="rounded-xl border bg-white p-4">
+              <strong>{m.label}</strong>
+              <p>
+                {storeMoney(m.fee)} · {m.kind}
+              </p>
+              <button
+                className="mt-2 text-sm text-teal-900"
+                onClick={() =>
+                  void apiFetch(`/store-admin/shipping-methods/${m.id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                      kind: m.kind,
+                      label: m.label,
+                      fee: Number(m.fee),
+                      districts: m.districts,
+                      pickupAddress: m.pickupAddress ?? undefined,
+                      enabled: !m.enabled,
+                    }),
+                  })
+                    .then(load)
+                    .catch((e: Error) => setMessage(e.message))
+                }
+              >
+                {m.enabled ? "Deshabilitar" : "Habilitar"}
+              </button>
+            </article>
+          ))}
       </div>
     </section>
   );

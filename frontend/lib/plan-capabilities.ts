@@ -98,6 +98,8 @@ const ROUTE_REQUIREMENTS: Array<{
   prefix: string;
   requirement: RouteRequirement;
 }> = [
+  { prefix: "/comercio/atencion", requirement: {} },
+  { prefix: "/comercio", requirement: { module: "storefront" } },
   { prefix: "/expired-batches", requirement: { module: "inventory" } },
   {
     prefix: "/inventory/kardex",

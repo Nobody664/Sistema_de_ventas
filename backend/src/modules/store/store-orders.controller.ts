@@ -35,6 +35,11 @@ import {
   StoreRefundDto,
 } from "./dto/store-order.dto";
 import { StoreCatalogQuery } from "./dto/store.dto";
+import {
+  StoreAdminOrdersQueryDto,
+  usesStoreAdminOrderFilters,
+} from "./admin/dto/store-admin.dto";
+import { StoreAdminQueriesService } from "./admin/store-admin-queries.service";
 import { StoreCloseoutGuard } from "./store-closeout.guard";
 import { StorePrivateInterceptor } from "./store-private.interceptor";
 import { StoreIdentifierPipe } from "./store-identifier.pipe";
@@ -143,12 +148,15 @@ export class StoreOrdersAdminController {
     private readonly payments: StorePaymentsService,
     private readonly prisma: PrismaService,
     private readonly crypto: StoreCryptoService,
+    private readonly adminOrders: StoreAdminQueriesService,
   ) {}
   @Get("orders") list(
     @Req() req: StaffRequest,
-    @Query() query: StoreCatalogQuery,
+    @Query() query: StoreAdminOrdersQueryDto,
   ) {
-    return this.orders.list(req.tenantId, query.page);
+    if (usesStoreAdminOrderFilters(query))
+      return this.adminOrders.list(req.tenantId, query);
+    return this.orders.list(req.tenantId, query.page ?? 1);
   }
   @Get("orders/:id") get(@Req() req: StaffRequest, @Param("id") id: string) {
     return this.orders.get(req.tenantId, id);

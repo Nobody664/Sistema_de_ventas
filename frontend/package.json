@@ -17,6 +17,7 @@
     "test:browser:auth": "node scripts/products-purchases-smoke.cjs --auth-only",
     "test:browser:scanner": "node scripts/products-purchases-smoke.cjs --scanner-only",
     "test:browser:settings": "node scripts/settings-smoke.cjs",
+    "test:browser:commerce": "node scripts/commerce-admin-smoke.cjs",
     "format": "prettier --check \"**/*.{ts,tsx,css}\"",
     "analyze": "ANALYZE=true next build",
     "analyze:browser": "ANALYZE=browser next build"

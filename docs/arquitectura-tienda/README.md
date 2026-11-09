@@ -2,7 +2,7 @@
 
 **Fecha:** 8 de noviembre de 2026. **Base analizada:** `main`, commit `6d81562`.
 
-**Estado:** propuesta de arquitectura y diseño; no implementa rutas, migraciones ni cambios de producción.
+**Estado:** diseño original de referencia. La base de contexto y espacio administrativo ya está implementada; consultar [alcance y verificación de las fases 1–2](implementacion-fases-1-2.md) para distinguir funciones entregadas de propuestas posteriores.
 
 ## 1. Resultado que se busca
 

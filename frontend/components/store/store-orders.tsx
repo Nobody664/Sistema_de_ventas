@@ -63,6 +63,7 @@ export interface OrderView {
   refund?: { status: string; restockedAt: string | null } | null;
   refundRequestedAt?: string | null;
   refundReason?: string;
+  allowedActions?: string[];
 }
 
 export function OrderSummary({ order }: { order: OrderView }) {
