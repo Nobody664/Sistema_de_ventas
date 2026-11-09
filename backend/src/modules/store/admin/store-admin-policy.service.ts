@@ -29,6 +29,12 @@ export interface StoreAdminCapabilities {
 }
 
 export interface StoreAdminContext {
+  experience?: {
+    enabled: boolean;
+    eligible: boolean;
+    reason: string | null;
+    telemetry?: boolean;
+  };
   extensions?: { appearance: boolean; notes: boolean; savedViews: boolean };
   mode: StoreAdminMode;
   company: {

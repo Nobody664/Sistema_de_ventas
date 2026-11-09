@@ -24,6 +24,7 @@ const PLATFORM_DESTINATIONS: ReadonlyArray<readonly [string, string]> = [
     "/store",
     "/comercio",
     "/atencion-tienda",
+    "/tienda-administracion",
     "/inventory",
     "/expired-batches",
     "/categories",

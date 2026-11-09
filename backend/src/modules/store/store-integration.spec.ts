@@ -1912,6 +1912,216 @@ test(
             },
           );
 
+          await studioParent.test(
+            "piloto, reversión, límites y recuperación preservan los datos",
+            async () => {
+              const configuration = app!.get(ConfigService);
+              configuration.set("STORE_ADMIN_ROLLOUT", "pilot");
+              configuration.set("STORE_ADMIN_PILOT_COMPANIES", companyB.id);
+              const excluded = await request(
+                "/store-admin/experience",
+                "GET",
+                undefined,
+                staff,
+              );
+              assert.equal(excluded.value.enabled, false);
+              assert.equal(excluded.value.eligible, false);
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/experience",
+                    "PATCH",
+                    { expectedVersion: excluded.value.version, enabled: true },
+                    staff,
+                  )
+                ).status,
+                403,
+              );
+              configuration.set("STORE_ADMIN_PILOT_COMPANIES", company.id);
+              const eligible = await request(
+                "/store-admin/experience",
+                "GET",
+                undefined,
+                staff,
+              );
+              const storeBefore =
+                await prisma!.storefrontSettings.findUniqueOrThrow({
+                  where: { companyId: company.id },
+                });
+              const rollback = await request(
+                "/store-admin/experience",
+                "PATCH",
+                { expectedVersion: eligible.value.version, enabled: false },
+                staff,
+              );
+              assert.equal(rollback.status, 200);
+              assert.equal(
+                (await request("/store-admin/context", "GET", undefined, staff))
+                  .value.experience.enabled,
+                false,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/orders?limit=10&queue=preparing&shippingKind=PICKUP",
+                    "GET",
+                    undefined,
+                    staff,
+                  )
+                ).status,
+                200,
+              );
+              const storeAfter =
+                await prisma!.storefrontSettings.findUniqueOrThrow({
+                  where: { companyId: company.id },
+                });
+              assert.equal(storeAfter.version, storeBefore.version);
+              assert.equal(
+                storeAfter.checkoutEnabled,
+                storeBefore.checkoutEnabled,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/experience",
+                    "PATCH",
+                    { expectedVersion: eligible.value.version, enabled: true },
+                    staff,
+                  )
+                ).status,
+                409,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/experience",
+                    "PATCH",
+                    { expectedVersion: rollback.value.version, enabled: true },
+                    staff,
+                  )
+                ).status,
+                200,
+              );
+              configuration.set("STORE_ADMIN_ROLLOUT", "all");
+              configuration.set("STORE_ADMIN_TELEMETRY", "true");
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/experience/events",
+                    "POST",
+                    { event: "FORM_SAVED", form: "APPEARANCE", elapsedMs: 500 },
+                    staff,
+                  )
+                ).value.accepted,
+                true,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/experience/events",
+                    "POST",
+                    {
+                      event: "FORM_SAVED",
+                      form: "APPEARANCE",
+                      elapsedMs: 500,
+                      email: "private@example.test",
+                    },
+                    staff,
+                  )
+                ).status,
+                400,
+              );
+              configuration.set("STORE_ADMIN_TELEMETRY", "false");
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/experience",
+                    "GET",
+                    undefined,
+                    client,
+                  )
+                ).status,
+                401,
+              );
+              const featuresState = await request(
+                "/store-admin/features",
+                "GET",
+                undefined,
+                staff,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/features",
+                    "PATCH",
+                    {
+                      expectedVersion: featuresState.value.version,
+                      appearance: true,
+                      notes: true,
+                      savedViews: true,
+                    },
+                    staff,
+                  )
+                ).status,
+                200,
+              );
+              const appearanceRow =
+                await prisma!.storeAppearance.findUniqueOrThrow({
+                  where: { companyId: company.id },
+                });
+              await prisma!.storeAppearance.update({
+                where: { companyId: company.id },
+                data: { published: { invalid: "untrusted" } },
+              });
+              assert.equal(
+                (await request("/store/tienda-a/info", "GET")).value.appearance
+                  .headline,
+                "Nueva campaña",
+              );
+              await prisma!.storeAppearance.update({
+                where: { companyId: company.id },
+                data: { published: appearanceRow.published as never },
+              });
+              for (let index = 0; index < 20; index++)
+                assert.equal(
+                  (
+                    await request(
+                      "/store-admin/views",
+                      "POST",
+                      {
+                        resource: "CATALOG",
+                        name: `Vista ${index}`,
+                        isDefault: false,
+                        definition: { layout: "list" },
+                      },
+                      staff,
+                    )
+                  ).status,
+                  201,
+                );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/views",
+                    "POST",
+                    {
+                      resource: "CATALOG",
+                      name: "Vista extra",
+                      isDefault: false,
+                      definition: { layout: "list" },
+                    },
+                    staff,
+                  )
+                ).status,
+                400,
+              );
+              const index = await db.query(
+                "SELECT indexdef FROM pg_indexes WHERE indexname='store_orders_company_inbox_idx'",
+              );
+              assert.equal(index.rows.length, 1);
+            },
+          );
+
           await prisma!.company.update({
             where: { id: company.id },
             data: { status: "SUSPENDED" },

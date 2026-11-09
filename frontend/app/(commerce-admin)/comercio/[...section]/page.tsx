@@ -10,6 +10,7 @@ import {
 } from "@/features/store-admin/components/customers-workspace";
 import { ConfigurationWorkspace } from "@/features/store-admin/components/configuration-workspace";
 import { AppearanceWorkspace } from "@/features/store-admin/components/appearance-workspace";
+import { legacyCommerceRoute } from "@/features/store-admin/api/contracts";
 
 export default async function CommerceSectionPage({
   params,
@@ -50,6 +51,8 @@ export default async function CommerceSectionPage({
     orderDetail ||
     customerDetail;
   if (!valid) notFound();
+  if (context.experience?.enabled === false)
+    redirect(legacyCommerceRoute(`/comercio/${path}`));
   if (context.mode === "CLOSEOUT" && !attention)
     redirect(
       `/comercio/atencion/pedidos${orderDetail ? `/${identifier}` : ""}`,

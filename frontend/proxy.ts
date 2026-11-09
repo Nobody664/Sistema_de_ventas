@@ -150,6 +150,7 @@ async function handleRequest(request: NextRequest) {
   if (
     roles.includes("COMPANY_ADMIN") &&
     (pathname === "/atencion-tienda" ||
+      pathname === "/tienda-administracion" ||
       pathname === "/store" ||
       pathname === "/comercio" ||
       pathname.startsWith("/comercio/"))

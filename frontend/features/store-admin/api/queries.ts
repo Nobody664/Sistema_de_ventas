@@ -54,7 +54,13 @@ export function useAdminWrite<T = unknown>() {
         );
       return result;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
+      if (typeof window !== "undefined")
+        window.dispatchEvent(
+          new CustomEvent("store-admin:mutation", {
+            detail: variables.resource,
+          }),
+        );
       await client.invalidateQueries({
         queryKey: storeAdminKeys(context.company.id, userId).all,
       });

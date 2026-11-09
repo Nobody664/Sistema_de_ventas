@@ -12,6 +12,7 @@ import Link from "next/link";
 import { validateStoreAdminForm } from "@/lib/store-validation";
 import { useAdminQuery, useAdminWrite } from "../api/queries";
 import { StudioFeatures } from "./studio-collaboration";
+import { ExperienceControl } from "./experience-control";
 import {
   commerceButton,
   commercePrimary,
@@ -123,6 +124,8 @@ function AdminForm({
   const [message, setMessage] = useState("");
   return (
     <form
+      data-store-form="CONFIGURATION"
+      data-store-resource={resource}
       className="space-y-4"
       aria-busy={write.isPending}
       onSubmit={async (event) => {
@@ -483,6 +486,7 @@ export function ConfigurationWorkspace({
   return (
     <div className="space-y-6">
       {section === "general" && <StudioFeatures />}
+      {section === "general" && <ExperienceControl />}
       <Heading
         title={titles[section]}
         description="Los cambios se aplican a nuevas cotizaciones. Los pedidos conservan sus métodos, tarifas e instrucciones originales."

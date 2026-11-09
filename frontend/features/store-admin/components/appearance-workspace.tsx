@@ -235,6 +235,8 @@ function AppearanceEditor({
           </button>
         </div>
         <form
+          data-store-form="APPEARANCE"
+          data-store-resource="appearance"
           className="space-y-4"
           onSubmit={async (event) => {
             event.preventDefault();

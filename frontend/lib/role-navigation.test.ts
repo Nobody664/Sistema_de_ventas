@@ -27,6 +27,7 @@ test("las rutas de negocio llevan al administrador global a herramientas de plat
     ["/settings/company", "/platform/companies"],
     ["/sales/new", "/platform"],
     ["/comercio", "/platform"],
+    ["/tienda-administracion", "/platform"],
     ["/comercio/atencion/pedidos", "/platform"],
     ["/store", "/platform"],
     ["/products/product-1", "/platform"],

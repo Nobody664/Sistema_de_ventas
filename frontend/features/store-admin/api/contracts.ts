@@ -1,4 +1,10 @@
 export interface StoreAdminContext {
+  experience?: {
+    enabled: boolean;
+    eligible: boolean;
+    reason: string | null;
+    telemetry?: boolean;
+  };
   extensions?: { appearance: boolean; notes: boolean; savedViews: boolean };
   mode: "MANAGE" | "CLOSEOUT";
   company: {
@@ -76,11 +82,20 @@ export function storeAdminKeys(companyId: string, userId: string) {
 }
 
 export function commerceEntry(
-  context: Pick<StoreAdminContext, "mode">,
+  context: Pick<StoreAdminContext, "mode" | "experience">,
 ): string {
+  if (context.experience?.enabled === false) return "/tienda-administracion";
   return context.mode === "MANAGE"
     ? "/comercio/resumen"
     : "/comercio/atencion/pedidos";
+}
+
+export function legacyCommerceRoute(pathname: string): string {
+  const match =
+    /^\/comercio\/(?:atencion\/)?pedidos\/([A-Za-z0-9][A-Za-z0-9_-]{0,127})$/.exec(
+      pathname,
+    );
+  return `/tienda-administracion${match ? `?pedido=${encodeURIComponent(match[1])}` : ""}`;
 }
 
 export function commerceAttentionRoute(pathname: string): string {

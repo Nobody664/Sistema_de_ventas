@@ -2,7 +2,7 @@
 
 Complementa la [arquitectura](README.md), el [modelo de datos](modelo-datos.md) y el [diseño UI/UX](diseno-ui-ux.md).
 
-La fase 0 contiene el diseño original. La base de las fases 1 y 2 está implementada; ver [alcance y evidencia](implementacion-fases-1-2.md). Las fases 3 y 4 también están implementadas; consultar su [detalle y verificación](implementacion-fases-3-4.md). Las fases 5–6 y la medición de consultas en un dataset representativo mantienen su alcance pendiente.
+La fase 0 contiene el diseño original. La base de las fases 1 y 2 está implementada; ver [alcance y evidencia](implementacion-fases-1-2.md). Las fases 3 y 4 también están implementadas; consultar su [detalle y verificación](implementacion-fases-3-4.md). La [fase 5](implementacion-fase-5.md) incorpora apariencia y colaboración. La [fase 6](implementacion-fase-6.md) entrega controles de adopción, medición sintética y validación local; la activación de un negocio real y su medición de despliegue siguen pendientes.
 
 ## 1. Secuencia y alcance
 
@@ -27,7 +27,7 @@ El MVP se puede validar al terminar las fases 1–4. Las extensiones de la fase 
 | 3    | `arquitectura/03-operacion-pedidos-pagos-entregas` | Bandejas, detalle, comandos y actualización en vivo  | Implementada en subrama 03-04 |
 | 4    | `arquitectura/04-catalogo-clientes-configuracion`  | Pantallas de gestión separadas y formularios         | Implementada en subrama 03-04 |
 | 5    | `arquitectura/05-apariencia-notas-vistas`          | Datos aditivos, editor y colaboración                | Implementada; ver implementación de fase 5 |
-| 6    | `arquitectura/06-validacion-piloto-tienda`         | Pruebas, medición y adopción progresiva              | Propuesta   |
+| 6    | `arquitectura/06-validacion-piloto-tienda`         | Pruebas, medición y adopción progresiva              | Controles y validación local implementados; piloto real pendiente |
 
 Crear las ramas cuando se inicie la implementación, desde una base actualizada. Una rama de integración sugerida es `mejora/centro-tienda`. Cada fase termina con pruebas y commit en español antes de cambiar de rama. Conservar dependencias por ascendencia o integrar cada fase verificada en esa rama; no mezclar ambas estrategias sin documentarlo. No integrar en `main` cambios de rutas que aún dependan de APIs ausentes.
 

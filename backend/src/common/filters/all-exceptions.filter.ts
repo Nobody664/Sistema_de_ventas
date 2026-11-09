@@ -77,14 +77,29 @@ export class AllExceptionsFilter implements ExceptionFilter {
       ...resolved.details,
     };
 
+    const storeAdmin = /^\/(?:api\/)?store-admin(?:\/|$)/.test(
+      (request.originalUrl ?? request.url ?? "").split("?")[0],
+    );
+    const logPath = storeAdmin
+      ? typeof request.route?.path === "string"
+        ? request.route.path
+        : "/store-admin/*"
+      : body.path;
+    const logMessage = storeAdmin
+      ? (resolved.code ?? resolved.error ?? "STORE_ADMIN_ERROR")
+      : String(resolved.message);
     if (resolved.status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
-        `${request.method} ${body.path} -> ${resolved.status} ${String(resolved.message)}`,
-        exception instanceof Error ? exception.stack : String(exception),
+        `${request.method} ${logPath} -> ${resolved.status} ${logMessage}`,
+        storeAdmin
+          ? undefined
+          : exception instanceof Error
+            ? exception.stack
+            : String(exception),
       );
     } else {
       this.logger.warn(
-        `${request.method} ${body.path} -> ${resolved.status} ${String(resolved.message)}`,
+        `${request.method} ${logPath} -> ${resolved.status} ${logMessage}`,
       );
     }
 

@@ -18,6 +18,13 @@ const features = {
   savedViews: false,
   version: 0,
 };
+const experience = {
+  enabled: true,
+  eligible: true,
+  reason: null,
+  version: 0,
+  telemetry: true,
+};
 const appearance = {
   draft: {
     schemaVersion: 1,
@@ -181,6 +188,7 @@ const capabilities = () =>
   );
 const adminContext = () => ({
   mode,
+  experience,
   company: { ...company, status: user().companyStatus },
   store: {
     title: company.name,
@@ -223,6 +231,7 @@ const dashboard = () => ({
 });
 
 function fixture(resource, params = new URLSearchParams()) {
+  if (resource === "/store-admin/experience") return experience;
   if (resource === "/store-admin/features") return features;
   if (
     resource === "/store-admin/appearance" ||
@@ -310,6 +319,21 @@ function fixture(resource, params = new URLSearchParams()) {
       if (queue === "shipping") return order.fulfillment === "SHIPPED";
       return true;
     });
+    if (
+      ![
+        "limit",
+        "q",
+        "queue",
+        "status",
+        "paymentStatus",
+        "fulfillment",
+        "shippingKind",
+        "cursor",
+      ].some((key) => params.has(key))
+    ) {
+      const page = Number(params.get("page") || 1);
+      return filtered.slice((page - 1) * 30, page * 30);
+    }
     const offset = Number((params.get("cursor") ?? "fixture-0").split("-")[1]);
     const limit = Number(params.get("limit") || 30);
     const hasMore = offset + limit < filtered.length;
@@ -379,6 +403,19 @@ const backend = http.createServer(async (request, response) => {
     for await (const chunk of request) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString() || "{}");
     writes.push({ resource, body });
+    if (resource === "/store-admin/experience/events")
+      return response.end(JSON.stringify({ accepted: true }));
+    if (resource === "/store-admin/experience") {
+      if (body.expectedVersion !== experience.version) {
+        response.statusCode = 409;
+        return response.end(
+          JSON.stringify({ message: "La experiencia cambió" }),
+        );
+      }
+      experience.enabled = body.enabled;
+      experience.version++;
+      return response.end(JSON.stringify(experience));
+    }
     if (resource === "/store-admin/features") {
       if (body.expectedVersion !== features.version) {
         response.statusCode = 409;
@@ -581,6 +618,8 @@ async function main() {
     browser = await chromium.launch();
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
+      colorScheme: "light",
+      reducedMotion: "reduce",
     });
     await context.addInitScript(() => {
       window.__commerceStreams = [];
@@ -677,7 +716,8 @@ async function main() {
       .click();
     await page.getByRole("dialog").waitFor();
     await page.getByAltText("Comprobante privado del pedido").waitFor();
-    await page.getByRole("button", { name: "Cerrar", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await page.getByRole("dialog").waitFor({ state: "detached" });
     const chooseAction = async (action, reference) => {
       await page.getByLabel("Acción", { exact: true }).selectOption(action);
       if (reference && action === "SHIP")
@@ -898,7 +938,7 @@ async function main() {
     );
     assert.deepEqual(shippingWrite.body.districts, ["150101", "150102"]);
     assert.equal("pickupAddress" in shippingWrite.body, false);
-    for (const width of [320, 390, 768, 1440]) {
+    for (const width of [320, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
       assert.ok(
         await page.evaluate(
@@ -1000,6 +1040,116 @@ async function main() {
     await page
       .getByRole("button", { name: "Cobros pendientes", exact: true })
       .waitFor({ state: "detached" });
+    await page.goto(`${origin}/comercio/configuracion`);
+    await page
+      .getByRole("button", { name: "Volver al panel anterior", exact: true })
+      .click();
+    await page.waitForURL("**/tienda-administracion");
+    await page
+      .getByRole("heading", {
+        name: "Administración de tienda · Panel anterior",
+        exact: true,
+      })
+      .waitFor();
+    await page.goto(`${origin}/comercio/pedidos/order-b`);
+    await page.waitForURL("**/tienda-administracion?pedido=order-b");
+    await page
+      .getByRole("button", { name: "Usar Centro de tienda", exact: true })
+      .click();
+    await page.waitForURL("**/comercio/resumen");
+    assert.equal(features.notes, true);
+    assert.ok(
+      writes.some(
+        (entry) =>
+          entry.resource === "/store-admin/experience/events" &&
+          entry.body.event === "FORM_SAVED",
+      ),
+    );
+    for (const event of writes.filter(
+      (entry) => entry.resource === "/store-admin/experience/events",
+    ))
+      assert.deepEqual(Object.keys(event.body).sort(), [
+        "elapsedMs",
+        "event",
+        "form",
+      ]);
+    await page.goto(`${origin}/comercio/apariencia`);
+    await page.getByLabel("Titular", { exact: true }).waitFor();
+    let previewOpened = false;
+    const luminance = (color) =>
+      color
+        .match(/[\d.]+/g)
+        .slice(0, 3)
+        .map(Number)
+        .map((channel) => channel / 255)
+        .map((channel) =>
+          channel <= 0.04045
+            ? channel / 12.92
+            : ((channel + 0.055) / 1.055) ** 2.4,
+        )
+        .reduce(
+          (sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index],
+          0,
+        );
+    for (const preset of [
+      "petroleo-crema",
+      "terracota-arena",
+      "bosque-marfil",
+    ]) {
+      await page
+        .getByLabel("Tema visual", { exact: true })
+        .selectOption(preset);
+      await page
+        .getByRole("button", { name: "Guardar borrador", exact: true })
+        .click();
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('form[data-store-form="APPEARANCE"] fieldset')
+            .disabled,
+      );
+      if (!previewOpened) {
+        await page
+          .getByRole("button", { name: "Previsualizar borrador", exact: true })
+          .click();
+        previewOpened = true;
+      }
+      const colors = await page
+        .locator(".store-appearance-banner")
+        .evaluate((element) => ({
+          text: getComputedStyle(element.querySelector("h2")).color,
+          background: getComputedStyle(element).backgroundColor,
+        }));
+      const values = [
+        luminance(colors.text),
+        luminance(colors.background),
+      ].sort((a, b) => b - a);
+      assert.ok(
+        (values[0] + 0.05) / (values[1] + 0.05) >= 4.5,
+        `Contraste del titular en ${preset}`,
+      );
+    }
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+      "Desbordamiento con texto al 200%",
+    );
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "";
+    });
+    await page.goto(`${origin}/comercio/catalogo`);
+    await page.goto(`${origin}/comercio/clientes`);
+    await page.goBack();
+    await page
+      .getByRole("heading", { name: "Catálogo", exact: true })
+      .waitFor();
+    await page.goForward();
+    await page
+      .getByRole("heading", { name: "Clientes de la tienda", exact: true })
+      .waitFor();
     mode = "CLOSEOUT";
     await cookie();
     await page.goto(`${origin}/store`);
@@ -1049,7 +1199,7 @@ async function main() {
     await page.getByText("42", { exact: true }).first().waitFor();
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: fases 1–4: alias, modos y rutas profundas; pedidos/colas/cursor/409/comprobantes/cobro/entrega/devolución/retorno; SSE y reconexión; catálogo, clientes y configuración con reintento y campos compatibles; responsive 320/390/768/1440.",
+      "PASS: fases 1–6: operación, gestión, apariencia y colaboración; SSE, reversión y restauración del panel; telemetría sin campos personales; teclado, texto al 200% y responsive.",
     );
     await context.close();
   } catch (error) {

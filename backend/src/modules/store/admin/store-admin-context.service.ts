@@ -1,4 +1,6 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, Optional } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { storeExperiencePolicy } from "./store-adoption.policy";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabilities.service";
 import {
@@ -18,6 +20,7 @@ export class StoreAdminContextService {
     private readonly prisma: PrismaService,
     private readonly plans: PlanCapabilitiesService,
     private readonly policy: StoreAdminPolicyService,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   async resolve(user: StoreAdminUser): Promise<StoreAdminContext> {
@@ -42,7 +45,12 @@ export class StoreAdminContextService {
             currency: true,
             status: true,
             storeAdminFeatures: {
-              select: { appearance: true, notes: true, savedViews: true },
+              select: {
+                appearance: true,
+                notes: true,
+                savedViews: true,
+                experienceEnabled: true,
+              },
             },
             storefront: {
               select: { enabled: true, checkoutEnabled: true, title: true },
@@ -67,6 +75,15 @@ export class StoreAdminContextService {
 
     return {
       mode,
+      experience: {
+        ...storeExperiencePolicy(
+          company.id,
+          company.storeAdminFeatures?.experienceEnabled ?? true,
+          this.config?.get<string>("STORE_ADMIN_ROLLOUT") ?? "all",
+          this.config?.get<string>("STORE_ADMIN_PILOT_COMPANIES") ?? "",
+        ),
+        telemetry: this.config?.get<string>("STORE_ADMIN_TELEMETRY") === "true",
+      },
       company: {
         id: company.id,
         name: company.name,

@@ -115,6 +115,8 @@ export function InternalNotes({ orderId }: { orderId: string }) {
         modifican su historial.
       </p>
       <form
+        data-store-form="NOTE"
+        data-store-resource={`internal-notes/${orderId}`}
         className="space-y-3"
         onSubmit={async (event) => {
           event.preventDefault();
@@ -284,6 +286,8 @@ export function SavedStoreViews({
         ))}
       </div>
       <form
+        data-store-form="VIEW"
+        data-store-resource="views"
         className="flex flex-wrap gap-3"
         onSubmit={async (event) => {
           event.preventDefault();

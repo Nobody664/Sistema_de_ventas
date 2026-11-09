@@ -24,10 +24,12 @@ import { useAuthStore } from "@/stores/auth.store";
 import { apiFetch } from "@/lib/api";
 import {
   commerceAttentionRoute,
+  legacyCommerceRoute,
   storeAdminKeys,
   type StoreAdminContext,
 } from "../api/contracts";
 import { useCommerceReconciliation } from "../api/reconciliation";
+import { useStoreFormTelemetry } from "../api/form-telemetry";
 
 const CommerceContext = createContext<{
   context: StoreAdminContext;
@@ -38,6 +40,22 @@ export function useCommerceContext() {
   const value = useContext(CommerceContext);
   if (!value) throw new Error("Se requiere el espacio de comercio");
   return value;
+}
+
+export function CommerceContextProvider({
+  context,
+  userId,
+  children,
+}: {
+  context: StoreAdminContext;
+  userId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <CommerceContext.Provider value={{ context, userId }}>
+      {children}
+    </CommerceContext.Provider>
+  );
 }
 
 const navigation = [
@@ -80,8 +98,18 @@ export function CommerceShell({
     refetchInterval: 60_000,
     retry: false,
   });
-  const context = query.data;
+  const context = query.isFetchedAfterMount ? query.data : initialContext;
+  useStoreFormTelemetry(
+    context.experience?.telemetry === true &&
+      context.experience.enabled &&
+      sameSession,
+    context.company.id,
+  );
   const restricted = context.mode === "CLOSEOUT";
+  const legacy = context.experience?.enabled === false;
+  useEffect(() => {
+    if (legacy) router.replace(legacyCommerceRoute(pathname));
+  }, [legacy, pathname, router]);
   const attention =
     pathname === "/comercio/atencion/pedidos" ||
     pathname.startsWith("/comercio/atencion/pedidos/");
@@ -94,9 +122,15 @@ export function CommerceShell({
     if (identityMismatch) router.refresh();
   }, [identityMismatch, router]);
   useEffect(() => {
-    if (restricted && !attention)
+    if (!legacy && restricted && !attention)
       router.replace(commerceAttentionRoute(pathname));
-  }, [restricted, attention, pathname, router]);
+  }, [restricted, attention, pathname, router, legacy]);
+  if (legacy)
+    return (
+      <p role="status" className="p-8">
+        Abriendo el panel de tienda anterior…
+      </p>
+    );
   if (identityMismatch)
     return (
       <p role="status" className="p-8">

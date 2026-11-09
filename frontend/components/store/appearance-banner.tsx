@@ -27,7 +27,7 @@ export function AppearanceBanner({
           />
         )}
         <p className="store-eyebrow">{name}</p>
-        <h2 className="store-display">{appearance.headline}</h2>
+        <h2 className="store-display break-words">{appearance.headline}</h2>
         {appearance.showDescription && appearance.heroDescription && (
           <p className="store-description">{appearance.heroDescription}</p>
         )}

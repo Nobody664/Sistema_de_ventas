@@ -1,4 +1,10 @@
-import { Global, Module } from "@nestjs/common";
+import {
+  Global,
+  Module,
+  MiddlewareConsumer,
+  NestModule,
+  RequestMethod,
+} from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { PrismaModule } from "@/database/prisma/prisma.module";
@@ -31,6 +37,9 @@ import { StoreAdminManagementController } from "./admin/store-admin-management.c
 import { StoreAdminManagementService } from "./admin/store-admin-management.service";
 import { StoreManagementGuard } from "./admin/store-management.guard";
 import { StoreStudioService } from "./studio/studio.service";
+import { StoreAdoptionController } from "./admin/store-adoption.controller";
+import { StoreAdoptionService } from "./admin/store-adoption.service";
+import { StoreAdminTelemetryMiddleware } from "./admin/store-admin-telemetry.middleware";
 import {
   StoreStudioController,
   StorePublishedMediaController,
@@ -55,6 +64,7 @@ import {
     StoreAdminManagementController,
     StoreStudioController,
     StorePublishedMediaController,
+    StoreAdoptionController,
   ],
   providers: [
     StorePrivateInterceptor,
@@ -76,7 +86,15 @@ import {
     StoreAdminManagementService,
     StoreManagementGuard,
     StoreStudioService,
+    StoreAdminTelemetryMiddleware,
+    StoreAdoptionService,
   ],
   exports: [StoreAuthGuard],
 })
-export class StoreModule {}
+export class StoreModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer
+      .apply(StoreAdminTelemetryMiddleware)
+      .forRoutes({ path: "store-admin/{*path}", method: RequestMethod.ALL });
+  }
+}

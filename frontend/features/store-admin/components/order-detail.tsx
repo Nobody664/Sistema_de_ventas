@@ -294,6 +294,8 @@ export function OrderDetail({
                   distintas.
                 </p>
                 <form
+                  data-store-form="ORDER_ACTION"
+                  data-store-resource={`orders/${encodeURIComponent(id)}${action === "REFUND" ? "/refund" : ""}`}
                   onSubmit={(event) => void perform(event)}
                   className="mt-5 space-y-4"
                   aria-busy={write.isPending}

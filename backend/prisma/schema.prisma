@@ -1206,11 +1206,14 @@ model StoreOrder {
   @@unique([companyId, number])
   @@unique([companyId, accountId, idempotencyKey])
   @@index([companyId, accountId, createdAt])
+  @@index([companyId, createdAt(sort: Desc), id(sort: Desc)], map: "store_orders_company_inbox_idx")
   @@index([status, expiresAt])
   @@map("store_orders")
 }
 
 model StoreAdminFeatures {
+  experienceEnabled Boolean @default(true) @map("experience_enabled")
+  experienceVersion Int @default(1) @map("experience_version")
   companyId String @id @map("company_id")
   appearance Boolean @default(false)
   notes Boolean @default(false)

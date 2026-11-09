@@ -117,7 +117,7 @@ export function CommerceDashboard() {
             className="rounded-xl border border-foreground/15 p-2.5 disabled:opacity-50"
           >
             <RefreshCw
-              className={`h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`}
+              className={`h-4 w-4 motion-reduce:animate-none ${query.isFetching ? "animate-spin" : ""}`}
             />
           </button>
         </div>
