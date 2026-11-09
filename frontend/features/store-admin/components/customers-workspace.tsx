@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAdminQuery, useAdminWrite } from "../api/queries";
+import { SavedStoreViews } from "./studio-collaboration";
 import {
   commerceButton,
   commerceInput,
@@ -177,6 +178,7 @@ export function CustomersWorkspace() {
   };
   return (
     <div className="space-y-6">
+      <SavedStoreViews resource="CUSTOMERS" />
       <Heading
         title="Clientes de la tienda"
         description="Consulta las cuentas comerciales y su historial dentro de esta empresa."

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAdminQuery, useAdminWrite } from "../api/queries";
+import { SavedStoreViews } from "./studio-collaboration";
 import { useCommerceContext } from "./commerce-shell";
 import {
   commerceButton,
@@ -51,6 +52,7 @@ export function CatalogWorkspace() {
   };
   return (
     <div className="space-y-6">
+      <SavedStoreViews resource="CATALOG" />
       <Heading
         title="Catálogo"
         description="Decide qué productos publicar. Los precios, el stock y el estado activo pertenecen a Gestión de ventas y no se modifican aquí."

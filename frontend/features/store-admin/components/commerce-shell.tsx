@@ -47,6 +47,7 @@ const navigation = [
   { href: "/comercio/entregas", label: "Entregas", icon: Truck },
   { href: "/comercio/catalogo", label: "Catálogo", icon: Store },
   { href: "/comercio/clientes", label: "Clientes", icon: Users },
+  { href: "/comercio/apariencia", label: "Apariencia", icon: Store },
   { href: "/comercio/configuracion", label: "Configuración", icon: Settings },
 ];
 

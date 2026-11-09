@@ -26,7 +26,7 @@ El MVP se puede validar al terminar las fases 1–4. Las extensiones de la fase 
 | 2    | `arquitectura/02-espacio-administrativo-tienda`    | Layout propio, rutas y compatibilidad                | Implementada |
 | 3    | `arquitectura/03-operacion-pedidos-pagos-entregas` | Bandejas, detalle, comandos y actualización en vivo  | Implementada en subrama 03-04 |
 | 4    | `arquitectura/04-catalogo-clientes-configuracion`  | Pantallas de gestión separadas y formularios         | Implementada en subrama 03-04 |
-| 5    | `arquitectura/05-apariencia-notas-vistas`          | Datos aditivos, editor y colaboración                | Propuesta   |
+| 5    | `arquitectura/05-apariencia-notas-vistas`          | Datos aditivos, editor y colaboración                | Implementada; ver implementación de fase 5 |
 | 6    | `arquitectura/06-validacion-piloto-tienda`         | Pruebas, medición y adopción progresiva              | Propuesta   |
 
 Crear las ramas cuando se inicie la implementación, desde una base actualizada. Una rama de integración sugerida es `mejora/centro-tienda`. Cada fase termina con pruebas y commit en español antes de cambiar de rama. Conservar dependencias por ascendencia o integrar cada fase verificada en esa rama; no mezclar ambas estrategias sin documentarlo. No integrar en `main` cambios de rutas que aún dependan de APIs ausentes.

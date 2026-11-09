@@ -30,6 +30,11 @@ import { StoreAdminQueriesService } from "./admin/store-admin-queries.service";
 import { StoreAdminManagementController } from "./admin/store-admin-management.controller";
 import { StoreAdminManagementService } from "./admin/store-admin-management.service";
 import { StoreManagementGuard } from "./admin/store-management.guard";
+import { StoreStudioService } from "./studio/studio.service";
+import {
+  StoreStudioController,
+  StorePublishedMediaController,
+} from "./studio/studio.controller";
 
 @Global()
 @Module({
@@ -48,6 +53,8 @@ import { StoreManagementGuard } from "./admin/store-management.guard";
     StoreWebhookController,
     StoreAdminWorkspaceController,
     StoreAdminManagementController,
+    StoreStudioController,
+    StorePublishedMediaController,
   ],
   providers: [
     StorePrivateInterceptor,
@@ -68,6 +75,7 @@ import { StoreManagementGuard } from "./admin/store-management.guard";
     StoreAdminQueriesService,
     StoreAdminManagementService,
     StoreManagementGuard,
+    StoreStudioService,
   ],
   exports: [StoreAuthGuard],
 })

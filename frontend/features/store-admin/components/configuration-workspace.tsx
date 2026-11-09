@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { validateStoreAdminForm } from "@/lib/store-validation";
 import { useAdminQuery, useAdminWrite } from "../api/queries";
+import { StudioFeatures } from "./studio-collaboration";
 import {
   commerceButton,
   commercePrimary,
@@ -481,6 +482,7 @@ export function ConfigurationWorkspace({
   );
   return (
     <div className="space-y-6">
+      {section === "general" && <StudioFeatures />}
       <Heading
         title={titles[section]}
         description="Los cambios se aplican a nuevas cotizaciones. Los pedidos conservan sus métodos, tarifas e instrucciones originales."

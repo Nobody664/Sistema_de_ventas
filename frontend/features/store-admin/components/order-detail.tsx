@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAdminQuery, useAdminWrite } from "../api/queries";
+import { InternalNotes } from "./studio-collaboration";
 import {
   type AdminOrderDetail,
   commandLabels,
@@ -136,6 +137,7 @@ export function OrderDetail({
       />
       {order && (
         <>
+          <InternalNotes orderId={id} />
           <Heading
             title={order.number}
             description="El historial, los importes y las acciones de este pedido corresponden a su configuración original."

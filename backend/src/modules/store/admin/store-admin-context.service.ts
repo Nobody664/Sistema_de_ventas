@@ -41,6 +41,9 @@ export class StoreAdminContextService {
             timezone: true,
             currency: true,
             status: true,
+            storeAdminFeatures: {
+              select: { appearance: true, notes: true, savedViews: true },
+            },
             storefront: {
               select: { enabled: true, checkoutEnabled: true, title: true },
             },
@@ -79,6 +82,16 @@ export class StoreAdminContextService {
         checkoutEnabled: company.storefront?.checkoutEnabled ?? false,
       },
       capabilities: storeCapabilities,
+      extensions: {
+        appearance:
+          mode === "MANAGE" &&
+          (company.storeAdminFeatures?.appearance ?? false),
+        notes:
+          mode === "MANAGE" && (company.storeAdminFeatures?.notes ?? false),
+        savedViews:
+          mode === "MANAGE" &&
+          (company.storeAdminFeatures?.savedViews ?? false),
+      },
       access: {
         attendExistingOrders: storeCapabilities.attendExistingOrders,
       },

@@ -377,6 +377,9 @@ model User {
 }
 
 model Company {
+  storeAdminFeatures StoreAdminFeatures?
+  storeAppearance StoreAppearance?
+  storeMediaAssets StoreMediaAsset[]
   storeIntegration StorePaymentIntegration?
   storePaymentMethods StorePaymentMethod[]
   storeShippingMethods StoreShippingMethod[]
@@ -510,6 +513,10 @@ model Subscription {
 }
 
 model Membership {
+  storeAppearances StoreAppearance[]
+  storeMediaAssets StoreMediaAsset[]
+  storeInternalNotes StoreOrderInternalNote[]
+  storeSavedViews StoreSavedView[]
   productExpiryAlerts ProductExpiryAlert[]
   locale String @default("es")
   dailyDigestEnabled Boolean @default(false) @map("daily_digest_enabled")
@@ -533,6 +540,7 @@ model Membership {
   @@unique([userId, companyId])
   @@index([userId])
   @@index([companyId])
+  @@unique([companyId, id])
   @@map("memberships")
 }
 
@@ -1161,6 +1169,7 @@ enum StoreOrderState {
 }
 
 model StoreOrder {
+  internalNotes StoreOrderInternalNote[]
   quote StoreQuote @relation(fields: [companyId, accountId, quoteId], references: [companyId, accountId, id], onDelete: Restrict)
   id String @id @default(cuid())
   companyId String @map("company_id")
@@ -1199,6 +1208,85 @@ model StoreOrder {
   @@index([companyId, accountId, createdAt])
   @@index([status, expiresAt])
   @@map("store_orders")
+}
+
+model StoreAdminFeatures {
+  companyId String @id @map("company_id")
+  appearance Boolean @default(false)
+  notes Boolean @default(false)
+  savedViews Boolean @default(false) @map("saved_views")
+  version Int @default(1)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  @@map("store_admin_features")
+}
+
+model StoreAppearance {
+  companyId String @id @map("company_id")
+  schemaVersion Int @default(1) @map("schema_version")
+  draft Json
+  published Json?
+  previousPublished Json? @map("previous_published")
+  draftVersion Int @default(1) @map("draft_version")
+  publishedVersion Int? @map("published_version")
+  updatedByMembershipId String @map("updated_by_membership_id")
+  publishedAt DateTime? @map("published_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  editor Membership @relation(fields: [companyId, updatedByMembershipId], references: [companyId, id], onDelete: Restrict)
+  @@map("store_appearance")
+}
+
+model StoreMediaAsset {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  uploadedByMembershipId String @map("uploaded_by_membership_id")
+  purpose String
+  state String @default("READY")
+  storageKey String @unique @map("storage_key")
+  mimeType String @map("mime_type") @db.VarChar(64)
+  byteSize Int @map("byte_size")
+  width Int
+  height Int
+  checksum String @db.Char(64)
+  content Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+  archivedAt DateTime? @map("archived_at")
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  uploader Membership @relation(fields: [companyId, uploadedByMembershipId], references: [companyId, id], onDelete: Restrict)
+  @@unique([companyId, id])
+  @@index([companyId, purpose, state, createdAt], map: "store_media_assets_company_purpose_state_date_idx")
+  @@map("store_media_assets")
+}
+
+model StoreOrderInternalNote {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  orderId String @map("order_id")
+  authorMembershipId String @map("author_membership_id")
+  body String @db.VarChar(2000)
+  createdAt DateTime @default(now()) @map("created_at")
+  order StoreOrder @relation(fields: [companyId,orderId], references: [companyId,id], onDelete: Restrict)
+  author Membership @relation(fields: [companyId,authorMembershipId], references: [companyId,id], onDelete: Restrict)
+  @@index([companyId,orderId,createdAt,id], map: "store_internal_notes_order_date_idx")
+  @@map("store_order_internal_notes")
+}
+
+model StoreSavedView {
+  id String @id @default(cuid())
+  companyId String @map("company_id")
+  membershipId String @map("membership_id")
+  resource String
+  name String @db.VarChar(80)
+  schemaVersion Int @default(1) @map("schema_version")
+  definition Json
+  isDefault Boolean @default(false) @map("is_default")
+  version Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  membership Membership @relation(fields: [companyId,membershipId], references: [companyId,id], onDelete: Cascade)
+  @@unique([companyId,membershipId,resource,name])
+  @@index([companyId,membershipId,resource], map: "store_saved_views_membership_resource_idx")
+  @@map("store_saved_views")
 }
 
 model StorePaymentProof {

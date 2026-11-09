@@ -24,6 +24,8 @@ import {
 } from "@/lib/store-cart";
 import { StoreProductImage } from "./store-product-image";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
+import { AppearanceBanner } from "./appearance-banner";
+import type { PublicStoreAppearance } from "@/lib/store-appearance";
 
 export interface StoreProduct {
   id: string;
@@ -39,6 +41,8 @@ export interface StoreProduct {
 }
 
 interface CatalogProps {
+  appearance?: PublicStoreAppearance | null;
+  phone?: string | null;
   slug: string;
   name: string;
   description?: string;
@@ -85,27 +89,35 @@ export function StoreCatalog(props: CatalogProps) {
   const base = `/tienda/${encodeURIComponent(slug)}`;
   return (
     <section className="store-catalog">
-      <div className="store-catalog-heading">
-        <div>
-          <p className="store-eyebrow">El catálogo de {name}</p>
-          <h1 className="store-display">
-            Encuentra tu
-            <br className="hidden sm:block" /> próximo favorito.
-          </h1>
-          <p className="store-description">
-            {description ||
-              "Explora, elige y compra a tu ritmo. Nosotros preparamos el resto."}
-          </p>
+      {props.appearance ? (
+        <AppearanceBanner
+          appearance={props.appearance}
+          name={name}
+          phone={props.phone}
+        />
+      ) : (
+        <div className="store-catalog-heading">
+          <div>
+            <p className="store-eyebrow">El catálogo de {name}</p>
+            <h1 className="store-display">
+              Encuentra tu
+              <br className="hidden sm:block" /> próximo favorito.
+            </h1>
+            <p className="store-description">
+              {description ||
+                "Explora, elige y compra a tu ritmo. Nosotros preparamos el resto."}
+            </p>
+          </div>
+          <div className="store-catalog-note">
+            <ShoppingBag className="size-5" />
+            <p>
+              Elige tus productos.
+              <br />
+              <strong>Tu compra, en un solo lugar.</strong>
+            </p>
+          </div>
         </div>
-        <div className="store-catalog-note">
-          <ShoppingBag className="size-5" />
-          <p>
-            Elige tus productos.
-            <br />
-            <strong>Tu compra, en un solo lugar.</strong>
-          </p>
-        </div>
-      </div>
+      )}
       {detailId ? (
         <Link href={`${base}/catalogo`} className="store-back-link">
           <ArrowLeft className="size-4" />

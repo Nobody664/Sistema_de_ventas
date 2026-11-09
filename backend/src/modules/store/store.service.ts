@@ -9,6 +9,7 @@ import { PlanCapabilitiesService } from "@/modules/plan-capabilities/plan-capabi
 import { StoreCatalogQuery, StoreSettingsDto } from "./dto/store.dto";
 import { StoreStockService } from "./store-stock.service";
 import { STORE_SLUG_PATTERN } from "./dto/store-validation";
+import { StoreStudioService } from "./studio/studio.service";
 
 @Injectable()
 export class StoreService {
@@ -16,6 +17,7 @@ export class StoreService {
     private readonly prisma: PrismaService,
     private readonly plans: PlanCapabilitiesService,
     private readonly stock: StoreStockService,
+    private readonly studio: StoreStudioService,
   ) {}
   async company(slug: string, commerce = true) {
     if (!STORE_SLUG_PATTERN.test(slug))
@@ -40,11 +42,16 @@ export class StoreService {
   }
   async info(slug: string) {
     const company = await this.company(slug);
+    const appearance = await this.studio.publicAppearance(
+      company.id,
+      company.slug,
+    );
     return {
       name: company.storefront?.title || company.name,
       slug: company.slug,
       description: company.storefront?.description,
-      phone: company.phone,
+      phone: appearance && !appearance.showBusinessPhone ? null : company.phone,
+      appearance,
       currency: company.currency,
       registrationEnabled: company.storefront?.registrationEnabled,
       checkoutEnabled: company.storefront?.checkoutEnabled,

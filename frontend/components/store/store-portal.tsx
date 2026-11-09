@@ -20,6 +20,7 @@ import { validateStoreForm } from "@/lib/store-validation";
 import { StoreField } from "./store-field";
 import { StoreOrders } from "./store-orders";
 import { storeButton } from "./store-ui";
+import type { PublicStoreAppearance } from "@/lib/store-appearance";
 
 interface Address {
   id: string;
@@ -57,6 +58,8 @@ export function StorePortal({
     description?: string;
     currency: string;
     checkoutEnabled?: boolean;
+    appearance?: PublicStoreAppearance | null;
+    phone?: string | null;
   } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [products, setProducts] = useState<StoreProduct[]>([]);
@@ -215,7 +218,10 @@ export function StorePortal({
   );
 
   return (
-    <div className="store-portal min-h-screen bg-[#f6f4ef] text-stone-900 dark:bg-slate-950 dark:text-stone-100">
+    <div
+      data-store-theme={info?.appearance?.themePreset}
+      className="store-portal min-h-screen bg-[#f6f4ef] text-stone-900 dark:bg-slate-950 dark:text-stone-100"
+    >
       <header className="store-header">
         <div className="store-header-inner">
           <Link href={`${base}/catalogo`} className="store-brand">
@@ -497,6 +503,8 @@ export function StorePortal({
               <StoreCatalog
                 slug={slug}
                 name={info?.name ?? "Tu tienda"}
+                appearance={info?.appearance}
+                phone={info?.phone}
                 description={info?.description}
                 products={products}
                 categories={categories}

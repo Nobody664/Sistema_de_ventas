@@ -1,4 +1,5 @@
 export interface StoreAdminContext {
+  extensions?: { appearance: boolean; notes: boolean; savedViews: boolean };
   mode: "MANAGE" | "CLOSEOUT";
   company: {
     id: string;

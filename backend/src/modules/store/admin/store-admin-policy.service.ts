@@ -29,6 +29,7 @@ export interface StoreAdminCapabilities {
 }
 
 export interface StoreAdminContext {
+  extensions?: { appearance: boolean; notes: boolean; savedViews: boolean };
   mode: StoreAdminMode;
   company: {
     id: string;

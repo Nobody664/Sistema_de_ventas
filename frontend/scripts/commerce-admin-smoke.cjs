@@ -12,6 +12,30 @@ let failDashboard = false;
 let failEvents = false;
 let failSave = false;
 let conflictOnce = true;
+const features = {
+  appearance: false,
+  notes: false,
+  savedViews: false,
+  version: 0,
+};
+const appearance = {
+  draft: {
+    schemaVersion: 1,
+    themePreset: "petroleo-crema",
+    headline: "Encuentra tu próximo favorito.",
+    heroDescription: "Explora nuestra selección",
+    logoAssetId: null,
+    coverAssetId: null,
+    showDescription: true,
+    showBusinessPhone: false,
+  },
+  draftVersion: 1,
+  publishedVersion: null,
+  canRestore: false,
+};
+let publishedAppearance = null;
+const internalNotes = [];
+const savedViews = [];
 const writes = [];
 const methods = {
   payment: [
@@ -167,6 +191,11 @@ const adminContext = () => ({
   capabilities: { ...capabilities(), attendExistingOrders: true },
   access: { attendExistingOrders: true },
   generatedAt: new Date().toISOString(),
+  extensions: {
+    appearance: mode === "MANAGE" && features.appearance,
+    notes: mode === "MANAGE" && features.notes,
+    savedViews: mode === "MANAGE" && features.savedViews,
+  },
 });
 const dashboard = () => ({
   generatedAt: new Date().toISOString(),
@@ -194,6 +223,21 @@ const dashboard = () => ({
 });
 
 function fixture(resource, params = new URLSearchParams()) {
+  if (resource === "/store-admin/features") return features;
+  if (
+    resource === "/store-admin/appearance" ||
+    resource === "/store-admin/appearance/preview"
+  )
+    return appearance;
+  if (resource === "/store-admin/media") return [];
+  if (resource.startsWith("/store-admin/internal-notes/"))
+    return internalNotes.filter(
+      (note) => note.orderId === resource.split("/").at(-1),
+    );
+  if (resource === "/store-admin/views")
+    return savedViews.filter(
+      (view) => view.resource === params.get("resource"),
+    );
   if (resource === "/auth/me") return user();
   if (resource === "/store-admin/context") return adminContext();
   if (resource === "/store-admin/dashboard") return dashboard();
@@ -335,6 +379,74 @@ const backend = http.createServer(async (request, response) => {
     for await (const chunk of request) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString() || "{}");
     writes.push({ resource, body });
+    if (resource === "/store-admin/features") {
+      if (body.expectedVersion !== features.version) {
+        response.statusCode = 409;
+        return response.end(
+          JSON.stringify({ message: "La configuración cambió" }),
+        );
+      }
+      Object.assign(features, {
+        appearance: body.appearance,
+        notes: body.notes,
+        savedViews: body.savedViews,
+        version: features.version + 1,
+      });
+      return response.end(JSON.stringify(features));
+    }
+    if (resource === "/store-admin/appearance") {
+      if (body.expectedDraftVersion !== appearance.draftVersion) {
+        response.statusCode = 409;
+        return response.end(JSON.stringify({ message: "El borrador cambió" }));
+      }
+      appearance.draft = body.draft;
+      appearance.draftVersion++;
+      return response.end(JSON.stringify(appearance));
+    }
+    if (resource === "/store-admin/appearance/publish") {
+      if (
+        body.expectedDraftVersion !== appearance.draftVersion ||
+        body.expectedPublishedVersion !== appearance.publishedVersion
+      ) {
+        response.statusCode = 409;
+        return response.end(
+          JSON.stringify({ message: "La publicación cambió" }),
+        );
+      }
+      publishedAppearance = structuredClone(appearance.draft);
+      appearance.publishedVersion = (appearance.publishedVersion ?? 0) + 1;
+      return response.end(JSON.stringify(appearance));
+    }
+    if (resource.startsWith("/store-admin/internal-notes/")) {
+      internalNotes.unshift({
+        id: `note-${internalNotes.length + 1}`,
+        orderId: resource.split("/").at(-1),
+        body: body.body,
+        createdAt: new Date().toISOString(),
+        author: { user: { fullName: "Dueña de tienda" } },
+      });
+      return response.end(JSON.stringify({ id: internalNotes[0].id }));
+    }
+    if (resource === "/store-admin/views") {
+      savedViews.push({
+        id: `view-${savedViews.length + 1}`,
+        ...body,
+        version: 1,
+      });
+      return response.end(JSON.stringify(savedViews.at(-1)));
+    }
+    if (resource.startsWith("/store-admin/views/")) {
+      const id = resource.split("/")[3];
+      const view = savedViews.find((entry) => entry.id === id);
+      if (resource.endsWith("/delete"))
+        savedViews.splice(savedViews.indexOf(view), 1);
+      else {
+        if (body.isDefault)
+          for (const entry of savedViews) entry.isDefault = false;
+        Object.assign(view, body, { version: view.version + 1 });
+      }
+      return response.end(JSON.stringify({ saved: true }));
+    }
     if (resource.startsWith("/store-admin/orders/")) {
       const order = orders.find((entry) => entry.id === resource.split("/")[3]);
       if (conflictOnce || order.version !== body.version) {
@@ -799,6 +911,95 @@ async function main() {
       await page.getByLabel("Nombre del pago", { exact: true }).count(),
       0,
     );
+    await page.goto(`${origin}/comercio/configuracion`);
+    await page
+      .getByRole("checkbox", { name: "Editor de apariencia", exact: true })
+      .check();
+    await page
+      .getByRole("checkbox", { name: "Notas internas de pedidos", exact: true })
+      .check();
+    await page
+      .getByRole("checkbox", {
+        name: "Vistas personales guardadas",
+        exact: true,
+      })
+      .check();
+    await page
+      .getByRole("button", { name: "Guardar funciones", exact: true })
+      .click();
+    await page
+      .getByRole("status")
+      .filter({ hasText: "Funciones actualizadas" })
+      .waitFor();
+    await page.goto(`${origin}/comercio/apariencia`);
+    await page
+      .getByLabel("Titular", { exact: true })
+      .fill("Selección de nuestra tienda");
+    await page
+      .getByRole("button", { name: "Guardar borrador", exact: true })
+      .click();
+    await page
+      .getByRole("status")
+      .filter({ hasText: "Borrador guardado" })
+      .waitFor();
+    assert.equal(publishedAppearance, null);
+    await page
+      .getByRole("button", { name: "Previsualizar borrador", exact: true })
+      .click();
+    await page
+      .getByRole("heading", {
+        name: "Selección de nuestra tienda",
+        exact: true,
+      })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Publicar apariencia", exact: true })
+      .click();
+    await page
+      .getByRole("status")
+      .filter({ hasText: "Apariencia publicada" })
+      .waitFor();
+    assert.equal(publishedAppearance.headline, "Selección de nuestra tienda");
+    await page.goto(`${origin}/comercio/pedidos/order-b`);
+    await page
+      .getByLabel("Nueva nota", { exact: true })
+      .fill("Coordinar internamente antes del retiro");
+    await page
+      .getByRole("button", { name: "Agregar nota interna", exact: true })
+      .click();
+    await page
+      .getByText("Coordinar internamente antes del retiro", { exact: true })
+      .waitFor();
+    await page.goto(
+      `${origin}/comercio/pedidos?q=WEB-002&paymentStatus=PENDING`,
+    );
+    await page
+      .getByLabel("Nombre de la vista", { exact: true })
+      .fill("Cobros pendientes");
+    await page
+      .getByRole("button", { name: "Guardar vista actual", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Cobros pendientes", exact: true })
+      .waitFor();
+    assert.equal("q" in savedViews[0].definition, false);
+    await page
+      .getByRole("button", { name: "Cobros pendientes", exact: true })
+      .click();
+    await page.waitForURL(
+      (url) =>
+        !url.searchParams.has("q") &&
+        url.searchParams.get("paymentStatus") === "PENDING",
+    );
+    await page
+      .getByRole("button", {
+        name: "Eliminar vista Cobros pendientes",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Cobros pendientes", exact: true })
+      .waitFor({ state: "detached" });
     mode = "CLOSEOUT";
     await cookie();
     await page.goto(`${origin}/store`);

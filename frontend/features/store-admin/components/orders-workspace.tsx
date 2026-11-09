@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAdminQuery } from "../api/queries";
+import { SavedStoreViews } from "./studio-collaboration";
 import {
   type AdminOrderRow,
   type OrderPage,
@@ -196,6 +197,7 @@ export function OrdersWorkspace({
   };
   return (
     <div className="space-y-6">
+      {!restricted && <SavedStoreViews resource="ORDERS" />}
       <Heading
         title={
           restricted

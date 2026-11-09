@@ -643,6 +643,42 @@ html:not(.dark) .text-gray-400 {
   background: var(--store-bg);
   color: var(--store-ink);
 }
+.store-portal[data-store-theme="terracota-arena"] {
+  --store-accent: #873c28;
+  --store-tint: #f8ece2;
+  --store-bg: #faf4e9;
+}
+.store-portal[data-store-theme="bosque-marfil"] {
+  --store-accent: #315338;
+  --store-tint: #edf3e8;
+  --store-bg: #f6f6ec;
+}
+.dark .store-portal[data-store-theme="terracota-arena"] {
+  --store-accent: #ffb59c;
+  --store-tint: #39231e;
+  --store-bg: #17120f;
+}
+.dark .store-portal[data-store-theme="bosque-marfil"] {
+  --store-accent: #b5dca1;
+  --store-tint: #243523;
+  --store-bg: #101910;
+}
+.store-appearance-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+  padding: 2rem;
+  color: var(--store-ink);
+  background: var(--store-tint);
+  border-radius: var(--store-radius);
+  margin-bottom: 2rem;
+}
+@media (min-width: 768px) {
+  .store-appearance-banner:has(> img) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+  }
+}
 .dark .store-portal {
   --store-bg: #0b1220;
   --store-surface: #111c2c;

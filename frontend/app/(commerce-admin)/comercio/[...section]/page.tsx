@@ -9,6 +9,7 @@ import {
   CustomerDetail,
 } from "@/features/store-admin/components/customers-workspace";
 import { ConfigurationWorkspace } from "@/features/store-admin/components/configuration-workspace";
+import { AppearanceWorkspace } from "@/features/store-admin/components/appearance-workspace";
 
 export default async function CommerceSectionPage({
   params,
@@ -43,6 +44,7 @@ export default async function CommerceSectionPage({
       "configuracion/pagos",
       "configuracion/entregas",
       "configuracion/reglas",
+      "apariencia",
     ].includes(path) ||
     attention ||
     orderDetail ||
@@ -78,6 +80,7 @@ export default async function CommerceSectionPage({
     );
   else if (path === "catalogo") content = <CatalogWorkspace />;
   else if (path === "clientes") content = <CustomersWorkspace />;
+  else if (path === "apariencia") content = <AppearanceWorkspace />;
   else
     content = (
       <ConfigurationWorkspace

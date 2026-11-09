@@ -24,6 +24,7 @@ import { PrismaService } from "@/database/prisma/prisma.service";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import { RolesGuard } from "@/common/guards/roles.guard";
 import { AuditCommonModule } from "@/common/services/audit.module";
+import { AuditService } from "@/common/services/audit.service";
 import { JwtStrategy } from "@/modules/auth/jwt.strategy";
 import { EmailService } from "@/modules/email/email.service";
 import { PlanCapabilitiesModule } from "@/modules/plan-capabilities/plan-capabilities.module";
@@ -961,7 +962,7 @@ test(
       );
       await t.test(
         "contexto administrativo, métricas completas y cursor conservan identidad y fechas reales",
-        async () => {
+        async (studioParent) => {
           const context = await request(
             "/store-admin/context?companyId=otra-empresa",
             "GET",
@@ -1416,6 +1417,499 @@ test(
               })
             ).pickupAddress,
             null,
+          );
+
+          await studioParent.test(
+            "apariencia, medios, notas y vistas mantienen versiones y privacidad",
+            async () => {
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance",
+                    "GET",
+                    undefined,
+                    staff,
+                  )
+                ).status,
+                403,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/features",
+                    "PATCH",
+                    {
+                      expectedVersion: 0,
+                      appearance: true,
+                      notes: true,
+                      savedViews: true,
+                    },
+                    staff,
+                  )
+                ).status,
+                200,
+              );
+              const state = await request(
+                "/store-admin/appearance",
+                "GET",
+                undefined,
+                staff,
+              );
+              assert.equal(state.status, 200);
+              assert.equal(state.value.publishedVersion, null);
+              const upload = await request(
+                "/store-admin/media",
+                "POST",
+                { purpose: "LOGO", image },
+                staff,
+              );
+              assert.equal(upload.status, 201);
+              const mediaId = String(upload.value.id);
+              assert.equal(upload.value.mimeType, "image/webp");
+              assert.equal("content" in upload.value, false);
+              assert.equal(
+                (
+                  await fetch(
+                    `${base}/store/tienda-a/appearance-media/${mediaId}`,
+                  )
+                ).status,
+                404,
+              );
+              const draft = {
+                ...(state.value.draft as object),
+                headline: "Nuestra selección especial",
+                logoAssetId: mediaId,
+              };
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance",
+                    "PATCH",
+                    { expectedDraftVersion: 1, draft },
+                    staff,
+                  )
+                ).status,
+                200,
+              );
+              assert.equal(
+                (await request("/store/tienda-a/info", "GET")).value.appearance,
+                null,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance/publish",
+                    "POST",
+                    { expectedDraftVersion: 1, expectedPublishedVersion: null },
+                    staff,
+                  )
+                ).status,
+                409,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance/publish",
+                    "POST",
+                    { expectedDraftVersion: 2, expectedPublishedVersion: null },
+                    staff,
+                  )
+                ).status,
+                201,
+              );
+              const publicInfo = await request(
+                "/store/tienda-a/info?draft=1",
+                "GET",
+              );
+              assert.equal(
+                (publicInfo.value.appearance as { headline: string }).headline,
+                "Nuestra selección especial",
+              );
+              assert.equal(
+                JSON.stringify(publicInfo.value).includes(
+                  "updatedByMembershipId",
+                ),
+                false,
+              );
+              assert.equal(
+                (
+                  await fetch(
+                    `${base}/store/tienda-a/appearance-media/${mediaId}`,
+                  )
+                ).status,
+                200,
+              );
+              assert.equal(
+                (
+                  await request(
+                    `/store-admin/media/${mediaId}/archive`,
+                    "POST",
+                    {},
+                    staff,
+                  )
+                ).status,
+                409,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance/preview",
+                    "GET",
+                    undefined,
+                    client,
+                  )
+                ).status,
+                401,
+              );
+
+              const memberB = await prisma!.membership.create({
+                data: {
+                  companyId: companyB.id,
+                  userId: admin.id,
+                  role: "COMPANY_ADMIN",
+                },
+              });
+              const sourceMedia =
+                await prisma!.storeMediaAsset.findUniqueOrThrow({
+                  where: { id: mediaId },
+                });
+              const foreignMedia = await prisma!.storeMediaAsset.create({
+                data: {
+                  companyId: companyB.id,
+                  uploadedByMembershipId: memberB.id,
+                  purpose: "LOGO",
+                  storageKey: "stores/foreign/fixture.webp",
+                  mimeType: sourceMedia.mimeType,
+                  byteSize: sourceMedia.byteSize,
+                  width: sourceMedia.width,
+                  height: sourceMedia.height,
+                  checksum: sourceMedia.checksum,
+                  content: sourceMedia.content,
+                },
+              });
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance",
+                    "PATCH",
+                    {
+                      expectedDraftVersion: 2,
+                      draft: { ...draft, logoAssetId: foreignMedia.id },
+                    },
+                    staff,
+                  )
+                ).status,
+                400,
+              );
+              await prisma!.storeMediaAsset.update({
+                where: { id: mediaId },
+                data: { state: "PROCESSING" },
+              });
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance",
+                    "PATCH",
+                    { expectedDraftVersion: 2, draft },
+                    staff,
+                  )
+                ).status,
+                400,
+              );
+              await prisma!.storeMediaAsset.update({
+                where: { id: mediaId },
+                data: { state: "READY" },
+              });
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance",
+                    "PATCH",
+                    {
+                      expectedDraftVersion: 2,
+                      draft: { ...draft, headline: "Nueva campaña" },
+                    },
+                    staff,
+                  )
+                ).status,
+                200,
+              );
+              assert.equal(
+                (await request("/store/tienda-a/info", "GET")).value.appearance
+                  .headline,
+                "Nuestra selección especial",
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance/publish",
+                    "POST",
+                    { expectedDraftVersion: 3, expectedPublishedVersion: 1 },
+                    staff,
+                  )
+                ).status,
+                201,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/appearance/restore",
+                    "POST",
+                    { expectedVersion: 2 },
+                    staff,
+                  )
+                ).status,
+                201,
+              );
+              assert.equal(
+                (await request("/store/tienda-a/info", "GET")).value.appearance
+                  .headline,
+                "Nuestra selección especial",
+              );
+              const auditFailure = t.mock.method(
+                app!.get(AuditService),
+                "log",
+                async () => {
+                  throw new Error("studio audit unavailable");
+                },
+              );
+              try {
+                assert.equal(
+                  (
+                    await request(
+                      "/store-admin/appearance/publish",
+                      "POST",
+                      { expectedDraftVersion: 3, expectedPublishedVersion: 3 },
+                      staff,
+                    )
+                  ).status,
+                  500,
+                );
+              } finally {
+                auditFailure.mock.restore();
+              }
+              assert.equal(
+                (
+                  await prisma!.storeAppearance.findUniqueOrThrow({
+                    where: { companyId: company.id },
+                  })
+                ).publishedVersion,
+                3,
+              );
+
+              const historyBefore = await prisma!.storeOrderHistory.count({
+                where: { orderId: review.id },
+              });
+              const note = await request(
+                `/store-admin/internal-notes/${review.id}`,
+                "POST",
+                { body: "Coordinación exclusivamente interna" },
+                staff,
+              );
+              assert.equal(note.status, 201);
+              assert.equal(
+                (
+                  await request(
+                    `/store-admin/internal-notes/${review.id}`,
+                    "GET",
+                    undefined,
+                    staff,
+                  )
+                ).value[0].body,
+                "Coordinación exclusivamente interna",
+              );
+              assert.equal(
+                (
+                  await request(
+                    `/store-admin/internal-notes/${review.id}`,
+                    "GET",
+                    undefined,
+                    client,
+                  )
+                ).status,
+                401,
+              );
+              assert.equal(
+                await prisma!.storeOrderHistory.count({
+                  where: { orderId: review.id },
+                }),
+                historyBefore,
+              );
+              assert.equal(
+                JSON.stringify(
+                  (
+                    await request(
+                      `/store/tienda-a/orders/${review.id}`,
+                      "GET",
+                      undefined,
+                      client,
+                    )
+                  ).value,
+                ).includes("Coordinación exclusivamente interna"),
+                false,
+              );
+              await assert.rejects(
+                db.query(
+                  "INSERT INTO store_order_internal_notes(id,company_id,order_id,author_membership_id,body) VALUES ('forged-note',$1,$2,$3,'forged')",
+                  [company.id, review.id, memberB.id],
+                ),
+                (error: unknown) =>
+                  (error as { code?: string }).code === "23503",
+              );
+
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/views",
+                    "POST",
+                    {
+                      resource: "ORDERS",
+                      name: "No permitida",
+                      isDefault: false,
+                      definition: {
+                        layout: "list",
+                        q: "buyer@example.test",
+                        sql: "select *",
+                      },
+                    },
+                    staff,
+                  )
+                ).status,
+                400,
+              );
+              const firstView = await request(
+                "/store-admin/views",
+                "POST",
+                {
+                  resource: "ORDERS",
+                  name: "Revisión",
+                  isDefault: true,
+                  definition: { layout: "list", queue: "review" },
+                },
+                staff,
+              );
+              assert.equal(firstView.status, 201);
+              const secondView = await request(
+                "/store-admin/views",
+                "POST",
+                {
+                  resource: "ORDERS",
+                  name: "Preparación",
+                  isDefault: true,
+                  definition: { layout: "board", queue: "preparing" },
+                },
+                staff,
+              );
+              assert.equal(secondView.status, 201);
+              const views = await request(
+                "/store-admin/views?resource=ORDERS",
+                "GET",
+                undefined,
+                staff,
+              );
+              assert.equal(
+                (
+                  views.value as unknown as Array<{ isDefault: boolean }>
+                ).filter((view) => view.isDefault).length,
+                1,
+              );
+              assert.equal(
+                (
+                  await request(
+                    `/store-admin/views/${secondView.value.id}`,
+                    "PATCH",
+                    {
+                      resource: "ORDERS",
+                      name: "Preparación",
+                      definition: { layout: "board" },
+                      isDefault: true,
+                      expectedVersion: 999,
+                    },
+                    staff,
+                  )
+                ).status,
+                409,
+              );
+              const otherOwner = await prisma!.user.create({
+                data: {
+                  email: "studio-owner@example.test",
+                  passwordHash: "unused",
+                  fullName: "Otra dueña",
+                  memberships: {
+                    create: { companyId: company.id, role: "COMPANY_ADMIN" },
+                  },
+                },
+              });
+              await prisma!.refreshToken.create({
+                data: {
+                  userId: otherOwner.id,
+                  companyId: company.id,
+                  familyId: "studio-owner",
+                  tokenHash: "studio-owner-token",
+                  expiresAt: new Date(Date.now() + 3600000),
+                },
+              });
+              const otherToken = new JwtService().sign(
+                {
+                  sub: otherOwner.id,
+                  sid: "studio-owner",
+                  companyId: company.id,
+                  authVersion: 0,
+                },
+                { secret: config.JWT_ACCESS_SECRET, expiresIn: "1h" },
+              );
+              const otherStaff = `access_token=${otherToken}`;
+              assert.deepEqual(
+                (
+                  await request(
+                    "/store-admin/views?resource=ORDERS",
+                    "GET",
+                    undefined,
+                    otherStaff,
+                  )
+                ).value,
+                [],
+              );
+              assert.equal(
+                (
+                  await request(
+                    `/store-admin/views/${secondView.value.id}/delete`,
+                    "POST",
+                    { expectedVersion: 1 },
+                    otherStaff,
+                  )
+                ).status,
+                404,
+              );
+              assert.equal(
+                (
+                  await request(
+                    "/store-admin/features",
+                    "PATCH",
+                    {
+                      expectedVersion: 1,
+                      appearance: false,
+                      notes: true,
+                      savedViews: true,
+                    },
+                    staff,
+                  )
+                ).status,
+                200,
+              );
+              assert.equal(
+                (await request("/store/tienda-a/info", "GET")).value.appearance,
+                null,
+              );
+              assert.equal(
+                (
+                  await prisma!.storeAppearance.findUniqueOrThrow({
+                    where: { companyId: company.id },
+                  })
+                ).publishedVersion,
+                3,
+              );
+            },
           );
 
           await prisma!.company.update({
