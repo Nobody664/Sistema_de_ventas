@@ -22,7 +22,12 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useSessionQueryReady } from "@/hooks/use-session-query-ready";
 import { useAuthStore } from "@/stores/auth.store";
 import { apiFetch } from "@/lib/api";
-import { storeAdminKeys, type StoreAdminContext } from "../api/contracts";
+import {
+  commerceAttentionRoute,
+  storeAdminKeys,
+  type StoreAdminContext,
+} from "../api/contracts";
+import { useCommerceReconciliation } from "../api/reconciliation";
 
 const CommerceContext = createContext<{
   context: StoreAdminContext;
@@ -56,6 +61,7 @@ export function CommerceShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  useCommerceReconciliation(initialContext.company.id, userId);
   const ready = useSessionQueryReady();
   const user = useAuthStore((state) => state.user);
   const sameSession =
@@ -87,8 +93,9 @@ export function CommerceShell({
     if (identityMismatch) router.refresh();
   }, [identityMismatch, router]);
   useEffect(() => {
-    if (restricted && !attention) router.replace("/comercio/atencion/pedidos");
-  }, [restricted, attention, router]);
+    if (restricted && !attention)
+      router.replace(commerceAttentionRoute(pathname));
+  }, [restricted, attention, pathname, router]);
   if (identityMismatch)
     return (
       <p role="status" className="p-8">

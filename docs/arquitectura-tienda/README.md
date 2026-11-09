@@ -4,6 +4,8 @@
 
 **Estado:** diseño original de referencia. La base de contexto y espacio administrativo ya está implementada; consultar [alcance y verificación de las fases 1–2](implementacion-fases-1-2.md) para distinguir funciones entregadas de propuestas posteriores.
 
+Las fases de operación y gestión también cuentan con [implementación y evidencia de las fases 3–4](implementacion-fases-3-4.md).
+
 ## 1. Resultado que se busca
 
 Desde el sistema de ventas, el administrador pulsa **Tienda virtual → Administrar tienda** y entra en `/comercio`, una página con su propio dashboard, menú lateral, buscador, bandeja de pedidos y configuración. Puede volver a Gestión de ventas o abrir la tienda de sus clientes.

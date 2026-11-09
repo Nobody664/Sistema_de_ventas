@@ -1114,10 +1114,324 @@ test(
             400,
           );
 
+          const sourceProduct = await prisma!.product.create({
+            data: {
+              companyId: company.id,
+              name: "ADMIN-CATALOG-COFFEE",
+              sku: "ADMIN-SKU",
+              salePrice: 14.5,
+              stockQuantity: 8,
+            },
+          });
+          assert.equal(sourceProduct.storeVisible, false);
+          const catalog = await request(
+            "/store-admin/catalog?q=ADMIN-SKU&publication=hidden&activity=active",
+            "GET",
+            undefined,
+            staff,
+          );
+          assert.equal(catalog.status, 200);
+          assert.equal(catalog.value.total, 1);
+          assert.equal(
+            (catalog.value.data as Array<{ id: string }>)[0].id,
+            sourceProduct.id,
+          );
+          assert.equal(
+            (
+              await request(
+                `/store-admin/products/${sourceProduct.id}`,
+                "PATCH",
+                { visible: true },
+                staff,
+              )
+            ).status,
+            200,
+          );
+          const publishedProduct = await prisma!.product.findUniqueOrThrow({
+            where: { id: sourceProduct.id },
+          });
+          assert.equal(publishedProduct.salePrice.toString(), "14.5");
+          assert.equal(publishedProduct.stockQuantity.toString(), "8");
+          assert.equal(publishedProduct.storeVisible, true);
+          assert.equal(
+            (
+              await request(
+                `/store-admin/products/${sourceProduct.id}`,
+                "PATCH",
+                { visible: false, salePrice: 0 },
+                staff,
+              )
+            ).status,
+            400,
+          );
+
+          const accountView = await request(
+            `/store-admin/accounts/${secondAccount.id}`,
+            "GET",
+            undefined,
+            staff,
+          );
+          assert.equal(accountView.status, 200);
+          assert.equal(
+            JSON.stringify(accountView.value).includes("password"),
+            false,
+          );
+          assert.equal(
+            JSON.stringify(accountView.value).includes("documentValue"),
+            false,
+          );
+          const companyB = await prisma!.company.findUniqueOrThrow({
+            where: { slug: "tienda-b" },
+          });
+          const foreignCustomer = await prisma!.customer.create({
+            data: { companyId: companyB.id, firstName: "Cuenta B" },
+          });
+          const foreignAccount = await prisma!.customerAccount.create({
+            data: {
+              companyId: companyB.id,
+              userId: secondUser.id,
+              customerId: foreignCustomer.id,
+              status: "ACTIVE",
+              verifiedAt: new Date(),
+            },
+          });
+          assert.equal(
+            (
+              await request(
+                `/store-admin/accounts/${foreignAccount.id}`,
+                "GET",
+                undefined,
+                staff,
+              )
+            ).status,
+            404,
+          );
+          assert.equal(
+            (
+              await request(
+                `/store-admin/customers/${secondAccount.id}`,
+                "PATCH",
+                { suspended: true },
+                staff,
+              )
+            ).status,
+            200,
+          );
+          assert.equal(
+            (
+              await prisma!.customerAccount.findUniqueOrThrow({
+                where: { id: foreignAccount.id },
+              })
+            ).status,
+            "ACTIVE",
+          );
+          assert.ok(
+            (
+              await prisma!.storeSession.findUniqueOrThrow({
+                where: { id: secondSession.id },
+              })
+            ).revokedAt,
+          );
+
+          assert.equal(
+            (
+              await request(
+                "/store-admin/orders/admin-order-3",
+                "PATCH",
+                { action: "CANCEL", version: 999 },
+                staff,
+              )
+            ).status,
+            409,
+          );
+          assert.equal(
+            (
+              await request(
+                "/store-admin/orders/admin-order-3",
+                "PATCH",
+                { action: "CANCEL", version: 1 },
+                staff,
+              )
+            ).status,
+            200,
+          );
+          const newNotices = await prisma!.notification.findMany({
+            where: {
+              companyId: company.id,
+              actionUrl: "/comercio/pedidos/admin-order-3",
+            },
+          });
+          assert.ok(newNotices.length > 0);
+          await prisma!.storeOrder.update({
+            where: { id: "admin-order-1" },
+            data: {
+              paymentStatus: "PAID",
+              snapshot: {
+                ...(review.snapshot as object),
+                payment: {
+                  id: "manual",
+                  code: "TRANSFER",
+                  label: "Transferencia",
+                  instructions: "Cuenta del negocio",
+                },
+              },
+            },
+          });
+          assert.equal(
+            (
+              await request(
+                "/store-admin/orders/admin-order-1/refund",
+                "POST",
+                { reference: "DEV-REAL-001", version: 999 },
+                staff,
+              )
+            ).status,
+            409,
+          );
+          const refunded = await request(
+            "/store-admin/orders/admin-order-1/refund",
+            "POST",
+            { reference: "DEV-REAL-001", version: 1 },
+            staff,
+          );
+          assert.equal(refunded.status, 201);
+          assert.equal(refunded.value.paymentStatus, "REFUNDED");
+          assert.ok(
+            (refunded.value.allowedActions as string[]).includes("RESTOCK"),
+          );
+
+          const priorSettings =
+            await prisma!.storefrontSettings.findUniqueOrThrow({
+              where: { companyId: company.id },
+            });
+          const staleQuote = await prisma!.storeQuote.create({
+            data: {
+              companyId: company.id,
+              accountId: review.accountId,
+              cartVersion: 1,
+              settingsVersion: priorSettings.version,
+              snapshot: review.snapshot as never,
+              expiresAt: new Date(Date.now() + 3600000),
+            },
+          });
+          const historicSnapshot = (
+            await prisma!.storeOrder.findUniqueOrThrow({
+              where: { id: review.id },
+            })
+          ).snapshot;
+          assert.equal(
+            (
+              await request(
+                "/store-admin/payment-methods",
+                "POST",
+                {
+                  code: "YAPE",
+                  label: "Yape",
+                  instructions: "Nuevas instrucciones",
+                  enabled: false,
+                },
+                staff,
+              )
+            ).status,
+            201,
+          );
+          assert.equal(
+            (
+              await request(
+                "/store/tienda-a/orders",
+                "POST",
+                {
+                  quoteId: staleQuote.id,
+                  idempotencyKey: "admin-stale-quote-123456",
+                },
+                client,
+              )
+            ).status,
+            409,
+          );
+          assert.deepEqual(
+            (
+              await prisma!.storeOrder.findUniqueOrThrow({
+                where: { id: review.id },
+              })
+            ).snapshot,
+            historicSnapshot,
+          );
+          const publicMethods = await request(
+            "/store/tienda-a/methods",
+            "GET",
+            undefined,
+            client,
+          );
+          assert.equal(
+            (publicMethods.value.payment as Array<{ code: string }>).some(
+              (method) => method.code === "YAPE",
+            ),
+            false,
+          );
+          assert.equal(
+            (
+              await request(
+                "/store-admin/shipping-methods",
+                "POST",
+                {
+                  kind: "PICKUP",
+                  label: "ADMIN-RETIRO",
+                  fee: 0,
+                  districts: ["150101"],
+                  pickupAddress: "Av. Principal 999",
+                  enabled: true,
+                },
+                staff,
+              )
+            ).status,
+            201,
+          );
+          const pickup = await prisma!.storeShippingMethod.findFirstOrThrow({
+            where: { companyId: company.id, label: "ADMIN-RETIRO" },
+          });
+          assert.deepEqual(pickup.districts, []);
+          assert.equal(
+            (
+              await request(
+                `/store-admin/shipping-methods/${pickup.id}`,
+                "PATCH",
+                {
+                  kind: "DELIVERY",
+                  label: "ADMIN-DELIVERY",
+                  fee: 5,
+                  districts: ["150101"],
+                  pickupAddress: "Campo anterior",
+                  enabled: true,
+                },
+                staff,
+              )
+            ).status,
+            200,
+          );
+          assert.equal(
+            (
+              await prisma!.storeShippingMethod.findUniqueOrThrow({
+                where: { id: pickup.id },
+              })
+            ).pickupAddress,
+            null,
+          );
+
           await prisma!.company.update({
             where: { id: company.id },
             data: { status: "SUSPENDED" },
           });
+          assert.equal(
+            (await request("/store-admin/catalog", "GET", undefined, staff))
+              .status,
+            403,
+          );
+          assert.equal(
+            (await request("/store-admin/methods", "GET", undefined, staff))
+              .status,
+            403,
+          );
           assert.equal(
             (await request("/store-admin/context", "GET", undefined, staff))
               .value.mode,

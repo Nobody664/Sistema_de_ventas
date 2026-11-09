@@ -2,7 +2,7 @@
 
 Complementa la [arquitectura](README.md), el [modelo de datos](modelo-datos.md) y el [diseño UI/UX](diseno-ui-ux.md).
 
-La fase 0 contiene el diseño original. La base de las fases 1 y 2 está implementada; ver [alcance y evidencia](implementacion-fases-1-2.md). Las fases posteriores y la medición de consultas en un dataset representativo siguen propuestas.
+La fase 0 contiene el diseño original. La base de las fases 1 y 2 está implementada; ver [alcance y evidencia](implementacion-fases-1-2.md). Las fases 3 y 4 también están implementadas; consultar su [detalle y verificación](implementacion-fases-3-4.md). Las fases 5–6 y la medición de consultas en un dataset representativo mantienen su alcance pendiente.
 
 ## 1. Secuencia y alcance
 
@@ -24,8 +24,8 @@ El MVP se puede validar al terminar las fases 1–4. Las extensiones de la fase 
 | 0    | No requiere rama de producto                       | Diagnóstico, arquitectura, datos, UX y prototipo     | Documentada |
 | 1    | `arquitectura/01-contexto-consultas-tienda`        | Contratos, contexto autorizado y lecturas operativas | Base implementada; medición pendiente |
 | 2    | `arquitectura/02-espacio-administrativo-tienda`    | Layout propio, rutas y compatibilidad                | Implementada |
-| 3    | `arquitectura/03-operacion-pedidos-pagos-entregas` | Bandejas, detalle, comandos y actualización en vivo  | Propuesta   |
-| 4    | `arquitectura/04-catalogo-clientes-configuracion`  | Pantallas de gestión separadas y formularios         | Propuesta   |
+| 3    | `arquitectura/03-operacion-pedidos-pagos-entregas` | Bandejas, detalle, comandos y actualización en vivo  | Implementada en subrama 03-04 |
+| 4    | `arquitectura/04-catalogo-clientes-configuracion`  | Pantallas de gestión separadas y formularios         | Implementada en subrama 03-04 |
 | 5    | `arquitectura/05-apariencia-notas-vistas`          | Datos aditivos, editor y colaboración                | Propuesta   |
 | 6    | `arquitectura/06-validacion-piloto-tienda`         | Pruebas, medición y adopción progresiva              | Propuesta   |
 

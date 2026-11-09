@@ -1,5 +1,7 @@
 # Implementación: contexto y espacio administrativo
 
+Este documento describe la entrega base. La evolución posterior está documentada en [implementación de las fases 3–4](implementacion-fases-3-4.md).
+
 ## Entrega
 
 La base de las fases 1 y 2 está implementada en la rama `arquitectura/01-02-contexto-espacio-administrativo`. Las fases 3–6 conservan su alcance en el plan de integración.

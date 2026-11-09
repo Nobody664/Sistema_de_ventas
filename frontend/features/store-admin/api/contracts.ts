@@ -81,3 +81,10 @@ export function commerceEntry(
     ? "/comercio/resumen"
     : "/comercio/atencion/pedidos";
 }
+
+export function commerceAttentionRoute(pathname: string): string {
+  const match = /^\/comercio\/pedidos\/([A-Za-z0-9][A-Za-z0-9_-]{0,127})$/.exec(
+    pathname,
+  );
+  return `/comercio/atencion/pedidos${match ? `/${match[1]}` : ""}`;
+}

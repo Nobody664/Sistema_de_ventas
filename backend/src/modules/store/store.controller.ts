@@ -18,7 +18,8 @@ import { Request, Response } from "express";
 import { Public } from "@/common/decorators/public.decorator";
 import { StoreAccess } from "@/common/decorators/store-access.decorator";
 import { Roles } from "@/common/decorators/roles.decorator";
-import { TenantGuard } from "@/common/guards/tenant.guard";
+import { StoreManagementGuard } from "./admin/store-management.guard";
+import { StoreAdminManagementService } from "./admin/store-admin-management.service";
 import { Permissions } from "@/common/decorators/permissions.decorator";
 import { PermissionsGuard } from "@/common/guards/permissions.guard";
 import { Permission } from "@/common/constants/permissions.constant";
@@ -255,7 +256,7 @@ export class StoreController {
 
 @Roles("COMPANY_ADMIN")
 @UseInterceptors(StorePrivateInterceptor)
-@UseGuards(TenantGuard, PermissionsGuard)
+@UseGuards(StoreManagementGuard, PermissionsGuard)
 @Permissions(Permission.STORE_MANAGE)
 @Controller("store-admin")
 export class StoreAdminController {
@@ -263,6 +264,7 @@ export class StoreAdminController {
     private readonly store: StoreService,
     private readonly prisma: PrismaService,
     private readonly methodsService: StoreMethodsService,
+    private readonly management: StoreAdminManagementService,
   ) {}
   @Get("methods") methods(@Req() req: { tenantId: string }) {
     return this.methodsService.list(req.tenantId, true);
@@ -357,20 +359,6 @@ export class StoreAdminController {
     @Param("id") id: string,
     @Body() input: StoreAccountStatusDto,
   ) {
-    const result = await this.prisma.customerAccount.updateMany({
-      where: {
-        id,
-        companyId: req.tenantId,
-        verifiedAt: { not: null },
-        status: { not: "CLOSED" },
-      },
-      data: { status: input.suspended ? "SUSPENDED" : "ACTIVE" },
-    });
-    if (input.suspended)
-      await this.prisma.storeSession.updateMany({
-        where: { companyId: req.tenantId, accountId: id },
-        data: { revokedAt: new Date() },
-      });
-    return { updated: result.count === 1 };
+    return this.management.suspendAccount(req.tenantId, id, input.suspended);
   }
 }

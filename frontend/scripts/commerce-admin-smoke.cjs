@@ -9,6 +9,120 @@ const backendOrigin = "http://127.0.0.1:4414";
 let mode = "MANAGE";
 let roles = ["COMPANY_ADMIN"];
 let failDashboard = false;
+let failEvents = false;
+let failSave = false;
+let conflictOnce = true;
+const writes = [];
+const methods = {
+  payment: [
+    {
+      id: "yape",
+      code: "YAPE",
+      label: "Yape de la tienda",
+      instructions: "Verifica el número del negocio",
+      enabled: true,
+    },
+  ],
+  shipping: [],
+};
+const product = {
+  id: "product",
+  name: "Café de la casa",
+  sku: "CAFE-01",
+  salePrice: "14.50",
+  imageUrl: null,
+  storeVisible: false,
+  isActive: true,
+  category: { id: "category", name: "Bebidas" },
+};
+const account = {
+  id: "account-a",
+  status: "ACTIVE",
+  createdAt: "2026-11-08T12:00:00Z",
+  verifiedAt: "2026-11-08T12:00:00Z",
+  customer: {
+    firstName: "Ana",
+    lastName: "Pérez",
+    email: "ana@example.test",
+    phone: "999111222",
+  },
+  _count: { orders: 1 },
+  orders: [],
+};
+function makeOrder(id, number, changes = {}) {
+  return {
+    id,
+    number,
+    status: "CONFIRMED",
+    paymentStatus: "UNDER_REVIEW",
+    fulfillment: "UNFULFILLED",
+    totalAmount: "25.00",
+    createdAt: "2026-11-08T12:00:00Z",
+    expiresAt: new Date(Date.now() + 3600000).toISOString(),
+    version: 1,
+    saleId: null,
+    trackingCode: null,
+    refundRequestedAt: null,
+    refundReason: null,
+    refund: null,
+    customer: { name: "Ana Pérez", email: "ana@example.test" },
+    allowedActions: ["APPROVE_PAYMENT", "REJECT_PROOF", "EXTEND", "CANCEL"],
+    proofs: [{ id: "proof-a", createdAt: "2026-11-08T12:00:00Z" }],
+    history: [
+      {
+        version: 1,
+        message: "Pedido recibido",
+        createdAt: "2026-11-08T12:00:00Z",
+      },
+    ],
+    snapshot: {
+      buyer: { firstName: "Ana", lastName: "Pérez", documentValue: "12345678" },
+      payment: {
+        id: "manual",
+        code: "TRANSFER",
+        label: "Transferencia",
+        instructions: "Verifica el depósito en la cuenta del negocio",
+      },
+      shipping: {
+        id: "pickup",
+        kind: "PICKUP",
+        label: "Retiro",
+        pickupAddress: "Av. Principal 100",
+      },
+      address: null,
+      lines: [{ name: "Café de la casa", quantity: "1", totalPrice: "25.00" }],
+      subtotal: "25.00",
+      taxAmount: "0",
+      shippingAmount: "0",
+      totalAmount: "25.00",
+    },
+    ...changes,
+  };
+}
+const orders = [
+  makeOrder("order-a", "WEB-001"),
+  makeOrder("order-b", "WEB-002", {
+    fulfillment: "PREPARING",
+    paymentStatus: "PENDING",
+    allowedActions: ["APPROVE_PAYMENT", "READY", "EXTEND", "CANCEL"],
+  }),
+];
+orders[1].snapshot.payment.code = "CASH_ON_PICKUP";
+orders[1].snapshot.payment.label = "Efectivo al retirar";
+const deliveryOrder = makeOrder("order-delivery", "WEB-DELIVERY", {
+  paymentStatus: "PAID",
+  fulfillment: "PREPARING",
+  allowedActions: ["SHIP"],
+});
+deliveryOrder.snapshot.shipping.kind = "DELIVERY";
+deliveryOrder.snapshot.shipping.label = "Delivery local";
+deliveryOrder.snapshot.address = {
+  recipient: "Ana Pérez",
+  street: "Av. Principal 200",
+  district: "150101",
+  phone: "999111222",
+};
+orders.push(deliveryOrder);
 const company = {
   id: "commerce-company",
   name: "Bodega Central",
@@ -79,12 +193,33 @@ const dashboard = () => ({
   health: { lastOrderAt: new Date().toISOString() },
 });
 
-function fixture(resource) {
+function fixture(resource, params = new URLSearchParams()) {
   if (resource === "/auth/me") return user();
   if (resource === "/store-admin/context") return adminContext();
   if (resource === "/store-admin/dashboard") return dashboard();
-  if (resource === "/store-admin/products")
-    return [{ id: "product", name: "Café de la casa", storeVisible: true }];
+  if (resource === "/store-admin/products") return [product];
+  if (resource === "/store-admin/catalog")
+    return {
+      data: [product].filter(
+        (item) =>
+          (!params.get("q") ||
+            item.name.toLowerCase().includes(params.get("q").toLowerCase()) ||
+            item.sku.toLowerCase().includes(params.get("q").toLowerCase())) &&
+          (!params.get("publication") ||
+            (params.get("publication") === "published") === item.storeVisible),
+      ),
+      total: 1,
+      page: Number(params.get("page") || 1),
+      limit: 24,
+      categories: [product.category],
+    };
+  if (resource === "/store-admin/accounts")
+    return { data: [account], total: 1, page: 1, limit: 24 };
+  if (resource === "/store-admin/accounts/account-a")
+    return {
+      ...account,
+      orders: [orders.find((order) => order.id === "order-a")],
+    };
   if (resource === "/store-admin/settings")
     return {
       slug: company.slug,
@@ -96,32 +231,192 @@ function fixture(resource) {
       pricesIncludeTax: true,
       reservationMinutes: 30,
     };
-  if (resource === "/store-admin/methods") return { payment: [], shipping: [] };
+  if (resource === "/store-admin/methods") return methods;
   if (resource === "/store-admin/integration") return { configured: false };
-  if (
-    resource === "/store-admin/orders" ||
-    resource === "/store-admin/payment-events"
-  )
-    return [];
+  if (resource.startsWith("/store-admin/orders/"))
+    return orders.find((order) => order.id === resource.split("/")[3]);
+  if (resource === "/store-admin/orders") {
+    const filtered = orders.filter((order) => {
+      if (
+        params.get("q") &&
+        !`${order.number} ${order.customer.name}`
+          .toLowerCase()
+          .includes(params.get("q").toLowerCase())
+      )
+        return false;
+      for (const key of ["status", "paymentStatus", "fulfillment"])
+        if (params.get(key) && order[key] !== params.get(key)) return false;
+      if (
+        params.get("shippingKind") &&
+        order.snapshot.shipping.kind !== params.get("shippingKind")
+      )
+        return false;
+      const queue = params.get("queue");
+      if (queue === "review")
+        return (
+          order.paymentStatus === "UNDER_REVIEW" ||
+          order.status === "REVIEW_REQUIRED"
+        );
+      if (queue === "prepare")
+        return (
+          order.fulfillment === "UNFULFILLED" && order.paymentStatus === "PAID"
+        );
+      if (queue === "preparing") return order.fulfillment === "PREPARING";
+      if (queue === "pickup") return order.fulfillment === "READY_FOR_PICKUP";
+      if (queue === "shipping") return order.fulfillment === "SHIPPED";
+      return true;
+    });
+    const offset = Number((params.get("cursor") ?? "fixture-0").split("-")[1]);
+    const limit = Number(params.get("limit") || 30);
+    const hasMore = offset + limit < filtered.length;
+    return {
+      data: filtered.slice(offset, offset + limit),
+      totals: { matched: filtered.length },
+      pageInfo: {
+        hasMore,
+        nextCursor: hasMore ? `fixture-${offset + limit}` : null,
+      },
+      appliedFilters: {},
+      asOf: new Date().toISOString(),
+    };
+  }
+  if (resource === "/store-admin/proofs/proof-a")
+    return {
+      image:
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jh9kAAAAASUVORK5CYII=",
+    };
+  if (resource === "/store-admin/payment-events") return [];
   if (resource === "/notifications/unread-count") return { count: 0 };
   if (resource === "/notifications/preferences")
     return { salesEnabled: true, stockEnabled: true, soundEnabled: false };
   return [];
 }
 
-const backend = http.createServer((request, response) => {
-  const resource = new URL(request.url, backendOrigin).pathname.replace(
-    /^\/api/,
-    "",
-  );
+const backend = http.createServer(async (request, response) => {
+  const url = new URL(request.url, backendOrigin);
+  const resource = url.pathname.replace(/^\/api/, "");
   response.setHeader("Content-Type", "application/json");
+  if (
+    resource === "/store-admin/orders" &&
+    [...url.searchParams.keys()].some(
+      (key) =>
+        ![
+          "q",
+          "status",
+          "paymentStatus",
+          "fulfillment",
+          "queue",
+          "shippingKind",
+          "cursor",
+          "limit",
+          "page",
+        ].includes(key),
+    )
+  ) {
+    response.statusCode = 400;
+    return response.end(
+      JSON.stringify({ message: "Filtro administrativo no permitido" }),
+    );
+  }
+  if (resource === "/store-admin/payment-events" && failEvents) {
+    response.statusCode = 503;
+    return response.end(
+      JSON.stringify({ message: "Incidencias temporalmente no disponibles" }),
+    );
+  }
   if (resource === "/store-admin/dashboard" && failDashboard) {
     response.statusCode = 503;
     return response.end(
       JSON.stringify({ message: "Resumen temporalmente no disponible" }),
     );
   }
-  response.end(JSON.stringify(fixture(resource)));
+  if (["POST", "PATCH"].includes(request.method)) {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks).toString() || "{}");
+    writes.push({ resource, body });
+    if (resource.startsWith("/store-admin/orders/")) {
+      const order = orders.find((entry) => entry.id === resource.split("/")[3]);
+      if (conflictOnce || order.version !== body.version) {
+        conflictOnce = false;
+        order.version++;
+        response.statusCode = 409;
+        return response.end(JSON.stringify({ message: "El pedido cambió" }));
+      }
+      if (resource.endsWith("/refund")) {
+        order.paymentStatus = "REFUNDED";
+        order.status = "CANCELLED";
+        order.refund = { status: "SUCCEEDED", restockedAt: null };
+        order.allowedActions = ["RESTOCK"];
+      }
+      if (body.action === "APPROVE_PAYMENT") {
+        order.paymentStatus = "PAID";
+        order.saleId = "sale-a";
+        order.allowedActions = ["PREPARE"];
+      }
+      if (body.action === "PREPARE") {
+        order.fulfillment = "PREPARING";
+        order.allowedActions = ["READY"];
+      }
+      if (body.action === "READY") {
+        order.fulfillment = "READY_FOR_PICKUP";
+        order.allowedActions = ["DELIVER"];
+      }
+      if (body.action === "SHIP") {
+        order.fulfillment = "SHIPPED";
+        order.trackingCode = body.reference;
+        order.allowedActions = ["DELIVER"];
+      }
+      if (body.action === "DELIVER") {
+        order.fulfillment = "DELIVERED";
+        order.status = "COMPLETED";
+        order.allowedActions = [];
+      }
+      if (body.action === "RESTOCK") {
+        order.refund.restockedAt = new Date().toISOString();
+        order.allowedActions = [];
+      }
+      order.version++;
+      order.history.push({
+        version: order.version,
+        message: body.action || "Devolución registrada",
+        createdAt: new Date().toISOString(),
+      });
+      return response.end(JSON.stringify(order));
+    }
+    if (resource === "/store-admin/products/product") {
+      product.storeVisible = body.visible;
+      return response.end(JSON.stringify({ updated: true }));
+    }
+    if (resource === "/store-admin/customers/account-a") {
+      account.status = body.suspended ? "SUSPENDED" : "ACTIVE";
+      return response.end(JSON.stringify({ updated: true }));
+    }
+    if (resource === "/store-admin/payment-methods") {
+      if (failSave) {
+        failSave = false;
+        response.statusCode = 400;
+        return response.end(
+          JSON.stringify({ message: "No se pudo guardar el método" }),
+        );
+      }
+      const prior = methods.payment.find((item) => item.code === body.code);
+      if (prior) Object.assign(prior, body);
+      else methods.payment.push({ id: body.code.toLowerCase(), ...body });
+      methods.payment.sort((a, b) => a.label.localeCompare(b.label));
+      return response.end(JSON.stringify({ saved: true }));
+    }
+    if (resource.startsWith("/store-admin/shipping-methods")) {
+      methods.shipping.push({
+        id: "shipping-new",
+        pickupAddress: null,
+        ...body,
+      });
+      return response.end(JSON.stringify({ saved: true }));
+    }
+    return response.end(JSON.stringify({ saved: true }));
+  }
+  response.end(JSON.stringify(fixture(resource, url.searchParams)));
 });
 
 async function main() {
@@ -157,6 +452,7 @@ async function main() {
     logs += chunk;
   });
   let browser;
+  let page;
   try {
     let ready = false;
     for (let attempt = 0; attempt < 60; attempt++) {
@@ -173,6 +469,20 @@ async function main() {
     browser = await chromium.launch();
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
+    });
+    await context.addInitScript(() => {
+      window.__commerceStreams = [];
+      window.EventSource = class {
+        constructor(url) {
+          this.url = url;
+          this.closed = false;
+          window.__commerceStreams.push(this);
+          setTimeout(() => this.onopen?.({}), 0);
+        }
+        close() {
+          this.closed = true;
+        }
+      };
     });
     const cookie = async () =>
       context.addCookies([
@@ -192,6 +502,11 @@ async function main() {
         });
       const response = await fetch(
         `${backendOrigin}${url.pathname}${url.search}`,
+        {
+          method: route.request().method(),
+          headers: { "Content-Type": "application/json" },
+          body: route.request().postData() ?? undefined,
+        },
       );
       return route.fulfill({
         status: response.status,
@@ -199,7 +514,7 @@ async function main() {
         body: await response.text(),
       });
     });
-    const page = await context.newPage();
+    page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`${origin}/store`);
@@ -222,15 +537,264 @@ async function main() {
     await page.getByText("Café de la casa", { exact: true }).waitFor();
     await page.reload();
     await page.getByText("Café de la casa", { exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: "Publicar Café de la casa", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Ocultar Café de la casa", exact: true })
+      .waitFor();
+    assert.deepEqual(
+      writes.find((entry) => entry.resource === "/store-admin/products/product")
+        .body,
+      { visible: true },
+    );
+
+    await page.goto(`${origin}/comercio/pedidos/order-a`);
+    await page.getByRole("heading", { name: "WEB-001", exact: true }).waitFor();
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      assert.ok(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+        `Detalle desborda a ${width}px`,
+      );
+    }
+    await page
+      .getByRole("button", { name: "Ver comprobante 1", exact: true })
+      .click();
+    await page.getByRole("dialog").waitFor();
+    await page.getByAltText("Comprobante privado del pedido").waitFor();
+    await page.getByRole("button", { name: "Cerrar", exact: true }).click();
+    const chooseAction = async (action, reference) => {
+      await page.getByLabel("Acción", { exact: true }).selectOption(action);
+      if (reference && action === "SHIP")
+        await page
+          .getByLabel("Referencia de seguimiento", { exact: true })
+          .fill(reference);
+      else if (reference)
+        await page
+          .getByLabel("Referencia real de la operación", { exact: true })
+          .fill(reference);
+      await page
+        .getByRole("button", { name: "Confirmar acción", exact: true })
+        .click();
+    };
+    await chooseAction("APPROVE_PAYMENT", "TX-REAL-001");
+    await page
+      .getByRole("status")
+      .filter({ hasText: "El pedido cambió mientras lo revisabas" })
+      .waitFor();
+    assert.equal(
+      writes.filter((entry) => entry.resource === "/store-admin/orders/order-a")
+        .length,
+      1,
+    );
+    assert.equal(
+      writes.find((entry) => entry.resource === "/store-admin/orders/order-a")
+        .body.version,
+      1,
+    );
+    await chooseAction("APPROVE_PAYMENT", "TX-REAL-001");
+    await page
+      .getByRole("status")
+      .filter({ hasText: "La operación fue registrada" })
+      .waitFor();
+    assert.equal(
+      writes
+        .filter((entry) => entry.resource === "/store-admin/orders/order-a")
+        .at(-1).body.version,
+      2,
+    );
+    for (const action of ["PREPARE", "READY", "DELIVER"]) {
+      await chooseAction(action);
+      await page
+        .getByRole("status")
+        .filter({ hasText: "La operación fue registrada" })
+        .waitFor();
+    }
+    await chooseAction("REFUND", "DEV-REAL-001");
+    await page
+      .getByRole("status")
+      .filter({ hasText: "La operación fue registrada" })
+      .waitFor();
+    assert.equal(orders[0].refund.restockedAt, null);
+    await chooseAction("RESTOCK");
+    await page
+      .getByRole("status")
+      .filter({ hasText: "La operación fue registrada" })
+      .waitFor();
+    assert.ok(orders[0].refund.restockedAt);
+    await page.goto(`${origin}/comercio/entregas?shippingKind=DELIVERY`);
+    await page.getByRole("link").filter({ hasText: "WEB-DELIVERY" }).click();
+    await page
+      .getByRole("heading", { name: "WEB-DELIVERY", exact: true })
+      .waitFor();
+    await chooseAction("SHIP", "COURIER-123");
+    await page.getByText("Seguimiento: COURIER-123", { exact: true }).waitFor();
+    await chooseAction("DELIVER");
+    await page
+      .getByRole("status")
+      .filter({ hasText: "La operación fue registrada" })
+      .waitFor();
+    assert.equal(deliveryOrder.fulfillment, "DELIVERED");
+
+    const beforeBoard = writes.length;
+    await page.goto(`${origin}/comercio/pedidos?view=board`);
+    await page.getByRole("heading", { name: /^En preparación/ }).waitFor();
+    await page.getByRole("link").filter({ hasText: "WEB-002" }).waitFor();
+    assert.equal(writes.length, beforeBoard);
+    await page.goto(`${origin}/comercio/pedidos`);
+    await page.getByRole("link").filter({ hasText: "WEB-002" }).waitFor();
+    orders.unshift(makeOrder("order-live", "WEB-LIVE"));
+    await page.evaluate((companyId) => {
+      window.__commerceStreams
+        .filter((stream) => !stream.closed)
+        .at(-1)
+        .onmessage({
+          data: JSON.stringify({
+            id: "notice-live",
+            companyId,
+            actionUrl: "/comercio/pedidos/order-live",
+            isRead: false,
+            title: "Nuevo pedido",
+            message: "Pedido recibido",
+            type: "SYSTEM",
+            createdAt: new Date().toISOString(),
+          }),
+        });
+    }, company.id);
+    await page.getByRole("link").filter({ hasText: "WEB-LIVE" }).waitFor();
+    assert.equal(
+      await page.getByRole("link").filter({ hasText: "WEB-LIVE" }).count(),
+      1,
+    );
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.__commerceStreams.filter((stream) => !stream.closed).length,
+      ),
+      1,
+    );
+    orders.unshift(makeOrder("order-reconnect", "WEB-RECONNECT"));
+    await page.evaluate(() =>
+      window.__commerceStreams
+        .filter((stream) => !stream.closed)
+        .at(-1)
+        .onerror({}),
+    );
+    await page.getByRole("link").filter({ hasText: "WEB-RECONNECT" }).waitFor();
+
+    for (let index = 1; index <= 35; index++)
+      orders.push(makeOrder(`page-${index}`, `PAGE-${index}`));
+    await page.goto(`${origin}/comercio/pedidos?q=PAGE-`);
+    await page
+      .getByRole("link", { name: "Siguiente página", exact: true })
+      .click();
+    await page.waitForURL("**cursor=fixture-30");
+    await page.getByRole("link").filter({ hasText: "PAGE-35" }).waitFor();
+    await page
+      .getByRole("link", { name: "Primera página", exact: true })
+      .click();
+    await page
+      .getByRole("link")
+      .filter({ hasText: "PAGE-1" })
+      .first()
+      .waitFor();
+    failEvents = true;
+    await page.goto(`${origin}/comercio/pagos?queue=all&q=WEB-002`);
+    await page.getByRole("link").filter({ hasText: "WEB-002" }).waitFor();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Incidencias temporalmente" })
+      .waitFor();
+    failEvents = false;
+
+    await page.goto(`${origin}/comercio/clientes/account-a`);
+    await page
+      .getByRole("button", { name: "Suspender cuenta comercial", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Reactivar cuenta comercial", exact: true })
+      .waitFor();
+    assert.equal(account.status, "SUSPENDED");
 
     await page.goto(`${origin}/comercio/configuracion/pagos`);
-    await page.getByLabel("Nombre del pago", { exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "Yape de la tienda", exact: true })
+      .waitFor();
+    const paymentForm = page
+      .getByRole("heading", { name: "Agregar método de pago", exact: true })
+      .locator("..");
+    await paymentForm
+      .getByLabel("Tipo de pago", { exact: true })
+      .selectOption("TRANSFER");
+    await paymentForm
+      .getByLabel("Nombre del pago", { exact: true })
+      .fill("Transferencia web");
+    await paymentForm
+      .getByLabel("Instrucciones de pago", { exact: true })
+      .fill("Cuenta bancaria 12345");
+    failSave = true;
+    await paymentForm
+      .getByRole("button", { name: "Guardar cambios", exact: true })
+      .click();
+    await paymentForm
+      .getByRole("alert")
+      .filter({ hasText: "No se pudo guardar" })
+      .waitFor();
+    assert.equal(
+      await paymentForm
+        .getByLabel("Nombre del pago", { exact: true })
+        .inputValue(),
+      "Transferencia web",
+    );
+    await paymentForm
+      .getByRole("button", { name: "Guardar cambios", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Transferencia web", exact: true })
+      .waitFor();
     assert.equal(
       await page.getByLabel("Dirección de retiro", { exact: true }).count(),
       0,
     );
     await page.goto(`${origin}/comercio/configuracion/entregas`);
     await page.getByLabel("Dirección de retiro", { exact: true }).waitFor();
+    await page
+      .getByLabel("Tipo de entrega", { exact: true })
+      .selectOption("DELIVERY");
+    await page
+      .getByLabel("Nombre del envío", { exact: true })
+      .fill("Delivery web");
+    await page.getByLabel("Tarifa de envío", { exact: true }).fill("5.50");
+    await page
+      .getByLabel("Distritos de cobertura", { exact: false })
+      .fill("150101, 150102");
+    assert.equal(
+      await page.getByLabel("Dirección de retiro", { exact: true }).count(),
+      0,
+    );
+    await page
+      .getByRole("button", { name: "Guardar cambios", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Delivery web", exact: true })
+      .waitFor();
+    const shippingWrite = writes.find(
+      (entry) => entry.resource === "/store-admin/shipping-methods",
+    );
+    assert.deepEqual(shippingWrite.body.districts, ["150101", "150102"]);
+    assert.equal("pickupAddress" in shippingWrite.body, false);
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      assert.ok(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+        `Formulario desborda a ${width}px`,
+      );
+    }
     assert.equal(
       await page.getByLabel("Nombre del pago", { exact: true }).count(),
       0,
@@ -256,6 +820,15 @@ async function main() {
     await page.waitForURL("**/comercio/atencion/pedidos");
     await page.goto(`${origin}/atencion-tienda`);
     await page.waitForURL("**/comercio/atencion/pedidos");
+    await page.goto(`${origin}/comercio/pedidos/order-b`);
+    await page.waitForURL("**/comercio/atencion/pedidos/order-b");
+    await page.getByRole("heading", { name: "WEB-002", exact: true }).waitFor();
+    assert.equal(
+      await page
+        .getByRole("option", { name: "Confirmar entrega", exact: true })
+        .count(),
+      0,
+    );
 
     mode = "MANAGE";
     roles = ["CASHIER"];
@@ -275,11 +848,20 @@ async function main() {
     await page.getByText("42", { exact: true }).first().waitFor();
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: /store y /atencion-tienda, contexto MANAGE/CLOSEOUT, recarga profunda, autorización, errores recuperables y anchos 320/390/768/1440.",
+      "PASS: fases 1–4: alias, modos y rutas profundas; pedidos/colas/cursor/409/comprobantes/cobro/entrega/devolución/retorno; SSE y reconexión; catálogo, clientes y configuración con reintento y campos compatibles; responsive 320/390/768/1440.",
     );
     await context.close();
   } catch (error) {
     console.error(logs);
+    if (page && !page.isClosed())
+      console.error(
+        await page.locator("select").evaluateAll((selects) =>
+          selects.map((select) => ({
+            html: select.outerHTML,
+            labels: [...select.labels].map((label) => label.textContent),
+          })),
+        ),
+      );
     throw error;
   } finally {
     await browser?.close();

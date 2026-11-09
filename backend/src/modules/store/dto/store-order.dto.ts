@@ -39,6 +39,7 @@ export class StoreReasonDto {
 }
 export class StoreRefundDto {
   @StoreText(5, 240) reference!: string;
+  @IsOptional() @IsInt() @Min(1) version?: number;
 }
 export class StoreIntegrationDto {
   @IsString()

@@ -96,7 +96,7 @@ export class StoreOrdersService {
           type: "SYSTEM" as const,
           title: `Pedido ${order.number}`,
           message,
-          actionUrl: "/store",
+          actionUrl: `/comercio/pedidos/${order.id}`,
           scope: "COMPANY",
           dedupeKey: `STORE:${order.id}:${updated.version}:${owner.id}`,
         })),
@@ -485,11 +485,14 @@ export class StoreOrdersService {
     userId?: string,
     accountId?: string,
     expired = false,
+    expectedVersion?: number,
   ) {
     await serializableTransaction(this.prisma, async (tx) => {
       const order = await this.lock(tx, companyId, id);
       if (accountId && order.accountId !== accountId)
         throw new NotFoundException();
+      if (expectedVersion !== undefined && order.version !== expectedVersion)
+        throw new ConflictException("El pedido cambió. Actualiza el detalle.");
       if (["CANCELLED", "EXPIRED"].includes(order.status)) return;
       if (order.saleId || order.paymentStatus === "PAID")
         throw new BadRequestException(
@@ -555,7 +558,15 @@ export class StoreOrdersService {
     input: StoreOrderActionDto,
     userId: string,
   ) {
-    if (input.action === "CANCEL") return this.cancel(companyId, id, userId);
+    if (input.action === "CANCEL")
+      return this.cancel(
+        companyId,
+        id,
+        userId,
+        undefined,
+        false,
+        input.version,
+      );
     await serializableTransaction(this.prisma, async (tx) => {
       const order = await this.lock(tx, companyId, id);
       if (order.version !== input.version)

@@ -27,6 +27,9 @@ import { StoreAdminContextService } from "./admin/store-admin-context.service";
 import { StoreAdminDashboardService } from "./admin/store-admin-dashboard.service";
 import { StoreAdminPolicyService } from "./admin/store-admin-policy.service";
 import { StoreAdminQueriesService } from "./admin/store-admin-queries.service";
+import { StoreAdminManagementController } from "./admin/store-admin-management.controller";
+import { StoreAdminManagementService } from "./admin/store-admin-management.service";
+import { StoreManagementGuard } from "./admin/store-management.guard";
 
 @Global()
 @Module({
@@ -44,6 +47,7 @@ import { StoreAdminQueriesService } from "./admin/store-admin-queries.service";
     StoreOrdersAdminController,
     StoreWebhookController,
     StoreAdminWorkspaceController,
+    StoreAdminManagementController,
   ],
   providers: [
     StorePrivateInterceptor,
@@ -62,6 +66,8 @@ import { StoreAdminQueriesService } from "./admin/store-admin-queries.service";
     StoreAdminContextService,
     StoreAdminDashboardService,
     StoreAdminQueriesService,
+    StoreAdminManagementService,
+    StoreManagementGuard,
   ],
   exports: [StoreAuthGuard],
 })

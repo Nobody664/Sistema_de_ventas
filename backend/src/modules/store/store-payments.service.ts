@@ -331,6 +331,7 @@ export class StorePaymentsService {
     id: string,
     reference: string,
     userId: string,
+    expectedVersion?: number,
   ) {
     if (reference.trim().length < 5)
       throw new BadRequestException("Indica la referencia de devolución");
@@ -338,6 +339,10 @@ export class StorePaymentsService {
       where: { id, companyId },
     });
     if (!order) throw new NotFoundException();
+    if (expectedVersion !== undefined && order.version !== expectedVersion)
+      throw new ConflictException(
+        "El pedido cambió. Actualiza el detalle antes de devolver el pago.",
+      );
     if (order.paymentStatus === "REFUNDED")
       return this.orders.get(companyId, id);
     if (order.paymentStatus !== "PAID")
@@ -351,10 +356,24 @@ export class StorePaymentsService {
       });
       if (!attempt.providerPaymentId)
         throw new BadRequestException("Pago sin referencia verificada");
-      const refund = await this.prisma.storeRefund.upsert({
-        where: { orderId: id },
-        create: { companyId, orderId: id, amount: order.totalAmount },
-        update: {},
+      const refund = await serializableTransaction(this.prisma, async (tx) => {
+        const current = await this.orders.lock(tx, companyId, id);
+        if (
+          expectedVersion !== undefined &&
+          current.version !== expectedVersion
+        )
+          throw new ConflictException(
+            "El pedido cambió. Actualiza el detalle antes de devolver el pago.",
+          );
+        if (current.paymentStatus !== "PAID")
+          throw new ConflictException(
+            "El estado del cobro cambió. Actualiza el detalle.",
+          );
+        return tx.storeRefund.upsert({
+          where: { orderId: id },
+          create: { companyId, orderId: id, amount: current.totalAmount },
+          update: {},
+        });
       });
       await this.request(
         this.crypto.decrypt(attempt.integration.encryptedToken),
@@ -364,9 +383,17 @@ export class StorePaymentsService {
       );
       await this.reconcile(companyId, attempt.providerPaymentId);
     } else
-      await serializableTransaction(this.prisma, (tx) =>
-        this.orders.markRefund(tx, companyId, id, reference, userId),
-      );
+      await serializableTransaction(this.prisma, async (tx) => {
+        const current = await this.orders.lock(tx, companyId, id);
+        if (
+          expectedVersion !== undefined &&
+          current.version !== expectedVersion
+        )
+          throw new ConflictException(
+            "El pedido cambió. Actualiza el detalle antes de devolver el pago.",
+          );
+        return this.orders.markRefund(tx, companyId, id, reference, userId);
+      });
     return this.orders.get(companyId, id);
   }
   @Interval(60000)

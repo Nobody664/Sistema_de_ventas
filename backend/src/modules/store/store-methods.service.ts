@@ -17,11 +17,11 @@ export class StoreMethodsService {
     const [payment, shipping] = await Promise.all([
       this.prisma.storePaymentMethod.findMany({
         where: { companyId, ...(admin ? {} : { enabled: true }) },
-        orderBy: { label: "asc" },
+        orderBy: [{ label: "asc" }, { id: "asc" }],
       }),
       this.prisma.storeShippingMethod.findMany({
         where: { companyId, ...(admin ? {} : { enabled: true }) },
-        orderBy: { label: "asc" },
+        orderBy: [{ label: "asc" }, { id: "asc" }],
       }),
     ]);
     const gateway = admin
@@ -87,15 +87,20 @@ export class StoreMethodsService {
       throw new BadRequestException("Define al menos un distrito de cobertura");
     if (input.kind === "PICKUP" && !input.pickupAddress?.trim())
       throw new BadRequestException("Indica la dirección de retiro");
+    const data = {
+      ...input,
+      districts: input.kind === "PICKUP" ? [] : input.districts,
+      pickupAddress: input.kind === "DELIVERY" ? null : input.pickupAddress,
+    };
     return this.prisma.$transaction(async (tx) => {
       if (id) {
         const result = await tx.storeShippingMethod.updateMany({
           where: { companyId, id },
-          data: input,
+          data,
         });
         if (!result.count) throw new NotFoundException();
       } else
-        await tx.storeShippingMethod.create({ data: { companyId, ...input } });
+        await tx.storeShippingMethod.create({ data: { companyId, ...data } });
       await tx.storefrontSettings.update({
         where: { companyId },
         data: { version: { increment: 1 } },

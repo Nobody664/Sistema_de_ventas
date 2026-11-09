@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  commerceAttentionRoute,
   commerceEntry,
   storeAdminKeys,
 } from "../features/store-admin/api/contracts";
@@ -16,6 +17,14 @@ test("el centro de tienda distingue gestión de atención restringida", () => {
     module: "storefront",
   });
   assert.deepEqual(getRouteRequirement("/comercio/atencion/pedidos"), {});
+  assert.equal(
+    commerceAttentionRoute("/comercio/pedidos/order-b"),
+    "/comercio/atencion/pedidos/order-b",
+  );
+  assert.equal(
+    commerceAttentionRoute("/comercio/catalogo"),
+    "/comercio/atencion/pedidos",
+  );
 });
 
 test("las consultas de tienda separan compañía, identidad y período", () => {

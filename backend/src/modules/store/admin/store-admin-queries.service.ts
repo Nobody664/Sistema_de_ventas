@@ -63,6 +63,11 @@ export function storeAdminQueueWhere(
       fulfillment: "READY_FOR_PICKUP",
       status: { notIn: ["CANCELLED", "EXPIRED"] },
     };
+  if (queue === "preparing")
+    return {
+      fulfillment: "PREPARING",
+      status: { notIn: ["CANCELLED", "EXPIRED", "COMPLETED"] },
+    };
   return {
     fulfillment: "SHIPPED",
     status: { notIn: ["CANCELLED", "EXPIRED"] },
@@ -83,11 +88,16 @@ export class StoreAdminQueriesService {
       ...(paymentStatus ? { paymentStatus } : {}),
       ...(query.fulfillment ? { fulfillment: query.fulfillment } : {}),
       ...(query.q ? { q: query.q } : {}),
+      ...(query.shippingKind ? { shippingKind: query.shippingKind } : {}),
     };
     const filterKey = this.filterKey(filters);
     const conditions: Prisma.StoreOrderWhereInput[] = [];
 
     if (query.queue) conditions.push(storeAdminQueueWhere(query.queue, asOf));
+    if (query.shippingKind)
+      conditions.push({
+        snapshot: { path: ["shipping", "kind"], equals: query.shippingKind },
+      });
     if (query.status)
       conditions.push({ status: query.status as StoreOrderState });
     if (paymentStatus) conditions.push({ paymentStatus });

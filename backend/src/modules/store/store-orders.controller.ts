@@ -20,7 +20,7 @@ import { Roles } from "@/common/decorators/roles.decorator";
 import { Permissions } from "@/common/decorators/permissions.decorator";
 import { Permission } from "@/common/constants/permissions.constant";
 import { PermissionsGuard } from "@/common/guards/permissions.guard";
-import { TenantGuard } from "@/common/guards/tenant.guard";
+import { StoreManagementGuard } from "./admin/store-management.guard";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { StoreActor } from "./store.strategy";
 import { StoreOrdersService } from "./store-orders.service";
@@ -178,6 +178,7 @@ export class StoreOrdersAdminController {
       id,
       input.reference,
       req.user.sub,
+      input.version,
     );
   }
   @Get("proofs/:id") async proof(
@@ -195,7 +196,7 @@ export class StoreOrdersAdminController {
   @Get("integration") integration(@Req() req: StaffRequest) {
     return this.payments.integration(req.tenantId);
   }
-  @UseGuards(TenantGuard) @Post("integration") configure(
+  @UseGuards(StoreManagementGuard) @Post("integration") configure(
     @Req() req: StaffRequest,
     @Body() input: StoreIntegrationDto,
   ) {

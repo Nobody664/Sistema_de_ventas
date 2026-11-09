@@ -14,6 +14,7 @@ import { StoreText } from "../../dto/store-validation";
 export const STORE_ADMIN_QUEUES = [
   "review",
   "prepare",
+  "preparing",
   "pickup",
   "shipping",
 ] as const;
@@ -79,6 +80,28 @@ export class StoreAdminOrdersQueryDto {
   queue?: StoreAdminQueue;
 
   @IsOptional() @StoreText(1, 80) q?: string;
+
+  @IsOptional() @IsIn(["PICKUP", "DELIVERY"]) shippingKind?: string;
+}
+
+export class StoreAdminCatalogQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(60) limit: number =
+    24;
+  @IsOptional() @StoreText(0, 80) q?: string;
+  @IsOptional() @StoreText(1, 128) categoryId?: string;
+  @IsOptional() @IsIn(["published", "hidden"]) publication?: string;
+  @IsOptional() @IsIn(["active", "inactive"]) activity?: string;
+}
+
+export class StoreAdminAccountsQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(60) limit: number =
+    24;
+  @IsOptional() @StoreText(0, 80) q?: string;
+  @IsOptional()
+  @IsIn(["ACTIVE", "SUSPENDED", "PENDING_VERIFICATION", "CLOSED"])
+  status?: string;
 }
 
 export function usesStoreAdminOrderFilters(
@@ -90,6 +113,7 @@ export function usesStoreAdminOrderFilters(
     query.paymentStatus ||
     query.fulfillment ||
     query.q ||
+    query.shippingKind ||
     query.cursor ||
     query.limit !== undefined,
   );
