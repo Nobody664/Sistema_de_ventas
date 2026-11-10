@@ -14,9 +14,11 @@ export async function storeApi<T>(
   path: string,
   body?: unknown,
   method?: string,
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<T> {
   const controller = new AbortController();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener("abort", abort, { once: true });
   const timeout = setTimeout(
     () => controller.abort(),
     options.timeoutMs ?? 30000,
@@ -31,6 +33,8 @@ export async function storeApi<T>(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   };
   try {
+    if (options.signal?.aborted)
+      throw new DOMException("Solicitud cancelada", "AbortError");
     let response = await fetch(url, init);
     if (response.status === 401 && !path.startsWith("auth/")) {
       if (!refreshing.has(slug))
@@ -54,6 +58,8 @@ export async function storeApi<T>(
     const data = (await response.json().catch(() => null)) as {
       message?: string | string[];
     } | null;
+    if (options.signal?.aborted)
+      throw new DOMException("Solicitud cancelada", "AbortError");
     if (!response.ok)
       throw new StoreApiError(
         Array.isArray(data?.message)
@@ -63,6 +69,8 @@ export async function storeApi<T>(
       );
     return data as T;
   } catch (error) {
+    if (options.signal?.aborted)
+      throw new DOMException("Solicitud cancelada", "AbortError");
     if (controller.signal.aborted)
       throw new StoreApiError(
         "La tienda tardó demasiado en responder. Vuelve a intentar la misma operación.",
@@ -71,5 +79,6 @@ export async function storeApi<T>(
     throw error;
   } finally {
     clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", abort);
   }
 }

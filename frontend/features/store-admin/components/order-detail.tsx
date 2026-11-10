@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -15,6 +15,9 @@ import { InternalNotes } from "./studio-collaboration";
 import {
   type AdminOrderDetail,
   commandLabels,
+  commandDescriptions,
+  orderActionOptions,
+  orderActionFeedback,
   orderCommandBody,
 } from "../api/operations";
 import {
@@ -82,35 +85,56 @@ export function OrderDetail({
   const write = useAdminWrite<AdminOrderDetail>();
   const [action, setAction] = useState("");
   const [reference, setReference] = useState("");
+  const [reason, setReason] = useState("");
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const lastChosenAction = useRef("");
   const [message, setMessage] = useState("");
+  const [messageIsError, setMessageIsError] = useState(false);
   const [proof, setProof] = useState<string | null>(null);
   const order = query.data;
-  const available = [
-    ...(order?.allowedActions ?? []),
-    ...(order?.paymentStatus === "PAID" ? ["REFUND"] : []),
-  ];
+  const options = order ? orderActionOptions(order) : [];
+  const available = options
+    .filter((option) => option.enabled)
+    .map((option) => option.action);
+  const versionChanged = !!action && selectedVersion !== order?.version;
   const perform = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!order || write.isPending || !available.includes(action)) return;
-    const command = orderCommandBody(action, order.version, reference);
+    if (
+      !order ||
+      write.isPending ||
+      versionChanged ||
+      selectedVersion === null ||
+      !available.includes(action)
+    )
+      return;
+    const command = orderCommandBody(
+      action,
+      selectedVersion,
+      reference,
+      reason,
+    );
     if (command.error) {
       setMessage(command.error);
+      setMessageIsError(true);
       return;
     }
     setMessage("");
+    setMessageIsError(false);
     try {
-      await write.mutateAsync({
+      const result = await write.mutateAsync({
         resource: `orders/${encodeURIComponent(id)}${action === "REFUND" ? "/refund" : ""}`,
         method: action === "REFUND" ? "POST" : "PATCH",
         body: command.body,
       });
       setAction("");
       setReference("");
-      setMessage(
-        "La operación fue registrada. Revisa el estado actualizado del pedido.",
-      );
+      setReason("");
+      setSelectedVersion(null);
+      lastChosenAction.current = "";
+      setMessage(orderActionFeedback(action, result));
     } catch (error) {
       await query.refetch();
+      setMessageIsError(true);
       if (error instanceof ApiError && error.status === 409) {
         setAction("");
         setMessage(
@@ -305,22 +329,69 @@ export function OrderDetail({
                     <select
                       aria-label="Acción"
                       className={`${commerceInput} mt-2`}
-                      value={available.includes(action) ? action : ""}
+                      value={
+                        !versionChanged && available.includes(action)
+                          ? action
+                          : ""
+                      }
                       onChange={(event) => {
-                        setAction(event.target.value);
+                        const value = event.target.value;
+                        if (lastChosenAction.current !== value) {
+                          setReference("");
+                          setReason("");
+                        }
+                        lastChosenAction.current = value;
+                        setAction(value);
+                        setSelectedVersion(order.version);
                         setMessage("");
+                        setMessageIsError(false);
                       }}
                       required
-                      disabled={write.isPending}
+                      disabled={write.isPending || available.length === 0}
                     >
                       <option value="">Elige una acción</option>
-                      {available.map((value) => (
-                        <option key={value} value={value}>
-                          {commandLabels[value] ?? value}
-                        </option>
-                      ))}
+                      <optgroup label="Disponibles ahora">
+                        {options
+                          .filter((option) => option.enabled)
+                          .map((option) => (
+                            <option key={option.action} value={option.action}>
+                              {commandLabels[option.action]}
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="No disponibles en este estado">
+                        {options
+                          .filter((option) => !option.enabled)
+                          .map((option) => (
+                            <option
+                              key={option.action}
+                              value={option.action}
+                              disabled
+                            >
+                              {commandLabels[option.action]}
+                            </option>
+                          ))}
+                      </optgroup>
                     </select>
                   </label>
+                  {action && (
+                    <p
+                      id="order-action-help"
+                      className="text-xs leading-relaxed text-foreground/60"
+                    >
+                      {commandDescriptions[action]}
+                    </p>
+                  )}
+                  {versionChanged && (
+                    <p
+                      role="status"
+                      className="rounded-xl bg-amber-400/10 p-3 text-sm"
+                    >
+                      El pedido recibió una actualización. Revisa el estado y
+                      selecciona nuevamente la acción; los datos del formulario
+                      se conservan.
+                    </p>
+                  )}
                   {["APPROVE_PAYMENT", "REFUND", "SHIP"].includes(action) && (
                     <label className="block text-sm">
                       {action === "SHIP"
@@ -330,14 +401,44 @@ export function OrderDetail({
                         value={reference}
                         onChange={(event) => setReference(event.target.value)}
                         maxLength={240}
+                        minLength={action === "SHIP" ? 1 : 5}
+                        placeholder={
+                          action === "SHIP"
+                            ? "Código de envío o seguimiento"
+                            : order.snapshot.payment.code === "CASH_ON_PICKUP"
+                              ? "Ej.: Recibo o detalle del cobro en efectivo"
+                              : "N.º de operación verificado en la cuenta del negocio"
+                        }
+                        aria-describedby="order-action-help"
                         className={`${commerceInput} mt-2`}
                         disabled={write.isPending}
                         required
                       />
                     </label>
                   )}
+                  {["REJECT_PROOF", "CANCEL"].includes(action) && (
+                    <label className="block text-sm">
+                      Motivo para el comprador
+                      <textarea
+                        aria-label="Motivo para el comprador"
+                        className={`${commerceInput} mt-2`}
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        minLength={5}
+                        maxLength={500}
+                        rows={3}
+                        disabled={write.isPending}
+                        required
+                        aria-describedby="order-action-help"
+                      />
+                    </label>
+                  )}
                   <button
-                    disabled={!available.includes(action) || write.isPending}
+                    disabled={
+                      !available.includes(action) ||
+                      versionChanged ||
+                      write.isPending
+                    }
                     className={`${commercePrimary} w-full`}
                   >
                     {write.isPending
@@ -351,12 +452,33 @@ export function OrderDetail({
                   )}
                   {message && (
                     <p
-                      role="status"
+                      role={messageIsError ? "alert" : "status"}
                       className="rounded-xl bg-foreground/5 p-4 text-sm"
                     >
                       {message}
                     </p>
                   )}
+                  <p className="text-xs leading-relaxed text-foreground/50">
+                    Cada cambio registrado genera un aviso en la tienda del
+                    comprador y deja su correo en la cola de envío. El correo
+                    depende del transporte configurado; el aviso del pedido se
+                    conserva aunque ese transporte no esté disponible.
+                  </p>
+                  <details className="rounded-xl border border-foreground/10 p-3 text-xs">
+                    <summary className="cursor-pointer font-semibold">
+                      Ver requisitos de las demás acciones
+                    </summary>
+                    <ul className="mt-3 space-y-3">
+                      {options
+                        .filter((option) => !option.enabled)
+                        .map((option) => (
+                          <li key={option.action}>
+                            <strong>{commandLabels[option.action]}:</strong>{" "}
+                            {option.reason}
+                          </li>
+                        ))}
+                    </ul>
+                  </details>
                 </form>
               </Panel>
             </div>

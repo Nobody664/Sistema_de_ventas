@@ -148,6 +148,18 @@ export function GatewayIncidents() {
                 : "Revisar en la pasarela"}
             </span>
             <DateLabel value={event.receivedAt} />
+            {event.detail &&
+            typeof event.detail === "object" &&
+            "orderId" in event.detail &&
+            typeof event.detail.orderId === "string" &&
+            /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(event.detail.orderId) ? (
+              <Link
+                href={`/comercio/pedidos/${encodeURIComponent(event.detail.orderId)}`}
+                className="font-semibold text-primary underline"
+              >
+                Revisar pedido
+              </Link>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -216,6 +228,31 @@ export function OrdersWorkspace({
               : "Encuentra tus pedidos, consulta su historia y ejecuta las acciones disponibles en su detalle."
         }
       />
+      {area === "pagos" && (
+        <nav aria-label="Estados de pago" className="flex flex-wrap gap-2">
+          <Link href={`${pathname}?queue=review`} className={commerceButton}>
+            Por revisar
+          </Link>
+          <Link
+            href={`${pathname}?queue=all&paymentStatus=REJECTED`}
+            className={commerceButton}
+          >
+            Rechazados
+          </Link>
+          <Link
+            href={`${pathname}?queue=all&paymentStatus=PAID`}
+            className={commerceButton}
+          >
+            Cobros confirmados
+          </Link>
+          <Link
+            href={`${pathname}?queue=all&paymentStatus=REFUNDED`}
+            className={commerceButton}
+          >
+            Devueltos
+          </Link>
+        </nav>
+      )}
       <Panel>
         <form
           onSubmit={applyFilters}
@@ -261,6 +298,7 @@ export function OrdersWorkspace({
               <option value="">Todos los pagos</option>
               <option value="PENDING">Pendiente</option>
               <option value="UNDER_REVIEW">Comprobante en revisión</option>
+              <option value="REJECTED">Pago / comprobante rechazado</option>
               <option value="PAID">Pagado</option>
               <option value="REFUNDED">Devuelto</option>
             </select>

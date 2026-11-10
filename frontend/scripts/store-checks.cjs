@@ -235,6 +235,7 @@ function handleStore(resource, params, method, body) {
           },
         ],
         proofs: [],
+        allowedActions: ["APPROVE_PAYMENT", "REJECT_PROOF", "EXTEND", "CANCEL"],
       };
     cart = { version: cart.version + 1, items: [] };
     return order;
@@ -253,6 +254,50 @@ function handleStore(resource, params, method, body) {
 }
 
 function handleStoreAdmin(resource, params, method, body) {
+  if (resource === "/store-admin/context")
+    return {
+      mode: "MANAGE",
+      experience: {
+        enabled: false,
+        eligible: true,
+        reason: "COMPANY_DISABLED",
+      },
+      company: {
+        id: "company-1",
+        name: "Negocio de prueba",
+        slug: "negocio-demo",
+        timezone: "America/Lima",
+        currency: "PEN",
+        status: "ACTIVE",
+      },
+      store: {
+        title: settings.title,
+        slug: "negocio-demo",
+        enabled: true,
+        checkoutEnabled: true,
+      },
+      capabilities: {
+        viewDashboard: true,
+        manageOrders: true,
+        managePayments: true,
+        manageCatalog: true,
+        manageCustomers: true,
+        manageSettings: true,
+        managePaymentsConfig: true,
+        manageShippingConfig: true,
+        manageRules: true,
+        attendExistingOrders: true,
+      },
+      access: { attendExistingOrders: true },
+      generatedAt: new Date().toISOString(),
+    };
+  if (resource === "/store-admin/experience")
+    return {
+      enabled: false,
+      eligible: true,
+      reason: "COMPANY_DISABLED",
+      version: 1,
+    };
   if (resource === "/store-admin/customers")
     return [
       {
@@ -283,12 +328,20 @@ function handleStoreAdmin(resource, params, method, body) {
         order.paymentStatus = "PAID";
         order.status = "CONFIRMED";
         order.saleId = "sale";
+        order.allowedActions = ["PREPARE"];
       }
-      if (body.action === "PREPARE") order.fulfillment = "PREPARING";
-      if (body.action === "READY") order.fulfillment = "READY_FOR_PICKUP";
+      if (body.action === "PREPARE") {
+        order.fulfillment = "PREPARING";
+        order.allowedActions = ["READY"];
+      }
+      if (body.action === "READY") {
+        order.fulfillment = "READY_FOR_PICKUP";
+        order.allowedActions = ["DELIVER"];
+      }
       if (body.action === "DELIVER") {
         order.fulfillment = "DELIVERED";
         order.status = "COMPLETED";
+        order.allowedActions = [];
       }
       order.version++;
     }
@@ -586,13 +639,17 @@ async function runStoreChecks(page, origin) {
     .getByRole("button", { name: "Registrar cobro confirmado", exact: true })
     .click();
   await page.getByText("Pagado", { exact: true }).waitFor();
-  for (const name of ["Preparar", "Listo para retirar", "Entregado"]) {
+  for (const name of [
+    "Preparar pedido",
+    "Listo para retirar",
+    "Confirmar entrega",
+  ]) {
     await page.getByRole("button", { name, exact: true }).click();
     await page
       .getByText(
-        name === "Preparar"
+        name === "Preparar pedido"
           ? "En preparación"
-          : name === "Entregado"
+          : name === "Confirmar entrega"
             ? "Entregado"
             : "Listo para retirar",
         { exact: true },

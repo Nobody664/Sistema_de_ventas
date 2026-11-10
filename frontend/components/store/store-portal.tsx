@@ -20,6 +20,7 @@ import { validateStoreForm } from "@/lib/store-validation";
 import { StoreField } from "./store-field";
 import { StoreOrders } from "./store-orders";
 import { storeButton } from "./store-ui";
+import { StoreBuyerNotifications } from "./store-buyer-notifications";
 import type { PublicStoreAppearance } from "@/lib/store-appearance";
 
 interface Address {
@@ -33,6 +34,7 @@ interface Address {
   isDefault: boolean;
 }
 interface Profile {
+  accountId?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -77,6 +79,13 @@ export function StorePortal({
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const onBuyerSessionChange = useCallback(() => {
+    setProfile(null);
+    setCart(null);
+    setProducts([]);
+    setMessage("");
+    router.replace(`${base}/ingresar`);
+  }, [router, base]);
   useEffect(() => {
     if (info?.name) document.title = storePageTitle(info.name, section);
   }, [info?.name, section]);
@@ -263,6 +272,15 @@ export function StorePortal({
               </span>
             </Link>
             <Link href={`${base}/pedidos`}>Mis pedidos</Link>
+            {profile?.accountId && (
+              <StoreBuyerNotifications
+                key={`${slug}:${profile.accountId}`}
+                slug={slug}
+                accountId={profile.accountId}
+                onNotice={setMessage}
+                onSessionChange={onBuyerSessionChange}
+              />
+            )}
             <Link href={`${base}/pago`}>Pago</Link>
             <Link href={`${base}/envio`}>Envío</Link>
             <Link href={`${base}/perfil`} aria-label="Mi perfil">
@@ -302,7 +320,7 @@ export function StorePortal({
         {message && (
           <p
             role="status"
-            className="mb-6 rounded-xl border border-teal-200 bg-white p-4 text-sm text-teal-950"
+            className="mb-6 break-words whitespace-pre-wrap rounded-xl border border-teal-200 bg-white p-4 text-sm text-teal-950"
           >
             {message}
           </p>
@@ -653,7 +671,12 @@ export function StorePortal({
               checkoutEnabled={info?.checkoutEnabled !== false}
             />
             {section === "pedidos" && (
-              <StoreOrders slug={slug} id={detailId} onMessage={setMessage} />
+              <StoreOrders
+                slug={slug}
+                id={detailId}
+                accountId={profile?.accountId}
+                onMessage={setMessage}
+              />
             )}
           </>
         )}

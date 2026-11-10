@@ -5,6 +5,8 @@ import {
   orderListResource,
   orderQueueResource,
   shouldReconcileCommerce,
+  orderActionOptions,
+  orderActionFeedback,
 } from "../features/store-admin/api/operations";
 
 test("los comandos conservan versión y exigen referencias según el hecho real", () => {
@@ -17,13 +19,62 @@ test("los comandos conservan versión y exigen referencias según el hecho real"
     version: 8,
     reference: "DEV-12345",
   });
-  assert.deepEqual(orderCommandBody("CANCEL", 9, "").body, {
-    action: "CANCEL",
-    version: 9,
-  });
+  assert.deepEqual(
+    orderCommandBody("CANCEL", 9, "", "Sin disponibilidad").body,
+    {
+      action: "CANCEL",
+      version: 9,
+      reason: "Sin disponibilidad",
+    },
+  );
+  assert.ok(orderCommandBody("REJECT_PROOF", 1, "", "").error);
+  assert.ok(orderCommandBody("CANCEL", 1, "", "<script>").error);
+  assert.deepEqual(
+    orderCommandBody(
+      "REJECT_PROOF",
+      4,
+      "referencia anterior",
+      "No coincide el importe",
+    ).body,
+    { action: "REJECT_PROOF", version: 4, reason: "No coincide el importe" },
+  );
+  assert.deepEqual(
+    orderCommandBody("PREPARE", 5, "<referencia obsoleta>").body,
+    { action: "PREPARE", version: 5 },
+  );
   assert.ok(orderCommandBody("SHIP", 1, " ").error);
   assert.ok(orderCommandBody("APPROVE_PAYMENT", 1, "abc").error);
   assert.ok(orderCommandBody("REFUND", 1, "<script>").error);
+});
+
+test("la interfaz respeta las acciones del servidor y no presenta conciliaciones como pedidos aceptados", () => {
+  const order = {
+    paymentStatus: "PAID",
+    status: "REVIEW_REQUIRED",
+    saleId: undefined,
+    allowedActions: [],
+    actionAvailability: [
+      { action: "PREPARE", enabled: false, reason: "Sin venta confirmada" },
+      { action: "REFUND", enabled: true, reason: null },
+    ],
+  };
+  assert.equal(
+    orderActionOptions(order).find((option) => option.action === "PREPARE")
+      ?.enabled,
+    false,
+  );
+  assert.equal(
+    orderActionOptions(order).find((option) => option.action === "REFUND")
+      ?.enabled,
+    true,
+  );
+  assert.ok(
+    orderActionFeedback("APPROVE_PAYMENT", order).includes(
+      "no se confirmó disponibilidad",
+    ),
+  );
+  assert.ok(orderActionFeedback("REFUND", order).includes("aún no confirmó"));
+  assert.ok(orderCommandBody("UNKNOWN", 1, "").error);
 });
 
 test("los filtros enviados al backend excluyen controles de vista y conservan el cursor", () => {

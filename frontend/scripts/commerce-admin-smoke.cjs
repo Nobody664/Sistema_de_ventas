@@ -3,6 +3,7 @@ const http = require("node:http");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { chromium } = require("playwright");
+const { runOrderReviewChecks } = require("./store-order-review-checks.cjs");
 
 const origin = "http://127.0.0.1:3324";
 const backendOrigin = "http://127.0.0.1:4414";
@@ -138,6 +139,24 @@ const orders = [
     allowedActions: ["APPROVE_PAYMENT", "READY", "EXTEND", "CANCEL"],
   }),
 ];
+orders.push(makeOrder("order-review", "WEB-REVIEW"));
+const buyerNotices = [];
+function notifyBuyer(order, message) {
+  buyerNotices.unshift({
+    id: `buyer-notice-${buyerNotices.length + 1}`,
+    accountId: "buyer-a",
+    orderId: order.id,
+    version: order.version,
+    message,
+    createdAt: new Date().toISOString(),
+    readAt: null,
+    order: { number: order.number },
+  });
+}
+function buyerOrder(order) {
+  const { allowedActions, actionAvailability, customer, ...value } = order;
+  return value;
+}
 orders[1].snapshot.payment.code = "CASH_ON_PICKUP";
 orders[1].snapshot.payment.label = "Efectivo al retirar";
 const deliveryOrder = makeOrder("order-delivery", "WEB-DELIVERY", {
@@ -348,7 +367,7 @@ function fixture(resource, params = new URLSearchParams()) {
       asOf: new Date().toISOString(),
     };
   }
-  if (resource === "/store-admin/proofs/proof-a")
+  if (resource.startsWith("/store-admin/proofs/"))
     return {
       image:
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jh9kAAAAASUVORK5CYII=",
@@ -363,7 +382,86 @@ function fixture(resource, params = new URLSearchParams()) {
 const backend = http.createServer(async (request, response) => {
   const url = new URL(request.url, backendOrigin);
   const resource = url.pathname.replace(/^\/api/, "");
+  const buyerAccount =
+    /(?:^|;\s*)store_buyer_fixture=(buyer-[ab])(?:;|$)/.exec(
+      request.headers.cookie ?? "",
+    )?.[1] ?? null;
   response.setHeader("Content-Type", "application/json");
+  if (
+    resource === "/auth/me" &&
+    !request.headers.authorization &&
+    !(request.headers.cookie ?? "").includes("access_token=")
+  ) {
+    response.statusCode = 401;
+    return response.end(JSON.stringify({ message: "Sin sesión laboral" }));
+  }
+  if (
+    resource.startsWith("/store/bodega-central/") &&
+    request.method === "GET"
+  ) {
+    const path = resource.slice("/store/bodega-central/".length);
+    if (path === "info")
+      return response.end(
+        JSON.stringify({
+          name: company.name,
+          currency: "PEN",
+          registrationEnabled: true,
+          checkoutEnabled: true,
+        }),
+      );
+    if (!buyerAccount) {
+      response.statusCode = 401;
+      return response.end(JSON.stringify({ message: "Sin sesión comercial" }));
+    }
+    if (path === "me")
+      return response.end(
+        JSON.stringify({
+          accountId: buyerAccount,
+          firstName: buyerAccount === "buyer-a" ? "Ana" : "Bruno",
+          lastName: "Cliente",
+          email: `${buyerAccount}@example.test`,
+          phone: "999111222",
+          documentValue: "12345678",
+          addresses: [],
+        }),
+      );
+    if (path === "cart")
+      return response.end(JSON.stringify({ version: 1, items: [] }));
+    if (path === "me/notifications/feed") {
+      const data = buyerNotices.filter(
+        (notice) => notice.accountId === buyerAccount,
+      );
+      return response.end(
+        JSON.stringify({
+          accountId: buyerAccount,
+          data: data.slice(0, 50),
+          unreadCount: data.filter((notice) => !notice.readAt).length,
+        }),
+      );
+    }
+    if (path === "me/notifications")
+      return response.end(
+        JSON.stringify(
+          buyerNotices.filter((notice) => notice.accountId === buyerAccount),
+        ),
+      );
+    if (path === "orders")
+      return response.end(
+        JSON.stringify(
+          buyerAccount === "buyer-a" ? orders.map(buyerOrder) : [],
+        ),
+      );
+    if (path.startsWith("orders/")) {
+      const order = orders.find((entry) => entry.id === path.split("/")[1]);
+      if (!order || buyerAccount !== "buyer-a") {
+        response.statusCode = 404;
+        return response.end(
+          JSON.stringify({ message: "Pedido no encontrado" }),
+        );
+      }
+      return response.end(JSON.stringify(buyerOrder(order)));
+    }
+  }
   if (
     resource === "/store-admin/orders" &&
     [...url.searchParams.keys()].some(
@@ -403,6 +501,65 @@ const backend = http.createServer(async (request, response) => {
     for await (const chunk of request) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString() || "{}");
     writes.push({ resource, body });
+    if (resource.startsWith("/store/bodega-central/")) {
+      if (!buyerAccount) {
+        response.statusCode = 401;
+        return response.end(
+          JSON.stringify({ message: "Sin sesión comercial" }),
+        );
+      }
+      const path = resource.slice("/store/bodega-central/".length);
+      if (path === "me/notifications/read") {
+        for (const notice of buyerNotices)
+          if (notice.accountId === buyerAccount)
+            notice.readAt = new Date().toISOString();
+        return response.end(JSON.stringify({ read: true }));
+      }
+      if (path.startsWith("me/notifications/") && path.endsWith("/read")) {
+        const notice = buyerNotices.find(
+          (entry) =>
+            entry.id === path.split("/")[2] && entry.accountId === buyerAccount,
+        );
+        if (!notice) {
+          response.statusCode = 404;
+          return response.end(
+            JSON.stringify({ message: "Aviso no encontrado" }),
+          );
+        }
+        notice.readAt = new Date().toISOString();
+        return response.end(JSON.stringify({ read: true }));
+      }
+      if (path.endsWith("/payment-proofs")) {
+        const order = orders.find((entry) => entry.id === path.split("/")[1]);
+        if (!order || buyerAccount !== "buyer-a") {
+          response.statusCode = 404;
+          return response.end(
+            JSON.stringify({ message: "Pedido no encontrado" }),
+          );
+        }
+        assert.ok(body.image.startsWith("data:image/"));
+        order.paymentStatus = "UNDER_REVIEW";
+        order.version++;
+        order.allowedActions = [
+          "APPROVE_PAYMENT",
+          "REJECT_PROOF",
+          "EXTEND",
+          "CANCEL",
+        ];
+        order.proofs.push({
+          id: `proof-${order.version}`,
+          createdAt: new Date().toISOString(),
+        });
+        const message = "Comprobante recibido. El negocio revisará el pago.";
+        order.history.push({
+          version: order.version,
+          message,
+          createdAt: new Date().toISOString(),
+        });
+        notifyBuyer(order, message);
+        return response.end(JSON.stringify(buyerOrder(order)));
+      }
+    }
     if (resource === "/store-admin/experience/events")
       return response.end(JSON.stringify({ accepted: true }));
     if (resource === "/store-admin/experience") {
@@ -486,7 +643,12 @@ const backend = http.createServer(async (request, response) => {
     }
     if (resource.startsWith("/store-admin/orders/")) {
       const order = orders.find((entry) => entry.id === resource.split("/")[3]);
-      if (conflictOnce || order.version !== body.version) {
+      if (
+        (conflictOnce &&
+          order.id === "order-a" &&
+          body.action === "APPROVE_PAYMENT") ||
+        order.version !== body.version
+      ) {
         conflictOnce = false;
         order.version++;
         response.statusCode = 409;
@@ -502,6 +664,16 @@ const backend = http.createServer(async (request, response) => {
         order.paymentStatus = "PAID";
         order.saleId = "sale-a";
         order.allowedActions = ["PREPARE"];
+      }
+      if (body.action === "REJECT_PROOF") {
+        assert.ok(body.reason.length >= 5);
+        order.paymentStatus = "REJECTED";
+        order.allowedActions = ["APPROVE_PAYMENT", "EXTEND", "CANCEL"];
+      }
+      if (body.action === "CANCEL") {
+        order.status = "CANCELLED";
+        order.fulfillment = "CANCELLED";
+        order.allowedActions = [];
       }
       if (body.action === "PREPARE") {
         order.fulfillment = "PREPARING";
@@ -526,11 +698,32 @@ const backend = http.createServer(async (request, response) => {
         order.allowedActions = [];
       }
       order.version++;
+      const noticeMessage =
+        body.action === "REJECT_PROOF"
+          ? `Comprobante de pago rechazado. Motivo: ${body.reason}. Puedes enviar un nuevo comprobante.`
+          : body.action === "APPROVE_PAYMENT"
+            ? "Pago aceptado y confirmado. Tu pedido fue confirmado."
+            : body.action === "CANCEL"
+              ? `El negocio canceló tu pedido. Motivo: ${body.reason}.`
+              : body.action === "SHIP"
+                ? `Tu pedido fue despachado. Referencia: ${body.reference}.`
+                : body.action === "READY"
+                  ? "Tu pedido está listo para recoger."
+                  : body.action === "DELIVER"
+                    ? "Pedido entregado. Gracias por tu compra."
+                    : body.action === "PREPARE"
+                      ? "Estamos preparando tu pedido."
+                      : body.action === "RESTOCK"
+                        ? "El negocio registró el retorno físico."
+                        : resource.endsWith("/refund")
+                          ? "Devolución del pago confirmada."
+                          : "El negocio actualizó tu pedido.";
       order.history.push({
         version: order.version,
-        message: body.action || "Devolución registrada",
+        message: noticeMessage,
         createdAt: new Date().toISOString(),
       });
+      notifyBuyer(order, noticeMessage);
       return response.end(JSON.stringify(order));
     }
     if (resource === "/store-admin/products/product") {
@@ -644,7 +837,7 @@ async function main() {
         },
       ]);
     await cookie();
-    await context.route("**/api/**", async (route) => {
+    const routeApi = async (route) => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith("/stream"))
         return route.fulfill({
@@ -655,7 +848,11 @@ async function main() {
         `${backendOrigin}${url.pathname}${url.search}`,
         {
           method: route.request().method(),
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: route.request().headers()["cookie"] ?? "",
+            Authorization: route.request().headers()["authorization"] ?? "",
+          },
           body: route.request().postData() ?? undefined,
         },
       );
@@ -664,7 +861,8 @@ async function main() {
         contentType: "application/json",
         body: await response.text(),
       });
-    });
+    };
+    await context.route("**/api/**", routeApi);
     page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -700,6 +898,14 @@ async function main() {
       { visible: true },
     );
 
+    await runOrderReviewChecks({
+      page,
+      browser,
+      origin,
+      companyId: company.id,
+      installApi: (context) => context.route("**/api/**", routeApi),
+      writes,
+    });
     await page.goto(`${origin}/comercio/pedidos/order-a`);
     await page.getByRole("heading", { name: "WEB-001", exact: true }).waitFor();
     for (const width of [320, 390, 768, 1440]) {
@@ -734,7 +940,7 @@ async function main() {
     };
     await chooseAction("APPROVE_PAYMENT", "TX-REAL-001");
     await page
-      .getByRole("status")
+      .getByRole("alert")
       .filter({ hasText: "El pedido cambió mientras lo revisabas" })
       .waitFor();
     assert.equal(
@@ -750,7 +956,7 @@ async function main() {
     await chooseAction("APPROVE_PAYMENT", "TX-REAL-001");
     await page
       .getByRole("status")
-      .filter({ hasText: "La operación fue registrada" })
+      .filter({ hasText: "El aviso del pedido está disponible" })
       .waitFor();
     assert.equal(
       writes
@@ -762,19 +968,19 @@ async function main() {
       await chooseAction(action);
       await page
         .getByRole("status")
-        .filter({ hasText: "La operación fue registrada" })
+        .filter({ hasText: "El aviso del pedido está disponible" })
         .waitFor();
     }
     await chooseAction("REFUND", "DEV-REAL-001");
     await page
       .getByRole("status")
-      .filter({ hasText: "La operación fue registrada" })
+      .filter({ hasText: "El aviso del pedido está disponible" })
       .waitFor();
     assert.equal(orders[0].refund.restockedAt, null);
     await chooseAction("RESTOCK");
     await page
       .getByRole("status")
-      .filter({ hasText: "La operación fue registrada" })
+      .filter({ hasText: "El aviso del pedido está disponible" })
       .waitFor();
     assert.ok(orders[0].refund.restockedAt);
     await page.goto(`${origin}/comercio/entregas?shippingKind=DELIVERY`);
@@ -787,7 +993,7 @@ async function main() {
     await chooseAction("DELIVER");
     await page
       .getByRole("status")
-      .filter({ hasText: "La operación fue registrada" })
+      .filter({ hasText: "El aviso del pedido está disponible" })
       .waitFor();
     assert.equal(deliveryOrder.fulfillment, "DELIVERED");
 
@@ -1177,8 +1383,8 @@ async function main() {
     assert.equal(
       await page
         .getByRole("option", { name: "Confirmar entrega", exact: true })
-        .count(),
-      0,
+        .evaluate((option) => option.disabled),
+      true,
     );
 
     mode = "MANAGE";

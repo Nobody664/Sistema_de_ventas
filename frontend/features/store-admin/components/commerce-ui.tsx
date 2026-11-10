@@ -76,7 +76,7 @@ export function QueryState({
 export function Status({ value }: { value: string }) {
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${["PAID", "COMPLETED", "ACTIVE", "DELIVERED"].includes(value) ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : ["UNDER_REVIEW", "REVIEW_REQUIRED", "SUSPENDED"].includes(value) ? "bg-amber-500/10 text-amber-800 dark:text-amber-300" : "bg-foreground/5 text-foreground/65"}`}
+      className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${value === "REJECTED" ? "bg-red-500/10 text-red-700 dark:text-red-300" : ["PAID", "COMPLETED", "ACTIVE", "DELIVERED"].includes(value) ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : ["UNDER_REVIEW", "REVIEW_REQUIRED", "SUSPENDED"].includes(value) ? "bg-amber-500/10 text-amber-800 dark:text-amber-300" : "bg-foreground/5 text-foreground/65"}`}
     >
       {orderLabels[value] ??
         (

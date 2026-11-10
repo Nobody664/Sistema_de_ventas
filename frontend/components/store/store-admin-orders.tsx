@@ -2,10 +2,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { validateStoreAdminForm } from "@/lib/store-validation";
 import {
-  storeReferenceSchema,
-  validateStoreAdminForm,
-} from "@/lib/store-validation";
+  commandLabels,
+  orderActionOptions,
+  orderActionFeedback,
+  orderCommandBody,
+} from "@/features/store-admin/api/operations";
 import { OrderSummary, OrderView, orderLabels } from "./store-orders";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
 
@@ -27,6 +30,7 @@ export function StoreAdminOrders({
   >([]);
   const [selected, setSelected] = useState<OrderView | null>(null);
   const [reference, setReference] = useState("");
+  const [reason, setReason] = useState("");
   const [message, setMessage] = useState("");
   const [proof, setProof] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -65,6 +69,10 @@ export function StoreAdminOrders({
   }, [load]);
   useEffect(() => {
     if (!initialOrderId) return;
+    setSelected(null);
+    setReference("");
+    setReason("");
+    setProof(null);
     const controller = new AbortController();
     void apiFetch<OrderView>(
       `/store-admin/orders/${encodeURIComponent(initialOrderId)}`,
@@ -81,8 +89,13 @@ export function StoreAdminOrders({
       });
     return () => controller.abort();
   }, [initialOrderId]);
-  const open = async (id: string) => {
+  const open = async (id: string, preserveInput = false) => {
     setProof(null);
+    if (!preserveInput) {
+      setReference("");
+      setReason("");
+      setMessage("");
+    }
     try {
       setSelected(await apiFetch<OrderView>(`/store-admin/orders/${id}`));
     } catch (error) {
@@ -91,14 +104,20 @@ export function StoreAdminOrders({
   };
   const action = async (value: string) => {
     if (!selected || busy) return;
-    const validated = storeReferenceSchema.safeParse(reference);
     if (
-      !validated.success ||
-      (value === "REFUND" && reference.trim().length < 5)
-    ) {
-      setMessage(
-        "Indica una referencia válida; las devoluciones requieren al menos 5 caracteres.",
-      );
+      !orderActionOptions(selected).some(
+        (option) => option.action === value && option.enabled,
+      )
+    )
+      return;
+    const command = orderCommandBody(
+      value,
+      selected.version,
+      reference,
+      reason,
+    );
+    if (command.error) {
+      setMessage(command.error);
       return;
     }
     setBusy(true);
@@ -107,26 +126,20 @@ export function StoreAdminOrders({
         `/store-admin/orders/${selected.id}${value === "REFUND" ? "/refund" : ""}`,
         {
           method: value === "REFUND" ? "POST" : "PATCH",
-          body: JSON.stringify(
-            value === "REFUND"
-              ? { reference: validated.data }
-              : {
-                  action: value,
-                  version: selected.version,
-                  ...(validated.data ? { reference: validated.data } : {}),
-                },
-          ),
+          body: JSON.stringify(command.body),
         },
       );
       setSelected(result);
       await queryClient.invalidateQueries({ queryKey: ["store-admin"] });
-      setMessage("Pedido actualizado");
+      setReference("");
+      setReason("");
+      setMessage(orderActionFeedback(value, result));
       await load();
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "No se pudo completar",
       );
-      await open(selected.id);
+      await open(selected.id, true);
     } finally {
       setBusy(false);
     }
@@ -240,35 +253,30 @@ export function StoreAdminOrders({
                   maxLength={240}
                 />
               </label>
+              <label className="mt-4 block text-sm">
+                Motivo para el comprador (rechazo o cancelación)
+                <textarea
+                  aria-label="Motivo para el comprador"
+                  className={`${storeInput} mt-2`}
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  minLength={5}
+                  maxLength={500}
+                  rows={3}
+                />
+              </label>
               <div className="mt-4 flex flex-wrap gap-2">
-                {[
-                  ["APPROVE_PAYMENT", "Registrar cobro confirmado"],
-                  ["REJECT_PROOF", "Solicitar corrección"],
-                  ["PREPARE", "Preparar"],
-                  ["READY", "Listo para retirar"],
-                  ["SHIP", "Despachar"],
-                  ["DELIVER", "Entregado"],
-                  ["EXTEND", "Extender reserva"],
-                  ["CANCEL", "Cancelar impago"],
-                  ["REFUND", "Devolver pago completo"],
-                  ["RESTOCK", "Registrar retorno físico"],
-                ]
-                  .filter(([value]) =>
-                    value === "REFUND"
-                      ? selected.paymentStatus === "PAID"
-                      : !selected.allowedActions ||
-                        selected.allowedActions.includes(value),
-                  )
-                  .map(([value, label]) => (
-                    <button
-                      key={value}
-                      disabled={busy}
-                      className="rounded-lg border px-3 py-2 text-xs font-medium text-teal-950 disabled:opacity-50"
-                      onClick={() => void action(value)}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                {orderActionOptions(selected).map((option) => (
+                  <button
+                    key={option.action}
+                    disabled={busy || !option.enabled}
+                    title={option.reason ?? undefined}
+                    className="rounded-lg border px-3 py-2 text-xs font-medium text-teal-950 disabled:opacity-50"
+                    onClick={() => void action(option.action)}
+                  >
+                    {commandLabels[option.action]}
+                  </button>
+                ))}
               </div>
               <p className="mt-3 text-xs text-stone-500">
                 Registra un cobro solo después de verificarlo. Devolver dinero

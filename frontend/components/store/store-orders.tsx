@@ -1,11 +1,15 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { storeApi } from "@/lib/store-api";
 import { storeReasonSchema } from "@/lib/store-validation";
 import { compressImage } from "@/lib/image-compression";
 import { storeButton, storeInput, storeMoney } from "./store-ui";
+import {
+  BUYER_ORDER_UPDATED,
+  type BuyerOrderUpdate,
+} from "@/lib/store-notifications";
 
 export const orderLabels: Record<string, string> = {
   PENDING_PAYMENT: "Pendiente de pago",
@@ -16,6 +20,7 @@ export const orderLabels: Record<string, string> = {
   COMPLETED: "Completado",
   PENDING: "Pendiente",
   UNDER_REVIEW: "En revisión",
+  REJECTED: "Pago / comprobante rechazado",
   PAID: "Pagado",
   REFUNDED: "Devuelto",
   UNFULFILLED: "Por preparar",
@@ -64,6 +69,11 @@ export interface OrderView {
   refundRequestedAt?: string | null;
   refundReason?: string;
   allowedActions?: string[];
+  actionAvailability?: Array<{
+    action: string;
+    enabled: boolean;
+    reason: string | null;
+  }>;
 }
 
 export function OrderSummary({ order }: { order: OrderView }) {
@@ -73,12 +83,33 @@ export function OrderSummary({ order }: { order: OrderView }) {
         {[order.status, order.paymentStatus, order.fulfillment].map((s) => (
           <span
             key={s}
-            className="rounded-full bg-teal-50 px-3 py-2 text-teal-900"
+            className={`rounded-full px-3 py-2 ${s === "REJECTED" ? "bg-red-50 text-red-800" : ["CANCELLED", "EXPIRED"].includes(s) ? "bg-amber-50 text-amber-900" : "bg-teal-50 text-teal-900"}`}
           >
             {orderLabels[s] ?? s}
           </span>
         ))}
       </div>
+      {order.paymentStatus === "REJECTED" && (
+        <p
+          role="alert"
+          className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          Tu pago o comprobante fue rechazado. Revisa el motivo en el historial
+          y los avisos de tu pedido. Si tu reserva sigue vigente, puedes
+          corregir el comprobante o intentar el pago nuevamente.
+        </p>
+      )}
+      {order.refund?.status === "PENDING" &&
+        order.paymentStatus !== "REFUNDED" && (
+          <p
+            role="status"
+            className="rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950"
+          >
+            El negocio inició la devolución de tu pago. Aún falta la
+            confirmación de la pasarela; te avisaremos cuando se confirme el
+            reintegro.
+          </p>
+        )}
       <div className="divide-y">
         {order.snapshot.lines.map((line, i) => (
           <div key={i} className="flex justify-between gap-4 py-3">
@@ -127,7 +158,9 @@ export function OrderSummary({ order }: { order: OrderView }) {
       <ol className="space-y-3 border-l-2 border-teal-200 pl-5">
         {order.history.map((entry) => (
           <li key={entry.version}>
-            <p className="text-sm">{entry.message}</p>
+            <p className="break-words whitespace-pre-wrap text-sm">
+              {entry.message}
+            </p>
             <time className="text-xs text-stone-500">
               {new Date(entry.createdAt).toLocaleString("es-PE")}
             </time>
@@ -141,46 +174,120 @@ export function OrderSummary({ order }: { order: OrderView }) {
 export function StoreOrders({
   slug,
   id,
+  accountId,
   onMessage,
 }: {
   slug: string;
   id?: string;
+  accountId?: string;
   onMessage: (message: string) => void;
 }) {
-  const [orders, setOrders] = useState<
+  const [loadedOrders, setOrders] = useState<
     Pick<
       OrderView,
       "id" | "number" | "status" | "paymentStatus" | "totalAmount"
     >[]
   >([]);
-  const [order, setOrder] = useState<OrderView | null>(null);
-  const [notifications, setNotifications] = useState<
+  const [loadedOrder, setOrder] = useState<OrderView | null>(null);
+  const [loadedNotifications, setNotifications] = useState<
     { id: string; orderId: string; message: string; readAt: string | null }[]
   >([]);
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [image, setImage] = useState<string | null>(null);
+  const [responseScope, setResponseScope] = useState("");
+  const request = useRef<AbortController | null>(null);
+  const orderVersion = useRef(0);
+  const scope = `${slug}:${accountId ?? ""}:${id ?? "list"}:${page}`;
+  const order = responseScope === scope ? loadedOrder : null;
+  const orders = responseScope === scope ? loadedOrders : [];
+  const notifications = responseScope === scope ? loadedNotifications : [];
   const load = useCallback(async () => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     try {
-      if (id) setOrder(await storeApi<OrderView>(slug, `orders/${id}`));
-      else {
-        setOrders(await storeApi<typeof orders>(slug, `orders?page=${page}`));
-        setNotifications(
-          await storeApi<typeof notifications>(slug, "me/notifications"),
+      if (id) {
+        const result = await storeApi<OrderView>(
+          slug,
+          `orders/${encodeURIComponent(id)}`,
+          undefined,
+          undefined,
+          { signal: controller.signal },
         );
+        if (controller.signal.aborted) return;
+        orderVersion.current = result.version;
+        setOrder(result);
+        setResponseScope(scope);
+      } else {
+        const result = await storeApi<typeof loadedOrders>(
+          slug,
+          `orders?page=${page}`,
+          undefined,
+          undefined,
+          { signal: controller.signal },
+        );
+        if (controller.signal.aborted) return;
+        setOrders(result);
+        setResponseScope(scope);
+        const notices = await storeApi<typeof loadedNotifications>(
+          slug,
+          "me/notifications",
+          undefined,
+          undefined,
+          { signal: controller.signal },
+        );
+        if (!controller.signal.aborted) setNotifications(notices);
       }
     } catch (error) {
+      if (controller.signal.aborted) return;
       onMessage(
         error instanceof Error
           ? error.message
           : "No se pudieron cargar los pedidos",
       );
     }
-  }, [slug, id, page, onMessage]);
+  }, [slug, id, page, scope, onMessage]);
   useEffect(() => {
     setOrder(null);
+    setResponseScope("");
+    orderVersion.current = 0;
     void load();
+    return () => request.current?.abort();
   }, [load]);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const updated = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const update = event.detail as BuyerOrderUpdate;
+      if (
+        !update ||
+        update.slug !== slug ||
+        !accountId ||
+        update.accountId !== accountId ||
+        (id &&
+          (update.orderId !== id || update.version <= orderVersion.current))
+      )
+        return;
+      if (timer === undefined)
+        timer = setTimeout(() => {
+          timer = undefined;
+          void load();
+        }, 100);
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener(BUYER_ORDER_UPDATED, updated);
+    return () => {
+      if (timer !== undefined) clearTimeout(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener(BUYER_ORDER_UPDATED, updated);
+    };
+  }, [slug, accountId, id, load]);
   const operation = async (path: string, body: unknown) => {
     setBusy(true);
     try {
@@ -270,7 +377,7 @@ export function StoreOrders({
   if (!order) return <p role="status">Cargando pedido…</p>;
   const unpaid =
     !["PAID", "REFUNDED"].includes(order.paymentStatus) &&
-    !["CANCELLED", "EXPIRED"].includes(order.status);
+    !["CANCELLED", "EXPIRED", "COMPLETED"].includes(order.status);
   return (
     <section className="mx-auto max-w-3xl">
       <Link href={`/tienda/${slug}/pedidos`} className="text-sm text-teal-900">
@@ -373,39 +480,41 @@ export function StoreOrders({
           </button>
         </div>
       )}
-      {order.paymentStatus === "PAID" && !order.refundRequestedAt && (
-        <form
-          className="store-form store-form-panel mt-6"
-          aria-busy={busy}
-          onSubmit={(event) => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            const validated = storeReasonSchema.safeParse({
-              reason: data.get("reason"),
-            });
-            if (!validated.success) {
-              onMessage(validated.error.issues[0].message);
-              return;
-            }
-            void operation(`orders/${id}/refund-request`, {
-              reason: validated.data.reason,
-            });
-          }}
-        >
-          <h2 className="font-semibold">Solicitar devolución</h2>
-          <textarea
-            name="reason"
-            className={storeInput}
-            minLength={5}
-            maxLength={500}
-            required
-            placeholder="Cuéntanos el motivo"
-          />
-          <button disabled={busy} className={storeButton}>
-            Enviar solicitud al negocio
-          </button>
-        </form>
-      )}
+      {order.paymentStatus === "PAID" &&
+        !order.refundRequestedAt &&
+        order.refund?.status !== "PENDING" && (
+          <form
+            className="store-form store-form-panel mt-6"
+            aria-busy={busy}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              const validated = storeReasonSchema.safeParse({
+                reason: data.get("reason"),
+              });
+              if (!validated.success) {
+                onMessage(validated.error.issues[0].message);
+                return;
+              }
+              void operation(`orders/${id}/refund-request`, {
+                reason: validated.data.reason,
+              });
+            }}
+          >
+            <h2 className="font-semibold">Solicitar devolución</h2>
+            <textarea
+              name="reason"
+              className={storeInput}
+              minLength={5}
+              maxLength={500}
+              required
+              placeholder="Cuéntanos el motivo"
+            />
+            <button disabled={busy} className={storeButton}>
+              Enviar solicitud al negocio
+            </button>
+          </form>
+        )}
       {order.refundRequestedAt && (
         <p className="mt-5 text-sm text-stone-600">
           El negocio recibió tu solicitud de devolución.
