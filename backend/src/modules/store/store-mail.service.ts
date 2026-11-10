@@ -16,6 +16,11 @@ export class StoreMailService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
   ) {}
+  orderUrl(slug: string, id: string): string {
+    const base =
+      this.config.get<string>("FRONTEND_URL") ?? "http://localhost:3000";
+    return `${base.replace(/\/$/, "")}/tienda/${encodeURIComponent(slug)}/pedidos/${encodeURIComponent(id)}`;
+  }
   async enqueue(
     tx: Prisma.TransactionClient | PrismaClient,
     to: string,

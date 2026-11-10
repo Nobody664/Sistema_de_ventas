@@ -33,6 +33,7 @@ export class StoreOrderActionDto {
   ])
   action!: string;
   @IsOptional() @StoreText(0, 240) reference?: string;
+  @IsOptional() @StoreText(5, 500, true) reason?: string;
 }
 export class StoreReasonDto {
   @StoreText(5, 500) reason!: string;

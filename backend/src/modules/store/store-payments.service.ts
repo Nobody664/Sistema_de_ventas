@@ -256,6 +256,9 @@ export class StorePaymentsService {
     const eventKey = `${payment.status}:${amount.toFixed(2)}:${refunded.toFixed(2)}`;
     await serializableTransaction(this.prisma, async (tx) => {
       const order = await this.orders.lock(tx, companyId, attempt.orderId);
+      const currentAttempt = await tx.storePaymentAttempt.findUniqueOrThrow({
+        where: { id: attempt.id },
+      });
       const eventWhere = {
         companyId_providerPaymentId_eventKey: {
           companyId,
@@ -266,7 +269,13 @@ export class StorePaymentsService {
       if (await tx.storePaymentEvent.findUnique({ where: eventWhere })) return;
       const mismatch =
         !amount.eq(order.totalAmount) ||
-        (!!attempt.providerPaymentId && attempt.providerPaymentId !== id);
+        (!!currentAttempt.providerPaymentId &&
+          currentAttempt.providerPaymentId !== id &&
+          !(
+            currentAttempt.status === "FAILED" &&
+            !order.saleId &&
+            !["PAID", "REFUNDED"].includes(order.paymentStatus)
+          ));
       await tx.storePaymentEvent.create({
         data: {
           companyId,
@@ -291,6 +300,14 @@ export class StorePaymentsService {
         return;
       }
       if (order.paymentStatus === "REFUNDED") return;
+      if (refunded.gt(0) && refunded.lt(order.totalAmount)) {
+        await this.orders.note(
+          tx,
+          order,
+          `La pasarela informó una devolución parcial de ${refunded.toFixed(2)} PEN. El negocio debe revisar el saldo de tu pedido.`,
+        );
+        return;
+      }
       if (payment.status === "approved") {
         await tx.storePaymentAttempt.update({
           where: { id: attempt.id },
@@ -313,17 +330,35 @@ export class StorePaymentsService {
           where: { id: attempt.id },
           data: { status: "REFUNDED", providerPaymentId: id },
         });
-      } else if (!["PAID", "REFUNDED"].includes(attempt.status))
+      } else if (
+        !["PAID", "REFUNDED"].includes(currentAttempt.status) &&
+        !order.saleId &&
+        order.paymentStatus !== "PAID"
+      ) {
+        const rejected =
+          payment.status === "rejected" || payment.status === "cancelled";
         await tx.storePaymentAttempt.update({
           where: { id: attempt.id },
           data: {
-            status:
-              payment.status === "rejected" || payment.status === "cancelled"
-                ? "FAILED"
-                : "PENDING",
+            status: rejected ? "FAILED" : "PENDING",
             providerPaymentId: id,
           },
         });
+        const paymentStatus = rejected ? "REJECTED" : "PENDING";
+        if (order.paymentStatus !== paymentStatus || rejected) {
+          await tx.storeOrder.update({
+            where: { id: order.id },
+            data: { paymentStatus },
+          });
+          await this.orders.note(
+            tx,
+            order,
+            rejected
+              ? `Mercado Pago ${payment.status === "cancelled" ? "canceló" : "rechazó"} el pago. No registramos ningún cobro confirmado. ${order.expiresAt > new Date() && order.status === "PENDING_PAYMENT" ? "Puedes volver a intentar el pago mientras tu reserva esté vigente." : "Contacta al negocio para coordinar tu pedido."}`
+              : "El pago está pendiente de confirmación en Mercado Pago. Te avisaremos cuando se confirme o rechace.",
+          );
+        }
+      }
     });
   }
   async refund(
@@ -369,11 +404,20 @@ export class StorePaymentsService {
           throw new ConflictException(
             "El estado del cobro cambió. Actualiza el detalle.",
           );
-        return tx.storeRefund.upsert({
+        const existing = await tx.storeRefund.findUnique({
           where: { orderId: id },
-          create: { companyId, orderId: id, amount: current.totalAmount },
-          update: {},
         });
+        if (existing) return existing;
+        const created = await tx.storeRefund.create({
+          data: { companyId, orderId: id, amount: current.totalAmount },
+        });
+        await this.orders.note(
+          tx,
+          current,
+          "El negocio inició la solicitud de devolución del pago. Te avisaremos cuando la pasarela confirme el resultado.",
+          userId,
+        );
+        return created;
       });
       await this.request(
         this.crypto.decrypt(attempt.integration.encryptedToken),

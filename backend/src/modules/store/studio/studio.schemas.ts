@@ -53,7 +53,7 @@ const definitions: Record<string, z.ZodType> = {
         ])
         .optional(),
       paymentStatus: z
-        .enum(["PENDING", "UNDER_REVIEW", "PAID", "REFUNDED"])
+        .enum(["PENDING", "UNDER_REVIEW", "REJECTED", "PAID", "REFUNDED"])
         .optional(),
       shippingKind: z.enum(["PICKUP", "DELIVERY"]).optional(),
     })

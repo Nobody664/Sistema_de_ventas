@@ -33,6 +33,7 @@ import { StoreModule } from "./store.module";
 import { StoreCryptoService } from "./store-crypto.service";
 import { StoreOrdersService } from "./store-orders.service";
 import { StoreStockService } from "./store-stock.service";
+import { StoreMailService } from "./store-mail.service";
 import { NotificationsService } from "@/modules/notifications/notifications.service";
 import { OutboxService } from "@/modules/outbox/outbox.service";
 
@@ -651,7 +652,7 @@ test(
         },
         staff,
       );
-      assert.equal(again.status, 200);
+      assert.equal(again.status, 400);
       assert.equal(await prisma.sale.count(), 1);
       for (const action of ["PREPARE", "READY", "DELIVER"]) {
         const result = await request(
@@ -698,6 +699,7 @@ test(
       );
 
       const provider = new Map<string, Record<string, unknown>>();
+      const gatewayRefundKeys: string[] = [];
       const originalFetch = globalThis.fetch;
       t.mock.method(
         globalThis,
@@ -715,6 +717,12 @@ test(
               sandbox_init_point:
                 "https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=pref",
             });
+          if (String(url).endsWith("/refunds")) {
+            gatewayRefundKeys.push(
+              new Headers(init?.headers).get("X-Idempotency-Key") ?? "",
+            );
+            return Response.json({ id: "refund-request" });
+          }
           const id = String(url).split("/").pop()!;
           return Response.json(provider.get(id) ?? {});
         },
@@ -960,6 +968,561 @@ test(
         ).status,
         404,
       );
+      await t.test(
+        "acciones de revisión completas notifican al comprador sin duplicar cobros ni avisos",
+        async () => {
+          const reviewProduct = await prisma!.product.create({
+            data: {
+              companyId: company.id,
+              name: "Producto para revisión",
+              salePrice: 10,
+              costPrice: 1,
+              stockQuantity: 40,
+              storeVisible: true,
+            },
+          });
+          const cashMethod = await prisma!.storePaymentMethod.create({
+            data: {
+              companyId: company.id,
+              code: "CASH_ON_PICKUP",
+              label: "Efectivo al retirar",
+              instructions: "Paga al retirar",
+            },
+          });
+          const deliveryMethod = await prisma!.storeShippingMethod.create({
+            data: {
+              companyId: company.id,
+              kind: "DELIVERY",
+              label: "Delivery de revisión",
+              districts: ["150101"],
+              fee: 4,
+            },
+          });
+          let sequence = 0;
+          const createReviewOrder = async (
+            methodId = payment.id,
+            delivery = false,
+          ): Promise<Record<string, unknown>> => {
+            const cart = await request(
+              "/store/tienda-a/cart",
+              "GET",
+              undefined,
+              client,
+            );
+            const added = await request(
+              "/store/tienda-a/cart/items",
+              "POST",
+              {
+                version: cart.value.version,
+                productId: reviewProduct.id,
+                quantity: 1,
+              },
+              client,
+            );
+            assert.equal(added.status, 201);
+            const quote = await request(
+              "/store/tienda-a/checkout/quote",
+              "POST",
+              {
+                cartVersion: added.value.version,
+                paymentMethodId: methodId,
+                shippingMethodId: delivery ? deliveryMethod.id : shipping.id,
+                ...(delivery
+                  ? { addressId: address.value.addresses[0].id }
+                  : {}),
+              },
+              client,
+            );
+            assert.equal(quote.status, 201, JSON.stringify(quote.value));
+            const created = await request(
+              "/store/tienda-a/orders",
+              "POST",
+              {
+                quoteId: quote.value.id,
+                idempotencyKey: `review-actions-${Date.now()}-${sequence++}`,
+              },
+              client,
+            );
+            assert.equal(created.status, 201, JSON.stringify(created.value));
+            return created.value;
+          };
+          const buyerNotice = async (
+            value: Record<string, unknown>,
+            contains: string,
+          ) => {
+            const id = String(value.id);
+            const version = Number(value.version);
+            const own = await prisma!.storeOrder.findUniqueOrThrow({
+              where: { id },
+            });
+            const notices = await prisma!.storeNotification.findMany({
+              where: {
+                orderId: id,
+                companyId: company.id,
+                accountId: own.accountId,
+                version,
+              },
+            });
+            assert.equal(notices.length, 1);
+            assert.ok(
+              notices[0].message.includes(contains),
+              notices[0].message,
+            );
+            const history = await prisma!.storeOrderHistory.findUniqueOrThrow({
+              where: { orderId_version: { orderId: id, version } },
+            });
+            assert.equal(history.message, notices[0].message);
+            const customer = await request(
+              `/store/tienda-a/orders/${id}`,
+              "GET",
+              undefined,
+              client,
+            );
+            assert.equal(customer.status, 200);
+            assert.equal(
+              customer.value.history.at(-1).message,
+              notices[0].message,
+            );
+            assert.equal("actionAvailability" in customer.value, false);
+            const feed = await request(
+              "/store/tienda-a/me/notifications/feed",
+              "GET",
+              undefined,
+              client,
+            );
+            assert.equal(feed.status, 200);
+            assert.equal(feed.value.accountId, own.accountId);
+            assert.ok(
+              feed.value.data.some(
+                (notice: { id: string }) => notice.id === notices[0].id,
+              ),
+            );
+            const messages = (await prisma!.storeMail.findMany())
+              .filter((row) => !!row.encryptedBody)
+              .map(
+                (row) =>
+                  JSON.parse(crypto.decrypt(row.encryptedBody)) as {
+                    to: string;
+                    subject: string;
+                    message: string;
+                  },
+              );
+            assert.ok(
+              messages.some(
+                (mail) =>
+                  mail.to === "buyer@example.test" &&
+                  mail.subject === `Pedido ${own.number}` &&
+                  mail.message.includes(notices[0].message) &&
+                  mail.message.includes(`/tienda/tienda-a/pedidos/${id}`),
+              ),
+            );
+            return notices[0];
+          };
+          const actionOn = async (
+            value: Record<string, unknown>,
+            action: string,
+            contains: string,
+            fields: Record<string, unknown> = {},
+          ) => {
+            const response = await request(
+              `/store-admin/orders/${value.id}`,
+              "PATCH",
+              { action, version: value.version, ...fields },
+              staff,
+            );
+            assert.equal(response.status, 200, JSON.stringify(response.value));
+            assert.equal(response.value.version, Number(value.version) + 1);
+            await buyerNotice(response.value, contains);
+            return response.value;
+          };
+
+          let reviewed = await createReviewOrder();
+          const oldDeadline = new Date(String(reviewed.expiresAt));
+          reviewed = await actionOn(reviewed, "EXTEND", "amplió tu reserva");
+          assert.ok(new Date(String(reviewed.expiresAt)) > oldDeadline);
+          let attached = await request(
+            `/store/tienda-a/orders/${reviewed.id}/payment-proofs`,
+            "POST",
+            { image },
+            client,
+          );
+          assert.equal(attached.status, 201);
+          reviewed = attached.value;
+          await buyerNotice(reviewed, "Comprobante recibido");
+          const beforeFailure = await prisma!.storeNotification.count({
+            where: { orderId: String(reviewed.id) },
+          });
+          const failMail = t.mock.method(
+            module.get(StoreMailService),
+            "enqueue",
+            async () => {
+              throw new Error("notification queue unavailable");
+            },
+          );
+          try {
+            assert.equal(
+              (
+                await request(
+                  `/store-admin/orders/${reviewed.id}`,
+                  "PATCH",
+                  {
+                    action: "REJECT_PROOF",
+                    version: reviewed.version,
+                    reason: "No coincide el importe",
+                  },
+                  staff,
+                )
+              ).status,
+              500,
+            );
+          } finally {
+            failMail.mock.restore();
+          }
+          assert.equal(
+            (
+              await prisma!.storeOrder.findUniqueOrThrow({
+                where: { id: String(reviewed.id) },
+              })
+            ).paymentStatus,
+            "UNDER_REVIEW",
+          );
+          assert.equal(
+            await prisma!.storeNotification.count({
+              where: { orderId: String(reviewed.id) },
+            }),
+            beforeFailure,
+          );
+          reviewed = await actionOn(
+            reviewed,
+            "REJECT_PROOF",
+            "No coincide el importe",
+            { reason: "No coincide el importe" },
+          );
+          assert.equal(reviewed.paymentStatus, "REJECTED");
+          attached = await request(
+            `/store/tienda-a/orders/${reviewed.id}/payment-proofs`,
+            "POST",
+            { image },
+            client,
+          );
+          assert.equal(attached.status, 201);
+          reviewed = attached.value;
+          reviewed = await actionOn(
+            reviewed,
+            "APPROVE_PAYMENT",
+            "Pago aceptado y confirmado",
+            { reference: "YAPE-REVISION-001" },
+          );
+          const noticesBeforeRepeat = await prisma!.storeNotification.count({
+            where: { orderId: String(reviewed.id) },
+          });
+          assert.equal(
+            (
+              await request(
+                `/store-admin/orders/${reviewed.id}`,
+                "PATCH",
+                {
+                  action: "APPROVE_PAYMENT",
+                  version: reviewed.version,
+                  reference: "YAPE-REVISION-001",
+                },
+                staff,
+              )
+            ).status,
+            400,
+          );
+          assert.equal(
+            await prisma!.storeNotification.count({
+              where: { orderId: String(reviewed.id) },
+            }),
+            noticesBeforeRepeat,
+          );
+          for (const [action, message] of [
+            ["PREPARE", "preparando"],
+            ["READY", "Av. Principal 123"],
+            ["DELIVER", "Pedido entregado"],
+          ])
+            reviewed = await actionOn(reviewed, action, message);
+          const manualRefund = await request(
+            `/store-admin/orders/${reviewed.id}/refund`,
+            "POST",
+            { version: reviewed.version, reference: "DEV-REVISION-001" },
+            staff,
+          );
+          assert.equal(manualRefund.status, 201);
+          reviewed = manualRefund.value;
+          await buyerNotice(reviewed, "Devolución total del pago confirmada");
+          reviewed = await actionOn(reviewed, "RESTOCK", "productos devueltos");
+
+          let cash = await createReviewOrder(cashMethod.id);
+          cash = await actionOn(cash, "PREPARE", "preparando");
+          cash = await actionOn(cash, "READY", "listo para recoger");
+          assert.equal(
+            (
+              await request(
+                `/store-admin/orders/${cash.id}`,
+                "PATCH",
+                { action: "DELIVER", version: cash.version },
+                staff,
+              )
+            ).status,
+            400,
+          );
+          cash = await actionOn(
+            cash,
+            "APPROVE_PAYMENT",
+            "Tu pedido está listo para recoger",
+            { reference: "EFECTIVO-CAJA-001" },
+          );
+          cash = await actionOn(cash, "DELIVER", "Pedido entregado");
+          let delivery = await createReviewOrder(payment.id, true);
+          delivery = await actionOn(
+            delivery,
+            "APPROVE_PAYMENT",
+            "Pago aceptado",
+            { reference: "YAPE-DELIVERY-001" },
+          );
+          delivery = await actionOn(delivery, "PREPARE", "preparando");
+          delivery = await actionOn(delivery, "SHIP", "COURIER-REAL-001", {
+            reference: "COURIER-REAL-001",
+          });
+          assert.equal(delivery.trackingCode, "COURIER-REAL-001");
+          delivery = await actionOn(delivery, "DELIVER", "Pedido entregado");
+          const cancelled = await actionOn(
+            await createReviewOrder(),
+            "CANCEL",
+            "Sin disponibilidad del proveedor",
+            { reason: "Sin disponibilidad del proveedor" },
+          );
+          assert.equal(cancelled.status, "CANCELLED");
+
+          let expired = await createReviewOrder();
+          await prisma!.storeOrder.update({
+            where: { id: String(expired.id) },
+            data: { expiresAt: new Date(0) },
+          });
+          await module.get(StoreOrdersService).expire();
+          expired = (
+            await request(
+              `/store-admin/orders/${expired.id}`,
+              "GET",
+              undefined,
+              staff,
+            )
+          ).value;
+          assert.ok(
+            (expired.allowedActions as string[]).includes("APPROVE_PAYMENT"),
+          );
+          const salesBeforeLate = await prisma!.sale.count();
+          expired = await actionOn(
+            expired,
+            "APPROVE_PAYMENT",
+            "fuera de la reserva",
+            { reference: "YAPE-TARDIO-REAL" },
+          );
+          assert.equal(expired.status, "REVIEW_REQUIRED");
+          assert.equal(expired.saleId, null);
+          assert.equal(await prisma!.sale.count(), salesBeforeLate);
+          assert.equal(
+            (
+              await request(
+                `/store-admin/orders/${expired.id}`,
+                "PATCH",
+                { action: "PREPARE", version: expired.version },
+                staff,
+              )
+            ).status,
+            400,
+          );
+          const lateRefund = await request(
+            `/store-admin/orders/${expired.id}/refund`,
+            "POST",
+            { reference: "DEV-TARDIO-REAL", version: expired.version },
+            staff,
+          );
+          assert.equal(lateRefund.status, 201);
+          await buyerNotice(lateRefund.value, "Devolución total");
+          assert.equal(
+            (lateRefund.value.allowedActions as string[]).includes("RESTOCK"),
+            false,
+          );
+
+          let gatewayOrder = await createReviewOrder(gateway.id);
+          assert.equal(
+            (
+              await request(
+                `/store/tienda-a/orders/${gatewayOrder.id}/payments`,
+                "POST",
+                {},
+                client,
+              )
+            ).status,
+            201,
+          );
+          const retryAttempt =
+            await prisma!.storePaymentAttempt.findUniqueOrThrow({
+              where: { orderId: String(gatewayOrder.id) },
+            });
+          const notifyProvider = async (
+            id: string,
+            status: string,
+            refundAmount = 0,
+          ) => {
+            provider.set(id, {
+              id: Number(id),
+              status,
+              collector_id: 777,
+              live_mode: false,
+              currency_id: "PEN",
+              transaction_amount: Number(gatewayOrder.totalAmount),
+              transaction_amount_refunded: refundAmount,
+              external_reference: retryAttempt.id,
+            });
+            const timestamp = String(Math.floor(Date.now() / 1000));
+            const reqId = `review-${id}`;
+            const digest = createHmac("sha256", "merchant-webhook-secret")
+              .update(`id:${id};request-id:${reqId};ts:${timestamp};`)
+              .digest("hex");
+            assert.equal(
+              (
+                await request(
+                  `/store-payments/webhooks/${integration.publicId}?data.id=${id}`,
+                  "POST",
+                  {},
+                  undefined,
+                  {
+                    "x-signature": `ts=${timestamp},v1=${digest}`,
+                    "x-request-id": reqId,
+                  },
+                )
+              ).status,
+              201,
+            );
+            gatewayOrder = (
+              await request(
+                `/store-admin/orders/${gatewayOrder.id}`,
+                "GET",
+                undefined,
+                staff,
+              )
+            ).value;
+          };
+          await notifyProvider("2201", "rejected");
+          assert.equal(gatewayOrder.paymentStatus, "REJECTED");
+          await buyerNotice(gatewayOrder, "rechazó el pago");
+          const rejectedVersion = gatewayOrder.version;
+          await notifyProvider("2201", "rejected");
+          assert.equal(gatewayOrder.version, rejectedVersion);
+          await notifyProvider("2202", "pending");
+          assert.equal(gatewayOrder.paymentStatus, "PENDING");
+          await buyerNotice(gatewayOrder, "pendiente de confirmación");
+          await notifyProvider("2202", "approved");
+          assert.equal(gatewayOrder.paymentStatus, "PAID");
+          await buyerNotice(gatewayOrder, "Pago aceptado");
+          await notifyProvider("2202", "approved", 1);
+          await buyerNotice(gatewayOrder, "devolución parcial");
+          const refundKeysBefore = gatewayRefundKeys.length;
+          const pendingRefund = await request(
+            `/store-admin/orders/${gatewayOrder.id}/refund`,
+            "POST",
+            { version: gatewayOrder.version, reference: "DEV-PROVEEDOR-001" },
+            staff,
+          );
+          assert.equal(pendingRefund.status, 201);
+          gatewayOrder = pendingRefund.value;
+          assert.equal(gatewayOrder.paymentStatus, "PAID");
+          await buyerNotice(gatewayOrder, "inició la solicitud de devolución");
+          const pendingVersion = gatewayOrder.version;
+          assert.equal(
+            (
+              await request(
+                `/store-admin/orders/${gatewayOrder.id}/refund`,
+                "POST",
+                {
+                  version: gatewayOrder.version,
+                  reference: "DEV-PROVEEDOR-001",
+                },
+                staff,
+              )
+            ).status,
+            201,
+          );
+          assert.equal(
+            (
+              await prisma!.storeOrder.findUniqueOrThrow({
+                where: { id: String(gatewayOrder.id) },
+              })
+            ).version,
+            pendingVersion,
+          );
+          assert.equal(gatewayRefundKeys.length, refundKeysBefore + 2);
+          assert.equal(gatewayRefundKeys.at(-1), gatewayRefundKeys.at(-2));
+          await notifyProvider(
+            "2202",
+            "refunded",
+            Number(gatewayOrder.totalAmount),
+          );
+          await buyerNotice(
+            gatewayOrder,
+            "Devolución total del pago confirmada",
+          );
+          gatewayOrder = await actionOn(
+            gatewayOrder,
+            "RESTOCK",
+            "productos devueltos",
+          );
+          assert.equal(
+            (
+              await prisma!.product.findUniqueOrThrow({
+                where: { id: reviewProduct.id },
+              })
+            ).stockQuantity.toNumber(),
+            38,
+          );
+          const latest = await buyerNotice(gatewayOrder, "productos devueltos");
+          assert.equal(
+            (
+              await request(
+                `/store/tienda-a/me/notifications/${latest.id}/read`,
+                "POST",
+                {},
+                `store_access_token=${secondToken}`,
+              )
+            ).status,
+            404,
+          );
+          assert.equal(
+            (
+              await request(
+                `/store/tienda-a/me/notifications/${latest.id}/read`,
+                "POST",
+                {},
+                client,
+              )
+            ).status,
+            201,
+          );
+          const ownFeed = await request(
+            `/store/tienda-a/me/notifications/feed?accountId=${secondAccount.id}`,
+            "GET",
+            undefined,
+            client,
+          );
+          assert.notEqual(ownFeed.value.accountId, secondAccount.id);
+          assert.equal(
+            (
+              await request(
+                "/store/tienda-b/me/notifications/feed",
+                "GET",
+                undefined,
+                client,
+              )
+            ).status,
+            401,
+          );
+        },
+      );
+
       await t.test(
         "contexto administrativo, métricas completas y cursor conservan identidad y fechas reales",
         async (studioParent) => {
@@ -1297,8 +1860,9 @@ test(
           );
           assert.equal(refunded.status, 201);
           assert.equal(refunded.value.paymentStatus, "REFUNDED");
-          assert.ok(
+          assert.equal(
             (refunded.value.allowedActions as string[]).includes("RESTOCK"),
+            false,
           );
 
           const priorSettings =

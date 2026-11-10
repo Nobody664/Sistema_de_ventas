@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaService } from "@/database/prisma/prisma.service";
 import { serializableTransaction } from "@/common/helpers/serializable-transaction.helper";
 import { parseImageDataUrl } from "@/common/helpers/image.helper";
+import { companyTimeZone } from "@/common/helpers/company-timezone.helper";
 import { AuditService } from "@/common/services/audit.service";
 import { KardexService } from "@/modules/kardex/kardex.service";
 import { enqueueDomainEffect } from "@/modules/outbox/outbox-event.helper";
@@ -47,7 +48,13 @@ export class StoreOrdersService {
 
   async lock(tx: Prisma.TransactionClient, companyId: string, id: string) {
     await tx.$queryRaw`SELECT id FROM store_orders WHERE id = ${id} AND company_id = ${companyId} FOR UPDATE`;
-    const order = await tx.storeOrder.findFirst({ where: { id, companyId } });
+    const order = await tx.storeOrder.findFirst({
+      where: { id, companyId },
+      include: {
+        refund: { select: { status: true, restockedAt: true } },
+        reservations: { select: { state: true, expiresAt: true } },
+      },
+    });
     if (!order) throw new NotFoundException("Pedido no encontrado");
     return order;
   }
@@ -122,13 +129,16 @@ export class StoreOrdersService {
     }
     const account = await tx.customerAccount.findUniqueOrThrow({
       where: { id: order.accountId },
-      select: { user: { select: { email: true } } },
+      select: {
+        user: { select: { email: true } },
+        company: { select: { slug: true } },
+      },
     });
     await this.mail.enqueue(
       tx,
       account.user.email,
       `Pedido ${order.number}`,
-      message,
+      `${message}\nPedido: ${order.number}\nRevisa tu pedido: ${this.mail.orderUrl(account.company.slug, order.id)}`,
     );
     await this.audit.log(
       {
@@ -310,12 +320,13 @@ export class StoreOrdersService {
       include: {
         history: {
           select: { message: true, version: true, createdAt: true },
-          orderBy: { version: "asc" },
+          orderBy: { version: "desc" },
           take: 100,
         },
         proofs: { select: { id: true, createdAt: true } },
         attempt: { select: { status: true, redirectUrl: true } },
         refund: { select: { status: true, amount: true, restockedAt: true } },
+        reservations: { select: { state: true, expiresAt: true } },
       },
     });
     if (!order) throw new NotFoundException("Pedido no encontrado");
@@ -332,7 +343,7 @@ export class StoreOrdersService {
       createdAt: order.createdAt,
       trackingCode: order.trackingCode,
       saleId: order.saleId,
-      history: order.history,
+      history: [...order.history].reverse(),
       proofs: order.proofs,
       payment: order.attempt,
       refund: order.refund,
@@ -342,6 +353,7 @@ export class StoreOrdersService {
         : {
             refundReason: order.refundReason,
             allowedActions: this.policy.allowedActions(order),
+            actionAvailability: this.policy.actionAvailability(order),
           }),
     };
   }
@@ -364,6 +376,29 @@ export class StoreOrdersService {
       skip: (page - 1) * 30,
     });
   }
+  async notificationFeed(companyId: string, accountId: string) {
+    const where = { companyId, accountId };
+    const [data, unreadCount] = await Promise.all([
+      this.prisma.storeNotification.findMany({
+        where,
+        select: {
+          id: true,
+          orderId: true,
+          version: true,
+          message: true,
+          readAt: true,
+          createdAt: true,
+          order: { select: { number: true } },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 50,
+      }),
+      this.prisma.storeNotification.count({
+        where: { ...where, readAt: null },
+      }),
+    ]);
+    return { accountId, data, unreadCount };
+  }
   async settle(
     tx: Prisma.TransactionClient,
     companyId: string,
@@ -372,7 +407,8 @@ export class StoreOrdersService {
     userId?: string,
   ) {
     const order = await this.lock(tx, companyId, id);
-    if (order.paymentStatus === "REFUNDED" || order.saleId) return order;
+    if (["PAID", "REFUNDED"].includes(order.paymentStatus) || order.saleId)
+      return order;
     const snapshot = storeSnapshotSchema.parse(order.snapshot);
     if (
       order.status === "CANCELLED" ||
@@ -475,7 +511,7 @@ export class StoreOrdersService {
     return this.note(
       tx,
       order,
-      "Pago confirmado. Tu pedido está listo para ser preparado.",
+      `Pago aceptado y confirmado. Tu pedido fue confirmado. ${{ UNFULFILLED: "Continuaremos con su preparación.", PREPARING: "Tu pedido sigue en preparación.", READY_FOR_PICKUP: "Tu pedido está listo para recoger.", SHIPPED: "Tu pedido ya fue despachado.", DELIVERED: "La entrega de tu pedido ya fue registrada." }[order.fulfillment] ?? "Revisa el estado de entrega de tu pedido."}`,
       userId,
     );
   }
@@ -486,6 +522,7 @@ export class StoreOrdersService {
     accountId?: string,
     expired = false,
     expectedVersion?: number,
+    reason?: string,
   ) {
     await serializableTransaction(this.prisma, async (tx) => {
       const order = await this.lock(tx, companyId, id);
@@ -498,6 +535,7 @@ export class StoreOrdersService {
         throw new BadRequestException(
           "El pedido pagado requiere devolución, no cancelación directa",
         );
+      if (!expired) this.policy.assertAllowedAction(order, "CANCEL");
       await this.stock.release(tx, companyId, id, expired);
       await tx.storeOrder.update({
         where: { id },
@@ -511,7 +549,9 @@ export class StoreOrdersService {
         order,
         expired
           ? "Venció el plazo del pedido y liberamos la reserva."
-          : "Pedido cancelado. La reserva fue liberada.",
+          : accountId
+            ? "Cancelaste tu pedido. La reserva fue liberada."
+            : `El negocio canceló tu pedido. ${reason ? `Motivo: ${reason}. ` : ""}La reserva fue liberada.`,
         userId,
       );
     });
@@ -526,8 +566,9 @@ export class StoreOrdersService {
       if (
         !["TRANSFER", "YAPE", "PLIN"].includes(snapshot.payment.code) ||
         order.expiresAt <= new Date() ||
-        order.paymentStatus === "PAID" ||
-        ["EXPIRED", "CANCELLED"].includes(order.status)
+        ["PAID", "REFUNDED"].includes(order.paymentStatus) ||
+        order.saleId ||
+        ["EXPIRED", "CANCELLED", "COMPLETED"].includes(order.status)
       )
         throw new BadRequestException("El pedido no admite comprobantes");
       if ((await tx.storePaymentProof.count({ where: { orderId: id } })) >= 5)
@@ -566,11 +607,18 @@ export class StoreOrdersService {
         undefined,
         false,
         input.version,
+        input.reason,
       );
     await serializableTransaction(this.prisma, async (tx) => {
       const order = await this.lock(tx, companyId, id);
       if (order.version !== input.version)
         throw new ConflictException("El pedido cambió. Actualiza el detalle.");
+      this.policy.assertAllowedAction(
+        order,
+        input.action as Parameters<
+          StoreAdminPolicyService["assertAllowedAction"]
+        >[1],
+      );
       const snapshot = storeSnapshotSchema.parse(order.snapshot);
       if (input.action === "APPROVE_PAYMENT") {
         if (
@@ -588,19 +636,17 @@ export class StoreOrdersService {
         await this.restock(tx, order, userId);
         return;
       }
-      if (["CANCELLED", "EXPIRED", "COMPLETED"].includes(order.status))
-        throw new BadRequestException("El pedido no permite esta transición");
       if (input.action === "REJECT_PROOF") {
         if (order.paymentStatus !== "UNDER_REVIEW")
           throw new BadRequestException();
         await tx.storeOrder.update({
           where: { id },
-          data: { paymentStatus: "PENDING" },
+          data: { paymentStatus: "REJECTED" },
         });
         await this.note(
           tx,
           order,
-          "El comprobante requiere corrección. Contacta al negocio antes de reenviarlo.",
+          `Comprobante de pago rechazado. ${input.reason ? `Motivo: ${input.reason}. ` : "No se pudo validar el comprobante recibido. "}${order.expiresAt > new Date() && !["CANCELLED", "EXPIRED"].includes(order.status) ? "Puedes enviar un nuevo comprobante dentro del plazo de tu reserva." : "La reserva ya no está vigente; contacta al negocio para coordinar tu pedido."}`,
           userId,
         );
         return;
@@ -616,9 +662,11 @@ export class StoreOrdersService {
           );
         const settings = await tx.storefrontSettings.findUniqueOrThrow({
           where: { companyId },
+          include: { company: { select: { timezone: true } } },
         });
         const expiresAt = new Date(
-          Date.now() + settings.reservationMinutes * 60000,
+          Math.max(Date.now(), order.expiresAt.getTime()) +
+            settings.reservationMinutes * 60000,
         );
         await tx.stockReservation.updateMany({
           where: { companyId, ownerId: id, state: "ACTIVE" },
@@ -628,7 +676,7 @@ export class StoreOrdersService {
         await this.note(
           tx,
           order,
-          "El negocio amplió el plazo para atender tu pedido.",
+          `El negocio amplió tu reserva hasta ${expiresAt.toLocaleString("es-PE", { timeZone: companyTimeZone(settings.company.timezone) })} (${companyTimeZone(settings.company.timezone)}).`,
           userId,
         );
         return;
@@ -661,7 +709,9 @@ export class StoreOrdersService {
         where: { id },
         data: {
           fulfillment: transition.to,
-          ...(input.action === "SHIP" ? { trackingCode: input.reference } : {}),
+          ...(input.action === "SHIP"
+            ? { trackingCode: input.reference?.trim() }
+            : {}),
           ...(input.action === "DELIVER" ? { status: "COMPLETED" } : {}),
         },
       });
@@ -670,8 +720,8 @@ export class StoreOrdersService {
         order,
         {
           PREPARE: "Estamos preparando tu pedido.",
-          READY: "Tu pedido está listo para recoger.",
-          SHIP: "Tu pedido fue despachado.",
+          READY: `Tu pedido está listo para recoger.${snapshot.shipping.pickupAddress ? ` Dirección: ${snapshot.shipping.pickupAddress}.` : ""}`,
+          SHIP: `Tu pedido fue despachado. Referencia de seguimiento: ${input.reference?.trim()}.`,
           DELIVER: "Pedido entregado. Gracias por tu compra.",
         }[input.action] ?? "Estado actualizado",
         userId,

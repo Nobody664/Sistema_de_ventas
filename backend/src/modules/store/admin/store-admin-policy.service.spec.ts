@@ -104,7 +104,7 @@ describe("StoreAdminPolicyService", () => {
         }),
         now,
       ),
-      ["APPROVE_PAYMENT", "EXTEND", "SHIP", "CANCEL"],
+      ["APPROVE_PAYMENT", "EXTEND", "CANCEL"],
     );
 
     assert.deepEqual(
@@ -145,7 +145,7 @@ describe("StoreAdminPolicyService", () => {
         }),
         now,
       ),
-      ["REJECT_PROOF", "EXTEND", "CANCEL"],
+      ["EXTEND", "CANCEL"],
     );
   });
 
@@ -160,5 +160,120 @@ describe("StoreAdminPolicyService", () => {
     );
     assert.equal(actions.includes("DELIVER"), false);
     assert.equal(actions.includes("APPROVE_PAYMENT"), true);
+  });
+
+  it("permite reconocer un cobro tardío sin habilitar preparación de una venta inexistente", () => {
+    const now = new Date("2026-11-08T12:00:00Z");
+    const expired = order({
+      status: "EXPIRED",
+      paymentStatus: "UNDER_REVIEW",
+      saleId: null,
+      expiresAt: new Date(0),
+      reservations: [],
+    });
+    assert.equal(
+      policy.allowedActions(expired, now).includes("APPROVE_PAYMENT"),
+      true,
+    );
+    const latePaid = order({
+      status: "REVIEW_REQUIRED",
+      paymentStatus: "PAID",
+      saleId: null,
+      expiresAt: new Date(0),
+      reservations: [],
+    });
+    const options = policy.actionAvailability(latePaid, now);
+    assert.equal(
+      options.find((item) => item.action === "REFUND")?.enabled,
+      true,
+    );
+    for (const action of [
+      "APPROVE_PAYMENT",
+      "PREPARE",
+      "READY",
+      "SHIP",
+      "DELIVER",
+      "EXTEND",
+      "CANCEL",
+    ]) {
+      assert.equal(
+        options.find((item) => item.action === action)?.enabled,
+        false,
+        action,
+      );
+      assert.ok(options.find((item) => item.action === action)?.reason, action);
+    }
+  });
+
+  it("ofrece cada acción en su estado válido y nunca inventa un retorno físico", () => {
+    const now = new Date("2026-11-08T12:00:00Z");
+    const manual = order({
+      saleId: null,
+      paymentStatus: "UNDER_REVIEW",
+      snapshot: {
+        ...order().snapshot,
+        payment: { ...order().snapshot.payment, code: "YAPE" },
+      },
+    });
+    for (const action of [
+      "APPROVE_PAYMENT",
+      "REJECT_PROOF",
+      "EXTEND",
+      "CANCEL",
+    ] as const)
+      assert.equal(
+        policy.allowedActions(manual, now).includes(action),
+        true,
+        action,
+      );
+    assert.equal(
+      policy
+        .allowedActions(order({ fulfillment: "PREPARING" }), now)
+        .includes("READY"),
+      true,
+    );
+    const delivery = order({
+      fulfillment: "PREPARING",
+      snapshot: {
+        ...order().snapshot,
+        shipping: { ...order().snapshot.shipping, kind: "DELIVERY" },
+      },
+    });
+    assert.equal(policy.allowedActions(delivery, now).includes("SHIP"), true);
+    assert.equal(
+      policy
+        .allowedActions(order({ fulfillment: "SHIPPED" }), now)
+        .includes("DELIVER"),
+      true,
+    );
+    assert.equal(
+      policy
+        .allowedActions(
+          order({
+            status: "CANCELLED",
+            paymentStatus: "REFUNDED",
+            saleId: null,
+            refund: { status: "SUCCEEDED", restockedAt: null },
+            reservations: [],
+          }),
+          now,
+        )
+        .includes("RESTOCK"),
+      false,
+    );
+  });
+  it("una devolución pendiente conserva el reintento pero no habilita preparar o entregar", () => {
+    const options = policy.actionAvailability(
+      order({ refund: { status: "PENDING", restockedAt: null } }),
+      new Date("2026-11-08T12:00:00Z"),
+    );
+    assert.equal(
+      options.find((item) => item.action === "REFUND")?.enabled,
+      true,
+    );
+    assert.equal(
+      options.find((item) => item.action === "PREPARE")?.enabled,
+      false,
+    );
   });
 });

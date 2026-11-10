@@ -124,6 +124,24 @@ export class StoreOrdersController {
       take: 50,
     });
   }
+  @Get("me/notifications/feed") notificationFeed(@Req() req: ClientRequest) {
+    return this.orders.notificationFeed(req.user.companyId, req.user.accountId);
+  }
+  @Post("me/notifications/:id/read") async readOne(
+    @Req() req: ClientRequest,
+    @Param("id", StoreIdentifierPipe) id: string,
+  ) {
+    const result = await this.prisma.storeNotification.updateMany({
+      where: {
+        id,
+        companyId: req.user.companyId,
+        accountId: req.user.accountId,
+      },
+      data: { readAt: new Date() },
+    });
+    if (!result.count) throw new NotFoundException("Aviso no encontrado");
+    return { read: true };
+  }
   @Post("me/notifications/read") async read(@Req() req: ClientRequest) {
     await this.prisma.storeNotification.updateMany({
       where: {
